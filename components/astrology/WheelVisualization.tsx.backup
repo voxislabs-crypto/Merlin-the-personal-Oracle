@@ -1,0 +1,12 @@
+// Backup created before reverting changes
+// Original file content before the last set of visual enhancements
+// This is a backup in case you want to reference or restore these changes later
+
+'use client';
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { PLANET_GLYPHS, PLANET_COLORS, PLANET_ORBITS } from '@/lib/astrology/planetaryData';
+import { PLANET_TOOLTIPS } from '@/lib/astrology/BirthChartTooltips';
+
+// ... [rest of the file content remains the same]
