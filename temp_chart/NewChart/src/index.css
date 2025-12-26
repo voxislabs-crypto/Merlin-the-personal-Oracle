@@ -1,0 +1,68 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Raleway:ital,wght@0,100..900;1,100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap");
+
+@layer base {
+  :root {
+    --color-cosmic-midnight: 240 65% 8%;
+    --color-cosmic-violet: 258 60% 18%;
+    --color-cosmic-gold: 45 88% 68%;
+    --color-cosmic-cyan: 185 70% 65%;
+    --color-cosmic-magenta: 320 80% 65%;
+
+    --color-background: 240 65% 8%;
+    --color-foreground: 45 88% 68%;
+
+    --color-primary: 240 65% 8%;
+    --color-primary-foreground: 45 88% 68%;
+
+    --color-secondary: 258 60% 18%;
+    --color-secondary-foreground: 45 88% 68%;
+
+    --color-tertiary: 185 70% 65%;
+    --color-tertiary-foreground: 240 65% 8%;
+
+    --color-neutral: 240 20% 12%;
+    --color-neutral-foreground: 0 0% 96%;
+
+    --color-muted: 240 20% 12%;
+    --color-muted-foreground: 240 10% 80%;
+
+    --color-accent: 258 60% 18%;
+    --color-accent-foreground: 45 88% 68%;
+
+    --color-card: 240 20% 12%;
+    --color-card-foreground: 0 0% 96%;
+
+    --color-popover: 240 20% 12%;
+    --color-popover-foreground: 0 0% 96%;
+
+    --color-border: 240 12% 35%;
+    --color-input: 240 12% 35%;
+    --color-ring: 45 88% 68%;
+
+    --font-sans: "DM Sans", sans-serif;
+    --font-display: "Raleway", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
