@@ -1,4 +1,4 @@
-// File: F:\Merlin the personal Oracle\app\(astro)\[...slug]\page.tsx
+// File: /home/runner/workspace/app/(astro)/[...slug]/page.tsx
 import * as entry from '../../../../../app/(astro)/[...slug]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

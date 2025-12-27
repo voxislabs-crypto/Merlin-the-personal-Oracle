@@ -5,7 +5,20 @@ const nextConfig = {
   images: {
     domains: [],
   },
-  // Add any other configurations here
+  // Allow all hosts for Replit's proxy environment
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

@@ -1,36 +1,36 @@
 {
-  "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/AstroDashboard": {
-    "id": "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/AstroDashboard",
+  "app/(astro)/[...slug]/page.tsx -> @/components/astrology/AstroDashboard": {
+    "id": "app/(astro)/[...slug]/page.tsx -> @/components/astrology/AstroDashboard",
     "files": [
       "static/chunks/_app-pages-browser_components_astrology_AstroDashboard_tsx.js"
     ]
   },
-  "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/ChartPreviewSection": {
-    "id": "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/ChartPreviewSection",
+  "app/(astro)/[...slug]/page.tsx -> @/components/astrology/ChartPreviewSection": {
+    "id": "app/(astro)/[...slug]/page.tsx -> @/components/astrology/ChartPreviewSection",
     "files": [
       "static/chunks/_app-pages-browser_components_astrology_ChartPreviewSection_tsx.js"
     ]
   },
-  "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/FeaturesSection": {
-    "id": "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/FeaturesSection",
+  "app/(astro)/[...slug]/page.tsx -> @/components/astrology/FeaturesSection": {
+    "id": "app/(astro)/[...slug]/page.tsx -> @/components/astrology/FeaturesSection",
     "files": [
       "static/chunks/_app-pages-browser_components_astrology_FeaturesSection_tsx.js"
     ]
   },
-  "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/HeroSection": {
-    "id": "app\\(astro)\\[...slug]\\page.tsx -> @/components/astrology/HeroSection",
+  "app/(astro)/[...slug]/page.tsx -> @/components/astrology/HeroSection": {
+    "id": "app/(astro)/[...slug]/page.tsx -> @/components/astrology/HeroSection",
     "files": [
       "static/chunks/_app-pages-browser_components_astrology_HeroSection_tsx.js"
     ]
   },
-  "app\\page.tsx -> @/components/astrology/WheelVisualization": {
-    "id": "app\\page.tsx -> @/components/astrology/WheelVisualization",
+  "app/page.tsx -> @/components/astrology/WheelVisualization": {
+    "id": "app/page.tsx -> @/components/astrology/WheelVisualization",
     "files": [
       "static/chunks/_app-pages-browser_components_astrology_WheelVisualization_tsx-_e4241.js"
     ]
   },
-  "components\\astrology\\AstroDashboard.tsx -> @/components/astrology/WheelVisualization": {
-    "id": "components\\astrology\\AstroDashboard.tsx -> @/components/astrology/WheelVisualization",
+  "components/astrology/AstroDashboard.tsx -> @/components/astrology/WheelVisualization": {
+    "id": "components/astrology/AstroDashboard.tsx -> @/components/astrology/WheelVisualization",
     "files": [
       "static/chunks/_app-pages-browser_components_astrology_WheelVisualization_tsx-_e4240.js"
     ]
