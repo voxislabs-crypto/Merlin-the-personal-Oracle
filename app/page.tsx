@@ -4,10 +4,11 @@
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { transformChartData } from "@/lib/astrology/transform";
+import { getAspectColor } from "@/lib/astrology/chartCalculations";
 
 // Import WheelVisualization with SSR disabled
 const WheelVisualization = dynamic(
-  () => import("@/components/astrology/WheelVisualization"),
+  () => import("@/components/astrology/WheelVisualization").then(mod => ({ default: mod.WheelVisualization })),
   { ssr: false }
 );
 
@@ -15,6 +16,7 @@ export default function Home() {
   const [chart, setChart] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
 
   const calculate = useCallback(async () => {
     setLoading(true);
@@ -86,8 +88,6 @@ export default function Home() {
               <div className="w-full md:w-2/3">
                 <WheelVisualization
                   chartData={chart}
-                  size={800}
-                  className="mx-auto"
                 />
               </div>
 

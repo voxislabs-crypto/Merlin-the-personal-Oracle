@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { BirthChartData, BirthData, HouseCusp } from './BirthChartCalculator';
 import { transformChartData } from '@/lib/astrology/chartDataTransformers';
+import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlanetInfo } from './PlanetInfo';
 
@@ -72,6 +73,7 @@ export function BirthChart({
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
 
   const calculateChart = async (data: BirthData) => {
     setLoading(true);
@@ -268,15 +270,35 @@ export function BirthChart({
               </CardHeader>
               <CardContent>
                 <div className="w-full h-[600px] relative">
-                  <WheelVisualization
-                    planets={chartData.planets}
-                    houses={chartData.houses.map(house => ({
-                      ...house,
-                      longitude: house.longitude ?? house.position ?? 0,
-                      position: house.longitude ?? house.position ?? 0,
-                    }))}
-                    aspects={chartData.aspects}
-                  />
+                  {
+                    (() => {
+                      const wheelChartData: ChartData = {
+                        planets: chartData.planets.map((p: any) => ({
+                          name: p.name,
+                          glyph: p.glyph || p.name?.[0] || '•',
+                          angle: p.longitude ?? p.position ?? 0,
+                          sign: p.sign || '',
+                          degree: p.degree ?? 0,
+                          element: p.element || 'Fire',
+                          color: p.color || 'hsl(45, 88%, 68%)',
+                          orbitalDistance: p.distance ?? 1,
+                        })),
+                        aspects: chartData.aspects.map((a: any) => ({
+                          from: a.planet1?.name || a.planet1 || a.from || '',
+                          to: a.planet2?.name || a.planet2 || a.to || '',
+                          type: a.type || a.aspect || 'conjunction',
+                          angle: a.orb || a.angle || 0,
+                          color: a.color || 'hsl(45, 88%, 68%)',
+                          label: a.aspect || a.type || 'Aspect',
+                        })),
+                        houses: chartData.houses.map((h: any) => h.longitude ?? h.position ?? 0),
+                        ascendant: (chartData as any).ascendant?.longitude ?? (chartData as any).ascendant ?? 0,
+                        midheaven: (chartData as any).mc?.longitude ?? (chartData as any).mc ?? (chartData as any).midheaven ?? 0,
+                      };
+
+                      return <WheelVisualization chartData={wheelChartData} />;
+                    })()
+                  }
                 </div>
               </CardContent>
             </Card>

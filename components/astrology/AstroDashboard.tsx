@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { PlanetPosition, HousePosition, Aspect } from '@/types/astrology';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,7 @@ export function AstroDashboard({
   onCalculate,
   className = '' 
 }: AstroDashboardProps) {
+  const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('chart');
   const [birthData, setBirthData] = useState<BirthData>({
     date: '',
@@ -86,6 +88,8 @@ export function AstroDashboard({
       return indexA - indexB;
     });
   }, [chartData]);
+
+
 
   // Transform the chart data to ensure proper typing
   const transformedData = useMemo(() => {
@@ -155,6 +159,36 @@ export function AstroDashboard({
     return result;
   }, [transformedData]);
 
+  // Build a ChartData-shaped object for the WheelVisualization component
+  const wheelChartData = useMemo<ChartData | null>(() => {
+    if (!transformedData) return null;
+    return {
+      planets: transformedData.planets.map((p) => ({
+        name: p.name,
+        glyph: (p as any).glyph || p.name?.[0] || "•",
+        angle: (p as any).longitude ?? p.degree ?? 0,
+        sign: p.sign || "",
+        degree: p.degree || 0,
+        element: (p as any).element || "Fire",
+        color: (p as any).color || "hsl(45, 88%, 68%)",
+        orbitalDistance: p.distance ?? 1,
+      })),
+      aspects: transformedData.aspects.map((a) => ({
+        from: (a as any).planet1 || (a as any).from || "",
+        to: (a as any).planet2 || (a as any).to || "",
+        type: (a as any).type || "conjunction",
+        angle: (a as any).angle || 0,
+        color: (a as any).color || "hsl(45, 88%, 68%)",
+        label: (a as any).label || (a as any).type || "Aspect",
+      })),
+      houses: transformedData.houses.map((h) => (h as any).longitude ?? (h as any).position ?? 0),
+      ascendant:
+        (chartData as any)?.ascendant?.longitude ?? (chartData as any)?.ascendant ?? 0,
+      midheaven:
+        (chartData as any)?.mc?.longitude ?? (chartData as any)?.mc ?? (chartData as any)?.midheaven ?? 0,
+    };
+  }, [transformedData, chartData]);
+
   const getPlanetsByGroup = useCallback((planets: TransformedPlanet[], group: string): TransformedPlanet[] => {
     if (!planets?.length || !group) return [];
     const groupPlanets = planetsByElement[group];
@@ -220,11 +254,9 @@ export function AstroDashboard({
               <div className="w-full h-[600px] relative">
                 {chartData ? (
                   <div>
-                    {transformedData ? (
+                    {wheelChartData ? (
                       <WheelVisualization
-                        planets={transformedData.planets}
-                        houses={transformedData.houses}
-                        aspects={transformedData.aspects}
+                        chartData={wheelChartData}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-64 text-gray-400">
