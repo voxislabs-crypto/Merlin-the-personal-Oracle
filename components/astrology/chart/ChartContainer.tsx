@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { PlanetPosition, HouseCusp, Aspect } from '../BirthChartCalculator';
-import { WheelVisualization as Wheel } from '../WheelVisualization';
+import { Wheel } from './Wheel';
 import { transformChartData, TransformedChartData } from '@/lib/astrology/chartDataTransformers';
 
 export interface ChartContainerProps {
@@ -86,8 +86,8 @@ export function ChartContainer({
       >
         <Wheel
           planets={chartData.planets}
-          houses={chartData.houses}
-          aspects={chartData.aspects}
+          houses={chartData.houses.map(h => ({ ...h, second: h.second ?? 0 }))}
+          aspects={chartData.aspects.map(a => ({ ...a, exact: a.exact ?? false }))}
           width={dimensions.width}
           height={dimensions.height}
         />

@@ -1,274 +1,103 @@
-// components/astrology/WheelVisualization.tsx
-"use client";
+'use client';
 
-import React, { useMemo } from "react";
-import { motion } from "framer-motion";
-import {
-  polarToCartesian,
-  describeArc,
-  getAspectColor,
-} from "@/lib/astrology/chartCalculations";
-import type { ChartData } from "@/lib/astrology/newWheelTypes";
+import React from 'react';
+import { motion } from 'framer-motion';
 
-interface WheelVisualizationProps {
-  chartData: ChartData;
-  size?: number;
-  className?: string;
+interface WheelProps {
+  chartData: any;
 }
 
-export const WheelVisualization: React.FC<WheelVisualizationProps> = ({
-  chartData,
-  size = 800,
-  className = "",
-}) => {
-  // Return early if no chart data
-  if (!chartData) {
-    return (
-      <div className={`relative ${className}`}>
-        <svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${size} ${size}`}
-          className="w-full h-auto"
-        >
-          <text
-            x={size / 2}
-            y={size / 2}
-            textAnchor="middle"
-            fill="white"
-            fontSize="16"
-          >
-            Loading chart data...
-          </text>
-        </svg>
-      </div>
-    );
-  }
-
+export function WheelVisualization({ chartData }: WheelProps) {
+  const size = 800;
   const center = size / 2;
-  const outerRadius = size * 0.45;
-  const zodiacRadius = size * 0.38;
-  const houseRadius = size * 0.3;
-  const innerRadius = size * 0.15;
+  const radius = size * 0.45;
 
-  // Memoize calculations with fallbacks
+  const getXY = (deg: number, r = radius) => ({
+    x: center + r * Math.sin((deg * Math.PI) / 180),
+    y: center - r * Math.cos((deg * Math.PI) / 180),
+  });
+
+  if (!chartData) return null;
+
   const planets = chartData.planets || [];
-  const aspects = chartData.aspects || [];
   const houses = chartData.houses || [];
 
-  // Generate planet positions
-  const planetElements = useMemo(() => {
-    return planets.map((planet) => {
-      const angle = typeof planet.angle === "number" ? planet.angle : 0;
-      const { x, y } = polarToCartesian(
-        center,
-        center,
-        outerRadius * 0.7,
-        angle
-      );
-      return (
-        <motion.g
-          key={`planet-${planet.name}`}
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <circle
-            cx={x}
-            cy={y}
-            r={12}
-            fill={planet.color}
-            stroke="rgba(255, 255, 255, 0.5)"
-            strokeWidth={1}
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-          />
-          <text
-            x={x}
-            y={y + 5}
-            textAnchor="middle"
-            fill="white"
-            fontSize="14"
-            fontWeight="bold"
-            className="pointer-events-none"
-          >
-            {planet.glyph}
-          </text>
-        </motion.g>
-      );
-    });
-  }, [planets, center, outerRadius]);
-
-  // Generate aspect lines
-  const aspectLines = useMemo(() => {
-    return aspects.map((aspect, i) => {
-      const fromPlanet = planets.find((p) => p.name === aspect.from);
-      const toPlanet = planets.find((p) => p.name === aspect.to);
-
-      if (!fromPlanet || !toPlanet) return null;
-
-      const fromAngle =
-        typeof fromPlanet.angle === "number" ? fromPlanet.angle : 0;
-      const toAngle = typeof toPlanet.angle === "number" ? toPlanet.angle : 0;
-
-      const from = polarToCartesian(
-        center,
-        center,
-        outerRadius * 0.7,
-        fromAngle
-      );
-      const to = polarToCartesian(center, center, outerRadius * 0.7, toAngle);
-
-      return (
-        <motion.path
-          key={`aspect-${i}`}
-          d={`M ${from.x} ${from.y} L ${to.x} ${to.y}`}
-          stroke={aspect.color || getAspectColor(aspect.type)}
-          strokeWidth={1.5}
-          strokeDasharray={aspect.type === "sextile" ? "5,5" : "none"}
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 0.5, delay: i * 0.1 }}
-          className="pointer-events-none"
-        />
-      );
-    });
-  }, [aspects, planets, center, outerRadius]);
-
-  // Generate zodiac signs
-  const zodiacSigns = useMemo(() => {
-    return Array.from({ length: 12 }).map((_, i) => {
-      const angle = i * 30 - 15; // Offset by 15 degrees to center the glyph
-      const { x, y } = polarToCartesian(center, center, zodiacRadius, angle);
-      const sign = [
-        { glyph: "♈", element: "Fire" }, // Aries
-        { glyph: "♉", element: "Earth" }, // Taurus
-        { glyph: "♊", element: "Air" }, // Gemini
-        { glyph: "♋", element: "Water" }, // Cancer
-        { glyph: "♌", element: "Fire" }, // Leo
-        { glyph: "♍", element: "Earth" }, // Virgo
-        { glyph: "♎", element: "Air" }, // Libra
-        { glyph: "♏", element: "Water" }, // Scorpio
-        { glyph: "♐", element: "Fire" }, // Sagittarius
-        { glyph: "♑", element: "Earth" }, // Capricorn
-        { glyph: "♒", element: "Air" }, // Aquarius
-        { glyph: "♓", element: "Water" }, // Pisces
-      ][i];
-
-      return (
-        <motion.g
-          key={`sign-${i}`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 + i * 0.05 }}
-        >
-          <text
-            x={x}
-            y={y}
-            textAnchor="middle"
-            fill="white"
-            fontSize="24"
-            className="pointer-events-none"
-          >
-            {sign.glyph}
-          </text>
-        </motion.g>
-      );
-    });
-  }, [center, zodiacRadius]);
-
-  // Generate house lines
-  const houseLines = useMemo(() => {
-    return houses.map((angle, i) => {
-      const safeAngle = typeof angle === "number" ? angle : i * 30;
-      const start = polarToCartesian(center, center, innerRadius, safeAngle);
-      const end = polarToCartesian(center, center, outerRadius, safeAngle);
-
-      return (
-        <line
-          key={`house-${i}`}
-          x1={start.x}
-          y1={start.y}
-          x2={end.x}
-          y2={end.y}
-          stroke="rgba(255, 255, 255, 0.3)"
-          strokeWidth={1}
-        />
-      );
-    });
-  }, [houses, center, innerRadius, outerRadius]);
-
   return (
-    <div className={`relative ${className}`}>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="w-full h-auto"
-      >
-        {/* Outer circle */}
-        <circle
-          cx={center}
-          cy={center}
-          r={outerRadius}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.2)"
-          strokeWidth={1}
-        />
+    <div className="flex justify-center py-12 bg-black">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Navy starfield background */}
+        <defs>
+          <radialGradient id="navyBg">
+            <stop offset="0%" stopColor="#0a1428" />
+            <stop offset="100%" stopColor="#020817" />
+          </radialGradient>
+          <pattern id="stars" width="100" height="100" patternUnits="userSpaceOnUse">
+            <circle cx="20" cy="20" r="1" fill="#ffffff" opacity="0.3" />
+            <circle cx="70" cy="40" r="1.5" fill="#ffffff" opacity="0.4" />
+            <circle cx="40" cy="80" r="1" fill="#ffffff" opacity="0.2" />
+          </pattern>
+        </defs>
 
-        {/* Zodiac ring */}
-        <circle
-          cx={center}
-          cy={center}
-          r={zodiacRadius}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.1)"
-          strokeWidth={2}
-        />
+        <rect width={size} height={size} fill="url(#navyBg)" />
+        <rect width={size} height={size} fill="url(#stars)" opacity="0.4" />
 
-        {/* House lines */}
-        {houseLines}
+        {/* Golden concentric rings */}
+        {[1, 0.9, 0.8, 0.7, 0.6, 0.5].map((scale, i) => (
+          <circle
+            key={i}
+            cx={center}
+            cy={center}
+            r={radius * scale}
+            fill="none"
+            stroke="#d4af37"
+            strokeWidth={i === 0 ? 4 : 2}
+            opacity={i === 0 ? 1 : 0.6}
+          />
+        ))}
 
-        {/* Zodiac signs */}
-        {zodiacSigns}
+        {/* Central golden starburst */}
+        <g>
+          <circle cx={center} cy={center} r="50" fill="#d4af37" opacity="0.9" />
+          <circle cx={center} cy={center} r="35" fill="#f1c40f" opacity="0.8" />
+          <circle cx={center} cy={center} r="20" fill="#e67e22" opacity="1" />
+          {Array.from({ length: 12 }).map((_, i) => {
+            const angle = i * 30;
+            const inner = getXY(angle, 50);
+            const outer = getXY(angle, 80);
+            return (
+              <line key={i} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#d4af37" strokeWidth="3" />
+            );
+          })}
+        </g>
 
-        {/* Aspect lines */}
-        {aspectLines}
+        {/* Subtle constellation lines (example connections) */}
+        <path d="M 300 200 L 500 300 L 400 500 L 200 400 Z" fill="none" stroke="#d4af37" strokeWidth="1" opacity="0.3" />
 
-        {/* Planets */}
-        {planetElements}
+        {/* Planets on orbits */}
+        {planets.map((p: any, i: number) => {
+          const orbitR = radius * (0.5 + i * 0.05);
+          const { x, y } = getXY(p.angle, orbitR);
+          return (
+            <g key={p.name}>
+              <circle cx={x} cy={y} r="12" fill="#d4af37" />
+              <text x={x} y={y + 5} textAnchor="middle" fill="#ffffff" fontSize="14">
+                {p.glyph}
+              </text>
+            </g>
+          );
+        })}
 
-        {/* Inner circle */}
-        <circle
-          cx={center}
-          cy={center}
-          r={innerRadius}
-          fill="rgba(0, 0, 0, 0.3)"
-          stroke="rgba(255, 255, 255, 0.2)"
-          strokeWidth={1}
-        />
-
-        {/* Ascendant line */}
-        <line
-          x1={center}
-          y1={center - innerRadius}
-          x2={center}
-          y2={center - outerRadius}
-          stroke="hsl(45, 100%, 60%)"
-          strokeWidth={2}
-          strokeDasharray="5,5"
-        />
-        <text
-          x={center + 10}
-          y={center - outerRadius + 15}
-          fill="hsl(45, 100%, 60%)"
-          fontSize="12"
-          fontWeight="bold"
-        >
-          ASC
-        </text>
+        {/* Zodiac symbols outer */}
+        {['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'].map((glyph, i) => {
+          const angle = i * 30;
+          const { x, y } = getXY(angle, radius * 1.05);
+          return (
+            <text key={i} x={x} y={y} textAnchor="middle" fill="#d4af37" fontSize="32">
+              {glyph}
+            </text>
+          );
+        })}
       </svg>
     </div>
   );
-};
-
-export default WheelVisualization;
+}
