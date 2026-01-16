@@ -2,13 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { calculateBirthChart } from '@/lib/engine-fallback';
-
-interface WheelProps {
-  chartData: any;
-  hoveredPlanet?: string | null;
-  setHoveredPlanet?: (name: string | null) => void;
-}
+import { calculateBirthChart } from '@/lib/engine';
 
 const PLANET_GLYPHS: Record<string, string> = {
   Sun: '☉',
@@ -119,13 +113,16 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
 
   return (
     <div className="flex justify-center my-16 bg-black relative">
-      {/* Transit Toggle Button */}
-      <button
-        onClick={() => setShowTransits(!showTransits)}
-        className="absolute top-4 right-4 z-10 bg-amber-600 hover:bg-amber-500 text-black px-4 py-2 rounded-lg font-semibold transition-colors"
-      >
-        {showTransits ? 'Hide Transits' : 'Show Transits'}
-      </button>
+      {/* Transit Toggle Checkbox */}
+      <label className="absolute top-4 right-4 z-10 flex items-center space-x-2 text-amber-300">
+        <input
+          type="checkbox"
+          checked={showTransits}
+          onChange={(e) => setShowTransits(e.target.checked)}
+          className="w-4 h-4 text-amber-400 bg-black border-amber-400 rounded"
+        />
+        <span className="text-sm">Show transits</span>
+      </label>
 
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="drop-shadow-2xl">
         {/* Book cover background */}
@@ -358,25 +355,20 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
       </svg>
 
       {/* Moon Phase Icon */}
-      <div className="absolute bottom-4 left-4 text-4xl">
+      <div className="absolute bottom-4 left-4 text-2xl">
         {(() => {
           const today = new Date();
           const dateString = today.toISOString().split('T')[0];
           try {
             const transitChart = calculateBirthChart(dateString, '12:00:00', 0, 0);
             const illumination = transitChart.moonPhase?.illumination || 0;
+            // Small crescent mapping by illumination (daily variation)
+            const glyphs = ['🌑', '🌘', '🌒', '🌓', '🌔', '🌕'];
+            const idx = Math.min(glyphs.length - 1, Math.floor(illumination * glyphs.length));
+            const moonGlyph = glyphs[idx] || '🌑';
             const phase = transitChart.moonPhase?.type || 'New Moon';
-
-            // Choose moon glyph based on illumination
-            let moonGlyph = '🌑'; // New moon
-            if (illumination < 0.125) moonGlyph = '🌑';
-            else if (illumination < 0.375) moonGlyph = '🌒';
-            else if (illumination < 0.625) moonGlyph = '🌓';
-            else if (illumination < 0.875) moonGlyph = '🌔';
-            else moonGlyph = '🌕';
-
             return (
-              <div className="text-amber-400 cursor-pointer" title={`${phase} (${(illumination * 100).toFixed(0)}% illuminated)`}>
+              <div className="text-amber-400 cursor-default" title={`${phase} (${(illumination * 100).toFixed(0)}% illuminated)`}>
                 {moonGlyph}
               </div>
             );
