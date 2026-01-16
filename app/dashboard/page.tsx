@@ -4,6 +4,8 @@ import { WheelVisualization } from '@/components/astrology/WheelVisualization';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getMBTI, PERSONALITY_LINES } from '@/lib/personality/fusion';
+import { adaptMessage } from '@/lib/personality/adapter';
+import { type MBTIType } from '@/shared/schema';
 import { motion } from 'framer-motion';
 import { calculateBirthChart } from '@/lib/engine-fallback';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
@@ -34,13 +36,21 @@ function DashboardContent() {
   const [whisper, setWhisper] = useState('Loading...');
   const [type, setType] = useState('Loading...');
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!birthDate || !birthTime) return;
+    if (!birthDate || !birthTime) {
+      setError('Missing birth date or time in URL');
+      return;
+    }
 
     try {
+      console.log('Calculating chart for:', { birthDate, birthTime, birthCity });
+      
       // Calculate real birth chart
       const birthChart = calculateBirthChart(birthDate, birthTime, 0, 0); // TODO: Add geocoding for lat/lon
+
+      console.log('Chart calculated successfully:', birthChart);
 
       // Generate today's forecast
       const forecast = getTodaysForecast(birthChart);
@@ -68,15 +78,19 @@ function DashboardContent() {
 
       setChart(wheelData);
 
-      // Set forecast as whisper
-      setWhisper(`${forecast.summary}\n\n${forecast.advice}`);
-
       // Calculate MBTI and personality lines
-      const mbti = getMBTI(wheelData);
+      const mbti = getMBTI(wheelData) as MBTIType;
       const lines = PERSONALITY_LINES[mbti] || ["You are the exception."];
       setType(`${mbti} – ${lines[0]}`);
+
+      // Set forecast as whisper with personalization
+      const rawWhisper = `${forecast.summary}\n\n${forecast.advice}`;
+      const personalizedWhisper = adaptMessage(mbti, rawWhisper);
+      setWhisper(personalizedWhisper);
     } catch (error) {
       console.error('Error calculating chart:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(`Failed to calculate chart: ${errorMessage}`);
       setWhisper('The stars are veiled today. Try again later.');
       setType('Unknown – The mystery endures.');
     }
@@ -123,6 +137,15 @@ function DashboardContent() {
         >
           <h1 className="text-4xl font-bold text-amber-400 mb-4">Your Eternal Chart</h1>
           <p className="text-gray-300">Born {birthDate} at {birthTime} in {birthCity}</p>
+          {error && (
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-red-400 mt-4 text-sm bg-red-900/20 border border-red-500 rounded px-4 py-2 inline-block"
+            >
+              {error}
+            </motion.p>
+          )}
         </motion.div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
