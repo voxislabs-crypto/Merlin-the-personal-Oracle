@@ -1566,7 +1566,7 @@ const calculateProgressedMoonPhase = (
   // Simple moon phase calculation based on Sun-Moon relationship
   // In a real implementation, you'd calculate the actual Sun position
   const sunApprox = 0; // Simplified - would need actual progressed Sun position
-  let moonPhaseAngle = normalizeAngle(progressedMoon.longitude - sunApprox);
+  const moonPhaseAngle = normalizeAngle(progressedMoon.longitude - sunApprox);
 
   let phase = "";
   if (moonPhaseAngle < 45) phase = "New Moon";
