@@ -55,14 +55,6 @@ const getZodiacPosition = (lon: number) => {
   };
 };
 
-interface HousePosition {
-  house: number;
-  position: number;
-  sign: string;
-  degree: number;
-  minute: number;
-}
-
 interface Aspect {
   planet1: { name: string; longitude: number };
   planet2: { name: string; longitude: number };
