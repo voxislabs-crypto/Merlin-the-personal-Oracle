@@ -12,14 +12,7 @@ import type { WheelVisualizationProps, SimpleChartTabsProps } from '@/types/char
 
 import { WheelVisualization } from '@/components/astrology/newchart/WheelVisualization';
 import { transformChartData } from '@/lib/astrology/chartDataTransformers';
-
-const SimpleChartTabs = dynamic<SimpleChartTabsProps>(
-  () => import('@/components/astrology/SimpleChartTabs').then(mod => mod.default || mod.SimpleChartTabs),
-  {
-    ssr: false,
-    loading: () => <div className="text-gray-400">Loading chart data...</div>
-  }
-);
+import { SimpleChartTabs } from '@/components/astrology/SimpleChartTabs';
 
 // Test data for development
 const createPlanet = (
@@ -155,27 +148,23 @@ export default function Home() {
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
   const [hoveredAspect, setHoveredAspect] = useState<string | null>(null);
 
-  // const { chart, loading, error, calculateChart } = useChartCalculation();
-
-  const handleCalculate = useCallback(() => {
-    calculateChart(DEFAULT_BIRTH_DATA);
-  }, [calculateChart]);
+  // Using test data since hook is commented out
+  const chart = {
+    positions: TEST_PLANETS,
+    houses: TEST_HOUSES,
+    aspects: TEST_ASPECTS
+  };
 
   // Transform chart data to NewChart format
   const transformedChartData = useMemo(() => {
     if (!chart) return null;
 
-    // Extract ascendant and mc from houses or use default values
-    const ascendant = chart.houses.find(h => h.house === 1)?.position || 0;
-    const mc = chart.houses.find(h => h.house === 10)?.position || 90;
-
-    return transformChartData(
-      chart.positions,
-      chart.houses,
-      chart.aspects,
-      { longitude: ascendant },
-      { longitude: mc }
-    );
+    // Pass chart data as a single object matching the function signature
+    return transformChartData({
+      planets: chart.positions,
+      houses: chart.houses,
+      aspects: chart.aspects
+    });
   }, [chart]);
 
   if (!transformedChartData) {
@@ -185,20 +174,7 @@ export default function Home() {
           <h1 className="text-5xl md:text-6xl font-bold mb-8 md:mb-12 bg-gradient-to-r from-amber-400 to-pink-400 bg-clip-text text-transparent">
             Merlin
           </h1>
-          {error && (
-            <div className="mb-6 p-4 bg-red-900/50 text-red-200 rounded-lg max-w-md mx-auto">
-              {error.message}
-            </div>
-          )}
-          <button
-            onClick={handleCalculate}
-            disabled={loading}
-            className="px-8 py-4 md:px-16 md:py-6 bg-gradient-to-r from-amber-600 to-pink-600 hover:from-amber-700 hover:to-pink-700 rounded-2xl text-2xl md:text-3xl font-bold shadow-2xl disabled:opacity-50 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-50"
-            aria-busy={loading}
-            aria-live="polite"
-          >
-            {loading ? 'Awakening...' : 'Enter My Chart'}
-          </button>
+          <p className="text-amber-300">Loading chart data...</p>
         </div>
       </main>
     );
@@ -232,9 +208,6 @@ export default function Home() {
                 <SimpleChartTabs
                   planets={chart.positions}
                   aspects={chart.aspects}
-                  onHoverPlanet={setHoveredPlanet}
-                  onHoverAspect={setHoveredAspect}
-                  className="h-full"
                 />
               )}
             </div>

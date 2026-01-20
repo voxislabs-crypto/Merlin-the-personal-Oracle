@@ -1,4 +1,5 @@
 // lib/engine.ts
+import "server-only";
 import { utc_to_jd, calc_ut, constants, houses_ex } from "sweph";
 import {
   PlanetPosition,
@@ -101,11 +102,11 @@ const assignHousesToPlanets = (
     const normalized = normalizeAngle(planet.longitude);
     let houseNum = 1;
     for (let i = 0; i < 12; i++) {
-      const current = houses[i].position;
-      let next = houses[(i + 1) % 12].position;
+      const current = houses[i]?.position ?? 0;
+      let next = houses[(i + 1) % 12]?.position ?? 0;
       if (next < current) next += 360; // Handle wrap
       if (normalized >= current && normalized < next) {
-        houseNum = houses[i].house;
+        houseNum = houses[i]?.house ?? 1;
         break;
       }
     }
@@ -324,8 +325,8 @@ export const calculateBirthChart = (
       const house = houses.find((h) => {
         const nextHouse = houses[(houses.indexOf(h) + 1) % 12];
         return (
-          planet.longitude >= h.position &&
-          planet.longitude < nextHouse.position
+          planet.longitude >= (h.position ?? 0) &&
+          planet.longitude < (nextHouse?.position ?? 360)
         );
       });
       return { ...planet, house: house?.house || 1 };
