@@ -1,0 +1,10 @@
+{
+    "git.ignoreLimitWarning": true,
+    "modelContextProtocol": {
+        "servers": {
+            "clerk": {
+                "url": "https://mcp.clerk.com/mcp"
+            }
+        }
+    }
+}
