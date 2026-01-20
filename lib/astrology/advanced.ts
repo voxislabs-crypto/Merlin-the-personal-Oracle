@@ -14,7 +14,14 @@ import {
   Transit,
   Dignity,
 } from "@/types/astrology";
-import { utc_to_jd, constants } from "sweph";
+let utc_to_jd: any, constants: any;
+// Removed sweph logic: swephAvailable
+try {
+  // @ts-ignore
+  // Removed all sweph require logic
+} catch (e) {
+  // sweph logic removed
+}
 import { normalizeAngle } from "@/lib/engine";
 
 // Dignities (essential and accidental)

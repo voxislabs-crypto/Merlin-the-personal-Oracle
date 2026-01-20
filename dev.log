@@ -1,0 +1,41 @@
+
+> merlin@0.1.0 dev
+> next dev -H 0.0.0.0 -p 5000
+
+  ▲ Next.js 14.2.15
+  - Local:        http://localhost:5000
+  - Network:      http://0.0.0.0:5000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 3.2s (1168 modules)
+ GET / 200 in 3747ms
+ ✓ Compiled in 549ms (592 modules)
+ ○ Compiling /[...slug] ...
+ ✓ Compiled /[...slug] in 2.9s (1318 modules)
+ GET /favicon.ico 200 in 4939ms
+ ○ Compiling /api/oracle/intake ...
+ ✓ Compiled /api/oracle/intake in 618ms (685 modules)
+Intake received: {
+  birthDate: '1983-08-14',
+  birthTime: '12:21',
+  birthCity: 'Norfolk Virginia'
+}
+ POST /api/oracle/intake 307 in 709ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1185ms (1252 modules)
+ GET /dashboard?date=1983-08-14&time=12:21&city=Norfolk 200 in 1331ms
+ GET / 200 in 32ms
+ ✓ Compiled /[...slug] in 164ms (661 modules)
+ GET /favicon.ico 200 in 616ms
+ GET / 200 in 58ms
+ GET /favicon.ico 200 in 75ms
+ ✓ Compiled /api/oracle/intake in 140ms (691 modules)
+Intake received: {
+  birthDate: '1983-08-14',
+  birthTime: '12:21',
+  birthCity: 'Norfolk Virginia'
+}
+ POST /api/oracle/intake 307 in 197ms
