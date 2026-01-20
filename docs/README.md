@@ -27,7 +27,24 @@ npm run dev
 yarn dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+Open [http://localhost:5000](http://localhost:5000) with your browser to see the application.
+
+> **Note**: The development server runs on port 5000 by default (configured in `package.json`).
+
+## Deployment
+
+### Deploying to Vercel
+
+For complete deployment instructions including environment variable configuration:
+
+👉 **See [VERCEL_DEPLOYMENT.md](../VERCEL_DEPLOYMENT.md)** for step-by-step Vercel deployment guide.
+
+Key requirements for successful deployment:
+- Configure Clerk authentication environment variables
+- Set up Stripe API keys (if using payments)
+- Configure application URLs and redirects
+
+The middleware requires Clerk environment variables to be set in Vercel to avoid deployment errors.
 
 ## Usage
 

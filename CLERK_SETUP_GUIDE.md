@@ -271,6 +271,40 @@ export function UserGreeting() {
 
 ---
 
+## 🌐 Deploying to Vercel
+
+When deploying to Vercel, you MUST configure Clerk environment variables to avoid the `MIDDLEWARE_INVOCATION_FAILED` error.
+
+### Quick Vercel Setup
+
+1. **Add Required Environment Variables** in Vercel Dashboard:
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `CLERK_SECRET_KEY`
+   - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
+   - `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
+   - `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard`
+   - `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard`
+
+2. **Configure Clerk Allowed Domains**:
+   - Go to Clerk Dashboard → Settings → Paths
+   - Add your Vercel domains:
+     - `https://your-app.vercel.app/*`
+     - `https://your-app-*.vercel.app/*` (for previews)
+
+3. **Redeploy** your application after adding environment variables
+
+### Detailed Instructions
+
+For complete step-by-step Vercel deployment instructions, including:
+- Setting up environment variables
+- Troubleshooting deployment errors
+- Security best practices
+- Post-deployment verification
+
+👉 **See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md)** for the comprehensive deployment guide.
+
+---
+
 ## 📖 Next Steps
 
 1. ✅ Get Clerk API keys from dashboard
@@ -280,6 +314,7 @@ export function UserGreeting() {
 5. ✅ View profile at `/profile`
 6. ✅ Protect routes in `middleware.ts`
 7. ✅ Integrate user data in your components
+8. ✅ Deploy to Vercel (see [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md))
 
 ---
 
