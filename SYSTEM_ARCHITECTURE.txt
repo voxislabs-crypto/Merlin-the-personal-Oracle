@@ -1,0 +1,183 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                   MERLIN PERSONALITY PERSONALIZATION SYSTEM                ║
+║                             Architecture Diagram                           ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER INTERFACE                                 │
+│                    app/dashboard/page.tsx (Dashboard)                       │
+│                                                                             │
+│  ┌─ Birth Chart Wheel        ┌─ Today's Oracle         ┌─ Your Type       │
+│  │                           │                        │                   │
+│  │  [Visual Astro Chart]     │  [PERSONALIZED         │  ENFP             │
+│  │                           │   MESSAGE]             │  ┌───────────────│
+│  │  Animated celestial        │                       │  │ You start     │
+│  │  bodies, aspects,          │  "You know, deep      │  │ fires with    │
+│  │  houses                    │   down, Imagine...    │  │ ideas.        │
+│  │                           │   infused with passion│  └───────────────│
+│  └─────────────────────────  └─────────────────────── └──────────────────┘
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+                         ┌────────────────────────┐
+                         │  DATA PROCESSING FLOW │
+                         └────────────────────────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+         ┌─────────────────┐ ┌───────────────┐ ┌──────────────┐
+         │ calculateBirth  │ │ getMBTI()     │ │ getTodaysFore│
+         │ Chart()         │ │               │ │ cast()       │
+         │                 │ │ lib/personal- │ │              │
+         │ lib/engine.ts   │ │ ity/fusion.ts │ │ lib/astrology│
+         │                 │ │               │ │ /ephemeris.ts│
+         │ Astro Calc      │ │ Calculate     │ │              │
+         │ Physics         │ │ Personality   │ │ Generate     │
+         │ Planets, Houses │ │ Type from     │ │ Cosmic       │
+         │ Aspects         │ │ Chart Data    │ │ Guidance     │
+         └─────────────────┘ └───────────────┘ └──────────────┘
+                    │                 │                 │
+                    └─────────────────┬─────────────────┘
+                                      ▼
+                    ┌─────────────────────────────────┐
+                    │  MBTI PERSONALIZATION ENGINE    │
+                    │  lib/personality/adapter.ts     │
+                    └─────────────────────────────────┘
+                                      │
+              ┌───────────────────────┼───────────────────────┐
+              ▼                       ▼                       ▼
+    ┌─────────────────────┐  ┌──────────────────┐  ┌────────────────┐
+    │ SHARED SCHEMA       │  │ MESSAGE TRANSFORM │  │ OUTPUT         │
+    │ shared/schema.ts    │  │ PIPELINE         │  │                │
+    │                     │  │                  │  │ Personalized   │
+    │ • MBTIType (16)    │  │ 1. Infuse        │  │ Oracle Message │
+    │ • TypeConfig       │  │    Motivators    │  │                │
+    │ • typeConfigs      │  │                  │  │ "You know,     │
+    │                     │  │ 2. Adjust Tone  │  │  deep down,    │
+    │ All 16 MBTI Types │  │                  │  │  Imagine...    │
+    │ Pre-configured     │  │ 3. Restructure  │  │  infused with  │
+    │ with:              │  │    Message      │  │  passion..."   │
+    │ - Tone (8)         │  │                  │  │                │
+    │ - Structure (4)    │  │ 4. Adjust       │  │ Matches ENFP's │
+    │ - Length (0.8-1.2) │  │    Length       │  │ personality!   │
+    │ - Motivators (5ea) │  │                  │  │                │
+    └─────────────────────┘  └──────────────────┘  └────────────────┘
+              ▲
+              │
+    ┌─────────┴──────────┐
+    │ 16 MBTI PROFILES   │
+    ├────────────────────┤
+    │ NT (Rational)      │
+    │ • INTJ (Architect) │
+    │ • INTP (Logician)  │
+    │ • ENTJ (Commander) │
+    │ • ENTP (Debater)   │
+    ├────────────────────┤
+    │ NF (Idealist)      │
+    │ • INFJ (Advocate)  │
+    │ • INFP (Mediator)  │
+    │ • ENFJ (Protagonist)
+    │ • ENFP (Campaigner)│
+    ├────────────────────┤
+    │ ST (Guardian)      │
+    │ • ISTJ (Logistician)
+    │ • ISFJ (Defender)  │
+    │ • ESTJ (Executive) │
+    │ • ESFJ (Consul)    │
+    ├────────────────────┤
+    │ SF (Artisan)       │
+    │ • ISTP (Virtuoso)  │
+    │ • ISFP (Adventurer)│
+    │ • ESTP (Entrepreneur)
+    │ • ESFP (Entertainer)
+    └────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                           DATA FLOW EXAMPLE                                ║
+║                                                                            ║
+║  Input:  { date: "1995-07-20", time: "14:30", city: "New York" }         ║
+║                           │                                                ║
+║                           ▼                                                ║
+║  Chart:  { sun: Libra, moon: Pisces, ascendant: Gemini, ... }            ║
+║                           │                                                ║
+║                           ▼                                                ║
+║  MBTI:   "ENFP" ◄─ (E: Ascendant Gemini, N: Mercury aspects,             ║
+║                    F: Moon Pisces, P: Mutable signs)                      ║
+║                           │                                                ║
+║                           ▼                                                ║
+║  Raw:    "The stars align for transformation today..."                   ║
+║                           │                                                ║
+║                           ▼                                                ║
+║  TypeConfig: {                                                             ║
+║    tone: "adventurous",                                                    ║
+║    structure: "questions",                                                 ║
+║    lengthMultiplier: 1.2,                                                  ║
+║    motivators: ["passion", "possibility", "creativity", ...]              ║
+║  }                                                                          ║
+║                           │                                                ║
+║                           ▼                                                ║
+║  Personalized:  "You know, deep down, Imagine The stars align for        ║
+║                  transformation, infused with passion, today...            ║
+║                  What if you embraced new beginnings? Have you considered?"║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                        TRANSFORMATION FUNCTIONS                            ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║ 1. INFUSE MOTIVATORS                                                       ║
+║    Input:  "The stars align for transformation today"                     ║
+║    Action: Insert motivator at text midpoint                              ║
+║    Output: "The stars align for transformation, infused with passion, ..." ║
+║                                                                            ║
+║ 2. ADJUST TONE (by type)                                                   ║
+║    ENFP (adventurous):  "Imagine ... as an epic quest!"                  ║
+║    INTJ (logical):      "Logically, ..."                                  ║
+║    ESFJ (social):       "Share ... with friends"                          ║
+║    ISTP (logical):      (no change)                                        ║
+║                                                                            ║
+║ 3. RESTRUCTURE MESSAGE (by format)                                         ║
+║    bullets: "- Point 1\n- Point 2"                                        ║
+║    paragraph: (no change)                                                 ║
+║    questions: "What if ...? Have you considered?"                         ║
+║    commands: "Do this: ... Now."                                          ║
+║                                                                            ║
+║ 4. ADJUST LENGTH (by multiplier)                                           ║
+║    0.8x: Truncate message by 20%                                          ║
+║    1.0x: Keep original length                                             ║
+║    1.2x: Expand message by 20% (repeat end)                              ║
+║                                                                            ║
+║ 5. ADD INTRO                                                               ║
+║    Prepend: "You know, deep down, ..."                                   ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+FEATURE MATRIX:
+────────────────────────────────────────────────────────────────────────────
+MBTI Type │ Tone         │ Structure      │ Length │ Example Motivators
+──────────┼──────────────┼────────────────┼────────┼──────────────────────
+INTJ      │ logical      │ bullets        │ 0.9x   │ precision, strategy
+INTP      │ logical      │ questions      │ 1.1x   │ understanding, analysis
+ENTJ      │ action       │ commands       │ 0.8x   │ leadership, excellence
+ENTP      │ adventurous  │ questions      │ 1.2x   │ debate, novelty
+INFJ      │ empathetic   │ paragraph      │ 1.0x   │ insight, authenticity
+INFP      │ introspective│ paragraph      │ 1.1x   │ values, authenticity
+ENFJ      │ social       │ paragraph      │ 1.0x   │ harmony, inspiration
+ENFP      │ adventurous  │ questions      │ 1.2x   │ passion, possibility
+ISTJ      │ structured   │ bullets        │ 0.85x  │ duty, order
+ISFJ      │ empathetic   │ paragraph      │ 0.95x  │ loyalty, care
+ESTJ      │ action       │ commands       │ 0.8x   │ efficiency, order
+ESFJ      │ social       │ paragraph      │ 1.0x   │ harmony, loyalty
+ISTP      │ logical      │ bullets        │ 0.9x   │ competence, logic
+ISFP      │ introspective│ paragraph      │ 1.0x   │ aesthetics, authenticity
+ESTP      │ action       │ commands       │ 0.85x  │ action, excitement
+ESFP      │ social       │ paragraph      │ 1.1x   │ experience, fun
+────────────────────────────────────────────────────────────────────────────
+
+STATUS: ✅ PRODUCTION READY
+- All 16 MBTI types configured
+- Type-safe TypeScript implementation
+- Integrated with dashboard
+- Tested and verified
+- Documentation complete

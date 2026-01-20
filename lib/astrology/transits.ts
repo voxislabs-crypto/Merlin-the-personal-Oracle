@@ -1,4 +1,3 @@
-import { calc_ut, constants, utc_to_jd } from 'sweph';
 import { PlanetPosition } from '@/types/astrology';
 
 const normalizeAngle = (deg: number): number => ((deg % 360) + 360) % 360;
@@ -11,24 +10,27 @@ export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
   exact: boolean;
 }> => {
   const now = new Date();
-  const jdResult = utc_to_jd(
-    now.getUTCFullYear(),
-    now.getUTCMonth() + 1,
-    now.getUTCDate(),
-    now.getUTCHours(),
-    now.getUTCMinutes(),
-    now.getUTCSeconds(),
-    constants.SE_GREG_CAL
-  );
-  const jd = jdResult.data[0];
 
-  const currentPositions = natalPlanets.map(p => {
-    const result = calc_ut(jd, getPlanetId(p.name), constants.SEFLG_SWIEPH);
-    return {
-      name: p.name,
-      longitude: normalizeAngle(result.data[0]),
-    };
-  });
+  // Pure JS Julian Day calculation
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  const day = now.getUTCDate();
+  const hour = now.getUTCHours();
+  const minute = now.getUTCMinutes();
+  // Julian Day calculation (UTC)
+  const a = Math.floor((14 - month) / 12);
+  const y = year + 4800 - a;
+  const m = month + 12 * a - 3;
+  const jdn = day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  const jd = jdn + (hour - 12) / 24 + minute / 1440;
+
+
+  // Fallback: just return natal positions as current (no real transit calculation)
+  // To implement real transits, use ephemeris or API
+  const currentPositions = natalPlanets.map(p => ({
+    name: p.name,
+    longitude: normalizeAngle(p.longitude),
+  }));
 
   const aspects = [];
   const major = [
@@ -62,19 +64,4 @@ export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
   return aspects;
 };
 
-const getPlanetId = (name: string): number => {
-  const map: Record<string, number> = {
-    Sun: constants.SE_SUN,
-    Moon: constants.SE_MOON,
-    Mercury: constants.SE_MERCURY,
-    Venus: constants.SE_VENUS,
-    Mars: constants.SE_MARS,
-    Jupiter: constants.SE_JUPITER,
-    Saturn: constants.SE_SATURN,
-    Uranus: constants.SE_URANUS,
-    Neptune: constants.SE_NEPTUNE,
-    Pluto: constants.SE_PLUTO,
-    'North Node': constants.SE_MEAN_NODE,
-  };
-  return map[name] || constants.SE_SUN;
-};
+// getPlanetId and constants removed (no sweph)

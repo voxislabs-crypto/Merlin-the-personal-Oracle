@@ -19,9 +19,10 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@shared/*": ["./shared/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "temp_*", "tests", "**/*.test.ts", "**/*.test.tsx", "components/astrology/page.tsx", "possible front end stuff"]
+  "exclude": ["node_modules", "temp_*", "tests", "**/*.test.ts", "**/*.test.tsx", "possible front end stuff"]
 }

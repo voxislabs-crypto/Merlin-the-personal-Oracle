@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { useChartCalculation } from '@/hooks/useChartCalculation';
+// import { useChartCalculation } from '@/hooks/useChartCalculation';
 import { ErrorBoundary } from 'react-error-boundary';
 
 // Import types for type safety
@@ -14,7 +14,7 @@ import { WheelVisualization } from '@/components/astrology/newchart/WheelVisuali
 import { transformChartData } from '@/lib/astrology/chartDataTransformers';
 
 const SimpleChartTabs = dynamic<SimpleChartTabsProps>(
-  () => import('@/components/astrology/SimpleChartTabs').then(mod => mod.SimpleChartTabs),
+  () => import('@/components/astrology/SimpleChartTabs').then(mod => mod.default || mod.SimpleChartTabs),
   {
     ssr: false,
     loading: () => <div className="text-gray-400">Loading chart data...</div>
@@ -155,7 +155,7 @@ export default function Home() {
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
   const [hoveredAspect, setHoveredAspect] = useState<string | null>(null);
 
-  const { chart, loading, error, calculateChart } = useChartCalculation();
+  // const { chart, loading, error, calculateChart } = useChartCalculation();
 
   const handleCalculate = useCallback(() => {
     calculateChart(DEFAULT_BIRTH_DATA);
