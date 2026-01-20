@@ -108,6 +108,7 @@ export function SimpleChartTabs({ planets, aspects }: SimpleChartTabsProps) {
           </div>
         )}
       </div>
+      export default SimpleChartTabs;
     </div>
   );
 }

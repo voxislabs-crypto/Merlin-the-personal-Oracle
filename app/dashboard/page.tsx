@@ -9,6 +9,7 @@ import { type MBTIType } from '@/shared/schema';
 import { motion } from 'framer-motion';
 import { calculateBirthChart } from '@/lib/engine-fallback';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 
 function getPlanetGlyph(name: string): string {
   const glyphs: { [key: string]: string } = {
@@ -192,13 +193,20 @@ function DashboardContent() {
 
 export default function Dashboard() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-400 mx-auto mb-4"></div>
-        <p className="text-xl text-amber-400">Loading...</p>
-      </div>
-    }>
-      <DashboardContent />
-    </Suspense>
+    <>
+      <SignedIn>
+        <Suspense fallback={
+          <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-400 mx-auto mb-4"></div>
+            <p className="text-xl text-amber-400">Loading...</p>
+          </div>
+        }>
+          <DashboardContent />
+        </Suspense>
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
   );
 }

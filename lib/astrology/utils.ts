@@ -1,18 +1,20 @@
 // lib/astrology/utils.ts
-import { utc_to_jd, constants } from "sweph";
 
 // Utility functions to reduce code duplication
 
 export const dateToJulianDay = (date: Date): number => {
-  return utc_to_jd(
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds(),
-    constants.SE_GREG_CAL
-  ).data[0];
+  // Pure JS Julian Day calculation (UTC)
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  const hour = date.getUTCHours();
+  const minute = date.getUTCMinutes();
+  const a = Math.floor((14 - month) / 12);
+  const y = year + 4800 - a;
+  const m = month + 12 * a - 3;
+  const jdn = day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  const jd = jdn + (hour - 12) / 24 + minute / 1440;
+  return jd;
 };
 
 export const createAsyncCalculation = <T>(
