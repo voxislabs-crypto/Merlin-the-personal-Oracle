@@ -11,6 +11,7 @@ const customJestConfig = {
   moduleNameMapper: {
     // Handle module aliases (matching tsconfig.json paths)
     '^@/(.*)$': '<rootDir>/$1',
+    '^@shared/(.*)$': '<rootDir>/shared/$1',
   },
   testEnvironment: 'jest-environment-jsdom',
   modulePathIgnorePatterns: ['<rootDir>/temp_merlin_calculator/', '<rootDir>/temp_chart/', '<rootDir>/possible front end stuff/'],

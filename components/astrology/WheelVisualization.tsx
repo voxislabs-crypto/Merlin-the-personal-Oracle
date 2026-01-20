@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { calculateBirthChart } from '@/lib/engine';
+import { calculateBirthChart } from '@/lib/engine-fallback';
 
 const PLANET_GLYPHS: Record<string, string> = {
   Sun: '☉',

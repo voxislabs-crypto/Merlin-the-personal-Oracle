@@ -11,6 +11,7 @@ import {
   Midpoint,
   FixedStar,
   KarmicIndicator,
+  HousePosition,
 } from "@/types/astrology";
 import { getCurrentTransits } from "./astrology/transits";
 import { createPlacidusHouses } from "./astrology/calculate";
@@ -61,15 +62,6 @@ interface Aspect {
   type: string;
   orb: number;
   exact: boolean;
-}
-
-interface HousePosition {
-  house: number;
-  position: number;
-  sign: string;
-  degree: number;
-  minute: number;
-  longitude: number;
 }
 
 const calculateHouses = (jd: number, lat: number, lon: number) => {
