@@ -8,7 +8,7 @@ export default function Privacy() {
       
       <div className="space-y-8 text-gray-300 leading-relaxed">
         <p>
-          Voxi Labs (&quot;we&quot;, &quot;us&quot;) respects your privacy. This Policy explains how we collect, use, and protect information when you use Merlin at boxeslabs.com.
+          Voxi Labs (&quot;we&quot;, &quot;us&quot;) respects your privacy. This Policy explains how we collect, use, and protect information when you use Merlin at voxislabs.com.
         </p>
         
         <section>

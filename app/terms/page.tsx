@@ -8,7 +8,7 @@ export default function Terms() {
       
       <div className="space-y-8 text-gray-300 leading-relaxed">
         <p>
-          Welcome to Merlin, operated by Voxi Labs (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;). By accessing or using our website at boxeslabs.com and the Merlin astrology tool (the &quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree, do not use the Service.
+          Welcome to Merlin, operated by Voxi Labs (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;). By accessing or using our website at voxislabs.com and the Merlin astrology tool (the &quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree, do not use the Service.
         </p>
         
         <section>
