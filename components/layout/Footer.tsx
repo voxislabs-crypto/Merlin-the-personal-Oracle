@@ -90,24 +90,24 @@ export function Footer() {
             <h3 className="text-amber-300 font-semibold mb-4">Legal</h3>
             <ul className="space-y-2">
               <li>
-                <a
-                  href="#"
+                <Link
+                  href="/privacy"
                   className="text-gray-400 hover:text-amber-300 text-sm transition-colors"
                 >
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  href="/terms"
                   className="text-gray-400 hover:text-amber-300 text-sm transition-colors"
                 >
                   Terms of Service
-                </a>
+                </Link>
               </li>
               <li>
                 <a
-                  href="#"
+                  href="mailto:kai@boxeslabs.com"
                   className="text-gray-400 hover:text-amber-300 text-sm transition-colors"
                 >
                   Contact
@@ -119,7 +119,7 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-amber-500/20">
           <p className="text-center text-gray-400 text-sm">
-            © {currentYear} Merlin. All rights reserved. The stars never lie.
+            © {currentYear} Merlin by Voxi Labs. All sales final. Contact: <a href="mailto:kai@boxeslabs.com" className="text-amber-400 hover:text-amber-300">kai@boxeslabs.com</a>
           </p>
         </div>
       </div>
