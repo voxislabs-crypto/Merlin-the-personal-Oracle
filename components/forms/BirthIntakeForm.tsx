@@ -3,11 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { loadStripe } from '@stripe/stripe-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, MapPin, Loader2 } from 'lucide-react';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface BirthIntakeFormProps {
   redirectTo?: 'dashboard' | 'enhanced-dashboard';
@@ -34,9 +37,41 @@ export function BirthIntakeForm({
 
     try {
       if (showPayment) {
-        // Redirect to payment/checkout
-        const params = new URLSearchParams(formData);
-        router.push(`/checkout?${params.toString()}`);
+        // Process payment directly
+        const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+        
+        if (!priceId) {
+          alert('Payment not configured. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch('/api/stripe/create-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            priceId,
+            birthData: formData 
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Payment failed');
+        }
+
+        const { sessionId } = await response.json();
+        const stripe = await stripePromise;
+        
+        if (!stripe) {
+          throw new Error('Stripe failed to load');
+        }
+
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        
+        if (error) {
+          throw error;
+        }
       } else {
         // Redirect directly to dashboard
         const params = new URLSearchParams({
@@ -46,8 +81,9 @@ export function BirthIntakeForm({
         });
         router.push(`/${redirectTo}?${params.toString()}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
+      alert(error.message || 'Something went wrong. Please try again.');
       setLoading(false);
     }
   };
