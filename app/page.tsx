@@ -153,6 +153,25 @@ export default function Home() {
           </div>
         </div>
       </motion.section>
+
+      {/* Footer Disclaimer */}
+      <footer className="relative z-10 border-t border-white/10 bg-slate-950/40 px-4 py-10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 text-center text-sm text-gray-300">
+          <p>
+            Merlin provides astrological insights for entertainment and self-reflection only and is not
+            a substitute for professional, medical, legal, or financial advice.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-amber-300">
+            <Link href="/terms" className="hover:text-amber-200 transition-colors">
+              Terms of Service
+            </Link>
+            <span className="text-gray-500">•</span>
+            <Link href="/privacy" className="hover:text-amber-200 transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
