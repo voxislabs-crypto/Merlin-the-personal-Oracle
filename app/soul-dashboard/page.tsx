@@ -53,8 +53,13 @@ export default function SoulDashboardPage() {
       electional: [],
       moonPhase: {} as any,
       transits: [],
-      mbti: data.mbti,
     };
+    
+    // Add MBTI if present
+    if ((data as any).mbti) {
+      (convertedData as any).mbti = (data as any).mbti;
+    }
+    
     setChartData(convertedData);
   };
 
