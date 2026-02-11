@@ -1,208 +1,360 @@
 'use client';
 
+import React, { useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BirthChart } from '@/components/astrology/BirthChart';
 import { WheelVisualization } from '@/components/astrology/WheelVisualization';
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { getMBTI, PERSONALITY_LINES } from '@/lib/personality/fusion';
-import { adaptMessage } from '@/lib/personality/adapter';
-import { type MBTIType } from '@/shared/schema';
-import { motion } from 'framer-motion';
-import { calculateBirthChart } from '@/lib/engine-fallback';
-import { getTodaysForecast } from '@/lib/astrology/ephemeris';
+import { ChartInterpretation } from '@/components/astrology/ChartInterpretation';
+import { DailyForecast } from '@/components/astrology/DailyForecast';
+import { ActiveTransits } from '@/components/astrology/ActiveTransits';
+import { LifeArc } from '@/components/astrology/LifeArc';
+import { useInterpretations } from '@/hooks/useInterpretations';
+import { useForecast } from '@/hooks/useForecast';
+import { useTransits } from '@/hooks/useTransits';
+import { useLifeArc } from '@/hooks/useLifeArc';
+import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
+import { Sparkles, Moon, Zap, BookOpen } from 'lucide-react';
+import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
-function getPlanetGlyph(name: string): string {
-  const glyphs: { [key: string]: string } = {
-    Sun: '☉',
-    Moon: '☽',
-    Mercury: '☿',
-    Venus: '♀',
-    Mars: '♂',
-    Jupiter: '♃',
-    Saturn: '♄',
-    Uranus: '⛢',
-    Neptune: '♆',
-    Pluto: '♇'
-  };
-  return glyphs[name] || name;
-}
+const STORAGE_KEY = 'merlin_chart_data';
+const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 
-function DashboardContent() {
-  const searchParams = useSearchParams();
-  const birthDate = searchParams.get('date');
-  const birthTime = searchParams.get('time');
-  const birthCity = searchParams.get('city');
+export default function UnifiedDashboard() {
+  const [birthData, setBirthData] = useState<BirthData | null>(null);
+  const [chartData, setChartData] = useState<BirthChartData | null>(null);
+  const [wheelData, setWheelData] = useState<ChartData | null>(null);
+  const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc'>('wheel');
+  
+  const { interpretations, loading: interpretLoading, generateInterpretations } = useInterpretations();
+  const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
+  const { transits, loading: transitsLoading, calculateTransits } = useTransits();
+  const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
 
-  const [chart, setChart] = useState<any>(null);
-  const [whisper, setWhisper] = useState('Loading...');
-  const [type, setType] = useState('Loading...');
-  const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
+  // Load persisted data on mount
   useEffect(() => {
-    if (!birthDate || !birthTime) {
-      setError('Missing birth date or time in URL');
-      return;
-    }
-
     try {
-      console.log('Calculating chart for:', { birthDate, birthTime, birthCity });
+      const savedChart = localStorage.getItem(STORAGE_KEY);
+      const savedBirth = localStorage.getItem(STORAGE_BIRTH_KEY);
       
-      // Calculate real birth chart
-      const birthChart = calculateBirthChart(birthDate, birthTime, 0, 0); // TODO: Add geocoding for lat/lon
-
-      console.log('Chart calculated successfully:', birthChart);
-
-      // Generate today's forecast
-      const forecast = getTodaysForecast(birthChart);
-
-      // Transform birth chart data for wheel visualization
-      const wheelData = {
-        planets: birthChart.positions.map(p => ({
-          name: p.name,
-          angle: p.longitude,
-          sign: p.sign,
-          glyph: getPlanetGlyph(p.name)
-        })),
-        houses: birthChart.houses.map(h => h.longitude || 0),
-        aspects: birthChart.aspects.slice(0, 10).map(a => ({ // Limit aspects for performance
-          from: a.planet1.name,
-          to: a.planet2.name,
-          type: a.type,
-          angle: Math.abs(a.planet1.longitude - a.planet2.longitude)
-        })),
-        ascendant: { sign: birthChart.ascendant.sign },
-        sun: { sign: birthChart.positions.find(p => p.name === 'Sun')?.sign || '' },
-        mercury: { aspects: [] },
-        moon: { aspects: [] }
-      };
-
-      setChart(wheelData);
-
-      // Calculate MBTI and personality lines
-      const mbti = getMBTI(wheelData) as MBTIType;
-      const lines = PERSONALITY_LINES[mbti] || ["You are the exception."];
-      setType(`${mbti} – ${lines[0]}`);
-
-      // Set forecast as whisper with personalization
-      const rawWhisper = `${forecast.summary}\n\n${forecast.advice}`;
-      const personalizedWhisper = adaptMessage(mbti, rawWhisper);
-      setWhisper(personalizedWhisper);
-    } catch (error) {
-      console.error('Error calculating chart:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to calculate chart: ${errorMessage}`);
-      setWhisper('The stars are veiled today. Try again later.');
-      setType('Unknown – The mystery endures.');
-    }
-  }, [birthDate, birthTime]);
-
-  if (!chart) return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-10 left-10 w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-amber-300 rounded-full animate-ping"></div>
-        <div className="absolute bottom-20 left-20 w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-10 right-10 w-2 h-2 bg-amber-200 rounded-full animate-ping"></div>
-      </div>
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1 }}
-        className="text-center relative z-10"
-      >
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-400 mx-auto mb-4"></div>
-        <p className="text-xl text-amber-400">Loading your fate...</p>
-      </motion.div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4 md:p-8 relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0">
-        <div className="absolute top-10 left-10 w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-amber-300 rounded-full animate-ping"></div>
-        <div className="absolute bottom-20 left-20 w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-10 right-10 w-2 h-2 bg-amber-200 rounded-full animate-ping"></div>
-        <div className="absolute top-1/2 left-1/4 w-1 h-1 bg-white rounded-full animate-pulse"></div>
-        <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-amber-400 rounded-full animate-ping"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        <motion.div 
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl font-bold text-amber-400 mb-4">Your Eternal Chart</h1>
-          <p className="text-gray-300">Born {birthDate} at {birthTime} in {birthCity}</p>
-          {error && (
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-red-400 mt-4 text-sm bg-red-900/20 border border-red-500 rounded px-4 py-2 inline-block"
-            >
-              {error}
-            </motion.p>
-          )}
-        </motion.div>
+      if (savedChart && savedBirth) {
+        const chart = JSON.parse(savedChart);
+        const birth = JSON.parse(savedBirth);
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Whisper */}
-          <motion.section 
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="bg-black/50 rounded-lg p-8 border border-amber-800 backdrop-blur-sm z-10 relative"
-          >
-            <h2 className="text-2xl font-bold text-amber-400 mb-4">Today's Oracle</h2>
-            <div className="text-gray-300 italic whitespace-pre-line">{whisper}</div>
-          </motion.section>
+        setChartData(chart);
+        setBirthData(birth);
+        
+        // Transform for wheel
+        const wheel: ChartData = {
+          planets: chart.planets.map((p: any) => ({
+            name: p.name,
+            glyph: p.glyph || p.name?.[0] || '•',
+            angle: p.longitude ?? p.position ?? 0,
+            sign: p.sign || '',
+            degree: p.degree ?? 0,
+            element: p.element || 'Fire',
+            color: p.color || 'hsl(45, 88%, 68%)',
+            orbitalDistance: p.distance ?? 1,
+          })),
+          aspects: chart.aspects.map((a: any) => ({
+            from: a.planet1?.name || a.planet1 || a.from || '',
+            to: a.planet2?.name || a.planet2 || a.to || '',
+            type: a.type || a.aspect || 'conjunction',
+            angle: a.orb || a.angle || 0,
+            color: a.color || 'hsl(45, 88%, 68%)',
+            label: a.aspect || a.type || 'Aspect',
+          })),
+          houses: chart.houses.map((h: any) => h.longitude ?? h.position ?? 0),
+          ascendant: (chart as any).ascendant?.longitude ?? (chart as any).ascendant ?? 0,
+          midheaven: (chart as any).mc?.longitude ?? (chart as any).mc ?? (chart as any).midheaven ?? 0,
+        };
+        setWheelData(wheel);
+        
+        // Recalculate all derived data
+        Promise.all([
+          generateInterpretations(birth),
+          calculateForecast(birth),
+          calculateTransits(birth),
+          calculateLifeArc(birth, chart)
+        ]).catch((e) => console.error('Error regenerating dashboard data:', e));
+      }
+    } catch (error) {
+      console.error('Error loading persisted data:', error);
+    }
+  }, []);
 
-          {/* Wheel */}
-          <motion.section 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="bg-black/50 rounded-lg p-8 border border-amber-800 flex justify-center backdrop-blur-sm z-20 relative"
-          >
-            <WheelVisualization 
-              chartData={chart} 
-              hoveredPlanet={hoveredPlanet}
-              setHoveredPlanet={setHoveredPlanet}
-            />
-          </motion.section>
+  const handleChartCalculated = useCallback((data: BirthChartData) => {
+    // Derive birth data
+    const possible = (data as any).birthData || (data as any).metadata || {};
+    const derived: BirthData = {
+      date: (possible.birthDate as string) || (possible.date as string) || '',
+      time: (possible.birthTime as string) || (possible.time as string) || '12:00',
+      latitude: (possible.coordinates?.lat as number) || (possible.latitude as number) || 0,
+      longitude: (possible.coordinates?.lon as number) || (possible.longitude as number) || 0,
+      houseSystem: 'Placidus',
+      zodiac: 'Tropical',
+    };
 
-          {/* Type */}
-          <motion.section 
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="bg-black/50 rounded-lg p-8 border border-amber-800 backdrop-blur-sm z-10 relative"
-          >
-            <h2 className="text-2xl font-bold text-amber-400 mb-4">Your Type</h2>
-            <p className="text-gray-300">{type}</p>
-          </motion.section>
-        </div>
-      </div>
-    </div>
-  );
-}
+    setBirthData(derived);
+    setChartData(data);
 
-export default function Dashboard() {
+    // Persist to localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(STORAGE_BIRTH_KEY, JSON.stringify(derived));
+    } catch (error) {
+      console.error('Error persisting data:', error);
+    }
+
+    // Transform for wheel
+    const wheel: ChartData = {
+      planets: data.planets.map((p: any) => ({
+        name: p.name,
+        glyph: p.glyph || p.name?.[0] || '•',
+        angle: p.longitude ?? p.position ?? 0,
+        sign: p.sign || '',
+        degree: p.degree ?? 0,
+        element: p.element || 'Fire',
+        color: p.color || 'hsl(45, 88%, 68%)',
+        orbitalDistance: p.distance ?? 1,
+      })),
+      aspects: data.aspects.map((a: any) => ({
+        from: a.planet1?.name || a.planet1 || a.from || '',
+        to: a.planet2?.name || a.planet2 || a.to || '',
+        type: a.type || a.aspect || 'conjunction',
+        angle: a.orb || a.angle || 0,
+        color: a.color || 'hsl(45, 88%, 68%)',
+        label: a.aspect || a.type || 'Aspect',
+      })),
+      houses: data.houses.map((h: any) => h.longitude ?? h.position ?? 0),
+      ascendant: (data as any).ascendant?.longitude ?? (data as any).ascendant ?? 0,
+      midheaven: (data as any).mc?.longitude ?? (data as any).mc ?? (data as any).midheaven ?? 0,
+    };
+    setWheelData(wheel);
+    setActiveSection('wheel');
+
+    // Fire off async jobs
+    Promise.all([
+      generateInterpretations(derived),
+      calculateForecast(derived),
+      calculateTransits(derived),
+      calculateLifeArc(derived, data)
+    ]).catch((e) => console.error('Error generating dashboard data:', e));
+  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc]);
+
+  const handleReadAloud = () => {
+    if (!forecast?.summary) return;
+    
+    const text = `${forecast.summary}. ${forecast.advice}`;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleDailyWhisper = () => {
+    setActiveSection('forecast');
+  };
+
   return (
     <>
       <SignedIn>
-        <Suspense fallback={
-          <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-400 mx-auto mb-4"></div>
-            <p className="text-xl text-amber-400">Loading...</p>
+        <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
+          <div className="max-w-7xl mx-auto px-4 py-12">
+            {/* Header */}
+            <motion.div
+              className="text-center mb-12"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
+                Your Cosmic Dashboard
+              </h1>
+              <p className="text-gray-300 text-lg">One place. Your whole story.</p>
+            </motion.div>
+
+            {/* Birth Chart Calculator */}
+            {!chartData && (
+              <motion.div
+                className="mb-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <BirthChart
+                  onChartCalculated={handleChartCalculated}
+                  initialData={birthData || undefined}
+                  showControls={true}
+                />
+              </motion.div>
+            )}
+
+            {/* Main Dashboard Content */}
+            {chartData && wheelData && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-8"
+              >
+                {/* Wheel Section */}
+                <div className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm z-10 relative">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
+                    <button
+                      onClick={() => {
+                        setChartData(null);
+                        setWheelData(null);
+                        setBirthData(null);
+                        localStorage.removeItem(STORAGE_KEY);
+                        localStorage.removeItem(STORAGE_BIRTH_KEY);
+                      }}
+                      className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition-colors"
+                    >
+                      Calculate New Chart
+                    </button>
+                  </div>
+                  
+                  <div className="w-full h-[600px] relative z-20">
+                    <WheelVisualization chartData={wheelData} />
+                  </div>
+
+                  {/* Action Buttons Under Wheel */}
+                  <div className="flex gap-4 mt-8 justify-center">
+                    <button
+                      onClick={handleReadAloud}
+                      disabled={!forecast?.summary}
+                      className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Read Aloud
+                    </button>
+                    <button
+                      onClick={handleDailyWhisper}
+                      disabled={!forecast?.summary}
+                      className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🌙 Daily Whisper
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Access Buttons */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <button
+                    onClick={() => setActiveSection('interpretation')}
+                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
+                      activeSection === 'interpretation'
+                        ? 'bg-blue-500/20 border-blue-400 shadow-lg shadow-blue-500/20'
+                        : 'bg-slate-800/50 border-slate-700/50 hover:border-blue-400/50'
+                    }`}
+                  >
+                    <Sparkles className="w-8 h-8 text-blue-400 mb-2 mx-auto" />
+                    <h3 className="text-lg font-semibold text-blue-300">Interpretation</h3>
+                    <p className="text-sm text-slate-400 mt-1">Deep chart reading</p>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveSection('forecast')}
+                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
+                      activeSection === 'forecast'
+                        ? 'bg-purple-500/20 border-purple-400 shadow-lg shadow-purple-500/20'
+                        : 'bg-slate-800/50 border-slate-700/50 hover:border-purple-400/50'
+                    }`}
+                  >
+                    <Moon className="w-8 h-8 text-purple-400 mb-2 mx-auto" />
+                    <h3 className="text-lg font-semibold text-purple-300">Today's Forecast</h3>
+                    <p className="text-sm text-slate-400 mt-1">Current energies</p>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveSection('transits')}
+                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
+                      activeSection === 'transits'
+                        ? 'bg-orange-500/20 border-orange-400 shadow-lg shadow-orange-500/20'
+                        : 'bg-slate-800/50 border-slate-700/50 hover:border-orange-400/50'
+                    }`}
+                  >
+                    <Zap className="w-8 h-8 text-orange-400 mb-2 mx-auto" />
+                    <h3 className="text-lg font-semibold text-orange-300">Active Transits</h3>
+                    <p className="text-sm text-slate-400 mt-1">Cosmic events now</p>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveSection('lifearc')}
+                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
+                      activeSection === 'lifearc'
+                        ? 'bg-green-500/20 border-green-400 shadow-lg shadow-green-500/20'
+                        : 'bg-slate-800/50 border-slate-700/50 hover:border-green-400/50'
+                    }`}
+                  >
+                    <BookOpen className="w-8 h-8 text-green-400 mb-2 mx-auto" />
+                    <h3 className="text-lg font-semibold text-green-300">Life Arc</h3>
+                    <p className="text-sm text-slate-400 mt-1">Your story timeline</p>
+                  </button>
+                </div>
+
+                {/* Dynamic Content Section */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeSection}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm min-h-[400px]"
+                  >
+                    {activeSection === 'interpretation' && (
+                      <ChartInterpretation
+                        summary={interpretations?.chartSummary || ''}
+                        planetInterpretations={interpretations?.planetInterpretations || []}
+                        aspectInterpretations={interpretations?.aspectInterpretations || []}
+                        loading={interpretLoading}
+                      />
+                    )}
+
+                    {activeSection === 'forecast' && (
+                      <DailyForecast
+                        date={forecast?.date || new Date().toISOString()}
+                        summary={forecast?.summary || 'Loading forecast...'}
+                        planetaryHighlights={forecast?.planetaryHighlights || []}
+                        moonPhase={forecast?.moonPhase || 'Unknown'}
+                        advice={forecast?.advice || ''}
+                        loading={forecastLoading}
+                      />
+                    )}
+
+                    {activeSection === 'transits' && (
+                      <ActiveTransits
+                        significant={transits?.significant || []}
+                        approaching={transits?.approaching || []}
+                        summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
+                        loading={transitsLoading}
+                      />
+                    )}
+
+                    {activeSection === 'lifearc' && (
+                      <LifeArc
+                        beats={lifeArc?.beats || []}
+                        summary={lifeArc?.summary || 'Calculating your life arc...'}
+                        currentPhase={lifeArc?.currentPhase || ''}
+                        loading={lifeArcLoading}
+                      />
+                    )}
+
+                    {activeSection === 'wheel' && (
+                      <div className="text-center py-12">
+                        <p className="text-slate-400 text-lg">
+                          Select a section above to explore your cosmic insights
+                        </p>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+            )}
           </div>
-        }>
-          <DashboardContent />
-        </Suspense>
+        </div>
       </SignedIn>
       <SignedOut>
         <RedirectToSignIn />

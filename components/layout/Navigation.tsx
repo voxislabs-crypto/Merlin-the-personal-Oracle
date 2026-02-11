@@ -11,8 +11,6 @@ import { cn } from '@/lib/utils';
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '/enhanced-dashboard', label: 'Birth Chart' },
-  { href: '/astro-calculator', label: 'Calculator' },
   { href: '/profile', label: 'Profile' },
 ];
 
