@@ -10,7 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, MapPin, Loader2 } from 'lucide-react';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 interface BirthIntakeFormProps {
   redirectTo?: 'dashboard' | 'enhanced-dashboard';
@@ -38,14 +40,18 @@ export function BirthIntakeForm({
     try {
       if (showPayment) {
         // Process payment directly
+        console.log('Starting payment flow...');
         const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
+        console.log('Price ID:', priceId);
         
         if (!priceId) {
+          console.error('Missing NEXT_PUBLIC_STRIPE_PRICE_ID');
           alert('Payment not configured. Please contact support.');
           setLoading(false);
           return;
         }
 
+        console.log('Creating checkout session with:', { priceId, formData });
         const response = await fetch('/api/stripe/create-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -55,20 +61,35 @@ export function BirthIntakeForm({
           }),
         });
 
+        console.log('Response status:', response.status);
         if (!response.ok) {
           const errorData = await response.json();
+          console.error('API error:', errorData);
           throw new Error(errorData.error || 'Payment failed');
         }
 
-        const { sessionId } = await response.json();
+        const { sessionId, url } = await response.json();
+        console.log('Checkout session created:', { sessionId, url });
+        console.log('Checkout session created:', { sessionId, url });
+
+        if (url) {
+          console.log('Redirecting to Stripe checkout:', url);
+          window.location.href = url;
+          return;
+        }
+
+        if (!stripePromise) {
+          throw new Error('Stripe is not configured. Please contact support.');
+        }
+
         const stripe = await stripePromise;
-        
+
         if (!stripe) {
           throw new Error('Stripe failed to load');
         }
 
         const { error } = await stripe.redirectToCheckout({ sessionId });
-        
+
         if (error) {
           throw error;
         }
@@ -82,7 +103,8 @@ export function BirthIntakeForm({
         router.push(`/${redirectTo}?${params.toString()}`);
       }
     } catch (error: any) {
-      console.error('Error submitting form:', error);
+      console.error('Form submission error:', error);
+      console.error('Error details:', { message: error.message, stack: error.stack });
       alert(error.message || 'Something went wrong. Please try again.');
       setLoading(false);
     }
