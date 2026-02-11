@@ -6,13 +6,15 @@ import { BirthChart } from '@/components/astrology/BirthChart';
 import { ChartInterpretation } from '@/components/astrology/ChartInterpretation';
 import { DailyForecast } from '@/components/astrology/DailyForecast';
 import { ActiveTransits } from '@/components/astrology/ActiveTransits';
+import { LifeArc } from '@/components/astrology/LifeArc';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
+import { useLifeArc } from '@/hooks/useLifeArc';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 
-type Tab = 'overview' | 'interpretation' | 'forecast' | 'transits';
+type Tab = 'overview' | 'interpretation' | 'forecast' | 'transits' | 'lifearc';
 
 export default function EnhancedAstroDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -21,6 +23,8 @@ export default function EnhancedAstroDashboard() {
   const { interpretations, loading: interpretLoading, generateInterpretations } = useInterpretations();
   const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
+  const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
+  const [chartData, setChartData] = useState<BirthChartData | null>(null);
 
   const handleChartCalculated = useCallback((data: BirthChartData) => {
     // Try to derive input BirthData from the returned chart data when available
@@ -35,13 +39,15 @@ export default function EnhancedAstroDashboard() {
     };
 
     setBirthData(derived);
+    setChartData(data);
     setActiveTab('overview');
 
     // Fire off async jobs without making this callback async (matches prop signature)
     Promise.all([
       generateInterpretations(derived),
       calculateForecast(derived),
-      calculateTransits(derived)
+      calculateTransits(derived),
+      calculateLifeArc(derived, data)
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [generateInterpretations, calculateForecast, calculateTransits]);
 
@@ -93,7 +99,8 @@ export default function EnhancedAstroDashboard() {
                 { id: 'overview', label: '📊 Overview', icon: '✨' },
                 { id: 'interpretation', label: '🔮 Interpretation', icon: '📖' },
                 { id: 'forecast', label: '🌙 Today\'s Forecast', icon: '☀️' },
-                { id: 'transits', label: '⚡ Active Transits', icon: '🪐' }
+                { id: 'transits', label: '⚡ Active Transits', icon: '🪐' },
+                { id: 'lifearc', label: '📖 Life Arc', icon: '⏳' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -173,6 +180,15 @@ export default function EnhancedAstroDashboard() {
                   approaching={transits?.approaching || []}
                   summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
                   loading={transitsLoading}
+                />
+              )}
+
+              {activeTab === 'lifearc' && (
+                <LifeArc
+                  beats={lifeArc?.beats || []}
+                  summary={lifeArc?.summary || 'Calculating your life arc...'}
+                  currentPhase={lifeArc?.currentPhase || ''}
+                  loading={lifeArcLoading}
                 />
               )}
             </motion.div>
