@@ -38,6 +38,22 @@ export function BirthIntakeForm({
     setLoading(true);
 
     try {
+      // Dev mode bypass: skip payment
+      const isDev = process.env.NODE_ENV === 'development' || 
+        process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+      
+      if (isDev && showPayment) {
+        console.log('🔓 Dev mode: Payment bypassed');
+        // Skip payment, redirect directly
+        const params = new URLSearchParams({
+          date: formData.birthDate,
+          time: formData.birthTime,
+          city: formData.birthCity,
+        });
+        router.push(`/${redirectTo}?${params.toString()}`);
+        return;
+      }
+      
       if (showPayment) {
         // Process payment directly
         console.log('Starting payment flow...');

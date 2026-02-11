@@ -1,5 +1,5 @@
 // app/layout.tsx
-import { ClerkProvider } from '@clerk/nextjs';
+import { ClerkProvider } from './clerk-provider';
 import { Navigation } from '@/components/layout/Navigation';
 import { Footer } from '@/components/layout/Footer';
 import './globals.css';

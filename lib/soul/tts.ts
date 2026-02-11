@@ -31,32 +31,37 @@ export interface TTSResponse {
   provider: VoiceProvider;
 }
 
+// Get custom voice ID from environment (fallback to default)
+const getVoiceId = (defaultVoice: string): string => {
+  return process.env.ELEVENLABS_VOICE_ID || defaultVoice;
+};
+
 // Voice presets for different archetypes
 const VOICE_PRESETS: Record<VoiceArchetype, VoiceConfig> = {
   mentor: {
     provider: "elevenlabs",
-    voiceId: "pNInz6obpgDQGcFmaJgB", // Adam (deep male voice)
+    voiceId: getVoiceId("pNInz6obpgDQGcFmaJgB"), // Custom or Adam (deep male voice)
     archetype: "mentor",
     stability: 0.75,
     similarityBoost: 0.75,
   },
   mystic: {
     provider: "elevenlabs",
-    voiceId: "EXAVITQu4vr4xnSDxMaL", // Bella (soft female voice)
+    voiceId: getVoiceId("EXAVITQu4vr4xnSDxMaL"), // Custom or Bella (soft female voice)
     archetype: "mystic",
     stability: 0.5,
     similarityBoost: 0.8,
   },
   warrior: {
     provider: "elevenlabs",
-    voiceId: "TxGEqnHWrfWFTfGW9XjX", // Josh (firm male voice)
+    voiceId: getVoiceId("TxGEqnHWrfWFTfGW9XjX"), // Custom or Josh (firm male voice)
     archetype: "warrior",
     stability: 0.85,
     similarityBoost: 0.7,
   },
   sage: {
     provider: "elevenlabs",
-    voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel (balanced female voice)
+    voiceId: getVoiceId("21m00Tcm4TlvDq8ikWAM"), // Custom or Rachel (balanced female voice)
     archetype: "sage",
     stability: 0.7,
     similarityBoost: 0.75,

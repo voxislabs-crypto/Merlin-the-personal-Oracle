@@ -155,7 +155,7 @@ function DashboardContent() {
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="bg-black/50 rounded-lg p-8 border border-amber-800 backdrop-blur-sm"
+            className="bg-black/50 rounded-lg p-8 border border-amber-800 backdrop-blur-sm z-10 relative"
           >
             <h2 className="text-2xl font-bold text-amber-400 mb-4">Today's Oracle</h2>
             <div className="text-gray-300 italic whitespace-pre-line">{whisper}</div>
@@ -166,7 +166,7 @@ function DashboardContent() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="bg-black/50 rounded-lg p-8 border border-amber-800 flex justify-center backdrop-blur-sm"
+            className="bg-black/50 rounded-lg p-8 border border-amber-800 flex justify-center backdrop-blur-sm z-20 relative"
           >
             <WheelVisualization 
               chartData={chart} 
@@ -180,7 +180,7 @@ function DashboardContent() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="bg-black/50 rounded-lg p-8 border border-amber-800 backdrop-blur-sm"
+            className="bg-black/50 rounded-lg p-8 border border-amber-800 backdrop-blur-sm z-10 relative"
           >
             <h2 className="text-2xl font-bold text-amber-400 mb-4">Your Type</h2>
             <p className="text-gray-300">{type}</p>

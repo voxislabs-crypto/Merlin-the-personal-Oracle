@@ -8,6 +8,7 @@ import { ChartBadges, getBadgeDisplay } from "@/lib/soul/badges";
 import { ProgressedChart } from "@/lib/astrology/progressions";
 import { SynastryReport } from "@/lib/astrology/synastry";
 import { SoulWhisper } from "@/lib/soul/whisper-library";
+import { ReadAloudButton } from "@/components/ui/read-aloud-button";
 
 interface SoulDashboardProps {
   chartData: BirthChartData;
@@ -167,9 +168,12 @@ export function SoulDashboard({
         <div className="space-y-6">
           {/* Core Identity */}
           <section className="bg-slate-800 p-6 rounded-lg">
-            <h2 className="text-2xl font-bold text-yellow-300 mb-3">
-              Core Identity
-            </h2>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-2xl font-bold text-yellow-300">
+                Core Identity
+              </h2>
+              <ReadAloudButton text={soulReading.coreIdentity} voice="sage" />
+            </div>
             <p className="text-slate-200 leading-relaxed">
               {soulReading.coreIdentity}
             </p>
@@ -376,11 +380,14 @@ export function SoulDashboard({
       {activeTab === "whisper" && whisper && (
         <div className="space-y-6">
           <section className="bg-gradient-to-br from-indigo-900 to-purple-900 p-8 rounded-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-4xl">✨</span>
-              <h2 className="text-2xl font-bold text-yellow-300">
-                {whisper.source} Speaks
-              </h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-4xl">✨</span>
+                <h2 className="text-2xl font-bold text-yellow-300">
+                  {whisper.source} Speaks
+                </h2>
+              </div>
+              <ReadAloudButton text={whisper.message} voice="mystic" />
             </div>
             <p className="text-xl text-slate-100 leading-relaxed">
               {whisper.message}

@@ -63,11 +63,12 @@ export function ActiveTransits({
 
   return (
     <motion.div
-      className="space-y-6"
+      className="space-y-6 z-10 relative"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
+
       {/* Summary Stats */}
       <motion.div
         className="grid grid-cols-3 gap-4"

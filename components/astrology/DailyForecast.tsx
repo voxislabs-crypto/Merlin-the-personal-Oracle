@@ -22,7 +22,7 @@ export function DailyForecast({
 }: DailyForecastProps) {
   if (loading) {
     return (
-      <div className="p-8 bg-slate-900/50 rounded-lg border border-amber-500/20">
+      <div className="p-8 bg-slate-900/50 rounded-lg border border-amber-500/20 z-10 relative">
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-slate-700 rounded w-3/4"></div>
           <div className="h-4 bg-slate-700 rounded w-1/2"></div>
@@ -53,7 +53,7 @@ export function DailyForecast({
 
   return (
     <motion.div
-      className="space-y-6"
+      className="space-y-6 z-10 relative"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

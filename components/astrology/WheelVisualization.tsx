@@ -114,7 +114,7 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
   return (
     <div className="flex justify-center my-16 bg-black relative">
       {/* Transit Toggle Checkbox */}
-      <label className="absolute top-4 right-4 z-10 flex items-center space-x-2 text-amber-300">
+      <label className="absolute top-4 right-4 z-30 flex items-center space-x-2 text-amber-300">
         <input
           type="checkbox"
           checked={showTransits}
@@ -124,7 +124,7 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
         <span className="text-sm">Show transits</span>
       </label>
 
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="drop-shadow-2xl">
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="drop-shadow-2xl z-20 relative">
         {/* Book cover background */}
         <defs>
           <radialGradient id="bookBg" cx="50%" cy="50%" r="80%">
@@ -355,7 +355,7 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
       </svg>
 
       {/* Moon Phase Icon */}
-      <div className="absolute bottom-4 left-4 text-2xl">
+      <div className="absolute bottom-4 left-4 text-2xl z-30">
         {(() => {
           const today = new Date();
           const dateString = today.toISOString().split('T')[0];
