@@ -199,7 +199,7 @@ export default function UnifiedDashboard() {
                 className="space-y-8"
               >
                 {/* Wheel Section */}
-                <div className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm z-10 relative">
+                <div className="bg-slate-900/40 rounded-lg p-8 pb-12 border border-amber-500/10 backdrop-blur-sm z-10 relative">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
                     <button
@@ -240,7 +240,7 @@ export default function UnifiedDashboard() {
                 </div>
 
                 {/* Quick Access Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-12">
                   <button
                     onClick={() => setActiveSection('interpretation')}
                     className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
