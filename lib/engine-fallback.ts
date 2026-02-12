@@ -226,6 +226,7 @@ export function calculateBirthChart(
   return {
     jd,
     positions: planets,
+    planets: planets, // Add for compatibility with components
     houses,
     aspects,
     ascendant,
@@ -262,4 +263,24 @@ export function calculateBirthChart(
       },
     },
   };
+}
+
+// Wrapper function to match API expectations
+export function calculateAll(params: {
+  year: number;
+  month: number;
+  day: number;
+  hours: number;
+  minutes: number;
+  latitude: number;
+  longitude: number;
+  houseSystem?: string;
+  zodiac?: string;
+  orb?: number;
+}): BirthChartData {
+  // Format parameters to match calculateBirthChart signature
+  const birthDate = `${params.year}-${String(params.month).padStart(2, '0')}-${String(params.day).padStart(2, '0')}`;
+  const birthTime = `${String(params.hours).padStart(2, '0')}:${String(params.minutes).padStart(2, '0')}`;
+  
+  return calculateBirthChart(birthDate, birthTime, params.latitude, params.longitude);
 }

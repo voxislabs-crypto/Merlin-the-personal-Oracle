@@ -17,8 +17,13 @@ const navLinks = [
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const { isSignedIn } = useUser();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -72,7 +77,10 @@ export function Navigation() {
 
           {/* Right side - Auth */}
           <div className="hidden md:flex items-center space-x-4">
-            {isSignedIn ? (
+            {!mounted ? (
+              // Placeholder during SSR to prevent hydration mismatch
+              <div className="w-9 h-9" />
+            ) : isSignedIn ? (
               <UserButton
                 appearance={{
                   elements: {
@@ -100,7 +108,7 @@ export function Navigation() {
 
           {/* Mobile menu button */}
           <div className="flex md:hidden items-center space-x-4">
-            {isSignedIn && (
+            {mounted && isSignedIn && (
               <UserButton
                 appearance={{
                   elements: {
@@ -147,7 +155,7 @@ export function Navigation() {
                 </Link>
               ))}
 
-              {!isSignedIn && (
+              {!isSignedIn && mounted && (
                 <div className="pt-4 space-y-2 border-t border-amber-500/20">
                   <Link
                     href="/sign-in"
