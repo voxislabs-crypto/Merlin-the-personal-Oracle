@@ -66,7 +66,7 @@ export function ChartInterpretation({
         variants={itemVariants}
       >
         <h3 className="text-xl font-bold text-amber-300 mb-3">Your Cosmic Blueprint</h3>
-        <p className="text-black text-lg leading-relaxed" style={{ color: '#000' }}>{summary}</p>
+        <p className="text-white text-lg leading-relaxed">{summary}</p>
       </motion.div>
 
       {/* Planet Interpretations */}
@@ -83,7 +83,7 @@ export function ChartInterpretation({
                 transition={{ delay: idx * 0.1 }}
               >
                 <h4 className="text-lg font-semibold text-amber-200 mb-2">{item.planet}</h4>
-                <p className="text-black text-lg leading-relaxed" style={{ color: '#000' }}>{item.interpretation}</p>
+                <p className="text-white text-lg leading-relaxed">{item.interpretation}</p>
               </motion.div>
             ))}
           </div>
@@ -104,7 +104,7 @@ export function ChartInterpretation({
                 transition={{ delay: idx * 0.1 }}
               >
                 <h4 className="text-lg font-semibold text-amber-200 mb-2">{item.planets}</h4>
-                <p className="text-black text-lg leading-relaxed" style={{ color: '#000' }}>{item.interpretation}</p>
+                <p className="text-white text-lg leading-relaxed">{item.interpretation}</p>
               </motion.div>
             ))}
           </div>
