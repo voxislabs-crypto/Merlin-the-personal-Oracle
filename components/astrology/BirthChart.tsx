@@ -1,17 +1,18 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import { BirthChartData, BirthData, HouseCusp } from './BirthChartCalculator';
 import { transformChartData } from '@/lib/astrology/chartDataTransformers';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlanetInfo } from './PlanetInfo';
+import { GeocodingService, type GeocodingResult } from '@/lib/astrology/geocoding';
 
 // Dynamically import the WheelVisualization component with SSR disabled
 const WheelVisualization = dynamic(
@@ -74,6 +75,14 @@ export function BirthChart({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  
+  // Location search state
+  const [locationQuery, setLocationQuery] = useState<string>('');
+  const [locationResults, setLocationResults] = useState<GeocodingResult[]>([]);
+  const [showLocationResults, setShowLocationResults] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<GeocodingResult | null>(null);
+  const [searchingLocation, setSearchingLocation] = useState(false);
+  const locationInputRef = useRef<HTMLInputElement>(null);
 
   const calculateChart = async (data: BirthData) => {
     setLoading(true);
@@ -123,6 +132,20 @@ export function BirthChart({
       calculateChart(birthData);
     }
   }, []); // Only run on mount
+  
+  // Reverse geocode if lat/lon provided but no location name
+  useEffect(() => {
+    if (birthData.latitude && birthData.longitude && !locationQuery) {
+      GeocodingService.reverseGeocode(birthData.latitude, birthData.longitude)
+        .then((result) => {
+          if (result) {
+            setSelectedLocation(result);
+            setLocationQuery(result.displayName);
+          }
+        })
+        .catch((err) => console.error('Reverse geocoding failed:', err));
+    }
+  }, [birthData.latitude, birthData.longitude]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +161,52 @@ export function BirthChart({
         : value
     }));
   };
+
+  // Location search handler
+  const handleLocationSearch = async (query: string) => {
+    setLocationQuery(query);
+    
+    if (query.length < 2) {
+      setLocationResults([]);
+      setShowLocationResults(false);
+      return;
+    }
+
+    setSearchingLocation(true);
+    try {
+      const results = await GeocodingService.searchLocations(query);
+      setLocationResults(results);
+      setShowLocationResults(results.length > 0);
+    } catch (error) {
+      console.error('Location search error:', error);
+      setLocationResults([]);
+    } finally {
+      setSearchingLocation(false);
+    }
+  };
+
+  const handleSelectLocation = (location: GeocodingResult) => {
+    setSelectedLocation(location);
+    setLocationQuery(location.displayName);
+    setBirthData(prev => ({
+      ...prev,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    }));
+    setShowLocationResults(false);
+  };
+
+  // Hide location results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (locationInputRef.current && !locationInputRef.current.contains(event.target as Node)) {
+        setShowLocationResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Group planets by element for better organization
   const planetsByElement = useMemo(() => {
@@ -194,33 +263,64 @@ export function BirthChart({
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="latitude">Latitude</Label>
-                  <Input
-                    id="latitude"
-                    name="latitude"
-                    type="number"
-                    step="0.0001"
-                    value={birthData.latitude}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="longitude">Longitude</Label>
-                  <Input
-                    id="longitude"
-                    name="longitude"
-                    type="number"
-                    step="0.0001"
-                    value={birthData.longitude}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
               </div>
+              
+              {/* Location Search Field */}
+              <div className="space-y-2 relative" ref={locationInputRef}>
+                <Label htmlFor="location">
+                  <MapPin className="inline w-4 h-4 mr-1" />
+                  Birth Location (City, State)
+                </Label>
+                <Input
+                  id="location"
+                  name="location"
+                  type="text"
+                  placeholder="e.g., New York, NY or London, UK"
+                  value={locationQuery}
+                  onChange={(e) => handleLocationSearch(e.target.value)}
+                  onFocus={() => locationResults.length > 0 && setShowLocationResults(true)}
+                  autoComplete="off"
+                  required={!selectedLocation && !birthData.latitude}
+                />
+                
+                {/* Location Search Results Dropdown */}
+                {showLocationResults && locationResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {locationResults.map((result, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectLocation(result)}
+                        className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                      >
+                        <div className="font-medium text-white">{result.city}</div>
+                        <div className="text-sm text-slate-400">
+                          {result.state && `${result.state}, `}{result.country}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          {result.latitude.toFixed(4)}°, {result.longitude.toFixed(4)}°
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {searchingLocation && (
+                  <div className="absolute right-3 top-9">
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                  </div>
+                )}
+                
+                {/* Display selected coordinates */}
+                {selectedLocation && (
+                  <div className="text-xs text-slate-400 mt-1">
+                    📍 {selectedLocation.latitude.toFixed(4)}°, {selectedLocation.longitude.toFixed(4)}°
+                  </div>
+                )}
+              </div>
+              
               <div className="flex justify-end">
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading || (!selectedLocation && !birthData.latitude)}>
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
