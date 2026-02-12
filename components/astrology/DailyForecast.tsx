@@ -85,7 +85,7 @@ export function DailyForecast({
         variants={itemVariants}
       >
         <h4 className="text-lg font-bold text-amber-300 mb-3">Summary</h4>
-        <p className="text-gray-200 leading-relaxed">{summary}</p>
+        <p className="text-black text-lg leading-relaxed" style={{ color: '#000' }}>{summary}</p>
       </motion.div>
 
       {/* Planetary Highlights */}
@@ -105,7 +105,7 @@ export function DailyForecast({
                 transition={{ delay: idx * 0.1 }}
               >
                 <span className="text-amber-400 mt-1">→</span>
-                <span className="text-gray-300">{highlight}</span>
+                <span className="text-black" style={{ color: '#000' }}>{highlight}</span>
               </motion.div>
             ))}
           </div>
@@ -118,7 +118,7 @@ export function DailyForecast({
         variants={itemVariants}
       >
         <h4 className="text-lg font-bold text-amber-200 mb-3">✨ Cosmic Guidance</h4>
-        <p className="text-gray-100 leading-relaxed italic">{advice}</p>
+        <p className="text-black text-lg leading-relaxed italic" style={{ color: '#000' }}>{advice}</p>
       </motion.div>
     </motion.div>
   );

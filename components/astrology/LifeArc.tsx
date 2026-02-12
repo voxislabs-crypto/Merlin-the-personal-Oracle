@@ -117,7 +117,7 @@ export function LifeArc({
           <span className="text-3xl">✨</span>
           <h3 className="text-2xl font-bold text-purple-200">Current Chapter</h3>
         </div>
-        <p className="text-purple-100 text-lg leading-relaxed">
+        <p className="text-black text-lg leading-relaxed" style={{ color: '#000' }}>
           {currentPhase}
         </p>
       </motion.div>
@@ -180,7 +180,7 @@ export function LifeArc({
         <h3 className="text-xl font-bold text-amber-300 mb-3 flex items-center gap-2">
           📖 Your Story Arc
         </h3>
-        <p className="text-slate-200 text-lg leading-relaxed italic">
+        <p className="text-black text-lg leading-relaxed italic" style={{ color: '#000' }}>
           {summary}
         </p>
       </motion.div>
@@ -247,9 +247,9 @@ export function LifeArc({
               </div>
 
               {/* Narrative */}
-              <div className={`text-slate-100 text-lg leading-relaxed whitespace-pre-line transition-all ${
+              <div className={`text-black text-lg leading-relaxed whitespace-pre-line transition-all ${
                 isExpanded ? 'max-h-[1000px]' : 'max-h-[100px] overflow-hidden'
-              }`}>
+              }`} style={{ color: '#000' }}>
                 {beat.narrative}
               </div>
 
