@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { LifeBeat } from '@/lib/astrology/life-arc';
 
@@ -18,6 +18,11 @@ export function LifeArc({
   loading = false
 }: LifeArcProps) {
   const [expandedBeat, setExpandedBeat] = useState<number | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   if (loading) {
     return (
@@ -102,13 +107,67 @@ export function LifeArc({
   const currentAge = getCurrentAge();
 
   return (
-    <motion.div
-      className="space-y-8 z-10 relative"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Current Phase Banner */}
+    <>
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #life-arc-printable,
+          #life-arc-printable * {
+            visibility: visible;
+          }
+          #life-arc-printable {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-break {
+            page-break-after: always;
+          }
+        }
+      `}</style>
+
+      <motion.div
+        id="life-arc-printable"
+        ref={printRef}
+        className="space-y-8 z-10 relative"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Print Button */}
+        <motion.div 
+          variants={itemVariants}
+          className="flex justify-end no-print"
+        >
+          <button
+            onClick={handlePrint}
+            className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-900 font-bold rounded-lg transition-all shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 hover:scale-105 active:scale-95"
+          >
+            <svg 
+              className="w-5 h-5 transition-transform group-hover:scale-110" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" 
+              />
+            </svg>
+            Print Your Story
+          </button>
+        </motion.div>
+
+        {/* Current Phase Banner */}
       <motion.div
         variants={itemVariants}
         className="p-6 bg-gradient-to-br from-indigo-900/60 to-purple-900/60 rounded-lg border-2 border-purple-400/50 shadow-lg shadow-purple-500/20"
@@ -279,5 +338,6 @@ export function LifeArc({
         </p>
       </motion.div>
     </motion.div>
+    </>
   );
 }
