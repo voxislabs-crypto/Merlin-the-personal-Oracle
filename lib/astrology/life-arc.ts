@@ -3,7 +3,7 @@
  * Calculates major life transits and generates story beats
  */
 
-import { BirthChartData } from '@/types/astrology';
+import { BirthChartData, PlanetPosition } from '@/types/astrology';
 
 export interface LifeBeat {
   age: number;
@@ -144,7 +144,7 @@ function getChironReturn(birthDate: string, currentAge: number): LifeBeat | null
  * Calculate Pluto square/opposition based on natal Pluto position
  */
 function getPlutoTransit(chart: BirthChartData, birthDate: string, currentAge: number): LifeBeat | null {
-  const pluto = chart.planets.find(p => p.name === 'Pluto');
+  const pluto = chart.planets.find((p: PlanetPosition) => p.name === 'Pluto');
   if (!pluto) return null;
 
   // Pluto takes ~248 years for full cycle

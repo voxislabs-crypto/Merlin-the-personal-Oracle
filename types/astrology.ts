@@ -62,6 +62,7 @@ export interface ChartData extends BaseChartData {}
 
 export interface BirthChartData extends BaseChartData {
   jd: number;
+  planets: PlanetPosition[]; // Alias for positions for compatibility
   ascendant: {
     longitude: number;
     sign: string;

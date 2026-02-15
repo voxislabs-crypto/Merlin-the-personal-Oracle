@@ -8,6 +8,16 @@ export interface DailyForecast {
   moonPhase: string;
   transits: string[];
   advice: string;
+  summary_raw?: string;
+  summary_mbti_adjusted?: string;
+  day_rating?: 'Very Positive' | 'Positive' | 'Neutral' | 'Challenging' | 'Very Challenging';
+  mbti_overlay?: {
+    type: string;
+    confidence: number;
+    breakdown: any;
+    reasoning: string;
+    cosmicTendencies: string[];
+  };
 }
 
 export function useForecast() {

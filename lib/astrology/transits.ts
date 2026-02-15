@@ -8,6 +8,7 @@ export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
   aspect: string;
   orb: number;
   exact: boolean;
+  tags?: string[];
 }> => {
   const now = new Date();
 

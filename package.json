@@ -19,12 +19,15 @@
     "@clerk/nextjs": "^5.0.0",
     "@eslint/object-schema": "^3.0.0",
     "@prisma/client": "^5.7.0",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-hover-card": "^1.1.15",
     "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-toast": "^1.2.15",
     "@stripe/stripe-js": "^4.10.0",
     "astronomia": "^4.2.0",
     "class-variance-authority": "^0.7.1",
@@ -42,7 +45,8 @@
     "server-only": "^0.0.1",
     "stripe": "^20.1.2",
     "sweph": "^2.10.3-b-1",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
