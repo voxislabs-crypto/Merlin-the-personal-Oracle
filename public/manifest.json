@@ -1,0 +1,62 @@
+{
+  "name": "Merlin - Your Personal Oracle",
+  "short_name": "Merlin",
+  "description": "Birth chart calculator with raw astrological insights. Your cosmic mirror.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#fcd34d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "categories": ["lifestyle", "personalization"],
+  "shortcuts": [
+    {
+      "name": "Calculate Birth Chart",
+      "url": "/astro-calculator",
+      "description": "Calculate a new birth chart"
+    },
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your dashboard"
+    },
+    {
+      "name": "Life Timeline",
+      "url": "/enhanced-dashboard",
+      "description": "Explore your life timeline"
+    }
+  ]
+}
