@@ -418,6 +418,7 @@ export const calculateBirthChart = (
 
   return {
     jd,
+    planets: planetsWithDignities,  // BirthChartData uses 'planets' not 'positions'
     positions: planetsWithDignities,
     houses,
     ascendant,

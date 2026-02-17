@@ -1,0 +1,37 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#grad)"/>
+  
+  <!-- Decorative stars -->
+  <circle cx="100" cy="80" r="2" fill="#fcd34d" opacity="0.6"/>
+  <circle cx="1100" cy="100" r="3" fill="#fcd34d" opacity="0.8"/>
+  <circle cx="200" cy="550" r="2" fill="#fcd34d" opacity="0.5"/>
+  <circle cx="1000" cy="500" r="2" fill="#fcd34d" opacity="0.7"/>
+  
+  <!-- Main title -->
+  <text x="600" y="260" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#fcd34d" text-anchor="middle">
+    Merlin
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="600" y="330" font-family="Arial, sans-serif" font-size="36" fill="#e2e8f0" text-anchor="middle">
+    Your Personal Oracle
+  </text>
+  
+  <!-- Description -->
+  <text x="600" y="400" font-family="Arial, sans-serif" font-size="24" fill="#94a3b8" text-anchor="middle">
+    Professional Astrology Birth Chart Calculator
+  </text>
+  
+  <text x="600" y="440" font-family="Arial, sans-serif" font-size="20" fill="#64748b" text-anchor="middle">
+    Swiss Ephemeris Precision • MBTI Integration • Lifetime Access
+  </text>
+</svg>
