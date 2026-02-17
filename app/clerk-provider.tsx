@@ -9,6 +9,6 @@ interface ClerkProviderProps {
 
 export function ClerkProvider({ children }: ClerkProviderProps) {
   // Always provide ClerkProvider context so useUser() and other hooks work
-  // Dev mode bypasses are handled in middleware and auth checks, not here
+  // In dev mode, dummy keys are used and middleware bypasses all auth
   return <BaseClerkProvider>{children}</BaseClerkProvider>;
 }

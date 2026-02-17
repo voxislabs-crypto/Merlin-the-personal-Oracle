@@ -1,25 +1,28 @@
 // lib/personality/fusion.ts
 
 import { type MBTIType } from '@/shared/schema';
+import { computeMBTI } from '@/lib/astrology/mbtiFusion';
 
-const MBTI_MAP = {
-  // E/I from Asc sign or Sun
-  E: ['Aries', 'Leo', 'Sagittarius', 'Gemini', 'Libra', 'Aquarius'],
-  // N/S from Mercury aspects or sign
-  N: ['Uranus', 'Neptune', 'Pisces', 'Sagittarius'],
-  // F/T from Moon/Venus vs Mars
-  F: ['Venus', 'Moon', 'Pisces', 'Cancer', 'Libra'],
-  // J/P from Saturn or cardinal vs mutable
-  J: ['Capricorn', 'Aries', 'Cancer', 'Libra', 'Saturn']
-};
-
+/**
+ * Get MBTI type from birth chart using sophisticated astrological fusion
+ */
 export function getMBTI(chart: any): MBTIType {
-  const e_i = MBTI_MAP.E.some(s => chart.ascendant?.sign?.includes(s) || chart.sun?.sign?.includes(s)) ? 'E' : 'I';
-  const n_s = chart.mercury?.aspects?.some((a: any) => a.to === 'Uranus') ? 'N' : 'S';
-  const f_t = chart.moon?.aspects?.some((a: any) => a.to === 'Venus') ? 'F' : 'T';
-  const j_p = ['Capricorn', 'Aries', 'Cancer', 'Libra'].includes(chart.ascendant?.sign) ? 'J' : 'P';
-
-  return (e_i + n_s + f_t + j_p) as MBTIType;
+  try {
+    // Use the sophisticated MBTI fusion engine
+    const result = computeMBTI(chart);
+    console.log('[getMBTI] MBTI result:', result.type, 'confidence:', result.confidence);
+    return result.type as MBTIType;
+  } catch (error) {
+    console.error('[getMBTI] Error computing MBTI, using fallback:', error);
+    // Fallback to simple logic if sophisticated engine fails
+    const e_i = ['Aries', 'Leo', 'Sagittarius', 'Gemini', 'Libra', 'Aquarius'].some(s => 
+      chart.ascendant?.sign?.includes(s) || chart.sun?.sign?.includes(s)
+    ) ? 'E' : 'I';
+    const n_s = 'N'; // Default to intuition for safety
+    const f_t = 'F'; // Default to feeling for safety  
+    const j_p = ['Capricorn', 'Aries', 'Cancer', 'Libra'].includes(chart.ascendant?.sign) ? 'J' : 'P';
+    return (e_i + n_s + f_t + j_p) as MBTIType;
+  }
 }
 
 export const PERSONALITY_LINES: Record<MBTIType, string[]> = {

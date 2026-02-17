@@ -19,7 +19,7 @@ import { useLifeArc } from '@/hooks/useLifeArc';
 import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { Sparkles, Moon, Zap, BookOpen } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
@@ -207,12 +207,10 @@ export default function UnifiedDashboard() {
   };
 
   return (
-    <>
-      <SignedIn>
-        <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
-          <div className="max-w-7xl mx-auto px-4 py-12">
-            {/* Header */}
-            <motion.div
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        {/* Header */}
+        <motion.div
               className="text-center mb-12"
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -442,10 +440,5 @@ export default function UnifiedDashboard() {
             )}
           </div>
         </div>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
   );
 }

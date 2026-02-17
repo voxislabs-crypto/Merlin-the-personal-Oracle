@@ -1,12 +1,19 @@
-// app/layout.tsx
 import { ClerkProvider } from './clerk-provider';
 import { Navigation } from '@/components/layout/Navigation';
 import { Footer } from '@/components/layout/Footer';
 import { PWAInstaller } from '@/components/PWAInstaller';
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 const siteUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin-oracle.com';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#fcd34d'
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -38,7 +45,6 @@ export const metadata: Metadata = {
     telephone: false,
   },
   manifest: '/manifest.json',
-  themeColor: '#fcd34d',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -47,12 +53,6 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg'
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true
   },
   openGraph: {
     type: 'website',

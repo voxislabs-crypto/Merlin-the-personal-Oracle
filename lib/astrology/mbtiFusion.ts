@@ -160,16 +160,32 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
   // === S/N: Sensing vs Intuition ===
   let nScore = 0;
   
-  // North Node in Air/Fire = future-oriented, abstract thinking
+  // North Node in Air/Water/Fire = future-oriented, abstract thinking (BOOSTED)
   if (northNode) {
     const nnElement = getElement(northNode.sign);
     if (nnElement === "air" || nnElement === "fire") {
       nScore += 1.0;
       intuitionReasons.push(`North Node in ${northNode.sign} (${nnElement})`);
+    } else if (nnElement === "water") {
+      // Water North Node = deep intuition, psychic sensitivity
+      nScore += 1.2;
+      intuitionReasons.push(`North Node in ${northNode.sign} (water - deep intuition)`);
     }
   }
   
-  // Mercury in Air/Fire or 9th/11th house = conceptual thinking
+  // Moon in Scorpio/Pisces = profound intuitive capacity (INFJ boosters)
+  if (moon) {
+    const moonSign = moon.sign.toLowerCase();
+    if (moonSign === "scorpio" || moonSign === "pisces") {
+      nScore += 0.8;
+      intuitionReasons.push(`Moon in ${moon.sign} (intuitive water sign)`);
+    } else if (getElement(moon.sign) === "water") {
+      nScore += 0.5;
+      intuitionReasons.push(`Moon in ${moon.sign} (water element)`);
+    }
+  }
+  
+  // Mercury in Air/Fire or 9th/11th/12th house = conceptual thinking
   if (mercury) {
     const mercuryElement = getElement(mercury.sign);
     if (
@@ -183,6 +199,21 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
         `Mercury in ${mercury.sign} (house ${mercury.house})`
       );
     }
+    // Mercury in 12th house = unconscious/psychic thinking
+    if (mercury.house === 12) {
+      nScore += 0.6;
+      intuitionReasons.push(`Mercury in 12th house (unconscious mind)`);
+    }
+  }
+  
+  // Neptune aspects to Mercury/Moon = psychic/intuitive thinking
+  if (neptune && mercury && hasAspect(neptune, "Mercury", ["conjunction", "trine", "sextile"], chart)) {
+    nScore += 0.7;
+    intuitionReasons.push("Neptune-Mercury soft aspect (intuitive mind)");
+  }
+  if (neptune && moon && hasAspect(neptune, "Moon", ["conjunction", "trine", "sextile"], chart)) {
+    nScore += 0.6;
+    intuitionReasons.push("Neptune-Moon soft aspect (psychic sensitivity)");
   }
   
   // Jupiter in Air/Fire = expansive, philosophical
@@ -194,14 +225,21 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
     }
   }
   
-  // Uranus or Neptune prominent (1st, 9th, 10th house) = visionary
-  if (uranus && (uranus.house === 1 || uranus.house === 9 || uranus.house === 10)) {
-    nScore += 0.3;
-    intuitionReasons.push(`Uranus in ${uranus.house}${uranus.house === 1 ? 'st' : uranus.house === 9 ? 'th' : 'th'} house`);
+  // Uranus or Neptune prominent (1st, 9th, 10th, 12th house) = visionary (BOOSTED)
+  if (uranus && (uranus.house === 1 || uranus.house === 9 || uranus.house === 10 || uranus.house === 12)) {
+    nScore += 0.4;
+    intuitionReasons.push(`Uranus in ${uranus.house}${uranus.house === 1 ? 'st' : uranus.house === 9 ? 'th' : uranus.house === 12 ? 'th' : 'th'} house`);
   }
-  if (neptune && (neptune.house === 1 || neptune.house === 9 || neptune.house === 10)) {
-    nScore += 0.2;
-    intuitionReasons.push(`Neptune in ${neptune.house}${neptune.house === 1 ? 'st' : neptune.house === 9 ? 'th' : 'th'} house`);
+  if (neptune && (neptune.house === 1 || neptune.house === 9 || neptune.house === 10 || neptune.house === 12)) {
+    nScore += 0.5; // Boosted from 0.2 to 0.5
+    intuitionReasons.push(`Neptune in ${neptune.house}${neptune.house === 1 ? 'st' : neptune.house === 9 ? 'th' : neptune.house === 12 ? 'th' : 'th'} house (visionary)`);
+  }
+  
+  // 12th house stellium = unconscious/mystical orientation
+  const twelfthHouseCount = positions.filter((p) => p.house === 12).length;
+  if (twelfthHouseCount >= 2) {
+    nScore += 0.6;
+    intuitionReasons.push(`${twelfthHouseCount} planets in 12th house (mystical)`);
   }
   
   const s_n = nScore > 0.6 ? "N" : "S";
@@ -209,19 +247,23 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
   // === T/F: Thinking vs Feeling ===
   let tScore = 0;
   
-  // Mars in Air/Fire = logical, strategic action
+  // Mars in Air = logical, strategic action (fire is neutral for T/F)
   if (mars) {
     const marsElement = getElement(mars.sign);
-    if (marsElement === "air" || marsElement === "fire") {
-      tScore += 1.0;
+    if (marsElement === "air") {
+      tScore += 0.5; // Reduced from 1.0, only air counts
       thinkingReasons.push(`Mars in ${mars.sign} (${marsElement})`);
     }
+    // Mars in fire = action-oriented but NOT necessarily thinking-oriented
   }
   
-  // Moon in Air/Fire = less emotional processing
+  // Moon in Water = deep feeling/empathy (SUBTRACT from T score)
   if (moon) {
     const moonElement = getElement(moon.sign);
-    if (moonElement === "air" || moonElement === "fire") {
+    if (moonElement === "water") {
+      tScore -= 0.8; // Water moon strongly favors Feeling
+      // Add to reasoning by NOT adding thinking reasons
+    } else if (moonElement === "air" || moonElement === "fire") {
       tScore += 0.4;
       thinkingReasons.push(`Moon in ${moon.sign} (${moonElement})`);
     }
@@ -229,16 +271,30 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
   
   // Venus-Moon harmonious aspect = feeling-oriented (subtract from T)
   if (venus && moon && hasAspect(venus, "Moon", ["conjunction", "trine", "sextile"], chart)) {
-    tScore -= 0.3;
+    tScore -= 0.5; // Increased from -0.3
     // Don't add to thinking reasons
-  } else if (venus && moon) {
-    tScore += 0.2;
-    thinkingReasons.push("Venus-Moon no soft aspect");
   }
   
-  // Saturn strong = analytical structure
+  // Venus in water/air = values-oriented/feeling-oriented
+  if (venus) {
+    const venusElement = getElement(venus.sign);
+    if (venusElement === "water" || venusElement === "air") {
+      tScore -= 0.4;
+      // Favors Feeling
+    }
+  }
+  
+  // Neptune aspects to personal planets = empathy/compassion (INFJ marker)
+  if (neptune && sun && hasAspect(neptune, "Sun", ["conjunction", "trine", "sextile"], chart)) {
+    tScore -= 0.5;
+  }
+  if (neptune && venus && hasAspect(neptune, "Venus", ["conjunction", "trine", "sextile"], chart)) {
+    tScore -= 0.4;
+  }
+  
+  // Saturn strong = analytical structure (but not as strong as before)
   if (saturn && (saturn.house === 1 || saturn.house === 10)) {
-    tScore += 0.3;
+    tScore += 0.2; // Reduced from 0.3
     thinkingReasons.push(`Saturn in ${saturn.house}${saturn.house === 1 ? 'st' : 'th'} house`);
   }
   
@@ -281,34 +337,71 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
   
   const j_p = jScore > 0.6 ? "J" : "P";
 
-  // === Override Logic: INFJ/INTJ Special Cases ===
+  // === Override Logic: INFJ/INTJ Special Cases (LOOSENED) ===
   let override = "";
   
-  // INFJ override: Mercury in 1st house OR (Moon + Neptune in 11th)
-  if (mercury && mercury.house === 1) {
-    if (t_f === "F" || tScore < 0.7) {
-      override = "INFJ";
-    }
-  } else if (
-    moon &&
-    neptune &&
-    moon.house === 11 &&
-    neptune.house === 11
-  ) {
-    if (t_f === "F" || tScore < 0.7) {
-      override = "INFJ";
-    }
+  // Count INFJ markers
+  let infjMarkers = 0;
+  
+  // Strong Intuition (N score >= 1.5)
+  if (nScore >= 1.5) infjMarkers++;
+  
+  // Water Moon (Scorpio/Pisces/Cancer)
+  if (moon && getElement(moon.sign) === "water") infjMarkers++;
+  
+  // Neptune in 1st/9th/12th house
+  if (neptune && (neptune.house === 1 || neptune.house === 9 || neptune.house === 12)) infjMarkers++;
+  
+  // North Node in water/air
+  if (northNode) {
+    const nnElement = getElement(northNode.sign);
+    if (nnElement === "water" || nnElement === "air") infjMarkers++;
   }
   
-  // INTJ override: Saturn in 1st or 2nd house
+  // Mercury in 1st/12th house (visionary communication)
+  if (mercury && (mercury.house === 1 || mercury.house === 12)) infjMarkers++;
+  
+  // Neptune-Mercury or Neptune-Moon aspect
+  if (neptune && mercury && hasAspect(neptune, "Mercury", ["conjunction", "trine", "sextile", "square", "opposition"], chart)) {
+    infjMarkers++;
+  }
+  if (neptune && moon && hasAspect(neptune, "Moon", ["conjunction", "trine", "sextile"], chart)) {
+    infjMarkers++;
+  }
+  
+  // INFJ override: >= 3 markers AND (Feeling preference OR near-neutral)
+  if (infjMarkers >= 3 && (t_f === "F" || tScore < 0.7)) {
+    override = "INFJ";
+  }
+  
+  // Even looser: >= 4 markers with any T/F score
+  if (infjMarkers >= 4) {
+    override = "INFJ";
+  }
+  
+  // INTJ override: Saturn in 1st or 2nd house AND strong thinking
   if (saturn && (saturn.house === 1 || saturn.house === 2)) {
-    if (override !== "INFJ" && (t_f === "T" || tScore > 0.4)) {
+    if (override !== "INFJ" && (t_f === "T" || tScore > 0.6)) {
       override = "INTJ";
     }
   }
 
   const rawType = `${e_i}${s_n}${t_f}${j_p}`;
   const finalType = override || rawType;
+
+  // === DEBUG LOGGING ===
+  console.log('=== MBTI Fusion Debug ===');
+  console.log('Raw scores:', { eScore, nScore, tScore, jScore });
+  console.log('Letters:', { e_i, s_n, t_f, j_p });
+  console.log('INFJ markers count:', infjMarkers || 'N/A');
+  console.log('Raw type:', rawType);
+  console.log('Override:', override || 'none');
+  console.log('Final type:', finalType);
+  console.log('Reasoning:', { 
+    intuitionReasons: intuitionReasons.length, 
+    thinkingReasons: thinkingReasons.length 
+  });
+  console.log('========================');
 
   // === Confidence Calculation ===
   const avgScore = (

@@ -4,7 +4,9 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/(.*)',  // Make all API routes public
+  '/dashboard(.*)',  // Dashboard public in dev mode
+  '/profile(.*)',    // Profile public in dev mode
+  '/api/(.*)',       // Make all API routes public
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
@@ -13,7 +15,7 @@ export default clerkMiddleware(async (auth, request) => {
     process.env.NEXT_PUBLIC_DEV_MODE === 'true';
   
   if (isDev) {
-    return; // Allow all routes
+    return; // Allow all routes in dev mode
   }
   
   if (!isPublicRoute(request)) {

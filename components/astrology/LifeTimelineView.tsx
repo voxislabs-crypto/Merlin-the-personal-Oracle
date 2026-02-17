@@ -239,8 +239,6 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
     </button>
   );
 
-  const currentYear = new Date().getFullYear();
-
   return (
     <>
       <div className="relative">
