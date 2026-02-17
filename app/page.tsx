@@ -92,18 +92,79 @@ export default function Home() {
           >
             Swiss Ephemeris precision meets MBTI insights. Calculate your birth chart, track transits, and receive daily cosmic guidance.
             <span className="block mt-2 text-amber-300 font-semibold">
-              One payment. Lifetime access. No subscriptions.
+              Try 7 days free (card required) or own it forever for $50
             </span>
           </motion.p>
           
           <TrustBadges />
         </div>
 
-        {/* Birth Intake Form */}
+        {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1 }}
+          className="max-w-3xl mx-auto mb-12"
+        >
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Trial Button */}
+            <div className="bg-gradient-to-br from-purple-900/80 to-blue-900/80 backdrop-blur-sm border-2 border-purple-500/50 rounded-2xl p-8 shadow-2xl hover:border-purple-400/70 transition-all">
+              <div className="text-center mb-4">
+                <p className="text-purple-300 text-sm font-semibold mb-2">MONTHLY PLAN</p>
+                <div className="flex items-baseline justify-center gap-2 mb-2">
+                  <span className="text-4xl font-bold text-white">$9.99</span>
+                  <span className="text-gray-400">/month</span>
+                </div>
+                <p className="text-sm text-purple-200">7-day free trial</p>
+              </div>
+              <Link
+                href="/checkout-subscription"
+                onClick={(e) => {
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'trial_click', { location: 'hero' });
+                  }
+                }}
+                className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
+              >
+                Start 7-Day Free Trial
+              </Link>
+              <p className="text-gray-400 text-xs text-center mt-3">Card required · Cancel anytime</p>
+            </div>
+
+            {/* Lifetime Button */}
+            <div className="bg-gradient-to-br from-amber-900/80 to-orange-900/80 backdrop-blur-sm border-2 border-amber-500/50 rounded-2xl p-8 shadow-2xl hover:border-amber-400/70 transition-all">
+              <div className="text-center mb-4">
+                <p className="text-amber-300 text-sm font-semibold mb-2">BEST VALUE</p>
+                <div className="flex items-baseline justify-center gap-2 mb-2">
+                  <span className="text-4xl font-bold text-white">$50</span>
+                  <span className="text-gray-400 line-through">$299</span>
+                </div>
+                <p className="text-sm text-amber-200">One-time payment</p>
+              </div>
+              <Link
+                href="#intake-form"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('intake-form')?.scrollIntoView({ behavior: 'smooth' });
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'lifetime_click', { location: 'hero' });
+                  }
+                }}
+                className="block w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
+              >
+                Get Lifetime Access
+              </Link>
+              <p className="text-gray-400 text-xs text-center mt-3">Save $249 · Lifetime updates</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Birth Intake Form */}
+        <motion.div
+          id="intake-form"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 1.2 }}
           className="max-w-md mx-auto mb-12"
         >
           <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6 shadow-2xl">
