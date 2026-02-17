@@ -30,16 +30,15 @@ export interface LifeTimeline {
   birthDate: string;
 }
 
-// Major outer planets + personal stress points
-const MAJOR_TRANSITING_PLANETS = ['saturn', 'uranus', 'neptune', 'pluto', 'chiron', 'jupiter', 'mars'];
+// Major outer planets ONLY - the ones that leave scars
+const MAJOR_TRANSITING_PLANETS = ['saturn', 'uranus', 'neptune', 'pluto', 'chiron', 'jupiter'];
 const SENSITIVE_NATAL_POINTS = ['sun', 'moon', 'mercury', 'venus', 'mars', 'ascendant', 'midheaven'];
 
+// HARD ASPECTS ONLY - no trines, no sextiles, just the hits that hurt
 const MAJOR_ASPECTS = [
-  { name: 'conjunction', symbol: '☌', angle: 0, orb: 8 },
-  { name: 'opposition', symbol: '☍', angle: 180, orb: 8 },
-  { name: 'square', symbol: '□', angle: 90, orb: 6 },
-  { name: 'trine', symbol: '△', angle: 120, orb: 6 },
-  { name: 'sextile', symbol: '⚹', angle: 60, orb: 4 }
+  { name: 'conjunction', symbol: '☌', angle: 0, orb: 3 },      // Tighter orb
+  { name: 'opposition', symbol: '☍', angle: 180, orb: 3 },     // Real oppositions only
+  { name: 'square', symbol: '□', angle: 90, orb: 2.5 }         // The wall you hit
 ];
 
 /**
@@ -256,17 +255,21 @@ export async function buildLifeTimeline(
     )
   );
 
+  // FINAL FILTER: Only major hits with tight orbs (< 2°)
+  // This is the line between "noise" and "scar"
+  const majorHitsOnly = uniqueStrikes.filter(strike => strike.orb < 2.0);
+
   // Sort by year, then by intensity
   const intensityOrder = { strike: 3, burn: 2, shift: 1 };
-  uniqueStrikes.sort((a, b) => {
+  majorHitsOnly.sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
     return intensityOrder[b.intensity] - intensityOrder[a.intensity];
   });
 
-  console.log(`[Life Timeline] Found ${uniqueStrikes.length} major events`);
+  console.log(`[Life Timeline] Found ${majorHitsOnly.length} major events (filtered from ${allStrikes.length} total transits)`);
 
   return {
-    events: uniqueStrikes,
+    events: majorHitsOnly,
     birthYear,
     currentAge,
     birthDate

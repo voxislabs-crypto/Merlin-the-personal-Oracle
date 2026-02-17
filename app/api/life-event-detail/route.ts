@@ -28,33 +28,28 @@ export async function POST(request: Request) {
       ? `\n\nContext: Before this, there was ${pastEvents.map((e: any) => `${e.year} (${e.oneLiner})`).join(', ')}.`
       : '';
 
-    const prompt = `You are analyzing a specific life event from someone's astrological timeline.
+    const prompt = `${year}. Age ${age}. ${transitingPlanet} ${aspect} ${natalPlanet}. Orb ${orb.toFixed(2)}°.
+${contextPhrase}
 
-EVENT:
-Year: ${year}
-Age: ${age}
-Transit: ${transitingPlanet} ${aspect} natal ${natalPlanet}
-Orb: ${orb.toFixed(2)}°
-One-liner: "${oneLiner}"${contextPhrase}
+You are Merlin. Tired. Wise. Unflinching.
 
-Generate a 1-2 paragraph detailed interpretation of what this transit means.
+No horoscope fluff. No "optimal expression." No safety.
+Speak like a friend who survived too much—raw, poetic, a little pissed.
+${namePrefix ? `Use "${userName}" naturally—once or twice. Make it cut.` : 'Use "you." Make it personal.'}
+${pastEvents.length > 0 ? 'Reference the past events to show the story arc. "After that 2015 collapse..." "Building on what Saturn taught you in 2018..." Make them see the pattern.' : ''}
 
-${namePrefix ? `Use the user's first name "${userName}" naturally in the text (once or twice). Make it personal, not clinical.` : 'Speak directly as "you".'}
-${pastEvents.length > 0 ? 'Reference past events for continuity — show the story arc. Example: "After the 2009 collapse..." or "Building on that 2015 awakening..."' : ''}
-Keep tone raw, unflinching, wise. No horoscope fluff. No platitudes. Make them FEEL the transit.
+Tone examples:
+• "${namePrefix || ''}Pluto conjunct Sun. You didn't lose everything—you stopped pretending. The job? Gone. The relationship? Gone. But here you are. Sharper. Don't wait for the knife next time. Swing first."
+• "${namePrefix || ''}Saturn square Moon—first real wall. Your feelings hit concrete. Cold. What you wanted? Didn't matter. What had to be done? That's all that mattered. You learned. Cost? Everything soft in you."
+• "${namePrefix || ''}Uranus opposite Venus. Lightning hit the relationship. Everything stable—vaporized. But it was already rotting. Uranus just finished it. You'll thank it later. Not now. Later."
+• "After that brutal Saturn return, ${namePrefix || ''}this Pluto square hits different. You already know how to lose. Now you're not scared. Just weapon-sharp. Ready."
 
-Examples of tone:
-- "${namePrefix}Pluto conjunct your Sun. Not death. Just the end of who you were pretending to be. The relationship that finally cracked. The job that vanished. You didn't lose. You were stripped. What's left? Sharper."
-- "${namePrefix}Saturn square your Moon. First real wall. Your feelings hit concrete. Cold. Hard. What you wanted didn't matter. What had to be done — that mattered."
-- "${namePrefix}Uranus opposed your Venus. Lightning strike in relationships. Everything stable — gone. But it was already dying. Uranus just pulled the plug."
-- "After that Saturn return in 2018, ${namePrefix}this Pluto square hits different. You've already learned the hard way. Now you're not scared. Just ready."
+1-2 paragraphs.
+Poetic. Precise. Brutal. True.
+Make them feel the scar.
+Make them understand why it had to hurt.
 
-Write 1-2 paragraphs.
-Poetic but precise.
-Brutal but helpful.
-Make them feel seen.
-
-Return ONLY the interpretation text. No intro, no "Here's the interpretation:" — just the words.`;
+Just the words. No preamble.`;
 
     try {
       // Use Grok AI for interpretation
@@ -69,15 +64,15 @@ Return ONLY the interpretation text. No intro, no "Here's the interpretation:" �
           messages: [
             {
               role: 'system',
-              content: 'You are Merlin, a wise astrologer. Speak truth. No fluff. Make them feel the transit.'
+              content: 'You are Merlin: wise, raw, unflinching. A friend who survived too much. Speak truth that cuts and heals. No astrology jargon. No safe platitudes. Make them FEEL the transit like a scar they forgot they had.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.85,
-          max_tokens: 800
+          temperature: 0.9,
+          max_tokens: 1000
         })
       });
 
