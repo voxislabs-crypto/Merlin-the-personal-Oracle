@@ -16,17 +16,20 @@ export interface InterpretationData {
     birthDate: string;
     birthTime: string;
   };
+  interpreter?: 'grok' | 'traditional';
 }
 
 export function useInterpretations() {
   const [interpretations, setInterpretations] = useState<InterpretationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [cacheHit, setCacheHit] = useState(false);
 
   const generateInterpretations = useCallback(
-    async (birthData: BirthData): Promise<InterpretationData | null> => {
+    async (birthData: BirthData, mode: 'grok' | 'traditional' = 'traditional'): Promise<InterpretationData | null> => {
       setLoading(true);
       setError(null);
+      setCacheHit(false);
 
       try {
         const response = await fetch('/api/interpret', {
@@ -36,7 +39,8 @@ export function useInterpretations() {
             birthDate: birthData.date,
             birthTime: birthData.time,
             lat: birthData.latitude,
-            lon: birthData.longitude
+            lon: birthData.longitude,
+            mode: mode
           })
         });
 
@@ -49,8 +53,19 @@ export function useInterpretations() {
           throw new Error(result.error || 'Failed to generate interpretations');
         }
 
-        setInterpretations(result.data);
-        return result.data;
+        // Check if response indicates cache hit
+        if (result.cached || result.cacheHit) {
+          setCacheHit(true);
+        }
+
+        // Add interpreter info to data
+        const dataWithInterpreter = {
+          ...result.data,
+          interpreter: result.interpreter || mode
+        };
+
+        setInterpretations(dataWithInterpreter);
+        return dataWithInterpreter;
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Unknown error');
         setError(error);
@@ -66,7 +81,8 @@ export function useInterpretations() {
   const reset = useCallback(() => {
     setInterpretations(null);
     setError(null);
+    setCacheHit(false);
   }, []);
 
-  return { interpretations, loading, error, generateInterpretations, reset };
+  return { interpretations, loading, error, cacheHit, generateInterpretations, reset };
 }

@@ -5,7 +5,11 @@ import { motion } from 'framer-motion';
 import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
 import { FeaturesSection } from '@/components/sections/FeaturesSection';
 import { TestimonialsSection } from '@/components/sections/TestimonialsSection';
-import { ArrowRight, Star } from 'lucide-react';
+import { TrustBadges } from '@/components/sections/TrustBadges';
+import { StatsSection } from '@/components/sections/StatsSection';
+import { PricingSection } from '@/components/sections/PricingSection';
+import { FAQSection } from '@/components/sections/FAQSection';
+import { ArrowRight, Star, Shield } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,28 +60,43 @@ export default function Home() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.4 }}
-            className="text-xl md:text-2xl mb-8 text-amber-200"
+            className="text-xl md:text-2xl mb-6 text-amber-200"
           >
             Your chart. Your type. Your whisper.
           </motion.p>
 
-          <motion.p 
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.6 }}
-            className="text-3xl md:text-4xl font-semibold mb-4 text-amber-300"
+            className="mb-6"
           >
-            Lifetime.
-          </motion.p>
+            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-900/60 to-purple-900/40 backdrop-blur-sm border-2 border-amber-500/50 rounded-full px-6 py-3 mb-4">
+              <Shield className="w-5 h-5 text-amber-400" />
+              <span className="text-xl md:text-2xl font-bold text-amber-300">
+                $50 Lifetime Access
+              </span>
+              <span className="text-gray-400 line-through text-lg">$299</span>
+            </div>
+            
+            <p className="text-red-300 text-sm font-semibold animate-pulse">
+              ⚠️ Limited spots available - Price increases soon
+            </p>
+          </motion.div>
 
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 0.8 }}
-            className="text-gray-300 text-lg mb-12 max-w-2xl mx-auto"
+            className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto"
           >
-            Swiss Ephemeris precision meets MBTI insights. One payment, lifetime access to your cosmic blueprint.
+            Swiss Ephemeris precision meets MBTI insights. Calculate your birth chart, track transits, and receive daily cosmic guidance.
+            <span className="block mt-2 text-amber-300 font-semibold">
+              One payment. Lifetime access. No subscriptions.
+            </span>
           </motion.p>
+          
+          <TrustBadges />
         </div>
 
         {/* Birth Intake Form */}
@@ -85,9 +104,17 @@ export default function Home() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1 }}
-          className="max-w-md mx-auto mb-16"
+          className="max-w-md mx-auto mb-12"
         >
-          <BirthIntakeForm showPayment redirectTo="dashboard" />
+          <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-2xl font-bold text-amber-300 mb-2 text-center">
+              Start Your Cosmic Journey
+            </h3>
+            <p className="text-gray-400 text-sm text-center mb-6">
+              Enter your birth details to unlock your complete astrological profile
+            </p>
+            <BirthIntakeForm showPayment redirectTo="dashboard" />
+          </div>
         </motion.div>
 
         {/* Quick Access for Existing Users */}
@@ -117,11 +144,20 @@ export default function Home() {
         </motion.div>
       </div>
 
+      {/* Stats Section */}
+      <StatsSection />
+
       {/* Features Section */}
       <FeaturesSection />
 
+      {/* Pricing Section */}
+      <PricingSection />
+
       {/* Testimonials Section */}
       <TestimonialsSection />
+
+      {/* FAQ Section */}
+      <FAQSection />
 
       {/* CTA Section */}
       <motion.section
@@ -132,24 +168,51 @@ export default function Home() {
         className="relative z-10 py-20 px-4"
       >
         <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-amber-900/40 to-amber-900/10 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-amber-300 mb-4">
-              Ready to unlock your cosmic truth?
-            </h2>
-            <p className="text-gray-300 text-lg mb-8">
-              Join the select few with lifetime access to professional-grade astrological insights.
-            </p>
-            <Link
-              href="#top"
-              onClick={(e) => {
-                e.preventDefault();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold text-lg rounded-lg shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition-all duration-300"
+          <div className="bg-gradient-to-br from-amber-900/60 to-purple-900/40 backdrop-blur-sm border-2 border-amber-500/50 rounded-3xl p-12 shadow-2xl">
+            <motion.div
+              initial={{ scale: 0.9 }}
+              whileInView={{ scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
             >
-              Get Started Now
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
+              <h2 className="text-4xl md:text-5xl font-bold text-amber-300 mb-4">
+                Your Cosmic Truth Awaits
+              </h2>
+              <p className="text-gray-300 text-lg mb-6 max-w-2xl mx-auto">
+                Join 2,400+ seekers who discovered their authentic path through the stars.
+              </p>
+              <div className="bg-amber-400/10 border border-amber-500/30 rounded-xl p-6 mb-8">
+                <p className="text-amber-200 text-2xl font-bold mb-2">
+                  🎁 Early Adopter Pricing: $50
+                </p>
+                <p className="text-gray-400">
+                  Regular price: <span className="line-through">$299</span>
+                  {' · '}
+                  <span className="text-red-300 font-semibold">Save $249</span>
+                </p>
+              </div>
+              <Link
+                href="#top"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  // Track CTA click
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'cta_click', {
+                      location: 'bottom_cta'
+                    });
+                  }
+                }}
+                className="inline-flex items-center px-10 py-5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold text-xl rounded-xl shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 transition-all duration-300 transform hover:scale-105"
+              >
+                Claim Your Lifetime Access
+                <ArrowRight className="ml-3 w-6 h-6" />
+              </Link>
+              <p className="text-gray-400 text-sm mt-6">
+                <Shield className="w-4 h-4 inline mr-1" />
+                30-day money-back guarantee · Secure payment · Instant access
+              </p>
+            </motion.div>
           </div>
         </div>
       </motion.section>

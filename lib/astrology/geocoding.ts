@@ -61,7 +61,8 @@ export class GeocodingService {
       const response = await fetch(`/api/geocoding?${params}`);
 
       if (!response.ok) {
-        throw new Error(`Reverse geocoding failed: ${response.statusText}`);
+        console.log('Reverse geocoding unavailable:', response.statusText);
+        return null;
       }
 
       const data = await response.json();

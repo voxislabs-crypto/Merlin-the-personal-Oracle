@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { calculateLifeArc } from '@/lib/astrology/life-arc';
+import { buildLifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import { BirthChartData } from '@/types/astrology';
 
 export async function POST(request: NextRequest) {
@@ -14,26 +14,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Calculating life arc for birth date:', birthDate);
+    console.log('[Life Arc] Building timeline for:', birthDate);
 
-    const lifeArc = calculateLifeArc(chartData as BirthChartData, birthDate);
+    const chart = chartData as BirthChartData;
+    const timeline = await buildLifeTimeline(birthDate, chart.positions || chart.planets);
 
-    console.log('Life arc calculated successfully:', {
-      beats: lifeArc.beats.length,
-      summary: lifeArc.summary.substring(0, 50) + '...'
+    console.log('[Life Arc] Timeline built:', {
+      events: timeline.events.length,
+      birthYear: timeline.birthYear,
+      currentAge: timeline.currentAge
     });
 
     return NextResponse.json({
       success: true,
-      data: lifeArc
+      data: timeline
     });
 
   } catch (error) {
-    console.error('Error calculating life arc:', error);
+    console.error('[Life Arc] Error building timeline:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error calculating life arc'
+        error: error instanceof Error ? error.message : 'Unknown error building timeline'
       },
       { status: 500 }
     );

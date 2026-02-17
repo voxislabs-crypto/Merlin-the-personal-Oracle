@@ -56,7 +56,7 @@ export default function Terms() {
         <section>
           <h2 className="text-2xl font-semibold text-amber-300 mb-3">7. Contact</h2>
           <p>
-            Questions? Email: <a href="mailto:kai@boxeslabs.com" className="text-amber-400 hover:text-amber-300 underline">kai@boxeslabs.com</a>
+            Questions? Email: <a href="mailto:kai@voxislabs.com" className="text-amber-400 hover:text-amber-300 underline">kai@voxislabs.com</a>
           </p>
           <p className="mt-2">Operated by Voxi Labs, Norfolk, Virginia, USA.</p>
         </section>

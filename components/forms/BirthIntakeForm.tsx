@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, MapPin, Loader2 } from 'lucide-react';
+import { trackCheckoutStart } from '@/lib/analytics';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -36,6 +37,11 @@ export function BirthIntakeForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Track checkout initiation
+    if (showPayment) {
+      trackCheckoutStart(50);
+    }
 
     try {
       // Dev mode bypass: skip payment

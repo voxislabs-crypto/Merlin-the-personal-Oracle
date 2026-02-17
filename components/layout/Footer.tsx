@@ -107,7 +107,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="mailto:kai@boxeslabs.com"
+                  href="mailto:kai@voxislabs.com"
                   className="text-gray-400 hover:text-amber-300 text-sm transition-colors"
                 >
                   Contact
@@ -119,7 +119,7 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-amber-500/20">
           <p className="text-center text-gray-400 text-sm">
-            © {currentYear} Merlin by Voxi Labs. All sales final. Contact: <a href="mailto:kai@boxeslabs.com" className="text-amber-400 hover:text-amber-300">kai@boxeslabs.com</a>
+            © {currentYear} Merlin by Voxi Labs. All sales final. Contact: <a href="mailto:kai@voxislabs.com" className="text-amber-400 hover:text-amber-300">kai@voxislabs.com</a>
           </p>
         </div>
       </div>

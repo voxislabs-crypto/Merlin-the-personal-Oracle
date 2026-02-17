@@ -7,7 +7,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/(.*)',  // Make all API routes public
 ]);
 
-export default clerkMiddleware((auth, request) => {
+export default clerkMiddleware(async (auth, request) => {
   // Dev mode bypass: skip auth entirely
   const isDev = process.env.NODE_ENV === 'development' || 
     process.env.NEXT_PUBLIC_DEV_MODE === 'true';
@@ -17,7 +17,7 @@ export default clerkMiddleware((auth, request) => {
   }
   
   if (!isPublicRoute(request)) {
-    auth().protect();
+    await auth().protect();
   }
 });
 

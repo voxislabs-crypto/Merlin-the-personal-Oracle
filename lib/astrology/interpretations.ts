@@ -251,15 +251,8 @@ export class InterpretationEngine {
   }
 
   private addQualityModifier(quality: number): string {
-    if (quality > 80) {
-      return " This is a highly harmonious placement that operates with exceptional flow and effectiveness.";
-    } else if (quality > 60) {
-      return " This placement generally functions well, though occasional awareness may be needed for optimal expression.";
-    } else if (quality > 40) {
-      return " This placement presents some challenges that can become opportunities for growth and self-awareness.";
-    } else {
-      return " This placement requires conscious attention and development to realize its full potential.";
-    }
+    // Return empty string - let the main interpretation stand on its own
+    return "";
   }
 
   generateAspectInterpretation(aspect: Aspect): string {
@@ -287,7 +280,7 @@ export class InterpretationEngine {
       keywords2[0]
     }. ${
       influence[0]
-        ? `This creates ${influence[0]}, influencing how these fundamental parts of your personality interact and support or challenge each other.`
+        ? `This creates ${influence[0]}.`
         : ""
     }`;
   }

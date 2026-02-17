@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#0f172a"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#fcd34d" stroke-width="4"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#fcd34d" stroke-width="2" opacity="0.5"/>
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#fcd34d" stroke-width="2" opacity="0.3"/>
+  
+  <!-- Stars/cosmic elements -->
+  <path d="M256 100 L264 132 L296 132 L270 152 L280 184 L256 164 L232 184 L242 152 L216 132 L248 132 Z" fill="#fcd34d"/>
+  <circle cx="180" cy="180" r="3" fill="#fcd34d" opacity="0.8"/>
+  <circle cx="332" cy="180" r="3" fill="#fcd34d" opacity="0.8"/>
+  <circle cx="180" cy="332" r="3" fill="#fcd34d" opacity="0.8"/>
+  <circle cx="332" cy="332" r="3" fill="#fcd34d" opacity="0.8"/>
+  <circle cx="256" cy="380" r="4" fill="#fcd34d" opacity="0.6"/>
+  
+  <!-- Center mystical symbol -->
+  <text x="256" y="280" font-size="80" text-anchor="middle" fill="#fcd34d" font-family="serif">✨</text>
+</svg>

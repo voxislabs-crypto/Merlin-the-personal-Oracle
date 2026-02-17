@@ -135,6 +135,9 @@ export function BirthChart({
   
   // Reverse geocode if lat/lon provided but no location name
   useEffect(() => {
+    // Only run on client side after mount
+    if (typeof window === 'undefined') return;
+    
     if (birthData.latitude && birthData.longitude && !locationQuery) {
       GeocodingService.reverseGeocode(birthData.latitude, birthData.longitude)
         .then((result) => {
@@ -143,7 +146,10 @@ export function BirthChart({
             setLocationQuery(result.displayName);
           }
         })
-        .catch((err) => console.error('Reverse geocoding failed:', err));
+        .catch((err) => {
+          // Silently fail - geocoding is nice-to-have, not critical
+          console.log('Reverse geocoding unavailable:', err.message);
+        });
     }
   }, [birthData.latitude, birthData.longitude]);
 

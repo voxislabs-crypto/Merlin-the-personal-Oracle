@@ -7,13 +7,19 @@ import { WheelVisualization } from '@/components/astrology/WheelVisualization';
 import { ChartInterpretation } from '@/components/astrology/ChartInterpretation';
 import { DailyForecast } from '@/components/astrology/DailyForecast';
 import { ActiveTransits } from '@/components/astrology/ActiveTransits';
-import { LifeArc } from '@/components/astrology/LifeArc';
+import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
+import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
+import { WeeklyWhisper } from '@/components/astrology/WeeklyWhisper';
+import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
+import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
 import { useLifeArc } from '@/hooks/useLifeArc';
+import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
+import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
+import { SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/nextjs';
 import { Sparkles, Moon, Zap, BookOpen } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
@@ -21,15 +27,35 @@ const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 
 export default function UnifiedDashboard() {
+  const { user } = useUser();
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
   const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc'>('wheel');
+  // Life Arc mode removed - now just raw timeline
+  const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
   
-  const { interpretations, loading: interpretLoading, generateInterpretations } = useInterpretations();
+  const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
+  
+  // Load interpretation mode from localStorage after mount to avoid hydration mismatch
+  useEffect(() => {
+    const saved = localStorage.getItem('merlin_interpretation_mode');
+    if (saved === 'grok' || saved === 'traditional') {
+      setInterpretMode(saved);
+    }
+  }, []);
+  
+  // Re-generate interpretations when mode changes
+  useEffect(() => {
+    if (birthData && chartData) {
+      generateInterpretations(birthData, interpretMode);
+    }
+  }, [interpretMode]);
   const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
+  const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
+  const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
 
   // Load persisted data on mount
   useEffect(() => {
@@ -72,10 +98,12 @@ export default function UnifiedDashboard() {
         
         // Recalculate all derived data
         Promise.all([
-          generateInterpretations(birth),
+          generateInterpretations(birth, interpretMode),
           calculateForecast(birth),
           calculateTransits(birth),
-          calculateLifeArc(birth, chart)
+          calculateLifeArc(birth, chart),
+          calculateWeeklyForecast(birth),
+          calculatePersonality(birth).catch(e => console.log('Personality unavailable:', e.message))
         ]).catch((e) => console.error('Error regenerating dashboard data:', e));
       }
     } catch (error) {
@@ -135,17 +163,38 @@ export default function UnifiedDashboard() {
 
     // Fire off async jobs
     Promise.all([
-      generateInterpretations(derived),
+      generateInterpretations(derived, interpretMode),
       calculateForecast(derived),
       calculateTransits(derived),
-      calculateLifeArc(derived, data)
+      calculateLifeArc(derived, data),
+      calculateWeeklyForecast(derived),
+      calculatePersonality(derived).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc]);
 
   const handleReadAloud = () => {
-    if (!forecast?.summary) return;
+    // Build full interpretation text
+    let text = '';
     
-    const text = `${forecast.summary}. ${forecast.advice}`;
+    if (interpretations?.chartSummary) {
+      text += interpretations.chartSummary + '\n\n';
+    }
+    
+    if (interpretations?.planetInterpretations && interpretations.planetInterpretations.length > 0) {
+      text += 'Planetary Placements:\n';
+      interpretations.planetInterpretations.forEach(p => {
+        text += `${p.planet}: ${p.interpretation}\n\n`;
+      });
+    }
+    
+    if (!text && forecast?.summary) {
+      text = forecast.summary;
+    }
+    
+    if (!text) {
+      text = 'No interpretation available';
+    }
+    
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
     utterance.pitch = 1;
@@ -198,44 +247,66 @@ export default function UnifiedDashboard() {
                 transition={{ delay: 0.3 }}
                 className="space-y-8"
               >
-                {/* Wheel Section */}
-                <div className="bg-slate-900/40 rounded-lg p-8 pb-12 border border-amber-500/10 backdrop-blur-sm z-10 relative">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
-                    <button
-                      onClick={() => {
-                        setChartData(null);
-                        setWheelData(null);
-                        setBirthData(null);
-                        localStorage.removeItem(STORAGE_KEY);
-                        localStorage.removeItem(STORAGE_BIRTH_KEY);
-                      }}
-                      className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition-colors"
-                    >
-                      Calculate New Chart
-                    </button>
-                  </div>
-                  
-                  <div className="w-full h-[600px] relative z-20">
-                    <WheelVisualization chartData={wheelData} />
+                {/* Main Grid: Placements | Wheel | Weekly | Personality */}
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+                  {/* Left: Placements Sidebar */}
+                  <div className="lg:col-span-1">
+                    {chartData?.planets && (
+                      <PlacementsSidebar planets={chartData.planets} />
+                    )}
                   </div>
 
-                  {/* Action Buttons Under Wheel */}
-                  <div className="flex gap-4 mt-8 justify-center">
-                    <button
-                      onClick={handleReadAloud}
-                      disabled={!forecast?.summary}
-                      className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Read Aloud
-                    </button>
-                    <button
-                      onClick={handleDailyWhisper}
-                      disabled={!forecast?.summary}
-                      className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      🌙 Daily Whisper
-                    </button>
+                  {/* Center: Wheel */}
+                  <div className="lg:col-span-3 bg-slate-900/40 rounded-lg p-8 pb-12 border border-amber-500/10 backdrop-blur-sm z-10 relative">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
+                      <button
+                        onClick={() => {
+                          setChartData(null);
+                          setWheelData(null);
+                          setBirthData(null);
+                          localStorage.removeItem(STORAGE_KEY);
+                          localStorage.removeItem(STORAGE_BIRTH_KEY);
+                        }}
+                        className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition-colors"
+                      >
+                        Calculate New Chart
+                      </button>
+                    </div>
+                    
+                    <div className="w-full h-[600px] relative z-20">
+                      <WheelVisualization chartData={wheelData} />
+                    </div>
+
+                    {/* Action Buttons Under Wheel */}
+                    <div className="flex gap-4 mt-8 justify-center">
+                      <button
+                        onClick={handleReadAloud}
+                        className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all"
+                      >
+                        Read Aloud
+                      </button>
+                      <button
+                        onClick={handleDailyWhisper}
+                        className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
+                      >
+                        🌙 Daily Whisper
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Top: Weekly Whisper */}
+                  <div className="lg:col-span-1">
+                    {weeklyForecast?.week && (
+                      <WeeklyWhisper week={weeklyForecast.week} loading={weeklyLoading} />
+                    )}
+                  </div>
+
+                  {/* Right Bottom: Personality Reveal */}
+                  <div className="lg:col-span-1">
+                    {mbtiType && (
+                      <PersonalityReveal mbtiType={mbtiType} loading={personalityLoading} />
+                    )}
                   </div>
                 </div>
 
@@ -289,8 +360,8 @@ export default function UnifiedDashboard() {
                     }`}
                   >
                     <BookOpen className="w-8 h-8 text-green-400 mb-2 mx-auto" />
-                    <h3 className="text-lg font-semibold text-green-300">Life Arc</h3>
-                    <p className="text-sm text-slate-400 mt-1">Your story timeline</p>
+                    <h3 className="text-lg font-semibold text-green-300">Life Timeline</h3>
+                    <p className="text-sm text-slate-400 mt-1">Every strike, every scar</p>
                   </button>
                 </div>
 
@@ -305,12 +376,29 @@ export default function UnifiedDashboard() {
                     className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm min-h-[400px]"
                   >
                     {activeSection === 'interpretation' && (
-                      <ChartInterpretation
-                        summary={interpretations?.chartSummary || ''}
-                        planetInterpretations={interpretations?.planetInterpretations || []}
-                        aspectInterpretations={interpretations?.aspectInterpretations || []}
-                        loading={interpretLoading}
-                      />
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                          <h2 className="text-2xl font-bold text-amber-300">Chart Interpretation</h2>
+                          <div className="flex items-center gap-3">
+                            {cacheHit && (
+                              <span className="text-xs text-amber-400 flex items-center gap-1">
+                                ⚡ cached
+                              </span>
+                            )}
+                            <InterpretationModeToggle
+                              onModeChange={(mode) => setInterpretMode(mode)}
+                              defaultMode={interpretMode}
+                            />
+                          </div>
+                        </div>
+                        <ChartInterpretation
+                          summary={interpretations?.chartSummary || ''}
+                          planetInterpretations={interpretations?.planetInterpretations || []}
+                          aspectInterpretations={interpretations?.aspectInterpretations || []}
+                          interpreter={interpretations?.interpreter}
+                          loading={interpretLoading}
+                        />
+                      </div>
                     )}
 
                     {activeSection === 'forecast' && (
@@ -334,11 +422,10 @@ export default function UnifiedDashboard() {
                     )}
 
                     {activeSection === 'lifearc' && (
-                      <LifeArc
-                        beats={lifeArc?.beats || []}
-                        summary={lifeArc?.summary || 'Calculating your life arc...'}
-                        currentPhase={lifeArc?.currentPhase || ''}
+                      <LifeTimelineView
+                        timeline={lifeArc}
                         loading={lifeArcLoading}
+                        userName={user?.firstName || undefined}
                       />
                     )}
 

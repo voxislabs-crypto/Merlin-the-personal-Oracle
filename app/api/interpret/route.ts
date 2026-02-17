@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine-fallback';
 import { InterpretationEngine } from '@/lib/astrology/interpretations';
+import { generateGrokInterpretation } from '@/lib/grok-service';
 import { BirthChartData } from '@/types/astrology';
 
 export async function POST(request: Request) {
@@ -8,7 +9,7 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon } = body;
+    const { birthDate, birthTime, lat, lon, mode = 'traditional' } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -25,42 +26,81 @@ export async function POST(request: Request) {
       lon || 0
     ) as BirthChartData;
 
-    const engine = new InterpretationEngine();
-    
-    // Generate chart summary
-    const chartSummary = engine.generateChartSummary(
-      natalChart.positions || [],
-      natalChart.aspects || []
-    );
+    let chartSummary = '';
+    let planetInterpretations: Array<{ planet: string; interpretation: string }> = [];
+    let aspectInterpretations: Array<{ planets: string; interpretation: string }> = [];
+    let cacheHit = false;
+    let usedGrok = false;
 
-    // Generate interpretations for personal planets (Sun through Mars)
-    const personalPlanets = natalChart.positions?.filter(p => 
-      ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars'].includes(p.name)
-    ) || [];
+    // Try Grok AI if requested
+    if (mode === 'grok') {
+      try {
+        console.log('[Interpret API] Attempting Grok interpretation...');
+        const grokResult = await generateGrokInterpretation({
+          planets: natalChart.positions || [],
+          aspects: natalChart.aspects || [],
+          houses: natalChart.houses,
+          ascendant: (natalChart as any).ascendant,
+          birthData: {
+            date: birthDate,
+            time: birthTime,
+            location: `${lat},${lon}`
+          }
+        });
 
-    const planetInterpretations = personalPlanets.map(planet => ({
-      planet: planet.name,
-      interpretation: engine.generateInterpretation({
+        chartSummary = grokResult.chartSummary;
+        planetInterpretations = grokResult.planetInterpretations;
+        aspectInterpretations = grokResult.aspectInterpretations;
+        usedGrok = true;
+        console.log('[Interpret API] ✅ Successfully used Grok AI');
+      } catch (error) {
+        console.warn('[Interpret API] Grok failed, falling back to traditional:', (error as Error).message);
+        // Fall through to traditional engine
+      }
+    }
+
+    // Use traditional engine if Grok wasn't used or failed
+    if (!usedGrok) {
+      console.log('[Interpret API] Using traditional interpretation engine');
+      const engine = new InterpretationEngine();
+      
+      // Generate chart summary
+      chartSummary = engine.generateChartSummary(
+        natalChart.positions || [],
+        natalChart.aspects || []
+      );
+
+      // Generate interpretations for personal planets (Sun through Mars)
+      const personalPlanets = natalChart.positions?.filter(p => 
+        ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars'].includes(p.name)
+      ) || [];
+
+      planetInterpretations = personalPlanets.map(planet => ({
         planet: planet.name,
-        sign: planet.sign,
-        house: planet.house,
-        quality: 75 // Default quality score
-      })
-    }));
+        interpretation: engine.generateInterpretation({
+          planet: planet.name,
+          sign: planet.sign,
+          house: planet.house,
+          quality: 75 // Default quality score
+        })
+      }));
 
-    // Generate aspect interpretations (top 5 most significant)
-    const topAspects = (natalChart.aspects || [])
-      .sort((a, b) => (a.orb || 0) - (b.orb || 0))
-      .slice(0, 5);
+      // Generate aspect interpretations (top 5 most significant)
+      const topAspects = (natalChart.aspects || [])
+        .sort((a, b) => (a.orb || 0) - (b.orb || 0))
+        .slice(0, 5);
 
-    const aspectInterpretations = topAspects.map(aspect => ({
-      planets: `${aspect.planet1.name} ${aspect.type} ${aspect.planet2.name}`,
-      interpretation: engine.generateAspectInterpretation(aspect)
-    }));
+      aspectInterpretations = topAspects.map(aspect => ({
+        planets: `${aspect.planet1.name} ${aspect.type} ${aspect.planet2.name}`,
+        interpretation: engine.generateAspectInterpretation(aspect)
+      }));
+    }
 
-    console.log('Successfully generated interpretations');
+    console.log(`Successfully generated ${usedGrok ? 'Grok' : 'traditional'} interpretations`);
     return NextResponse.json({
       success: true,
+      cached: cacheHit,
+      interpreter: usedGrok ? 'grok' : 'traditional',
       data: {
         chartSummary,
         planetInterpretations,
@@ -81,3 +121,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

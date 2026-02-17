@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { LifeArc } from '@/lib/astrology/life-arc';
+import { LifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 
 export function useLifeArc() {
-  const [lifeArc, setLifeArc] = useState<LifeArc | null>(null);
+  const [lifeArc, setLifeArc] = useState<LifeTimeline | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -16,8 +16,11 @@ export function useLifeArc() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chartData,
-          birthDate: birthData.date
+          birthDate: birthData.date,
+          birthTime: birthData.time,
+          lat: birthData.latitude,
+          lon: birthData.longitude,
+          chartData
         })
       });
 

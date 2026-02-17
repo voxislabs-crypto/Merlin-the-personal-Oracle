@@ -14,13 +14,15 @@ interface ChartInterpretationProps {
     interpretation: string;
   }>;
   loading?: boolean;
+  interpreter?: 'grok' | 'traditional';
 }
 
 export function ChartInterpretation({
   summary,
   planetInterpretations,
   aspectInterpretations,
-  loading = false
+  loading = false,
+  interpreter = 'traditional'
 }: ChartInterpretationProps) {
   if (loading) {
     return (
@@ -62,9 +64,15 @@ export function ChartInterpretation({
     >
       {/* Chart Summary */}
       <motion.div
-        className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg border border-amber-500/30 backdrop-blur-sm"
+        className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg border border-amber-500/30 backdrop-blur-sm relative"
         variants={itemVariants}
       >
+        {interpreter === 'grok' && (
+          <div className="absolute top-3 right-3 px-3 py-1 bg-purple-500/20 border border-purple-400/30 rounded-full text-xs text-purple-300 font-semibold flex items-center gap-1">
+            <span className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+            Powered by Grok
+          </div>
+        )}
         <h3 className="text-xl font-bold text-amber-300 mb-3">Your Cosmic Blueprint</h3>
         <p className="text-white text-lg leading-relaxed">{summary}</p>
       </motion.div>

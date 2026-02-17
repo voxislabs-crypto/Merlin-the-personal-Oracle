@@ -1,7 +1,6 @@
 // Swiss Ephemeris Core - Astronomical calculations using Swiss Ephemeris library
 // Provides planetary position calculations with graceful fallback
-
-"use server" // Server-side only (swisseph is a native Node.js module)
+// Note: This runs server-side in API routes (swisseph is a native Node.js module)
 
 export interface PlanetPositions {
   sun: { longitude: number; latitude: number; distance: number; speedLongitude: number }
