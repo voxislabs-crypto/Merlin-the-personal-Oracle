@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/checkout-subscription(.*)',  // Allow subscription checkout page
   '/dashboard(.*)',  // Dashboard public in dev mode
   '/profile(.*)',    // Profile public in dev mode
   '/api/(.*)',       // Make all API routes public
