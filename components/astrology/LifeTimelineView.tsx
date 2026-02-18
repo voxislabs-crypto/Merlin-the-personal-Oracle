@@ -68,7 +68,7 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
 
     // Apply filters
     if (timeFilter !== 'all') {
-      events = events.filter(e => {
+      events = events.filter((e: TimelineStrike) => {
         if (timeFilter === 'past') return e.year < currentYear;
         if (timeFilter === 'current') return e.year === currentYear;
         if (timeFilter === 'future') return e.year > currentYear;
@@ -77,11 +77,11 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
     }
 
     if (intensityFilter !== 'all') {
-      events = events.filter(e => e.intensity === intensityFilter);
+      events = events.filter((e: TimelineStrike) => e.intensity === intensityFilter);
     }
 
     if (planetFilter !== 'all') {
-      events = events.filter(e => e.transitingPlanet.toLowerCase() === planetFilter);
+      events = events.filter((e: TimelineStrike) => e.transitingPlanet.toLowerCase() === planetFilter);
     }
 
     // Group by decade
@@ -442,19 +442,19 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
-                        {events.filter(e => e.intensity === 'strike').length > 0 && (
+                        {events.filter((e: TimelineStrike) => e.intensity === 'strike').length > 0 && (
                           <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-300 rounded">
-                            ⚡ {events.filter(e => e.intensity === 'strike').length}
+                            ⚡ {events.filter((e: TimelineStrike) => e.intensity === 'strike').length}
                           </span>
                         )}
-                        {events.filter(e => e.intensity === 'burn').length > 0 && (
+                        {events.filter((e: TimelineStrike) => e.intensity === 'burn').length > 0 && (
                           <span className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-300 rounded">
-                            🔥 {events.filter(e => e.intensity === 'burn').length}
+                            🔥 {events.filter((e: TimelineStrike) => e.intensity === 'burn').length}
                           </span>
                         )}
-                        {events.filter(e => e.intensity === 'shift').length > 0 && (
+                        {events.filter((e: TimelineStrike) => e.intensity === 'shift').length > 0 && (
                           <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded">
-                            🌊 {events.filter(e => e.intensity === 'shift').length}
+                            🌊 {events.filter((e: TimelineStrike) => e.intensity === 'shift').length}
                           </span>
                         )}
                       </div>
