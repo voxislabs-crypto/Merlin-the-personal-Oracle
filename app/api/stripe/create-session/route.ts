@@ -36,14 +36,24 @@ export async function POST(request: Request) {
     }
     console.log('Metadata:', metadata);
 
-    console.log('Creating Stripe session...');
+    console.log('Creating Stripe subscription session with 7-day trial...');
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard?success=true&date=${encodeURIComponent(birthData?.birthDate || '')}&time=${encodeURIComponent(birthData?.birthTime || '')}&city=${encodeURIComponent(birthData?.birthCity || '')}`,
+      subscription_data: {
+        trial_period_days: 7,
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: 'cancel' // Auto-cancel if no payment method added
+          }
+        },
+        metadata
+      },
+      success_url: `${origin}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthData?.birthDate || '')}&time=${encodeURIComponent(birthData?.birthTime || '')}&city=${encodeURIComponent(birthData?.birthCity || '')}`,
       cancel_url: `${origin}?canceled=true`,
       metadata,
+      allow_promotion_codes: true, // Allow promo codes
     });
 
     console.log('Session created successfully:', { id: session.id, url: session.url });
