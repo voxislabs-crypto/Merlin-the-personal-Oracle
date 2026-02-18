@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 /**
  * Public routes that don't require authentication
@@ -20,9 +21,19 @@ const isPublicRoute = createRouteMatcher([
  * Clerk Middleware - Production Mode
  * Protected routes: /dashboard, /profile, /enhanced-dashboard, /soul-dashboard, etc.
  * Public routes: /, /sign-in, /sign-up, /checkout-subscription, /api/*
+ * 
+ * In dev mode, allows all access without authentication
  */
 export default clerkMiddleware(async (auth, request) => {
-  // Only protect non-public routes
+  // Check if dev mode is enabled
+  const isDev = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+  
+  // In dev mode, allow all routes
+  if (isDev) {
+    return NextResponse.next();
+  }
+  
+  // Only protect non-public routes in production
   if (!isPublicRoute(request)) {
     await auth().protect();
   }

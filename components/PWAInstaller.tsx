@@ -5,6 +5,16 @@ import { useEffect } from 'react';
 
 export function PWAInstaller() {
   useEffect(() => {
+    // Skip service worker registration in dev mode or on localhost
+    const isDev = process.env.NEXT_PUBLIC_DEV_MODE === 'true' || 
+                  window.location.hostname === 'localhost' ||
+                  window.location.hostname.includes('github.dev');
+    
+    if (isDev) {
+      console.log('[PWA] Skipping service worker in dev environment');
+      return;
+    }
+    
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker

@@ -94,10 +94,19 @@ export function PricingSection() {
             </div>
 
             <a
-              href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
+              href={process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? '/dashboard' : (process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription')}
               onClick={(e) => {
-                // Check if user is signed in first
                 if (typeof window !== 'undefined') {
+                  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+                  
+                  // In dev mode, go straight to dashboard
+                  if (isDevMode) {
+                    e.preventDefault();
+                    window.location.href = '/dashboard';
+                    return;
+                  }
+                  
+                  // Production mode: check if user is signed in first
                   const isSignedIn = document.cookie.includes('__clerk');
                   if (!isSignedIn) {
                     e.preventDefault();
@@ -108,7 +117,7 @@ export function PricingSection() {
               }}
               className="block w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105"
             >
-              Start Free Trial
+              {process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'Start Free (Dev)' : 'Start Free Trial'}
             </a>
 
             <div className="space-y-3">

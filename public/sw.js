@@ -77,6 +77,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip manifest.json to avoid CORS issues in dev environments
+  if (url.pathname === '/manifest.json') {
+    event.respondWith(fetch(request).catch(() => new Response('{}', {
+      headers: { 'Content-Type': 'application/json' }
+    })));
+    return;
+  }
+
   // Static assets - cache first, network fallback
   event.respondWith(
     caches.match(request)
@@ -104,6 +112,11 @@ self.addEventListener('fetch', (event) => {
               });
             }
             return response;
+          })
+          .catch(error => {
+            console.log('[SW] Fetch failed:', error);
+            // Return a basic response for failed fetches
+            return new Response('Network error', { status: 503 });
           });
       })
   );
