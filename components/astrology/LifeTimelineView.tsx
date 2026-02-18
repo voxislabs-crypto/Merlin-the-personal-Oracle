@@ -53,7 +53,7 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
     const planetCounts = { saturn: 0, uranus: 0, neptune: 0, pluto: 0, chiron: 0, jupiter: 0 };
 
     // Calculate stats
-    events.forEach(e => {
+    events.forEach((e: TimelineStrike) => {
       if (e.year < currentYear) stats.past++;
       else if (e.year === currentYear) stats.current++;
       else stats.future++;
@@ -86,7 +86,7 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
 
     // Group by decade
     const grouped = new Map<string, TimelineStrike[]>();
-    events.forEach(event => {
+    events.forEach((event: TimelineStrike) => {
       const decade = Math.floor(event.year / 10) * 10;
       const key = `${decade}s`;
       if (!grouped.has(key)) grouped.set(key, []);
@@ -475,7 +475,7 @@ export function LifeTimelineView({ timeline, loading = false, userName }: LifeTi
                           {/* Vertical line */}
                           <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-700/50" />
 
-                          {events.map((event, index) => {
+                          {events.map((event: TimelineStrike, index: number) => {
                             const style = getIntensityStyle(event.intensity);
                             const isExpanded = expandedEventId === event.id;
                             const isPast = event.year <= currentYear;
