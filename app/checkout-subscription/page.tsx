@@ -33,39 +33,28 @@ export default function CheckoutSubscriptionPage() {
     setLoading(true);
 
     try {
-      const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY;
+      // Use direct Stripe payment link (simpler, faster, no backend required)
+      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
       
-      if (!priceId) {
+      if (!paymentLink) {
+        console.error('Stripe payment link not configured');
         alert('Subscription not configured. Please contact support.');
         setLoading(false);
         return;
       }
 
-      console.log('Creating subscription checkout session...');
-      const response = await fetch('/api/stripe/create-subscription-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          priceId,
-          userEmail: '', // Add user email if available from Clerk
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API error:', errorData);
-        throw new Error(errorData.error || 'Subscription failed');
+      console.log('Redirecting to Stripe payment link...');
+      // Track subscription attempt
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'begin_checkout', {
+          currency: 'USD',
+          value: 9.99,
+          items: [{ item_name: 'Merlin Monthly Subscription' }]
+        });
       }
-
-      const { url } = await response.json();
-
-      if (url) {
-        console.log('Redirecting to Stripe checkout:', url);
-        window.location.href = url;
-        return;
-      }
-
-      throw new Error('No checkout URL returned');
+      
+      // Redirect directly to Stripe-hosted checkout
+      window.location.href = paymentLink;
     } catch (err) {
       console.error('Subscription error:', err);
       alert(err instanceof Error ? err.message : 'Subscription failed. Please try again.');

@@ -93,12 +93,12 @@ export function PricingSection() {
               <p className="text-gray-400 text-sm">Card required · Cancel anytime</p>
             </div>
 
-            <Link
-              href="/checkout-subscription"
+            <a
+              href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
               className="block w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105"
             >
               Start Free Trial
-            </Link>
+            </a>
 
             <div className="space-y-3">
               {lifetimeFeatures.slice(0, 8).map((feature, i) => (
