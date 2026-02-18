@@ -7,16 +7,10 @@ interface ClerkProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Clerk Provider Wrapper
+ * Always uses real Clerk authentication - no dev mode bypasses
+ */
 export function ClerkProvider({ children }: ClerkProviderProps) {
-  // Dev mode bypass: skip Clerk entirely to avoid invalid key issues
-  const isDev = process.env.NODE_ENV === 'development' || 
-    process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-  
-  if (isDev) {
-    console.log('🔓 Dev mode: Clerk authentication bypassed');
-    return <>{children}</>;
-  }
-  
-  // Production mode: use real Clerk authentication
   return <BaseClerkProvider>{children}</BaseClerkProvider>;
 }

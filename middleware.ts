@@ -1,5 +1,10 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
+/**
+ * Public routes that don't require authentication
+ * - Homepage, auth pages, checkout
+ * - All API routes (Stripe needs this for webhooks/checkout)
+ */
 const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
@@ -8,29 +13,15 @@ const isPublicRoute = createRouteMatcher([
   '/api/(.*)',                   // Make all API routes public (Stripe, calculations, etc.)
 ]);
 
-// In dev mode, also allow dashboard and profile without auth
-const isDevModeRoute = createRouteMatcher([
-  '/dashboard(.*)',
-  '/profile(.*)',
-]);
-
+/**
+ * Clerk Middleware - Production Mode
+ * Protected routes: /dashboard, /profile, etc.
+ * Public routes: /, /sign-in, /sign-up, /checkout-subscription, /api/*
+ */
 export default clerkMiddleware(async (auth, request) => {
-  // Dev mode bypass: allow additional routes without auth
-  const isDev = process.env.NODE_ENV === 'development' || 
-    process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-  
-  // Always allow public routes
-  if (isPublicRoute(request)) {
-    return;
+  if (!isPublicRoute(request)) {
+    await auth().protect();
   }
-  
-  // In dev mode, also allow dashboard/profile
-  if (isDev && isDevModeRoute(request)) {
-    return;
-  }
-  
-  // Protect all other routes
-  await auth().protect();
 });
 
 export const config = {
