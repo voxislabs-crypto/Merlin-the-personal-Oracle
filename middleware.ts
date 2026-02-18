@@ -5,23 +5,32 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/checkout-subscription(.*)',  // Allow subscription checkout page
-  '/dashboard(.*)',  // Dashboard public in dev mode
-  '/profile(.*)',    // Profile public in dev mode
-  '/api/(.*)',       // Make all API routes public
+  '/api/(.*)',                   // Make all API routes public (Stripe, calculations, etc.)
+]);
+
+// In dev mode, also allow dashboard and profile without auth
+const isDevModeRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/profile(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Dev mode bypass: skip auth entirely
+  // Dev mode bypass: allow additional routes without auth
   const isDev = process.env.NODE_ENV === 'development' || 
     process.env.NEXT_PUBLIC_DEV_MODE === 'true';
   
-  if (isDev) {
-    return; // Allow all routes in dev mode
+  // Always allow public routes
+  if (isPublicRoute(request)) {
+    return;
   }
   
-  if (!isPublicRoute(request)) {
-    await auth().protect();
+  // In dev mode, also allow dashboard/profile
+  if (isDev && isDevModeRoute(request)) {
+    return;
   }
+  
+  // Protect all other routes
+  await auth().protect();
 });
 
 export const config = {
