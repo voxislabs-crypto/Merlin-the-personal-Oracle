@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
@@ -28,6 +28,18 @@ const features = [
 export default function CheckoutSubscriptionPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Check authentication on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isSignedIn = document.cookie.includes('__clerk');
+      if (!isSignedIn) {
+        // Redirect to sign-in if not authenticated
+        const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription';
+        router.push('/sign-in?redirect_url=' + encodeURIComponent(paymentLink));
+      }
+    }
+  }, [router]);
 
   const handleSubscribe = async () => {
     setLoading(true);

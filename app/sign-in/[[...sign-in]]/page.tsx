@@ -2,8 +2,13 @@
 
 import { SignIn } from "@clerk/nextjs";
 import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function SignInPage() {
+function SignInContent() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect_url') || '/dashboard';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background stars */}
@@ -34,6 +39,8 @@ export default function SignInPage() {
           className="bg-black/50 backdrop-blur-sm border border-amber-800 rounded-lg p-8"
         >
           <SignIn
+            forceRedirectUrl={redirectUrl}
+            fallbackRedirectUrl="/dashboard"
             appearance={{
               elements: {
                 formButtonPrimary: "bg-amber-600 hover:bg-amber-700 text-white",
@@ -51,5 +58,13 @@ export default function SignInPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-b from-gray-900 to-black" />}>
+      <SignInContent />
+    </Suspense>
   );
 }

@@ -120,8 +120,19 @@ export default function Home() {
               <a
                 href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
                 onClick={(e) => {
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'trial_click', { location: 'hero' });
+                  // Check if user is signed in first
+                  if (typeof window !== 'undefined') {
+                    const isSignedIn = document.cookie.includes('__clerk');
+                    if (!isSignedIn) {
+                      e.preventDefault();
+                      // Redirect to sign-in first, with return URL to checkout
+                      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
+                      return;
+                    }
+                    
+                    if ((window as any).gtag) {
+                      (window as any).gtag('event', 'trial_click', { location: 'hero' });
+                    }
                   }
                 }}
                 className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
