@@ -39,8 +39,7 @@ function SignInContent() {
           className="bg-black/50 backdrop-blur-sm border border-amber-800 rounded-lg p-8"
         >
           <SignIn
-            forceRedirectUrl={redirectUrl}
-            fallbackRedirectUrl="/dashboard"
+            fallbackRedirectUrl={redirectUrl}
             appearance={{
               elements: {
                 formButtonPrimary: "bg-amber-600 hover:bg-amber-700 text-white",

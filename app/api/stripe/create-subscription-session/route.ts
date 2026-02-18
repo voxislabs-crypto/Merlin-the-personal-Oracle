@@ -38,7 +38,8 @@ export async function POST(request: Request) {
       metadata.userEmail = userEmail;
     }
     console.log('Metadata:', metadata);
-
+console.log('Price ID being used:', priceId);
+console.log('Env var check:', process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY);
     console.log('Creating Stripe subscription session with 7-day trial...');
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
