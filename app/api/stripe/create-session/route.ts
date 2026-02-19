@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.startsWith('your_')) {
+    return null;
+  }
+  try {
+    return new Stripe(process.env.STRIPE_SECRET_KEY);
+  } catch (error) {
+    console.error('Failed to initialize Stripe:', error);
+    return null;
+  }
+};
 
 export async function POST(request: Request) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return new Response(JSON.stringify({ error: 'Stripe not configured' }), { status: 503 });
+  }
   try {
     console.log('=== Stripe Session Creation Started ===');
     const { priceId, birthData } = await request.json();

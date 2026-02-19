@@ -4,7 +4,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 // import { useChartCalculation } from '@/hooks/useChartCalculation';
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 
 // Import types for type safety
 import type { PlanetPosition, HousePosition, Aspect } from '@/types/astrology';
@@ -121,11 +121,11 @@ const TEST_ASPECTS: Aspect[] = [
 ];
 
 // Error boundary fallback component
-function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
     <div role="alert" className="p-4 bg-red-100 text-red-700 rounded-lg">
       <p className="font-bold">Something went wrong:</p>
-      <pre className="whitespace-pre-wrap">{error.message}</pre>
+      <pre className="whitespace-pre-wrap">{(error as Error).message}</pre>
       <button
         onClick={resetErrorBoundary}
         className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"

@@ -17,13 +17,41 @@ export interface PlanetPositions {
   trueNode: { longitude: number; latitude: number; distance: number; speedLongitude: number }
 }
 
-// Try to load swisseph dynamically
-let swisseph: any = null
+// Try to load swisseph dynamically - use eval to prevent webpack from resolving at build time
+function loadSwisseph() {
+  // Only try to load on server-side
+  if (typeof window !== 'undefined') {
+    return null;
+  }
+  
+  try {
+    // Use eval to prevent webpack from trying to resolve the module during build
+    // This is safe because we're only running this server-side
+    const dynamicRequire = eval('require');
+    try {
+      return dynamicRequire('sweph');
+    } catch {
+      try {
+        return dynamicRequire('swisseph');
+      } catch {
+        return null;
+      }
+    }
+  } catch {
+    return null;
+  }
+}
+
+let swisseph: any = null;
 try {
-  swisseph = require("swisseph")
-  console.log("[swiss-ephemeris-core] swisseph loaded successfully")
+  swisseph = loadSwisseph();
+  if (swisseph) {
+    console.log("[swiss-ephemeris-core] swisseph loaded successfully");
+  } else {
+    console.warn("[swiss-ephemeris-core] swisseph not available, will use fallback mock data");
+  }
 } catch {
-  console.warn("[swiss-ephemeris-core] swisseph not available, will use fallback mock data")
+  console.warn("[swiss-ephemeris-core] swisseph not available, will use fallback mock data");
 }
 
 // Planet numbers for Swiss Ephemeris

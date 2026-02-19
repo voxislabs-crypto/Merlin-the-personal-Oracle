@@ -35,24 +35,13 @@ export default function UnifiedDashboard() {
   // Life Arc mode removed - now just raw timeline
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
   
-  // Don't render until Clerk auth is loaded to prevent API call race conditions
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
-          <div className="text-gray-400">Loading your cosmic dashboard...</div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    // Middleware will redirect, but show loading state briefly
-    return null;
-  }
-  
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
+  const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
+  const { transits, loading: transitsLoading, calculateTransits } = useTransits();
+  const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
+  const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
+  const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
@@ -67,12 +56,7 @@ export default function UnifiedDashboard() {
     if (birthData && chartData) {
       generateInterpretations(birthData, interpretMode);
     }
-  }, [interpretMode]);
-  const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
-  const { transits, loading: transitsLoading, calculateTransits } = useTransits();
-  const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
-  const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
-  const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
+  }, [interpretMode, birthData, chartData, generateInterpretations]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -126,7 +110,7 @@ export default function UnifiedDashboard() {
     } catch (error) {
       console.error('Error loading persisted data:', error);
     }
-  }, []);
+  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, interpretMode]);
 
   const handleChartCalculated = useCallback((data: BirthChartData) => {
     // Derive birth data
@@ -187,7 +171,24 @@ export default function UnifiedDashboard() {
       calculateWeeklyForecast(derived),
       calculatePersonality(derived).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
-  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc]);
+  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, interpretMode]);
+
+  // Conditional returns AFTER all hooks
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
+          <div className="text-gray-400">Loading your cosmic dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    // Middleware will redirect, but show loading state briefly
+    return null;
+  }
 
   const handleReadAloud = () => {
     // Build full interpretation text

@@ -8,8 +8,19 @@ import {
   sendSubscriptionCancelledEmail 
 } from '@/lib/email-service';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.startsWith('your_')) {
+    return null;
+  }
+  try {
+    return new Stripe(process.env.STRIPE_SECRET_KEY);
+  } catch (error) {
+    console.error('Failed to initialize Stripe:', error);
+    return null;
+  }
+};
+
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 /**
  * Helper: Get user email from Clerk
@@ -40,6 +51,13 @@ async function decrementSpots(): Promise<void> {
 }
 
 export async function POST(request: Request) {
+  const stripe = getStripe();
+  
+  if (!stripe || !webhookSecret) {
+    console.error('[Webhook] Stripe not configured');
+    return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
+  }
+  
   const body = await request.text();
   const headersList = await headers();
   const signature = headersList.get('stripe-signature');

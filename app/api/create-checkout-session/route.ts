@@ -2,15 +2,32 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY environment variable is not set');
-}
+// Only initialize Stripe if the secret key is properly set
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'your_secret_key_here') {
+    return null;
+  }
+  try {
+    return new Stripe(process.env.STRIPE_SECRET_KEY);
+  } catch (error) {
+    console.error('Failed to initialize Stripe:', error);
+    return null;
+  }
+};
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY!;
+const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY;
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
+    
+    if (!stripe || !priceId) {
+      return NextResponse.json(
+        { error: "Stripe is not configured. Please contact support." }, 
+        { status: 503 }
+      );
+    }
+    
     const { userId } = await auth();
     
     if (!userId) {
