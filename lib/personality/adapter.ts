@@ -11,7 +11,8 @@ function infuseMotivators(text: string, motivators: string[]): string {
 }
 
 function adjustTone(text: string, tone: TypeConfig["tone"]): string {
-  const toneAdjustments: Record<TypeConfig["tone"], (t: string) => string> = {
+  // eslint-disable-next-line no-unused-vars
+  const toneAdjustments: Record<TypeConfig["tone"], (_: string) => string> = {
     epic: (t) =>
       t
         .replace(/today/gi, "in this momentous era")
@@ -31,7 +32,8 @@ function adjustStructure(
   text: string,
   structure: TypeConfig["structure"],
 ): string {
-  const structures: Record<TypeConfig["structure"], (t: string) => string> = {
+  // eslint-disable-next-line no-unused-vars
+  const structures: Record<TypeConfig["structure"], (_: string) => string> = {
     bullets: (t) => `- ${t.split(". ").join("\n- ")}`,
     paragraph: (t) => t,
     questions: (t) => `What if ${t}? Have you considered?`,

@@ -8,8 +8,8 @@ export interface SchoolInsight {
 
 export function getVedicInsight(
   natal: BirthChartData,
-  _transits: any[],
-  _date: Date
+  _transits: any[], // eslint-disable-line no-unused-vars
+  _date: Date // eslint-disable-line no-unused-vars
 ): SchoolInsight {
   const themes: string[] = [];
   let insight = "";

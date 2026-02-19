@@ -92,7 +92,7 @@ export function getMultiSchoolGuidance(
   natal: BirthChartData,
   transits: any[],
   date: Date,
-  _question: string
+  _question: string // eslint-disable-line no-unused-vars
 ): {
   western: "yes" | "no" | "wait";
   vedic: "yes" | "no" | "wait";

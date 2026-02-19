@@ -392,9 +392,10 @@ function parseGrokResponse(
 /**
  * Generate a quick daily forecast using Grok
  */
+// eslint-disable-next-line no-unused-vars
 export async function generateGrokForecast(
   birthChart: any,
-  transitData?: any
+  _transitData?: any
 ): Promise<string> {
   if (!XAI_API_KEY) {
     throw new Error('XAI_API_KEY not configured');
