@@ -288,7 +288,7 @@ function generateVenusNarrative(
 // Generate Mars narrative (will and action)
 function generateMarsNarrative(
   mars: PlanetPosition,
-  aspects: Aspect[]
+  _aspects: Aspect[]
 ): string {
   const signTemplates = planetSignVoice.Mars[mars.sign];
   const baseVoice = signTemplates

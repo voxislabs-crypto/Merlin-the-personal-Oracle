@@ -327,11 +327,6 @@ export function getJourneySummary(milestones: UserMilestones): string {
     (Date.now() - milestones.joinedCommunityAt.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  const avgReadingsPerWeek =
-    daysSinceJoining > 7
-      ? Math.round((milestones.readingsGenerated / daysSinceJoining) * 7)
-      : 0;
-
   return `You've been with Merlin for ${daysSinceJoining} days. In that time, you've generated ${milestones.readingsGenerated} readings and unlocked ${milestones.insightsUnlocked} insights. ${
     milestones.currentStreak > 1
       ? `You're on a ${milestones.currentStreak}-day streak. Keep going.`

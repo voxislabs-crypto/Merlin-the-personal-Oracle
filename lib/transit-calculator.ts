@@ -1,7 +1,7 @@
 import { TRANSIT_LOOKUP, getDayRating, type TransitInterpretation } from "./transit-lookup"
 import { type MBTIType } from "./mbti-system"
-import { toJulianDay, getPlanetPositions, type PlanetPositions } from "./swiss-ephemeris-core"
-import { detectAspects, type DetectedAspect } from "./aspect-detection"
+import { getPlanetPositions, type PlanetPositions } from "./swiss-ephemeris-core"
+import { type DetectedAspect } from "./aspect-detection"
 import { assignPrimaryAndSecondaryThemes } from "./theme-assignment"
 import { applyMBTIOverlay } from "./mbti-overlay"
 import { resonanceDB } from "./resonance-database"
@@ -95,22 +95,6 @@ function detectTransitAspects(currentPlanets: PlanetPositions, natalPlanets: Pla
 
 async function calculateDailyTransits(date: Date, birthData: BirthData, userId?: string): Promise<Transit[]> {
   try {
-    const currentJD = toJulianDay(
-      date.getFullYear(),
-      date.getMonth() + 1,
-      date.getDate(),
-      12, // noon
-      0,
-    )
-
-    const natalJD = toJulianDay(
-      birthData.date.getFullYear(),
-      birthData.date.getMonth() + 1,
-      birthData.date.getDate(),
-      birthData.date.getHours(),
-      birthData.date.getMinutes(),
-    )
-
     const currentPlanets = await getPlanetPositions(date)
     const natalPlanets = await getPlanetPositions(birthData.date)
 
@@ -160,7 +144,7 @@ async function calculateDailyTransits(date: Date, birthData: BirthData, userId?:
   }
 }
 
-function calculateMockTransits(date: Date, userId?: string): Transit[] {
+function calculateMockTransits(date: Date, _userId?: string): Transit[] {
   const dayOfMonth = date.getDate()
   const numTransits = Math.min(3, Math.max(1, (dayOfMonth % 4) + 1))
 

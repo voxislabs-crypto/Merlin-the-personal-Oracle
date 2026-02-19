@@ -23,9 +23,8 @@ export interface YearlyTheme {
 }
 
 // Mock timeline data - in production this would be calculated from birth data
-export function generateTimeline(birthYear: number, mbtiType?: MBTIType): YearlyTheme[] {
+export function generateTimeline(birthYear: number, _mbtiType?: MBTIType): YearlyTheme[] {
   const currentYear = new Date().getFullYear()
-  const age = currentYear - birthYear
   const timeline: YearlyTheme[] = []
 
   for (let year = currentYear; year <= currentYear + 3; year++) {
