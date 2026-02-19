@@ -193,7 +193,7 @@ export default function CheckoutSubscriptionPage() {
               One-time payment · Save $249 compared to regular price
             </p>
             <Button
-              onClick={() => router.push('/')}
+              onClick={() => window.location.href = '/'}
               variant="outline"
               className="border-amber-500/50 text-amber-300 hover:bg-amber-500/10"
             >
