@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Check, X, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/nextjs';
 
 const lifetimeFeatures = [
   'Complete Birth Chart Analysis',
@@ -33,6 +34,7 @@ const freeNotIncluded = [
 ];
 
 export function PricingSection() {
+  const { isSignedIn } = useAuth();
   const [spotsLeft, setSpotsLeft] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -94,20 +96,10 @@ export function PricingSection() {
             </div>
 
             <a
-              href={process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? '/dashboard' : (process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription')}
+              href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
               onClick={(e) => {
                 if (typeof window !== 'undefined') {
-                  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-                  
-                  // In dev mode, go straight to dashboard
-                  if (isDevMode) {
-                    e.preventDefault();
-                    window.location.href = '/dashboard';
-                    return;
-                  }
-                  
                   // Production mode: check if user is signed in first
-                  const isSignedIn = document.cookie.includes('__clerk');
                   if (!isSignedIn) {
                     e.preventDefault();
                     window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
@@ -117,7 +109,7 @@ export function PricingSection() {
               }}
               className="block w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105"
             >
-              {process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'Start Free (Dev)' : 'Start Free Trial'}
+              Start Free Trial
             </a>
 
             <div className="space-y-3">

@@ -1,4 +1,4 @@
-import { ClerkProvider } from './clerk-provider';
+import { ClerkProvider } from '@clerk/nextjs';
 import { Navigation } from '@/components/layout/Navigation';
 import { Footer } from '@/components/layout/Footer';
 import { PWAInstaller } from '@/components/PWAInstaller';

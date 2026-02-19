@@ -9,18 +9,26 @@ interface ClerkProviderProps {
 
 /**
  * Clerk Provider Wrapper
- * In dev mode, bypasses Clerk if keys are invalid
+ * Production-ready Clerk integration (no dev bypasses)
  */
 export function ClerkProvider({ children }: ClerkProviderProps) {
-  const isDev = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-  const hasValidKeys = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && 
-                       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY !== 'pk_test_bG9jYWxob3N0JA';
-  
-  // In dev mode with invalid keys, skip Clerk entirely
-  if (isDev && !hasValidKeys) {
-    console.log('[Auth] Running in dev mode without Clerk');
-    return <>{children}</>;
-  }
-  
-  return <BaseClerkProvider>{children}</BaseClerkProvider>;
+  return (
+    <BaseClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: '#f59e0b', // Amber-500
+          colorBackground: '#1f2937', // Gray-800  
+          colorText: '#f3f4f6', // Gray-100
+        },
+        elements: {
+          formButtonPrimary: 'bg-amber-600 hover:bg-amber-700 text-white',
+          card: 'bg-gray-900 border border-amber-800',
+          headerTitle: 'text-amber-400',
+          headerSubtitle: 'text-gray-300',
+        },
+      }}
+    >
+      {children}
+    </BaseClerkProvider>
+  );
 }

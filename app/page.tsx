@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useAuth } from '@clerk/nextjs';
 import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
 import { FeaturesSection } from '@/components/sections/FeaturesSection';
 import { TestimonialsSection } from '@/components/sections/TestimonialsSection';
@@ -14,6 +15,8 @@ import { ArrowRight, Star, Shield } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default function Home() {
+  const { isSignedIn } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
       {/* Animated background elements */}
@@ -118,23 +121,13 @@ export default function Home() {
                 <p className="text-sm text-purple-200">7-day free trial</p>
               </div>
               <a
-                href={process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? '/dashboard' : (process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription')}
+                href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
                 onClick={(e) => {
-                  // In dev mode, go straight to dashboard
                   if (typeof window !== 'undefined') {
-                    const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-                    
-                    if (isDevMode) {
-                      e.preventDefault();
-                      window.location.href = '/dashboard';
-                      return;
-                    }
-                    
-                    // Production mode: check if user is signed in first
-                    const isSignedIn = document.cookie.includes('__clerk');
+                    // Check if user is signed in first
                     if (!isSignedIn) {
                       e.preventDefault();
-                      // Redirect to sign-in first, with return URL to checkout
+                      // Redirect to sign-in first, with return URL to Stripe
                       window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
                       return;
                     }
@@ -146,7 +139,7 @@ export default function Home() {
                 }}
                 className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
               >
-                {process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'Start Free (Dev Mode)' : 'Start 7-Day Free Trial'}
+                Start 7-Day Free Trial
               </a>
               <p className="text-gray-400 text-xs text-center mt-3">Card required · Cancel anytime</p>
             </div>

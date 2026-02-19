@@ -1,42 +1,37 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import { NextResponse } from 'next/server';
+import { authMiddleware } from "@clerk/nextjs";
 
-/**
- * Public routes that don't require authentication
- * - Homepage, auth pages, checkout
- * - All API routes (Stripe needs this for webhooks/checkout)
- */
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/sso-callback(.*)',           // Clerk SSO callback
-  '/checkout-subscription(.*)',  // Allow subscription checkout page
-  '/api/(.*)',                   // Make all API routes public (Stripe, calculations, etc.)
-  '/privacy(.*)',                // Public policy pages
-  '/terms(.*)',
-]);
+const publicRoutes = [
+  "/", 
+  "/sign-in(.*)", 
+  "/sign-up(.*)", 
+  "/checkout-subscription(.*)",
+  "/api/create-checkout-session(.*)", 
+  "/api/stripe/webhook(.*)", 
+  "/api/stripe/create-subscription-session(.*)",
+  "/__clerk(.*)",
+  "/sign-in/sso-callback(.*)",
+  "/privacy(.*)",
+  "/terms(.*)",
+];
 
-/**
- * Clerk Middleware - Production Mode
- * Protected routes: /dashboard, /profile, /enhanced-dashboard, /soul-dashboard, etc.
- * Public routes: /, /sign-in, /sign-up, /checkout-subscription, /api/*
- * 
- * In dev mode, allows all access without authentication
- */
-export default clerkMiddleware(async (auth, request) => {
-  // Check if dev mode is enabled
-  const isDev = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-  
-  // In dev mode, allow all routes
-  if (isDev) {
-    return NextResponse.next();
-  }
-  
-  // Only protect non-public routes in production
-  if (!isPublicRoute(request)) {
-    await auth().protect();
-  }
+export default authMiddleware({
+  publicRoutes,
+  afterAuth(auth, req) {
+    const { userId } = auth;
+    const url = new URL(req.url);
+    const isOnSignIn = url.pathname.startsWith("/sign-in");
+    const isOnSignUp = url.pathname.startsWith("/sign-up");
+    const isOnCheckout = url.pathname.startsWith("/checkout");
+
+    // Redirect authenticated users away from sign-in/sign-up
+    if (userId && isOnSignIn) {
+      return Response.redirect(new URL("/dashboard", req.url));
+    }
+
+    if (userId && isOnSignUp) {
+      return Response.redirect(new URL("/dashboard", req.url));
+    }
+  },
 });
 
 export const config = {
@@ -47,3 +42,4 @@ export const config = {
     '/(api|trpc)(.*)',
   ],
 };
+
