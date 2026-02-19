@@ -27,13 +27,30 @@ const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 
 export default function UnifiedDashboard() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
   const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc'>('wheel');
   // Life Arc mode removed - now just raw timeline
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
+  
+  // Don't render until Clerk auth is loaded to prevent API call race conditions
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
+          <div className="text-gray-400">Loading your cosmic dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    // Middleware will redirect, but show loading state briefly
+    return null;
+  }
   
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
   

@@ -137,23 +137,39 @@ export default function Home() {
                   
                   // Call API to create Stripe session
                   try {
+                    // Get saved birth data if available (for better checkout experience)
+                    const savedBirth = localStorage.getItem('merlin_birth_data');
+                    const birthData = savedBirth ? JSON.parse(savedBirth) : {};
+                    
                     const response = await fetch('/api/create-checkout-session', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({}),
+                      body: JSON.stringify({
+                        birthDate: birthData.date || '',
+                        birthTime: birthData.time || '',
+                        birthCity: birthData.city || '',
+                      }),
                     });
+                    
+                    if (!response.ok) {
+                      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
                     
                     const data = await response.json();
                     
                     if (data.url) {
                       window.location.href = data.url;
+                    } else if (data.error) {
+                      console.error('Checkout error:', data.error);
+                      alert(data.error);
                     } else {
                       console.error('No checkout URL returned');
                       alert('Error creating checkout session. Please try again.');
                     }
                   } catch (error) {
                     console.error('Error:', error);
-                    alert('Error creating checkout session. Please try again.');
+                    const message = error instanceof Error ? error.message : 'Unknown error';
+                    alert(`Error creating checkout session: ${message}`);
                   }
                 }}
                 className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center cursor-pointer"

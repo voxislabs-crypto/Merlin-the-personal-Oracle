@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         userId,
       },
+      allow_promotion_codes: true, // Enable promo codes at checkout
     });
 
     console.log('Session created:', session.id);
