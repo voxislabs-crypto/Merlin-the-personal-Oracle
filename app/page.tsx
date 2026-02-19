@@ -121,7 +121,7 @@ export default function Home() {
                 <p className="text-sm text-purple-200">7-day free trial</p>
               </div>
               <button
-                onClick={async (e) => {
+                onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
                   e.preventDefault();
                   
                   // Track click
@@ -191,7 +191,7 @@ export default function Home() {
               </div>
               <Link
                 href="#intake-form"
-                onClick={(e) => {
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                   e.preventDefault();
                   document.getElementById('intake-form')?.scrollIntoView({ behavior: 'smooth' });
                   if (typeof window !== 'undefined' && (window as any).gtag) {

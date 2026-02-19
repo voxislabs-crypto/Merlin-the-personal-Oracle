@@ -1,5 +1,6 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import type { NextRequest } from 'next/server';
 
 // Define protected routes (these require auth)
 const isProtected = createRouteMatcher([
@@ -11,7 +12,7 @@ const isProtected = createRouteMatcher([
   '/astro-calculator(.*)',
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
+export default clerkMiddleware(async (auth, req: NextRequest) => {
   if (isProtected(req)) {
     const authObj = await auth();
     if (!authObj.userId) {
