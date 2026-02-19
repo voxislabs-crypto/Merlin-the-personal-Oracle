@@ -19,7 +19,7 @@ export function getMultiSchoolWhisper(
   date: Date
 ): MultiSchoolWhisper {
   // Run all three schools
-  const western = getWesternInsight(natal, transits, date);
+  const western = getWesternInsight(natal, transits);
   const vedic = getVedicInsight(natal, transits, date);
   const chinese = getChineseInsight(natal, transits, date);
 
@@ -92,7 +92,7 @@ export function getMultiSchoolGuidance(
   natal: BirthChartData,
   transits: any[],
   date: Date,
-  question: string
+  _question: string
 ): {
   western: "yes" | "no" | "wait";
   vedic: "yes" | "no" | "wait";

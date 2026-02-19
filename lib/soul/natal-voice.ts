@@ -287,8 +287,7 @@ function generateVenusNarrative(
 
 // Generate Mars narrative (will and action)
 function generateMarsNarrative(
-  mars: PlanetPosition,
-  _aspects: Aspect[]
+  mars: PlanetPosition
 ): string {
   const signTemplates = planetSignVoice.Mars[mars.sign];
   const baseVoice = signTemplates
@@ -348,7 +347,7 @@ export function generateSoulReading(chartData: BirthChartData): SoulReading {
       ? generateVenusNarrative(venus, aspects)
       : "Your heart has its own dialect.",
     willAndAction: mars
-      ? generateMarsNarrative(mars, aspects)
+      ? generateMarsNarrative(mars)
       : "Your will is the hammer that shapes your world.",
     soulPurpose:
       jupiter && saturn

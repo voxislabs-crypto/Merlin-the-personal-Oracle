@@ -8,8 +8,7 @@ export interface SchoolInsight {
 
 export function getWesternInsight(
   natal: BirthChartData,
-  transits: any[],
-  _date: Date
+  transits: any[]
 ): SchoolInsight {
   const themes: string[] = [];
   let insight = "";

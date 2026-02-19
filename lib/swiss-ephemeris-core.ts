@@ -22,7 +22,7 @@ let swisseph: any = null
 try {
   swisseph = require("swisseph")
   console.log("[swiss-ephemeris-core] swisseph loaded successfully")
-} catch (_error) {
+} catch {
   console.warn("[swiss-ephemeris-core] swisseph not available, will use fallback mock data")
 }
 

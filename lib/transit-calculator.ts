@@ -140,11 +140,11 @@ async function calculateDailyTransits(date: Date, birthData: BirthData, userId?:
     return transits.sort((a, b) => (b.adjustedScore || 0) - (a.adjustedScore || 0)).slice(0, 5)
   } catch (error) {
     console.error("Error calculating real transits:", error)
-    return calculateMockTransits(date, userId)
+    return calculateMockTransits(date)
   }
 }
 
-function calculateMockTransits(date: Date, _userId?: string): Transit[] {
+function calculateMockTransits(date: Date): Transit[] {
   const dayOfMonth = date.getDate()
   const numTransits = Math.min(3, Math.max(1, (dayOfMonth % 4) + 1))
 
@@ -182,7 +182,7 @@ export async function generateDailyForecast(
 ): Promise<DailyForecast> {
   const transits = birthData
     ? await calculateDailyTransits(date, birthData, userId)
-    : calculateMockTransits(date, userId)
+    : calculateMockTransits(date)
 
   const effects = transits.map((t) => t.effect)
   const dayRating = getDayRating(effects)

@@ -22,7 +22,7 @@ interface TimelineViewProps {
 }
 
 export function TimelineView({ birthYear, mbtiType }: TimelineViewProps) {
-  const timeline = generateTimeline(birthYear, mbtiType)
+  const timeline = generateTimeline(birthYear)
   const [selectedYear, setSelectedYear] = useState<YearlyTheme | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
 
