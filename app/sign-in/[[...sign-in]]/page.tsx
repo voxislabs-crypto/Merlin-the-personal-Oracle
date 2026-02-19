@@ -1,14 +1,25 @@
 import { SignIn } from "@clerk/nextjs";
 
-export default function Page() {
+export default function SignInPage() {
   return (
-    <main style={{ width: '100%', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900">
       <SignIn 
-        forceRedirectUrl="/checkout-subscription" 
-        routing="path" 
-        path="/sign-in" 
-        appearance={{ elements: { rootBox: { width: "400px" } } }} 
+        forceRedirectUrl="/dashboard"
+        fallbackRedirectUrl="/dashboard"
+        routing="path"
+        path="/sign-in"
+        appearance={{
+          elements: {
+            rootBox: 'w-full max-w-md',
+            card: 'bg-slate-900 border border-purple-500/30 shadow-2xl',
+            headerTitle: 'text-amber-300',
+            headerSubtitle: 'text-gray-400',
+            socialButtonsBlockButton: 'border border-purple-500/30 hover:border-purple-500/50',
+            formButtonPrimary: 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600',
+            footerActionLink: 'text-amber-400 hover:text-amber-300',
+          },
+        }}
       />
-    </main>
+    </div>
   );
 }

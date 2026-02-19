@@ -120,27 +120,46 @@ export default function Home() {
                 </div>
                 <p className="text-sm text-purple-200">7-day free trial</p>
               </div>
-              <a
-                href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
-                onClick={(e) => {
-                  if (typeof window !== 'undefined') {
-                    // Check if user is signed in first
-                    if (!isSignedIn) {
-                      e.preventDefault();
-                      // Redirect to sign-in first, with return URL to Stripe
-                      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
-                      return;
-                    }
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  
+                  // Track click
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'trial_click', { location: 'hero' });
+                  }
+                  
+                  // Check if user is signed in
+                  if (!isSignedIn) {
+                    window.location.href = '/sign-in?redirect_url=/checkout-subscription';
+                    return;
+                  }
+                  
+                  // Call API to create Stripe session
+                  try {
+                    const response = await fetch('/api/create-checkout-session', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({}),
+                    });
                     
-                    if ((window as any).gtag) {
-                      (window as any).gtag('event', 'trial_click', { location: 'hero' });
+                    const data = await response.json();
+                    
+                    if (data.url) {
+                      window.location.href = data.url;
+                    } else {
+                      console.error('No checkout URL returned');
+                      alert('Error creating checkout session. Please try again.');
                     }
+                  } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error creating checkout session. Please try again.');
                   }
                 }}
-                className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
+                className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center cursor-pointer"
               >
                 Start 7-Day Free Trial
-              </a>
+              </button>
               <p className="text-gray-400 text-xs text-center mt-3">Card required · Cancel anytime</p>
             </div>
 
