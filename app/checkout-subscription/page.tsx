@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
+import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Shield, Check } from 'lucide-react';
@@ -27,21 +27,16 @@ const features = [
 
 export default function CheckoutSubscriptionPage() {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
-  // Check authentication on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isSignedIn = document.cookie.includes('__clerk');
-      if (!isSignedIn) {
-        // Redirect to sign-in if not authenticated
-        const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription';
-        router.push('/sign-in?redirect_url=' + encodeURIComponent(paymentLink));
-      }
-    }
-  }, [router]);
+  const { isLoaded, isSignedIn } = useAuth();
 
   const handleSubscribe = async () => {
+    // If not signed in, redirect to sign-in page first
+    if (!isSignedIn) {
+      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription';
+      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(paymentLink);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -73,6 +68,18 @@ export default function CheckoutSubscriptionPage() {
       setLoading(false);
     }
   };
+
+  // Show loading state while auth is being checked
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <Sparkles className="w-16 h-16 text-purple-400 mx-auto mb-4 animate-spin" />
+          <p className="text-xl text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white pt-32 pb-20 px-4">
@@ -123,7 +130,7 @@ export default function CheckoutSubscriptionPage() {
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-6 text-lg"
                 >
-                  {loading ? 'Processing...' : 'Start Free Trial'}
+                  {loading ? 'Processing...' : (isSignedIn ? 'Start Free Trial' : 'Sign In to Continue')}
                 </Button>
 
                 <div className="mt-6 space-y-2 text-sm text-gray-300">
