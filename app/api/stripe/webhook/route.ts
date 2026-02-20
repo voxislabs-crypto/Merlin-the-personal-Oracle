@@ -98,6 +98,7 @@ export async function POST(request: Request) {
           const client = await clerkClient();
           await client.users.updateUser(userId, {
             publicMetadata: {
+              subscribed: true,  // ✅ ADDED: Mark user as subscribed
               hasTrial: true,
               stripeCustomerId: session.customer,
               subscriptionId: session.subscription,

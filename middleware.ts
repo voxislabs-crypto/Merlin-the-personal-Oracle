@@ -1,33 +1,19 @@
 // middleware.ts
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
-import type { NextRequest } from 'next/server';
+import { authMiddleware } from "@clerk/nextjs";
 
-// Define protected routes (these require auth)
-const isProtected = createRouteMatcher([
-  '/dashboard(.*)',
-  '/profile(.*)',
-  '/settings(.*)',
-  '/enhanced-dashboard(.*)',
-  '/soul-dashboard(.*)',
-  '/astro-calculator(.*)',
-]);
-
-export default clerkMiddleware(async (auth, req: NextRequest) => {
-  if (isProtected(req)) {
-    const authObj = await auth();
-    if (!authObj.userId) {
-      // Redirect to sign-in if not authenticated
-      const signInUrl = new URL('/sign-in', req.url);
-      return Response.redirect(signInUrl);
-    }
-  }
+export default authMiddleware({
+  publicRoutes: [
+    "/",
+    "/sign-in(.*)",
+    "/sign-up(.*)",
+    "/api/create-checkout-session(.*)",
+    "/api/stripe/webhook(.*)",
+    "/api/geocoding(.*)",
+    "/privacy",
+    "/terms",
+  ],
 });
 
 export const config = {
-  matcher: [
-    // Skip static files and Next.js internals
-    '/((?!.+\\.[\\w]+$|_next).*)',
-    '/',
-    '/(api|trpc)(.*)',
-  ],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 };

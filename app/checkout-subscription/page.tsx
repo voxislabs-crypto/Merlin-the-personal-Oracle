@@ -30,41 +30,33 @@ export default function CheckoutSubscriptionPage() {
   const { isLoaded, isSignedIn } = useAuth();
 
   const handleSubscribe = async () => {
-    // If not signed in, redirect to sign-in page first
     if (!isSignedIn) {
-      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription';
-      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(paymentLink);
+      window.location.href = '/sign-in?redirect_url=/checkout-subscription';
       return;
     }
 
     setLoading(true);
 
     try {
-      // Use direct Stripe payment link (simpler, faster, no backend required)
-      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
+      const response = await fetch('/api/stripe/create-subscription-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const { sessionId, error } = await response.json();
       
-      if (!paymentLink) {
-        console.error('Stripe payment link not configured');
-        alert('Subscription not configured. Please contact support.');
-        setLoading(false);
+      if (error) {
+        alert(error);
         return;
       }
 
-      console.log('Redirecting to Stripe payment link...');
-      // Track subscription attempt
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'begin_checkout', {
-          currency: 'USD',
-          value: 9.99,
-          items: [{ item_name: 'Merlin Monthly Subscription' }]
-        });
-      }
+      const stripe = await stripePromise;
+      await stripe?.redirectToCheckout({ sessionId });
       
-      // Redirect directly to Stripe-hosted checkout
-      window.location.href = paymentLink;
     } catch (err) {
-      console.error('Subscription error:', err);
-      alert(err instanceof Error ? err.message : 'Subscription failed. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert('Checkout failed: ' + errorMessage);
+    } finally {
       setLoading(false);
     }
   };

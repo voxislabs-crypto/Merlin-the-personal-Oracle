@@ -12,6 +12,7 @@ import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { WeeklyWhisper } from '@/components/astrology/WeeklyWhisper';
 import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
+import { MBTICalculator } from '@/components/astrology/MBTICalculator';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -20,6 +21,7 @@ import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { useUser } from '@clerk/nextjs';
+import { redirect } from 'next/navigation';
 import { Sparkles, Moon, Zap, BookOpen } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
@@ -28,6 +30,13 @@ const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
+  
+  // Auth guard - redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (isLoaded && !user) {
+      redirect('/sign-in');
+    }
+  }, [isLoaded, user]);
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
@@ -318,11 +327,9 @@ export default function UnifiedDashboard() {
                     )}
                   </div>
 
-                  {/* Right Bottom: Personality Reveal */}
+                  {/* Right Bottom: MBTI + Hardware/Firmware */}
                   <div className="lg:col-span-1">
-                    {mbtiType && (
-                      <PersonalityReveal mbtiType={mbtiType} loading={personalityLoading} />
-                    )}
+                    <MBTICalculator chartData={chartData} />
                   </div>
                 </div>
 
