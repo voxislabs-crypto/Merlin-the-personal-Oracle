@@ -16,3 +16,53 @@ body {
       rgb(var(--background-end-rgb))
     );
 }
+
+/* Print Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .bg-slate-900, .bg-slate-800, .bg-slate-700 {
+    background: white !important;
+    color: black !important;
+  }
+
+  .text-amber-300, .text-amber-400, .text-amber-200 {
+    color: black !important;
+  }
+
+  .text-slate-300, .text-slate-400, .text-slate-200 {
+    color: black !important;
+  }
+
+  .border-amber-500, .border-slate-700 {
+    border-color: black !important;
+  }
+
+  /* Hide UI elements that shouldn't print */
+  button, .animate-pulse, .hover\\:scale-105 {
+    display: none !important;
+  }
+
+  /* Ensure timeline is visible */
+  .timeline-print {
+    display: block !important;
+    page-break-inside: avoid;
+  }
+
+  /* Format for A4 printing */
+  .print-timeline {
+    font-size: 12pt;
+    line-height: 1.4;
+    margin: 20px 0;
+  }
+
+  .print-event {
+    margin: 15px 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+}

@@ -1,17 +1,23 @@
 // middleware.ts
-import { authMiddleware } from "@clerk/nextjs";
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default authMiddleware({
-  publicRoutes: [
-    "/",
-    "/sign-in(.*)",
-    "/sign-up(.*)",
-    "/api/create-checkout-session(.*)",
-    "/api/stripe/webhook(.*)",
-    "/api/geocoding(.*)",
-    "/privacy",
-    "/terms",
-  ],
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/enhanced-dashboard(.*)',
+  '/soul-dashboard(.*)',
+  '/profile(.*)',
+  '/checkout-subscription(.*)',
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  // Protect dashboard routes
+  if (isProtectedRoute(req)) {
+    await auth.protect();
+  }
+
+  return NextResponse.next();
 });
 
 export const config = {
