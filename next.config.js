@@ -13,6 +13,8 @@ const nextConfig = {
     domains: [],
     unoptimized: false, // Enable image optimization for production
   },
+  // Ensure CSS is properly served in production
+  assetPrefix: process.env.NODE_ENV === 'production' ? undefined : '',
   // Production-ready headers
   async headers() {
     return [
@@ -43,6 +45,15 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
@@ -88,7 +99,7 @@ const nextConfig = {
         swisseph: 'commonjs swisseph',
       });
     }
-    
+
     // Ignore swisseph module resolution failures during build
     // It's optional and loaded dynamically at runtime
     config.resolve.fallback = {
@@ -96,14 +107,14 @@ const nextConfig = {
       sweph: false,
       swisseph: false,
     };
-    
+
     // Suppress module not found warnings for optional dependencies
     config.ignoreWarnings = [
       ...(config.ignoreWarnings || []),
       /Module not found: Can't resolve 'swisseph'/,
       /Module not found: Can't resolve 'sweph'/,
     ];
-    
+
     return config;
   },
 };

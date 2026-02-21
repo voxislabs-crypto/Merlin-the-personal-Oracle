@@ -1,0 +1,27 @@
+// app/api/stripe/webhook/route.ts
+case 'checkout.session.completed': {
+  const session = event.data.object as Stripe.Checkout.Session;
+  const userId = session.metadata?.userId;
+  
+  await decrementSpots();
+
+  if (userId) {
+    try {
+      const client = await clerkClient();
+      await client.users.updateUser(userId, {
+        publicMetadata: {
+          subscribed: true,              // ✅ ADD THIS
+          hasTrial: true,
+          stripeCustomerId: session.customer,
+          subscriptionId: session.subscription,
+          subscriptionStatus: 'trialing',
+          checkoutSessionId: session.id,
+        },
+      });
+      console.log(`[Stripe] Updated Clerk metadata for user ${userId}`);
+    } catch (error) {
+      console.error('[Stripe] Failed to update Clerk metadata:', error);
+    }
+  }
+  break;
+}

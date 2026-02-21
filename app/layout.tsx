@@ -31,6 +31,24 @@ export default function RootLayout({
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     >
       <html lang="en">
+        <head>
+          {/* Fallback CSS in case Tailwind fails to load */}
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              body { background: linear-gradient(to bottom, #0f172a, #000000); color: white; font-family: system-ui, -apple-system, sans-serif; }
+              .min-h-screen { min-height: 100vh; }
+              .flex { display: flex; }
+              .items-center { align-items: center; }
+              .justify-center { justify-content: center; }
+              .text-center { text-align: center; }
+              .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+              .font-bold { font-weight: 700; }
+              .text-amber-400 { color: #fbbf24; }
+              .animate-spin { animation: spin 1s linear infinite; }
+              @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `
+          }} />
+        </head>
         <body>
           <PWAInstaller />
           <Navigation />
