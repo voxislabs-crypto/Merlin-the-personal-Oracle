@@ -35,6 +35,14 @@ export default function UnifiedDashboard() {
   // Life Arc mode removed - now just raw timeline
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
   
+  // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
+  const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
+  const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
+  const { transits, loading: transitsLoading, calculateTransits } = useTransits();
+  const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
+  const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
+  const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
+  
   // Don't render until Clerk auth is loaded to prevent API call race conditions
   if (!isLoaded) {
     return (
@@ -51,9 +59,7 @@ export default function UnifiedDashboard() {
     // Middleware will redirect, but show loading state briefly
     return null;
   }
-  
-  const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
-  
+
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
     const saved = localStorage.getItem('merlin_interpretation_mode');
@@ -67,12 +73,7 @@ export default function UnifiedDashboard() {
     if (birthData && chartData) {
       generateInterpretations(birthData, interpretMode);
     }
-  }, [interpretMode]);
-  const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
-  const { transits, loading: transitsLoading, calculateTransits } = useTransits();
-  const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
-  const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
-  const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
+  }, [interpretMode, birthData, chartData, generateInterpretations]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -187,7 +188,7 @@ export default function UnifiedDashboard() {
       calculateWeeklyForecast(derived),
       calculatePersonality(derived).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
-  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc]);
+  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, interpretMode]);
 
   const handleReadAloud = () => {
     // Build full interpretation text
