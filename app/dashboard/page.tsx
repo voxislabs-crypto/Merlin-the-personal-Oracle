@@ -43,23 +43,6 @@ export default function UnifiedDashboard() {
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
   const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
   
-  // Don't render until Clerk auth is loaded to prevent API call race conditions
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
-          <div className="text-gray-400">Loading your cosmic dashboard...</div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    // Middleware will redirect, but show loading state briefly
-    return null;
-  }
-
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
     const saved = localStorage.getItem('merlin_interpretation_mode');
@@ -189,6 +172,23 @@ export default function UnifiedDashboard() {
       calculatePersonality(derived).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, interpretMode]);
+
+  // Conditional render: Don't render until Clerk auth is loaded
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
+          <div className="text-gray-400">Loading your cosmic dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    // Middleware will redirect, but show loading state briefly
+    return null;
+  }
 
   const handleReadAloud = () => {
     // Build full interpretation text
