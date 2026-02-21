@@ -17,13 +17,13 @@ export interface PlanetPositions {
   trueNode: { longitude: number; latitude: number; distance: number; speedLongitude: number }
 }
 
-// Try to load swisseph dynamically
+// Try to load sweph dynamically
 let swisseph: any = null
 try {
-  swisseph = require("swisseph")
-  console.log("[swiss-ephemeris-core] swisseph loaded successfully")
+  swisseph = require("sweph")
+  console.log("[swiss-ephemeris-core] sweph loaded successfully")
 } catch (error) {
-  console.warn("[swiss-ephemeris-core] swisseph not available, will use fallback mock data")
+  console.warn("[swiss-ephemeris-core] sweph not available, will use fallback mock data")
 }
 
 // Planet numbers for Swiss Ephemeris
