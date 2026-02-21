@@ -3,16 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuth } from '@clerk/nextjs';
-import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
-import { FeaturesSection } from '@/components/sections/FeaturesSection';
-import { TestimonialsSection } from '@/components/sections/TestimonialsSection';
-import { TrustBadges } from '@/components/sections/TrustBadges';
-import { StatsSection } from '@/components/sections/StatsSection';
-import { PricingSection } from '@/components/sections/PricingSection';
-import { FAQSection } from '@/components/sections/FAQSection';
 import { ArrowRight, Star, Shield } from 'lucide-react';
-
-export const dynamic = 'force-dynamic';
 
 export default function Home() {
   const { isSignedIn } = useAuth();
@@ -98,233 +89,133 @@ export default function Home() {
               Try 7 days free (card required) or own it forever for $50
             </span>
           </motion.p>
-          
-          <TrustBadges />
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 1 }}
+            className="max-w-3xl mx-auto"
+          >
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Trial Button */}
+              <div className="bg-gradient-to-br from-purple-900/80 to-blue-900/80 backdrop-blur-sm border-2 border-purple-500/50 rounded-2xl p-8 shadow-2xl hover:border-purple-400/70 transition-all">
+                <div className="text-center mb-4">
+                  <p className="text-purple-300 text-sm font-semibold mb-2">MONTHLY PLAN</p>
+                  <div className="flex items-baseline justify-center gap-2 mb-2">
+                    <span className="text-4xl font-bold text-white">$9.99</span>
+                    <span className="text-gray-400">/month</span>
+                  </div>
+                  <p className="text-sm text-purple-200">7-day free trial</p>
+                </div>
+                <button
+                  onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.preventDefault();
+                    
+                    // Track click
+                    if (typeof window !== 'undefined' && (window as any).gtag) {
+                      (window as any).gtag('event', 'trial_click', { location: 'hero' });
+                    }
+                    
+                    // Check if user is signed in
+                    if (!isSignedIn) {
+                      window.location.href = '/sign-in?redirect_url=/checkout-subscription';
+                      return;
+                    }
+                    
+                    // Call API to create Stripe session
+                    try {
+                      // Get saved birth data if available (for better checkout experience)
+                      const savedBirth = localStorage.getItem('merlin_birth_data');
+                      const birthData = savedBirth ? JSON.parse(savedBirth) : {};
+                      
+                      const response = await fetch('/api/create-checkout-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          birthDate: birthData.date || '',
+                          birthTime: birthData.time || '',
+                          birthCity: birthData.city || '',
+                        }),
+                      });
+                      
+                      if (response.ok) {
+                        const { url } = await response.json();
+                        window.location.href = url;
+                      } else {
+                        console.error('Failed to create checkout session');
+                      }
+                    } catch (error) {
+                      console.error('Error:', error);
+                    }
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 transform hover:scale-105"
+                >
+                  Start Free Trial
+                </button>
+              </div>
+
+              {/* Lifetime Button */}
+              <div className="bg-gradient-to-br from-amber-900/80 to-orange-900/80 backdrop-blur-sm border-2 border-amber-500/50 rounded-2xl p-8 shadow-2xl hover:border-amber-400/70 transition-all">
+                <div className="text-center mb-4">
+                  <p className="text-amber-300 text-sm font-semibold mb-2">LIFETIME ACCESS</p>
+                  <div className="flex items-baseline justify-center gap-2 mb-2">
+                    <span className="text-4xl font-bold text-white">$50</span>
+                    <span className="text-gray-400 line-through text-lg">$299</span>
+                  </div>
+                  <p className="text-sm text-amber-200">One-time payment</p>
+                </div>
+                <button
+                  onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.preventDefault();
+                    
+                    // Track click
+                    if (typeof window !== 'undefined' && (window as any).gtag) {
+                      (window as any).gtag('event', 'lifetime_click', { location: 'hero' });
+                    }
+                    
+                    // Check if user is signed in
+                    if (!isSignedIn) {
+                      window.location.href = '/sign-in?redirect_url=/checkout-subscription';
+                      return;
+                    }
+                    
+                    // Call API to create Stripe session
+                    try {
+                      // Get saved birth data if available (for better checkout experience)
+                      const savedBirth = localStorage.getItem('merlin_birth_data');
+                      const birthData = savedBirth ? JSON.parse(savedBirth) : {};
+                      
+                      const response = await fetch('/api/create-checkout-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          birthDate: birthData.date || '',
+                          birthTime: birthData.time || '',
+                          birthCity: birthData.city || '',
+                          lifetime: true,
+                        }),
+                      });
+                      
+                      if (response.ok) {
+                        const { url } = await response.json();
+                        window.location.href = url;
+                      } else {
+                        console.error('Failed to create checkout session');
+                      }
+                    } catch (error) {
+                      console.error('Error:', error);
+                    }
+                  }}
+                  className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 transition-all duration-300 transform hover:scale-105"
+                >
+                  Get Lifetime Access
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1 }}
-          className="max-w-3xl mx-auto mb-12"
-        >
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Trial Button */}
-            <div className="bg-gradient-to-br from-purple-900/80 to-blue-900/80 backdrop-blur-sm border-2 border-purple-500/50 rounded-2xl p-8 shadow-2xl hover:border-purple-400/70 transition-all">
-              <div className="text-center mb-4">
-                <p className="text-purple-300 text-sm font-semibold mb-2">MONTHLY PLAN</p>
-                <div className="flex items-baseline justify-center gap-2 mb-2">
-                  <span className="text-4xl font-bold text-white">$9.99</span>
-                  <span className="text-gray-400">/month</span>
-                </div>
-                <p className="text-sm text-purple-200">7-day free trial</p>
-              </div>
-              <button
-                onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
-                  e.preventDefault();
-                  
-                  // Track click
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'trial_click', { location: 'hero' });
-                  }
-                  
-                  // Check if user is signed in
-                  if (!isSignedIn) {
-                    window.location.href = '/sign-in?redirect_url=/checkout-subscription';
-                    return;
-                  }
-                  
-                  // Call API to create Stripe session
-                  try {
-                    // Get saved birth data if available (for better checkout experience)
-                    const savedBirth = localStorage.getItem('merlin_birth_data');
-                    const birthData = savedBirth ? JSON.parse(savedBirth) : {};
-                    
-                    const response = await fetch('/api/create-checkout-session', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        birthDate: birthData.date || '',
-                        birthTime: birthData.time || '',
-                        birthCity: birthData.city || '',
-                      }),
-                    });
-                    
-                    if (!response.ok) {
-                      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.url) {
-                      window.location.href = data.url;
-                    } else if (data.error) {
-                      console.error('Checkout error:', data.error);
-                      alert(data.error);
-                    } else {
-                      console.error('No checkout URL returned');
-                      alert('Error creating checkout session. Please try again.');
-                    }
-                  } catch (error) {
-                    console.error('Error:', error);
-                    const message = error instanceof Error ? error.message : 'Unknown error';
-                    alert(`Error creating checkout session: ${message}`);
-                  }
-                }}
-                className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center cursor-pointer"
-              >
-                Start 7-Day Free Trial
-              </button>
-              <p className="text-gray-400 text-xs text-center mt-3">Card required · Cancel anytime</p>
-            </div>
-
-            {/* Lifetime Button */}
-            <div className="bg-gradient-to-br from-amber-900/80 to-orange-900/80 backdrop-blur-sm border-2 border-amber-500/50 rounded-2xl p-8 shadow-2xl hover:border-amber-400/70 transition-all">
-              <div className="text-center mb-4">
-                <p className="text-amber-300 text-sm font-semibold mb-2">BEST VALUE</p>
-                <div className="flex items-baseline justify-center gap-2 mb-2">
-                  <span className="text-4xl font-bold text-white">$50</span>
-                  <span className="text-gray-400 line-through">$299</span>
-                </div>
-                <p className="text-sm text-amber-200">One-time payment</p>
-              </div>
-              <Link
-                href="#intake-form"
-                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                  e.preventDefault();
-                  document.getElementById('intake-form')?.scrollIntoView({ behavior: 'smooth' });
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'lifetime_click', { location: 'hero' });
-                  }
-                }}
-                className="block w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
-              >
-                Get Lifetime Access
-              </Link>
-              <p className="text-gray-400 text-xs text-center mt-3">Save $249 · Lifetime updates</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Birth Intake Form */}
-        <motion.div
-          id="intake-form"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.2 }}
-          className="max-w-md mx-auto mb-12"
-        >
-          <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-2xl font-bold text-amber-300 mb-2 text-center">
-              Start Your Cosmic Journey
-            </h3>
-            <p className="text-gray-400 text-sm text-center mb-6">
-              Enter your birth details to unlock your complete astrological profile
-            </p>
-            <BirthIntakeForm showPayment redirectTo="dashboard" />
-          </div>
-        </motion.div>
-
-        {/* Quick Access for Existing Users */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 1.2 }}
-          className="text-center"
-        >
-          <p className="text-gray-400 mb-4">Already have an account?</p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 text-amber-300 rounded-lg font-semibold transition-all duration-300 border border-amber-500/30 hover:border-amber-500/50 group"
-            >
-              View Dashboard
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/enhanced-dashboard"
-              className="inline-flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 text-amber-300 rounded-lg font-semibold transition-all duration-300 border border-amber-500/30 hover:border-amber-500/50 group"
-            >
-              Calculate Birth Chart
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </motion.div>
       </div>
-
-      {/* Stats Section */}
-      <StatsSection />
-
-      {/* Features Section */}
-      <FeaturesSection />
-
-      {/* Pricing Section */}
-      <PricingSection />
-
-      {/* Testimonials Section */}
-      <TestimonialsSection />
-
-      {/* FAQ Section */}
-      <FAQSection />
-
-      {/* CTA Section */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8 }}
-        className="relative z-10 py-20 px-4"
-      >
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-amber-900/60 to-purple-900/40 backdrop-blur-sm border-2 border-amber-500/50 rounded-3xl p-12 shadow-2xl">
-            <motion.div
-              initial={{ scale: 0.9 }}
-              whileInView={{ scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-4xl md:text-5xl font-bold text-amber-300 mb-4">
-                Your Cosmic Truth Awaits
-              </h2>
-              <p className="text-gray-300 text-lg mb-6 max-w-2xl mx-auto">
-                Join 2,400+ seekers who discovered their authentic path through the stars.
-              </p>
-              <div className="bg-amber-400/10 border border-amber-500/30 rounded-xl p-6 mb-8">
-                <p className="text-amber-200 text-2xl font-bold mb-2">
-                  🎁 Early Adopter Pricing: $50
-                </p>
-                <p className="text-gray-400">
-                  Regular price: <span className="line-through">$299</span>
-                  {' · '}
-                  <span className="text-red-300 font-semibold">Save $249</span>
-                </p>
-              </div>
-              <Link
-                href="#top"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                  // Track CTA click
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'cta_click', {
-                      location: 'bottom_cta'
-                    });
-                  }
-                }}
-                className="inline-flex items-center px-10 py-5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold text-xl rounded-xl shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 transition-all duration-300 transform hover:scale-105"
-              >
-                Claim Your Lifetime Access
-                <ArrowRight className="ml-3 w-6 h-6" />
-              </Link>
-              <p className="text-gray-400 text-sm mt-6">
-                <Shield className="w-4 h-4 inline mr-1" />
-                30-day money-back guarantee · Secure payment · Instant access
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </motion.section>
 
       {/* Footer Disclaimer */}
       <footer className="relative z-10 border-t border-white/10 bg-slate-950/40 px-4 py-10">
