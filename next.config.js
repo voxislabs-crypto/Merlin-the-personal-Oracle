@@ -77,6 +77,35 @@ const nextConfig = {
   // Optimize for Vercel deployment
   compress: true,
   poweredByHeader: false,
+  // Webpack configuration to handle optional native modules
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Externalize swisseph/sweph to avoid bundling issues
+      // These are native modules that will be loaded dynamically at runtime if available
+      config.externals = config.externals || [];
+      config.externals.push({
+        sweph: 'commonjs sweph',
+        swisseph: 'commonjs swisseph',
+      });
+    }
+
+    // Ignore swisseph module resolution failures during build
+    // It's optional and loaded dynamically at runtime
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      sweph: false,
+      swisseph: false,
+    };
+
+    // Suppress module not found warnings for optional dependencies
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      /Module not found: Can't resolve 'swisseph'/,
+      /Module not found: Can't resolve 'sweph'/,
+    ];
+
+    return config;
+  },
 };
 
 module.exports = nextConfig;
