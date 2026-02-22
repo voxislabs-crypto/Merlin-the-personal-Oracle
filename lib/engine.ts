@@ -1,6 +1,5 @@
 // lib/engine.ts
 import "server-only";
-import { utc_to_jd, calc_ut, constants, houses_ex } from "sweph";
 import {
   PlanetPosition,
   BirthChartData,
@@ -26,6 +25,16 @@ import {
   getElectionalWindows,
   calculateLunarPhase,
 } from "./astrology/advanced";
+import { calculateBirthChart as calculateFallbackBirthChart } from "./engine-fallback";
+
+// Dynamically load sweph with graceful fallback
+let sweph: any = null;
+try {
+  sweph = require("sweph");
+  console.log("[engine] sweph loaded successfully");
+} catch (error) {
+  console.warn("[engine] sweph not available, will use fallback:", String(error).slice(0, 100));
+}
 
 export const normalizeAngle = (deg: number): number =>
   ((deg % 360) + 360) % 360;
@@ -66,8 +75,16 @@ interface Aspect {
 }
 
 const calculateHouses = (jd: number, lat: number, lon: number) => {
+  if (!sweph) {
+    console.warn("[engine.calculateHouses] sweph not available, using fallback");
+    return {
+      houses: [],
+      ascendant: { longitude: 0, sign: "Aries", degree: 0, minute: 0 },
+      mc: { longitude: 0, sign: "Aries", degree: 0, minute: 0 },
+    };
+  }
   const hsys = "P"; // Placidus
-  const houseResult = houses_ex(jd, 0, lat, lon, "P");
+  const houseResult = sweph.houses_ex(jd, 0, lat, lon, "P");
 
   const houses = (houseResult as any).data?.houses || (houseResult as any).house || [];
   const points = (houseResult as any).data?.points || (houseResult as any).points || [];
@@ -153,38 +170,43 @@ export const calculateNatalPositions = (
   birthDate: string,
   birthTime: string = "12:00"
 ) => {
+  if (!sweph) {
+    console.warn("[engine.calculateNatalPositions] sweph not available, using fallback");
+    return calculateFallbackBirthChart(birthDate, birthTime);
+  }
+
   const [year, month, day] = birthDate.split("-").map(Number);
   const [hour, minute] = birthTime.split(":").map(Number);
 
-  const jdResult = utc_to_jd(
+  const jdResult = sweph.utc_to_jd(
     year,
     month,
     day,
     hour,
     minute,
     0,
-    constants.SE_GREG_CAL
+    sweph.constants.SE_GREG_CAL
   );
-  if (jdResult.flag !== constants.OK) throw new Error("JD calculation failed");
+  if (jdResult.flag !== sweph.constants.OK) throw new Error("JD calculation failed");
 
   const jd = jdResult.data[0];
 
   const planets = [
-    { id: constants.SE_SUN, name: "Sun" },
-    { id: constants.SE_MOON, name: "Moon" },
-    { id: constants.SE_MERCURY, name: "Mercury" },
-    { id: constants.SE_VENUS, name: "Venus" },
-    { id: constants.SE_MARS, name: "Mars" },
-    { id: constants.SE_JUPITER, name: "Jupiter" },
-    { id: constants.SE_SATURN, name: "Saturn" },
-    { id: constants.SE_URANUS, name: "Uranus" },
-    { id: constants.SE_NEPTUNE, name: "Neptune" },
-    { id: constants.SE_PLUTO, name: "Pluto" },
-    { id: constants.SE_MEAN_NODE, name: "North Node" },
+    { id: sweph.constants.SE_SUN, name: "Sun" },
+    { id: sweph.constants.SE_MOON, name: "Moon" },
+    { id: sweph.constants.SE_MERCURY, name: "Mercury" },
+    { id: sweph.constants.SE_VENUS, name: "Venus" },
+    { id: sweph.constants.SE_MARS, name: "Mars" },
+    { id: sweph.constants.SE_JUPITER, name: "Jupiter" },
+    { id: sweph.constants.SE_SATURN, name: "Saturn" },
+    { id: sweph.constants.SE_URANUS, name: "Uranus" },
+    { id: sweph.constants.SE_NEPTUNE, name: "Neptune" },
+    { id: sweph.constants.SE_PLUTO, name: "Pluto" },
+    { id: sweph.constants.SE_MEAN_NODE, name: "North Node" },
   ];
 
   const positions = planets.map((planet) => {
-    const result = calc_ut(jd, planet.id, constants.SEFLG_SWIEPH);
+    const result = sweph.calc_ut(jd, planet.id, sweph.constants.SEFLG_SWIEPH);
     if (result.flag < 1) throw new Error(`Failed ${planet.name}`);
 
     const longitude = result.data[0];
@@ -206,22 +228,27 @@ export const calculateNatalPositions = (
 };
 
 const calculatePlanets = (jd: number): PlanetPosition[] => {
+  if (!sweph) {
+    console.warn("[engine.calculatePlanets] sweph not available, returning empty array");
+    return [];
+  }
+
   const planets = [
-    { id: constants.SE_SUN, name: "Sun" },
-    { id: constants.SE_MOON, name: "Moon" },
-    { id: constants.SE_MERCURY, name: "Mercury" },
-    { id: constants.SE_VENUS, name: "Venus" },
-    { id: constants.SE_MARS, name: "Mars" },
-    { id: constants.SE_JUPITER, name: "Jupiter" },
-    { id: constants.SE_SATURN, name: "Saturn" },
-    { id: constants.SE_URANUS, name: "Uranus" },
-    { id: constants.SE_NEPTUNE, name: "Neptune" },
-    { id: constants.SE_PLUTO, name: "Pluto" },
-    { id: constants.SE_MEAN_NODE, name: "North Node" },
+    { id: sweph.constants.SE_SUN, name: "Sun" },
+    { id: sweph.constants.SE_MOON, name: "Moon" },
+    { id: sweph.constants.SE_MERCURY, name: "Mercury" },
+    { id: sweph.constants.SE_VENUS, name: "Venus" },
+    { id: sweph.constants.SE_MARS, name: "Mars" },
+    { id: sweph.constants.SE_JUPITER, name: "Jupiter" },
+    { id: sweph.constants.SE_SATURN, name: "Saturn" },
+    { id: sweph.constants.SE_URANUS, name: "Uranus" },
+    { id: sweph.constants.SE_NEPTUNE, name: "Neptune" },
+    { id: sweph.constants.SE_PLUTO, name: "Pluto" },
+    { id: sweph.constants.SE_MEAN_NODE, name: "North Node" },
   ];
 
   return planets.map((planet) => {
-    const result = calc_ut(jd, planet.id, constants.SEFLG_SWIEPH);
+    const result = sweph.calc_ut(jd, planet.id, sweph.constants.SEFLG_SWIEPH);
     if (result.flag < 1) throw new Error(`Failed ${planet.name}`);
 
     const longitude = result.data[0];
@@ -260,6 +287,12 @@ export const calculateBirthChart = (
     progressedYears?: number;
   }
 ): BirthChartData => {
+  // If sweph not available, use fallback
+  if (!sweph) {
+    console.warn("[engine.calculateBirthChart] sweph not available, using fallback");
+    return calculateFallbackBirthChart(birthDate, birthTime, lat, lon);
+  }
+
   // Parse birth date and time
   const date = new Date(birthDate);
   const year = date.getUTCFullYear();
@@ -277,14 +310,14 @@ export const calculateBirthChart = (
   }
 
   // Convert to Julian Day
-  const jdResult = utc_to_jd(
+  const jdResult = sweph.utc_to_jd(
     year,
     month,
     day,
     hour,
     minute,
     second,
-    constants.SE_GREG_CAL
+    sweph.constants.SE_GREG_CAL
   );
   const jd = jdResult.data[0];
 
@@ -305,7 +338,7 @@ export const calculateBirthChart = (
     // Create Placidus house system for additional data
     houseSystemData = createPlacidusHouses(jd, lat, lon);
 
-    const houseResult = houses_ex(jd, 0, lat, lon, "P" as any);
+    const houseResult = sweph.houses_ex(jd, 0, lat, lon, "P" as any);
     const houseLongitudes = (houseResult as any).data?.houses || (houseResult as any).house || [];
     // data.points[0] = Ascendant, data.points[1] = MC
     const housePoints = (houseResult as any).data?.points || (houseResult as any).points || [];
