@@ -175,21 +175,29 @@ export const calculateNatalPositions = (
     return { jd: 0, positions: [] };
   }
 
-  const [year, month, day] = birthDate.split("-").map(Number);
-  const [hour, minute] = birthTime.split(":").map(Number);
+  try {
+    const [year, month, day] = birthDate.split("-").map(Number);
+    const [hour, minute] = birthTime.split(":").map(Number);
 
-  const jdResult = sweph.utc_to_jd(
-    year,
-    month,
-    day,
-    hour,
-    minute,
-    0,
-    sweph.constants.SE_GREG_CAL
-  );
-  if (jdResult.flag !== sweph.constants.OK) throw new Error("JD calculation failed");
+    console.log("[engine.calculateNatalPositions] parsed date:", { year, month, day, hour, minute });
 
-  const jd = jdResult.data[0];
+    const jdResult = sweph.utc_to_jd(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      0,
+      sweph.constants.SE_GREG_CAL
+    );
+    console.log("[engine.calculateNatalPositions] jdResult:", { flag: jdResult.flag, OK: sweph.constants.OK });
+    if (jdResult.flag !== sweph.constants.OK) {
+      console.error("[engine] JD calculation failed with flag:", jdResult.flag, "error:", jdResult.error);
+      throw new Error(`JD calculation failed (flag: ${jdResult.flag})`);
+    }
+
+    const jd = jdResult.data[0];
+    console.log("[engine.calculateNatalPositions] JD computed:", jd);
 
   const planets = [
     { id: sweph.constants.SE_SUN, name: "Sun" },
@@ -206,25 +214,38 @@ export const calculateNatalPositions = (
   ];
 
   const positions = planets.map((planet) => {
-    const result = sweph.calc_ut(jd, planet.id, sweph.constants.SEFLG_SWIEPH);
-    if (result.flag < 1) throw new Error(`Failed ${planet.name}`);
+    try {
+      const result = sweph.calc_ut(jd, planet.id, sweph.constants.SEFLG_SWIEPH);
+      console.log(`[engine] calc_ut for ${planet.name}: flag=${result.flag}, longitude=${result.data?.[0]}`);
+      if (result.flag < 1) {
+        console.error(`[engine] calc_ut failed for ${planet.name}: flag=${result.flag}`);
+        throw new Error(`Failed ${planet.name} (flag: ${result.flag})`);
+      }
 
-    const longitude = result.data[0];
-    const latitude = result.data[1];
-    const distance = result.data[2];
-    const normalized = normalizeAngle(longitude);
-    const zodiac = getZodiacPosition(normalized);
+      const longitude = result.data[0];
+      const latitude = result.data[1];
+      const distance = result.data[2];
+      const normalized = normalizeAngle(longitude);
+      const zodiac = getZodiacPosition(normalized);
 
-    return {
-      name: planet.name,
-      longitude: normalized,
-      latitude,
-      distance,
-      ...zodiac,
-    };
+      return {
+        name: planet.name,
+        longitude: normalized,
+        latitude,
+        distance,
+        ...zodiac,
+      };
+    } catch (planetError) {
+      console.error(`[engine] Error calculating ${planet.name}:`, planetError);
+      throw planetError;
+    }
   });
 
   return { jd, positions };
+  } catch (error) {
+    console.error("[engine.calculateNatalPositions] Error:", error);
+    throw error;
+  }
 };
 
 const calculatePlanets = (jd: number): PlanetPosition[] => {
@@ -293,40 +314,47 @@ export const calculateBirthChart = (
     return calculateFallbackBirthChart(birthDate, birthTime || "12:00", lat, lon);
   }
 
-  // Parse birth date and time
-  const date = new Date(birthDate);
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-  let hour = 0,
-    minute = 0,
-    second = 0;
+  console.log("[engine.calculateBirthChart] starting with:", { birthDate, birthTime, lat, lon });
 
-  if (birthTime) {
-    const [h, m, s] = birthTime.split(":").map(Number);
-    hour = h || 0;
-    minute = m || 0;
-    second = s || 0;
-  }
+  try {
+    // Parse birth date and time
+    const date = new Date(birthDate);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    let hour = 0,
+      minute = 0,
+      second = 0;
 
-  // Convert to Julian Day
-  const jdResult = sweph.utc_to_jd(
-    year,
-    month,
-    day,
-    hour,
-    minute,
-    second,
-    sweph.constants.SE_GREG_CAL
-  );
-  const jd = jdResult.data[0];
+    if (birthTime) {
+      const [h, m, s] = birthTime.split(":").map(Number);
+      hour = h || 0;
+      minute = m || 0;
+      second = s || 0;
+    }
 
-  // Calculate natal positions
-  const positions = calculateNatalPositions(
-    date.toISOString().split("T")[0],
-    birthTime
-  );
-  let planetsWithDignities = calculateDignities(positions.positions);
+    console.log("[engine.calculateBirthChart] parsed:", { year, month, day, hour, minute, second });
+
+    // Convert to Julian Day
+    const jdResult = sweph.utc_to_jd(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second,
+      sweph.constants.SE_GREG_CAL
+    );
+    console.log("[engine.calculateBirthChart] jdResult:", { flag: jdResult.flag, data: jdResult.data?.[0] });
+    const jd = jdResult.data[0];
+
+    // Calculate natal positions
+    const positions = calculateNatalPositions(
+      date.toISOString().split("T")[0],
+      birthTime
+    );
+    console.log("[engine.calculateBirthChart] calculateNatalPositions returned:", { jd: positions.jd, positionCount: positions.positions.length });
+    let planetsWithDignities = calculateDignities(positions.positions);
 
   // Calculate houses if location provided
   let houses: HousePosition[] = [];
@@ -488,4 +516,9 @@ export const calculateBirthChart = (
         lat !== undefined && lon !== undefined ? { lat, lon } : undefined,
     },
   };
+  } catch (error) {
+    console.error("[engine.calculateBirthChart] Fatal error:", error);
+    console.error("[engine.calculateBirthChart] Stack:", error instanceof Error ? error.stack : "no stack");
+    throw error;
+  }
 };
