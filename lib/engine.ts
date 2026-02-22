@@ -172,7 +172,7 @@ export const calculateNatalPositions = (
 ) => {
   if (!sweph) {
     console.warn("[engine.calculateNatalPositions] sweph not available, using fallback");
-    return calculateFallbackBirthChart(birthDate, birthTime);
+    return { jd: 0, positions: [] };
   }
 
   const [year, month, day] = birthDate.split("-").map(Number);
@@ -290,7 +290,7 @@ export const calculateBirthChart = (
   // If sweph not available, use fallback
   if (!sweph) {
     console.warn("[engine.calculateBirthChart] sweph not available, using fallback");
-    return calculateFallbackBirthChart(birthDate, birthTime, lat, lon);
+    return calculateFallbackBirthChart(birthDate, birthTime || "12:00", lat, lon);
   }
 
   // Parse birth date and time
