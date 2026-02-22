@@ -274,8 +274,8 @@ export default function UnifiedDashboard() {
                 Your Cosmic Dashboard
               </h1>
               <div className="flex items-center justify-center gap-2 mb-2">
-                <span className={`px-2 py-1 text-xs rounded border ${calcSource === 'Swiss real' ? 'border-emerald-500/40 text-emerald-300' : 'border-amber-500/40 text-amber-300'}`}>
-                  {calcSource || 'Unknown engine'}
+                <span className={`px-3 py-1 text-xs rounded border font-medium ${calcSource === 'Swiss real' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : calcSource ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-slate-500 bg-slate-500/10 text-slate-300'}`}>
+                  {calcSource ? calcSource : '⚙️ Calculating...'}
                 </span>
                 {moonSign && (moonSign === 'Sagittarius' || moonSign === 'Capricorn') && (
                   <span className="px-2 py-1 text-xs rounded border border-red-500/40 text-red-300">

@@ -256,7 +256,7 @@ export function BirthChart({
                     value={birthData.date}
                     onChange={handleInputChange}
                     required
-                    className="text-slate-100"
+                    className="bg-slate-800 text-white border-slate-700"
                   />
                 </div>
                 <div className="space-y-2">
@@ -268,7 +268,7 @@ export function BirthChart({
                     value={birthData.time}
                     onChange={handleInputChange}
                     required
-                    className="text-slate-100"
+                    className="bg-slate-800 text-white border-slate-700"
                   />
                 </div>
               </div>
@@ -289,7 +289,7 @@ export function BirthChart({
                   onFocus={() => locationResults.length > 0 && setShowLocationResults(true)}
                   autoComplete="off"
                   required={!selectedLocation && !birthData.latitude}
-                  className="text-slate-100"
+                  className="bg-slate-800 text-white border-slate-700 placeholder:text-slate-500"
                 />
                 
                 {/* Location Search Results Dropdown */}
