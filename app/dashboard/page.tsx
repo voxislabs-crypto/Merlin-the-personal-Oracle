@@ -86,6 +86,16 @@ export default function UnifiedDashboard() {
         const chart = JSON.parse(savedChart);
         const birth = JSON.parse(savedBirth);
         
+        // Auto-clear stale mock data (forces fresh Swiss calculation)
+        const isMockData = (chart?.metadata?.calculationSource === 'mock-fallback' || 
+                           chart?.metadata?.ephemeris === 'Mock');
+        if (isMockData) {
+          console.log('[Dashboard] Clearing stale mock data, forcing fresh calculation...');
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(STORAGE_BIRTH_KEY);
+          return; // Skip loading cached data, let user recalculate
+        }
+        
         setChartData(chart);
         setBirthData(birth);
         
