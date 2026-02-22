@@ -11,6 +11,7 @@ import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
 import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { WeeklyWhisper } from '@/components/astrology/WeeklyWhisper';
 import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
+import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { useInterpretations } from '@/hooks/useInterpretations';
@@ -259,12 +260,67 @@ export default function UnifiedDashboard() {
     if (!text) {
       text = 'No interpretation available';
     }
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    window.speechSynthesis.speak(utterance);
+
+    // Use ElevenLabs TTS via our endpoint with "mystic" voice archetype
+    playWithElevenLabs(text);
+  };
+
+  const playWithElevenLabs = async (text: string) => {
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voice: 'mystic', // Use mystic voice for the readings
+          provider: 'elevenlabs',
+        }),
+      });
+
+      if (!response.ok) {
+        // Fallback to Web Speech API if ElevenLabs fails
+        console.log('[ReadAloud] ElevenLabs unavailable, using Web Speech API');
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+        return;
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data.audio) {
+        // If audio is a URL, play it
+        if (result.data.audio.startsWith('data:audio') || result.data.audio.startsWith('http')) {
+          const audio = new Audio(result.data.audio);
+          audio.play().catch(err => {
+            console.error('[ReadAloud] Play error:', err);
+            // Final fallback to Web Speech API
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            window.speechSynthesis.speak(utterance);
+          });
+        }
+      } else {
+        // Fallback if no audio data
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (error) {
+      console.error('[ReadAloud] Error:', error);
+      // Ultimate fallback to Web Speech API
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleDailyWhisper = () => {
@@ -320,68 +376,60 @@ export default function UnifiedDashboard() {
                 transition={{ delay: 0.3 }}
                 className="space-y-8"
               >
-                {/* Main Grid: Placements | Wheel | Weekly | Personality */}
-                <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
-                  {/* Left: Placements Sidebar */}
-                  <div className="lg:col-span-1">
-                    {chartData?.planets && (
-                      <PlacementsSidebar planets={chartData.planets} />
-                    )}
+                {/* TOP: Big Wheel */}
+                <motion.div
+                  className="bg-slate-900/40 rounded-lg p-8 pb-12 border border-amber-500/10 backdrop-blur-sm z-10 relative"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
+                    <button
+                      onClick={() => {
+                        setChartData(null);
+                        setWheelData(null);
+                        setBirthData(null);
+                        localStorage.removeItem(STORAGE_KEY);
+                        localStorage.removeItem(STORAGE_BIRTH_KEY);
+                      }}
+                      className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition-colors"
+                    >
+                      Calculate New Chart
+                    </button>
+                  </div>
+                  
+                  <div className="w-full h-[600px] relative z-20">
+                    <WheelVisualization chartData={wheelData} />
                   </div>
 
-                  {/* Center: Wheel */}
-                  <div className="lg:col-span-3 bg-slate-900/40 rounded-lg p-8 pb-12 border border-amber-500/10 backdrop-blur-sm z-10 relative">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
-                      <button
-                        onClick={() => {
-                          setChartData(null);
-                          setWheelData(null);
-                          setBirthData(null);
-                          localStorage.removeItem(STORAGE_KEY);
-                          localStorage.removeItem(STORAGE_BIRTH_KEY);
-                        }}
-                        className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition-colors"
-                      >
-                        Calculate New Chart
-                      </button>
-                    </div>
-                    
-                    <div className="w-full h-[600px] relative z-20">
-                      <WheelVisualization chartData={wheelData} />
-                    </div>
-
-                    {/* Action Buttons Under Wheel */}
-                    <div className="flex gap-4 mt-8 justify-center">
-                      <button
-                        onClick={handleReadAloud}
-                        className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all"
-                      >
-                        Read Aloud
-                      </button>
-                      <button
-                        onClick={handleDailyWhisper}
-                        className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
-                      >
-                        🌙 Daily Whisper
-                      </button>
-                    </div>
+                  {/* Action Buttons Under Wheel */}
+                  <div className="flex gap-4 mt-8 justify-center">
+                    <button
+                      onClick={handleReadAloud}
+                      className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all"
+                    >
+                      Read Aloud
+                    </button>
+                    <button
+                      onClick={handleDailyWhisper}
+                      className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
+                    >
+                      🌙 Daily Whisper
+                    </button>
                   </div>
+                </motion.div>
 
-                  {/* Right Top: Weekly Whisper */}
-                  <div className="lg:col-span-1">
-                    {weeklyForecast?.week && (
-                      <WeeklyWhisper week={weeklyForecast.week} loading={weeklyLoading} />
-                    )}
-                  </div>
-
-                  {/* Right Bottom: Personality Reveal */}
-                  <div className="lg:col-span-1">
-                    {mbtiType && (
-                      <PersonalityReveal mbtiType={mbtiType} dualOverlay={dualOverlay} loading={personalityLoading} />
-                    )}
-                  </div>
-                </div>
+                {/* MIDDLE: Dual MBTI Cards */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  {mbtiType && (
+                    <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} loading={personalityLoading} />
+                  )}
+                </motion.div>
 
                 {/* Quick Access Buttons */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-12">
