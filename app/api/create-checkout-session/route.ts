@@ -9,6 +9,13 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY!;
 
+// Get base URLs from environment or request origin
+const getBaseUrl = (req: NextRequest): string => {
+  return process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL?.split('/')[0] + '//' + 
+         process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL?.split('/').slice(2).join('/').split('/')[0] ||
+         req.nextUrl.origin;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -45,8 +52,8 @@ export async function POST(request: NextRequest) {
           birthCity: birthCity || '',
         }
       },
-      success_url: `${request.nextUrl.origin}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthDate || '')}&time=${encodeURIComponent(birthTime || '')}&city=${encodeURIComponent(birthCity || '')}`,
-      cancel_url: `${request.nextUrl.origin}/?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthDate || '')}&time=${encodeURIComponent(birthTime || '')}&city=${encodeURIComponent(birthCity || '')}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL}`,
       metadata: {
         userId,
       },

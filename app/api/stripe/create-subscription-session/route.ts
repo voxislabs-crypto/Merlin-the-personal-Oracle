@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_URL || '';
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL?.split('/dashboard')[0] || process.env.NEXT_PUBLIC_URL || '';
     console.log('Origin:', origin);
     if (!origin) {
       console.error('Missing origin/NEXT_PUBLIC_URL');
@@ -57,8 +57,8 @@ console.log('Env var check:', process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY);
         },
         metadata
       },
-      success_url: `${origin}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthData?.birthDate || '')}&time=${encodeURIComponent(birthData?.birthTime || '')}&city=${encodeURIComponent(birthData?.birthCity || '')}`,
-      cancel_url: `${origin}?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL || origin}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthData?.birthDate || '')}&time=${encodeURIComponent(birthData?.birthTime || '')}&city=${encodeURIComponent(birthData?.birthCity || '')}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL || origin}?canceled=true`,
       metadata,
       allow_promotion_codes: true, // Allow promo codes
     });
