@@ -449,10 +449,10 @@ export function BirthChart({
                       >
                         <div className="flex items-center justify-between">
                           <div className="font-medium">
-                            {aspect.planet1} {aspect.type} {aspect.planet2}
+                            {typeof aspect.planet1 === 'string' ? aspect.planet1 : aspect.planet1.name} {aspect.type} {typeof aspect.planet2 === 'string' ? aspect.planet2 : aspect.planet2.name}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {aspect.orb.toFixed(2)}° orb
+                            {aspect.orb?.toFixed(2) || '0.00'}° orb
                           </div>
                         </div>
                         <div className="text-sm mt-1 text-muted-foreground">

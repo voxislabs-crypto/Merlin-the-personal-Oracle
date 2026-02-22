@@ -5,15 +5,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Loader2 } from 'lucide-react';
-import { useBirthChart } from '@/hooks/useBirthChart';
 import { useTimeline } from '@/hooks/useTimeline';
 import { TimeMachine } from '@/components/astrology/TimeMachine';
-import { BirthChartCalculator } from '@/components/astrology/BirthChartCalculator';
+import { BirthChartCalculator, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 
 export default function TimeMachinePage() {
-  const { chartData, loading: chartLoading, error: chartError, calculateChart } = useBirthChart();
-  const { timeline, loading: timelineLoading, error: timelineError, generateTimeline } = useTimeline();
+  const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [lookAheadMonths, setLookAheadMonths] = useState(12);
+  const { timeline, loading: timelineLoading, error: timelineError, generateTimeline } = useTimeline();
 
   // Load birth chart from localStorage on mount
   useEffect(() => {
@@ -73,12 +72,12 @@ export default function TimeMachinePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <BirthChartCalculator onCalculate={calculateChart}>
+            <BirthChartCalculator onCalculate={(data) => setChartData(data)}>
               {({ chartData: _, loading, error, calculateChart: handleCalculate }) => (
                 <div className="space-y-4">
                   {error && (
                     <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-200">
-                      {error}
+                      {error instanceof Error ? error.message : String(error)}
                     </div>
                   )}
                   {loading && (

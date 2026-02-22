@@ -87,9 +87,9 @@ export async function generateTimeline(
 
   return {
     birthData: {
-      date: birthChart.metadata?.birthDate || 'unknown',
-      time: birthChart.metadata?.birthTime || 'unknown',
-      location: birthChart.metadata?.location,
+      date: birthChart.birthData?.birthDate || 'unknown',
+      time: birthChart.birthData?.birthTime || 'unknown',
+      location: undefined,
     },
     generatedAt: now.toISOString(),
     lookAheadMonths,

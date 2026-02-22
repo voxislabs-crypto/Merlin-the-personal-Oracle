@@ -19,48 +19,8 @@ export default function SoulDashboardPage() {
   });
 
   const handleChartCalculated = (data: BirthChartData) => {
-    // Convert BirthChartCalculator format to expected format
-    const convertedData = {
-      positions: data.planets || [],
-      houses: data.houses || [],
-      aspects: data.aspects || [],
-      ascendant: {
-        longitude: data.angles?.ascendant || 0,
-        sign: "",
-        degree: 0,
-        minute: 0,
-      },
-      mc: {
-        longitude: data.angles?.midheaven || 0,
-        sign: "",
-        degree: 0,
-        minute: 0,
-      },
-      birthData: {
-        birthDate: birthData.date,
-        birthTime: birthData.time,
-        coordinates: {
-          lat: birthData.latitude,
-          lon: birthData.longitude,
-        },
-      },
-      jd: 0,
-      aspectPatterns: [],
-      midpoints: [],
-      fixedStars: [],
-      karmic: [],
-      progressed: {} as any,
-      electional: [],
-      moonPhase: {} as any,
-      transits: [],
-    };
-    
-    // Add MBTI if present
-    if ((data as any).mbti) {
-      (convertedData as any).mbti = (data as any).mbti;
-    }
-    
-    setChartData(convertedData);
+    // BirthChartData already has the correct structure
+    setChartData(data);
   };
 
   return (

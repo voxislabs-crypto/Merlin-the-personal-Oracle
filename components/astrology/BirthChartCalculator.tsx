@@ -1,6 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { BirthChartData } from '@/types/astrology';
+
+// Re-export for backward compatibility
+export type { BirthChartData };
 
 export interface BirthData {
   date: string; // YYYY-MM-DD
@@ -47,25 +51,8 @@ export interface Aspect {
   influence: 'positive' | 'negative' | 'neutral';
 }
 
-export interface BirthChartData {
-  planets: PlanetPosition[];
-  houses: HouseCusp[];
-  aspects: Aspect[];
-  angles: {
-    ascendant: number;
-    midheaven: number;
-    descendant: number;
-    imumCoeli: number;
-  };
-  metadata: {
-    calculatedAt: string;
-    houseSystem: string;
-    zodiac: string;
-  };
-}
-
 interface BirthChartCalculatorProps {
-  birthData: BirthData;
+  birthData?: BirthData;
   onCalculate?: (chartData: BirthChartData) => void;
   onError?: (error: Error) => void;
   children?: (props: {
@@ -77,7 +64,12 @@ interface BirthChartCalculatorProps {
 }
 
 export function BirthChartCalculator({
-  birthData,
+  birthData = {
+    date: '',
+    time: '',
+    latitude: 0,
+    longitude: 0,
+  },
   onCalculate,
   onError,
   children,
