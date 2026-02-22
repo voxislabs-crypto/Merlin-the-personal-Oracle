@@ -30,9 +30,11 @@ import { calculateBirthChart as calculateFallbackBirthChart } from "./engine-fal
 // Function to safely get sweph at runtime (not at module load time)
 function getSweph() {
   try {
-    return require("sweph");
+    const s = require("sweph");
+    console.log("[engine.getSweph] ✓ sweph loaded successfully at runtime");
+    return s;
   } catch (error) {
-    console.warn("[engine] Cannot load sweph at runtime:", String(error).slice(0, 100));
+    console.warn("[engine.getSweph] ✗ Cannot load sweph at runtime:", String(error).slice(0, 150));
     return null;
   }
 }

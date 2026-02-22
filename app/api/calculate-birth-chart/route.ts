@@ -86,6 +86,7 @@ export async function POST(request: Request) {
 
     // Prefer local Swiss Ephemeris engine
     try {
+      console.log('[API] Attempting Swiss engine calculation...');
       const swissData = calculateSwissBirthChart(
         utcBirthDate,
         utcBirthTime,
@@ -106,17 +107,20 @@ export async function POST(request: Request) {
         });
       }
 
-      console.log('[API] Swiss engine success');
+      console.log('[API] ✓ Swiss engine success, moonSign:', moonSign);
       return NextResponse.json({
         success: true,
         source: 'swiss-real',
         data: tagSourceMetadata(swissData, 'swiss-real', appliedOffsetHours),
       });
     } catch (err) {
-      console.log('[API] Swiss engine failed, using fallback:', err);
+      console.log('[API] ✗ Swiss engine failed:', err instanceof Error ? err.message : String(err));
+      console.log('[API] Stack:', err instanceof Error ? err.stack : 'no stack');
       try {
+        console.log('[API] Attempting fallback engine...');
         const chartData = calculateFallbackBirthChart(utcBirthDate, utcBirthTime, lat, lon);
-        console.log('[API] Fallback engine success');
+        const fallbackMoon = chartData?.positions?.find((p: any) => p.name === 'Moon')?.sign;
+        console.log('[API] ✓ Fallback engine success, moonSign:', fallbackMoon);
         return NextResponse.json({
           success: true,
           source: 'mock-fallback',
@@ -124,7 +128,7 @@ export async function POST(request: Request) {
           fallback: true,
         });
       } catch (fallbackError) {
-        console.error('[API] Fallback engine failed:', fallbackError);
+        console.error('[API] ✗ Fallback engine failed:', fallbackError);
         throw fallbackError;
       }
     }
