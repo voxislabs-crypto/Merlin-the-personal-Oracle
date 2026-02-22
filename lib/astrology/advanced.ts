@@ -14,14 +14,16 @@ import {
   Transit,
   Dignity,
 } from "@/types/astrology";
-let utc_to_jd: any, constants: any;
-// Removed sweph logic: swephAvailable
-try {
-  // @ts-ignore
-  // Removed all sweph require logic
-} catch (e) {
-  // sweph logic removed
+
+// Function to safely get sweph at runtime
+function getSweph() {
+  try {
+    return require("sweph");
+  } catch (error) {
+    return null;
+  }
 }
+
 import { normalizeAngle } from "@/lib/engine";
 
 // Dignities (essential and accidental)
@@ -1769,24 +1771,34 @@ const calculateElectionalScoreHelper = (
 ): number => {
   let score = 50; // Base score
 
-  // Add points for favorable moon phases
-  const moonPhase = calculateLunarPhase(
-    utc_to_jd(
-      date.getUTCFullYear(),
-      date.getUTCMonth() + 1,
-      date.getUTCDate(),
-      date.getUTCHours(),
-      date.getUTCMinutes(),
-      date.getUTCSeconds(),
-      constants.SE_GREG_CAL
-    ).data[0]
-  );
+  // Check if sweph is available for lunar phase calculation
+  const sweph = getSweph();
+  if (!sweph) {
+    return score; // Return base score if sweph not available
+  }
 
-  if (
-    moonPhase.phase.includes("New Moon") ||
-    moonPhase.phase.includes("Full Moon")
-  ) {
-    score += 10;
+  try {
+    // Add points for favorable moon phases
+    const moonPhase = calculateLunarPhase(
+      sweph.utc_to_jd(
+        date.getUTCFullYear(),
+        date.getUTCMonth() + 1,
+        date.getUTCDate(),
+        date.getUTCHours(),
+        date.getUTCMinutes(),
+        date.getUTCSeconds(),
+        sweph.constants.SE_GREG_CAL
+      ).data[0]
+    );
+
+    if (
+      moonPhase.phase.includes("New Moon") ||
+      moonPhase.phase.includes("Full Moon")
+    ) {
+      score += 10;
+    }
+  } catch (error) {
+    console.warn("[advanced] Error calculating lunar phase for electional:", error);
   }
 
   return score;
@@ -1797,19 +1809,29 @@ const getWindowAspectsHelper = (date: Date) => {
   return [];
 };
 
-const getMoonPhaseForDateHelper = (date: Date) => {
-  const jd = utc_to_jd(
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds(),
-    constants.SE_GREG_CAL
-  ).data[0];
+const getMoonPhaseForDateHelper = (date: Date): string => {
+  const sweph = getSweph();
+  if (!sweph) {
+    return "Unknown";
+  }
 
-  const moonPhase = calculateLunarPhase(jd);
-  return moonPhase.phase;
+  try {
+    const jd = sweph.utc_to_jd(
+      date.getUTCFullYear(),
+      date.getUTCMonth() + 1,
+      date.getUTCDate(),
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+      date.getUTCSeconds(),
+      sweph.constants.SE_GREG_CAL
+    ).data[0];
+
+    const moonPhase = calculateLunarPhase(jd);
+    return moonPhase.phase;
+  } catch (error) {
+    console.warn("[advanced] Error calculating moon phase helper:", error);
+    return "Unknown";
+  }
 };
 
 const getMoonSignForDateHelper = (date: Date) => {
