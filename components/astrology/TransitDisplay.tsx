@@ -11,27 +11,27 @@ export function TransitDisplay({ forecast }: TransitDisplayProps) {
   const getRatingColor = (rating: string) => {
     switch (rating) {
       case "green":
-        return "bg-green-100 text-green-700 border-green-200"
+        return "bg-green-900/40 text-green-300 border-green-700"
       case "yellow":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200"
+        return "bg-yellow-900/40 text-yellow-300 border-yellow-700"
       case "red":
-        return "bg-red-100 text-red-700 border-red-200"
+        return "bg-red-900/40 text-red-300 border-red-700"
       default:
-        return "bg-gray-100 text-gray-700 border-gray-200"
+        return "bg-slate-800 text-slate-300 border-slate-700"
     }
   }
 
   const getEffectColor = (effect: string) => {
     const colors: Record<string, string> = {
-      heavy: "bg-red-100 text-red-700",
-      intense: "bg-orange-100 text-orange-700",
-      tense: "bg-yellow-100 text-yellow-700",
-      foggy: "bg-gray-100 text-gray-700",
-      positive: "bg-green-100 text-green-700",
-      productive: "bg-blue-100 text-blue-700",
-      energized: "bg-yellow-100 text-yellow-700",
+      heavy: "bg-red-900/40 text-red-300",
+      intense: "bg-orange-900/40 text-orange-300",
+      tense: "bg-yellow-900/40 text-yellow-300",
+      foggy: "bg-slate-800 text-slate-300",
+      positive: "bg-green-900/40 text-green-300",
+      productive: "bg-blue-900/40 text-blue-300",
+      energized: "bg-yellow-900/40 text-yellow-300",
     }
-    return colors[effect] || "bg-gray-100 text-gray-700"
+    return colors[effect] || "bg-slate-800 text-slate-300"
   }
 
   return (

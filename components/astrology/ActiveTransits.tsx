@@ -169,7 +169,11 @@ function describeAspect(aspect: string): string {
     'Sextile': 'harmonious opportunity',
     'Square': 'dynamic tension and growth',
     'Trine': 'flowing support and ease',
-    'Opposition': 'awareness and balance'
+    'Opposition': 'awareness and balance',
+    'Quincunx': 'adjustment and realignment pressure',
+    'Sesquiquadrate': 'irritating friction requiring release',
+    'Semisquare': 'subtle tension demanding action',
+    'Semisextile': 'small openings through steady integration'
   };
   return descriptions[aspect] || 'astrological influence';
 }

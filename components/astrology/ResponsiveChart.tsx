@@ -84,10 +84,10 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   return (
     <div className="flex flex-col items-center justify-center p-4">
       <div
-        className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-gray-300 border-t-blue-600`}
+        className={`${sizeClasses[size]} animate-spin rounded-full border-2 border-slate-600 border-t-blue-400`}
       />
       {message && (
-        <p className="mt-2 text-sm text-gray-600 animate-pulse">{message}</p>
+        <p className="mt-2 text-sm text-slate-400 animate-pulse">{message}</p>
       )}
     </div>
   );
@@ -107,12 +107,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   return (
     <div className="w-full">
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm text-gray-700">{message}</span>
+        <span className="text-sm text-slate-300">{message}</span>
         {showPercentage && (
-          <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
+          <span className="text-sm text-slate-400">{Math.round(progress)}%</span>
         )}
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="w-full bg-slate-700 rounded-full h-2">
         <div
           className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
           style={{ width: `${Math.min(progress, 100)}%` }}

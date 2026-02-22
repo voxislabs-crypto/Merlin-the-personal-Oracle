@@ -3,9 +3,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { MBTIType } from '@/lib/mbti-overlay';
+import type { DualOverlay } from '@/hooks/usePersonality';
 
 interface PersonalityRevealProps {
   mbtiType: MBTIType | null;
+  dualOverlay?: DualOverlay | null;
   loading?: boolean;
 }
 
@@ -13,7 +15,7 @@ interface PersonalityRevealProps {
  * Personality Reveal - No quiz. No questions.
  * The stars said it first. The test just caught up.
  */
-export function PersonalityReveal({ mbtiType, loading = false }: PersonalityRevealProps) {
+export function PersonalityReveal({ mbtiType, dualOverlay, loading = false }: PersonalityRevealProps) {
   if (loading) {
     return (
       <div className="p-8 bg-slate-900/50 rounded-lg border border-amber-500/20">
@@ -95,6 +97,28 @@ export function PersonalityReveal({ mbtiType, loading = false }: PersonalityReve
             {typeDescriptions[mbtiType]}
           </p>
         </motion.div>
+
+        {dualOverlay && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="grid grid-cols-1 gap-3 pt-2"
+          >
+            <div className="rounded-lg border border-amber-500/30 bg-slate-900/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-amber-300/80">{dualOverlay.natal.label}</p>
+              <p className="text-sm font-semibold text-white mt-1">{dualOverlay.natal.archetype}</p>
+              <p className="text-xs text-slate-300 mt-1 italic">{dualOverlay.natal.description}</p>
+            </div>
+            <div className="rounded-lg border border-purple-500/30 bg-slate-900/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-purple-300/80">{dualOverlay.firmware.label}</p>
+              <p className="text-sm font-semibold text-white mt-1">
+                {dualOverlay.firmware.mbtiType} • {dualOverlay.firmware.archetype}
+              </p>
+              <p className="text-xs text-slate-300 mt-1 italic">{dualOverlay.firmware.description}</p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Footer */}
         <motion.p

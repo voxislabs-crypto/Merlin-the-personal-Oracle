@@ -4,6 +4,36 @@ import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine
 import { getMBTI } from '@/lib/personality/fusion';
 import { BirthChartData } from '@/types/astrology';
 
+function buildDualOverlay(chart: BirthChartData, mbtiType: string) {
+  const sun = chart.positions?.find((p) => p.name === 'Sun');
+  const moon = chart.positions?.find((p) => p.name === 'Moon');
+  const mercury = chart.positions?.find((p) => p.name === 'Mercury');
+  const asc = (chart as any).ascendant;
+
+  const natalArchetype = `${sun?.sign || 'Unknown'} Sun • ${asc?.sign || 'Unknown'} Rising`;
+  const firmwareArchetype = `${moon?.sign || 'Unknown'} Moon • ${mercury?.sign || 'Unknown'} Mercury`;
+
+  const natalPoetic = `The world meets your ${sun?.sign || 'solar'} radiance through a ${asc?.sign || 'mystic'} mask—charisma first, heart later.`;
+  const firmwarePoetic =
+    mbtiType === 'INFJ'
+      ? `Stars gave you a lion's roar, but your code runs on quiet empathy. ${firmwareArchetype} is your hidden operating system.`
+      : `Under the surface, ${firmwareArchetype} powers a ${mbtiType} core that reads what others miss.`;
+
+  return {
+    natal: {
+      label: 'What they see',
+      archetype: natalArchetype,
+      description: natalPoetic,
+    },
+    firmware: {
+      label: "What's real",
+      mbtiType,
+      archetype: firmwareArchetype,
+      description: firmwarePoetic,
+    },
+  };
+}
+
 export async function POST(request: Request) {
   console.log('[Personality] Received request for MBTI derivation');
   
@@ -20,6 +50,7 @@ export async function POST(request: Request) {
 
     // Calculate natal birth chart
     let natalChart: BirthChartData;
+    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
     try {
       natalChart = calculateBirthChart(
         birthDate,
@@ -31,6 +62,7 @@ export async function POST(request: Request) {
       console.log('[Personality] Using Swiss Ephemeris engine');
     } catch (swephError) {
       console.log('[Personality] Swiss Ephemeris failed, using fallback:', swephError);
+      source = 'mock-fallback';
       natalChart = calculateBirthChartFallback(
         birthDate,
         birthTime,
@@ -41,11 +73,13 @@ export async function POST(request: Request) {
 
     // Derive MBTI from chart
     const mbtiType = getMBTI(natalChart);
+    const dualOverlay = buildDualOverlay(natalChart, mbtiType);
 
     console.log('[Personality] Successfully derived MBTI:', mbtiType);
     return NextResponse.json({
       success: true,
-      data: { mbtiType }
+      source,
+      data: { mbtiType, dualOverlay }
     });
   } catch (error) {
     console.error('[Personality] Error deriving MBTI:', error);

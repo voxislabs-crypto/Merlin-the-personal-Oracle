@@ -69,8 +69,8 @@ const calculateHouses = (jd: number, lat: number, lon: number) => {
   const hsys = "P"; // Placidus
   const houseResult = houses_ex(jd, 0, lat, lon, "P");
 
-  const houses = (houseResult as any).house || []; // 12 houses
-  const points = (houseResult as any).points || []; // Ascendant, MC, etc.
+  const houses = (houseResult as any).data?.houses || (houseResult as any).house || [];
+  const points = (houseResult as any).data?.points || (houseResult as any).points || [];
 
   const housePositions: HousePosition[] = [];
   for (let i = 0; i < 12; i++) {
@@ -293,7 +293,7 @@ export const calculateBirthChart = (
     date.toISOString().split("T")[0],
     birthTime
   );
-  const planetsWithDignities = calculateDignities(positions.positions);
+  let planetsWithDignities = calculateDignities(positions.positions);
 
   // Calculate houses if location provided
   let houses: HousePosition[] = [];
@@ -306,7 +306,9 @@ export const calculateBirthChart = (
     houseSystemData = createPlacidusHouses(jd, lat, lon);
 
     const houseResult = houses_ex(jd, 0, lat, lon, "P" as any);
-    const houseLongitudes = (houseResult as any).house || [];
+    const houseLongitudes = (houseResult as any).data?.houses || (houseResult as any).house || [];
+    // data.points[0] = Ascendant, data.points[1] = MC
+    const housePoints = (houseResult as any).data?.points || (houseResult as any).points || [];
 
     houses = houseLongitudes.map((cusp: any, i: number) => {
       const { sign, degree, minute } = getZodiacPosition(Number(cusp));
@@ -316,7 +318,7 @@ export const calculateBirthChart = (
         sign,
         degree,
         minute,
-        longitude: Number(cusp), // Add longitude for compatibility
+        longitude: Number(cusp),
       };
     });
 
@@ -331,21 +333,12 @@ export const calculateBirthChart = (
       });
       return { ...planet, house: house?.house || 1 };
     });
+    // Update reference to include house assignments
+    planetsWithDignities = planetsWithHouses;
 
-    // Calculate angles
-    const ascResult = calc_ut(
-      jd,
-      constants.SE_ASC,
-      constants.SEFLG_SIDEREAL | constants.SEFLG_SWIEPH
-    );
-    const mcResult = calc_ut(
-      jd,
-      constants.SE_MC,
-      constants.SEFLG_SIDEREAL | constants.SEFLG_SWIEPH
-    );
-
-    const ascLong = normalizeAngle(ascResult.data[0]);
-    const mcLong = normalizeAngle(mcResult.data[0]);
+    // Derive Ascendant and MC from houses_ex points (avoids invalid calc_ut usage)
+    const ascLong = normalizeAngle(Number(housePoints[0]) || 0);
+    const mcLong = normalizeAngle(Number(housePoints[1]) || 0);
 
     ascendant = { longitude: ascLong, ...getZodiacPosition(ascLong) };
     mc = { longitude: mcLong, ...getZodiacPosition(mcLong) };

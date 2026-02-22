@@ -12,6 +12,7 @@ import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { WeeklyWhisper } from '@/components/astrology/WeeklyWhisper';
 import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
+import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -20,6 +21,8 @@ import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Moon, Zap, BookOpen } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
@@ -28,11 +31,14 @@ const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
   const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc'>('wheel');
   // Life Arc mode removed - now just raw timeline
+  const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
@@ -41,7 +47,7 @@ export default function UnifiedDashboard() {
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
-  const { mbtiType, loading: personalityLoading, calculatePersonality } = usePersonality();
+  const { mbtiType, dualOverlay, loading: personalityLoading, calculatePersonality } = usePersonality();
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
@@ -57,6 +63,18 @@ export default function UnifiedDashboard() {
       generateInterpretations(birthData, interpretMode);
     }
   }, [interpretMode, birthData, chartData, generateInterpretations]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!user) {
+      toast({
+        title: 'Sign-in required',
+        description: 'Please sign in to open your dashboard.',
+        variant: 'destructive',
+      });
+      router.replace('/sign-in');
+    }
+  }, [isLoaded, user, router, toast]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -186,9 +204,28 @@ export default function UnifiedDashboard() {
   }
   
   if (!user) {
-    // Middleware will redirect, but show loading state briefly
-    return null;
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-400 mx-auto" />
+          <p className="text-slate-300">Redirecting to sign-in...</p>
+        </div>
+      </div>
+    );
   }
+
+  const calcSource =
+    ((chartData as any)?.metadata?.ephemeris as string | undefined) ||
+    (((chartData as any)?.metadata?.calculationSource as string | undefined) === 'swiss-real' ? 'Swiss real' : undefined) ||
+    (((chartData as any)?.metadata?.calculationSource as string | undefined) === 'mock-fallback' ? 'Mock' : undefined);
+  const moonSign = chartData?.planets?.find((p: any) => p.name === 'Moon')?.sign;
+
+  const lifeArcNarrative = lifeArc?.events?.length
+    ? `From age ${lifeArc.events[0].age}, your path is marked by ${lifeArc.events
+        .slice(0, 3)
+        .map((e) => `${e.transitingPlanet} ${e.aspect} ${e.natalPlanet}`)
+        .join(', ')}. The pattern here is pressure turning into purpose.`
+    : 'Your Life Arc narrative will appear once timeline events are calculated.';
 
   const handleReadAloud = () => {
     // Build full interpretation text
@@ -236,6 +273,16 @@ export default function UnifiedDashboard() {
               <h1 className="text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
                 Your Cosmic Dashboard
               </h1>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className={`px-2 py-1 text-xs rounded border ${calcSource === 'Swiss real' ? 'border-emerald-500/40 text-emerald-300' : 'border-amber-500/40 text-amber-300'}`}>
+                  {calcSource || 'Unknown engine'}
+                </span>
+                {moonSign && (moonSign === 'Sagittarius' || moonSign === 'Capricorn') && (
+                  <span className="px-2 py-1 text-xs rounded border border-red-500/40 text-red-300">
+                    Moon sanity check
+                  </span>
+                )}
+              </div>
               <p className="text-gray-300 text-lg">One place. Your whole story.</p>
             </motion.div>
 
@@ -321,7 +368,7 @@ export default function UnifiedDashboard() {
                   {/* Right Bottom: Personality Reveal */}
                   <div className="lg:col-span-1">
                     {mbtiType && (
-                      <PersonalityReveal mbtiType={mbtiType} loading={personalityLoading} />
+                      <PersonalityReveal mbtiType={mbtiType} dualOverlay={dualOverlay} loading={personalityLoading} />
                     )}
                   </div>
                 </div>
@@ -414,6 +461,13 @@ export default function UnifiedDashboard() {
                           interpreter={interpretations?.interpreter}
                           loading={interpretLoading}
                         />
+                        <GrokNarrative
+                          mode={interpretMode}
+                          birthData={birthData}
+                          chartData={chartData}
+                          lifeArc={lifeArc}
+                          transits={transits}
+                        />
                       </div>
                     )}
 
@@ -438,11 +492,34 @@ export default function UnifiedDashboard() {
                     )}
 
                     {activeSection === 'lifearc' && (
-                      <LifeTimelineView
-                        timeline={lifeArc}
-                        loading={lifeArcLoading}
-                        userName={user?.firstName || undefined}
-                      />
+                      <div className="space-y-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setLifeArcView('timeline')}
+                            className={`px-3 py-2 rounded border text-sm ${lifeArcView === 'timeline' ? 'border-amber-500/50 text-amber-200 bg-amber-500/10' : 'border-slate-700 text-slate-300'}`}
+                          >
+                            Timeline
+                          </button>
+                          <button
+                            onClick={() => setLifeArcView('prose')}
+                            className={`px-3 py-2 rounded border text-sm ${lifeArcView === 'prose' ? 'border-purple-500/50 text-purple-200 bg-purple-500/10' : 'border-slate-700 text-slate-300'}`}
+                          >
+                            Prose
+                          </button>
+                        </div>
+
+                        {lifeArcView === 'timeline' ? (
+                          <LifeTimelineView
+                            timeline={lifeArc}
+                            loading={lifeArcLoading}
+                            userName={user?.firstName || undefined}
+                          />
+                        ) : (
+                          <div className="rounded-lg border border-purple-500/20 bg-slate-900/40 p-6">
+                            <p className="text-slate-100 leading-relaxed">{lifeArcNarrative}</p>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {activeSection === 'wheel' && (

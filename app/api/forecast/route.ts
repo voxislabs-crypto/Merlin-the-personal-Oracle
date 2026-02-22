@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { calculateBirthChart } from '@/lib/engine-fallback';
+import { calculateBirthChart } from '@/lib/engine';
+import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { BirthChartData } from '@/types/astrology';
 
@@ -18,12 +19,15 @@ export async function POST(request: Request) {
     }
 
     // Calculate natal birth chart
-    const natalChart = calculateBirthChart(
-      birthDate,
-      birthTime,
-      lat || 0,
-      lon || 0
-    ) as BirthChartData;
+    let natalChart: BirthChartData;
+    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
+    try {
+      natalChart = calculateBirthChart(birthDate, birthTime, lat || 0, lon || 0) as BirthChartData;
+    } catch (error) {
+      source = 'mock-fallback';
+      natalChart = calculateBirthChartFallback(birthDate, birthTime, lat || 0, lon || 0) as BirthChartData;
+      console.warn('[Forecast] Swiss failed, using fallback:', error);
+    }
 
     // Generate today's forecast
     const forecast = getTodaysForecast(natalChart);
@@ -31,6 +35,7 @@ export async function POST(request: Request) {
     console.log('Successfully generated forecast');
     return NextResponse.json({
       success: true,
+      source,
       data: forecast
     });
   } catch (error) {

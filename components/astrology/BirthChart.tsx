@@ -248,7 +248,7 @@ export function BirthChart({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date" className="text-black" style={{ color: '#000' }}>Birth Date</Label>
+                  <Label htmlFor="date" className="text-slate-200">Birth Date</Label>
                   <Input
                     id="date"
                     name="date"
@@ -256,12 +256,11 @@ export function BirthChart({
                     value={birthData.date}
                     onChange={handleInputChange}
                     required
-                    className="text-black"
-                    style={{ color: '#000' }}
+                    className="text-slate-100"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="time" className="text-black" style={{ color: '#000' }}>Birth Time (24h)</Label>
+                  <Label htmlFor="time" className="text-slate-200">Birth Time (24h)</Label>
                   <Input
                     id="time"
                     name="time"
@@ -269,15 +268,14 @@ export function BirthChart({
                     value={birthData.time}
                     onChange={handleInputChange}
                     required
-                    className="text-black"
-                    style={{ color: '#000' }}
+                    className="text-slate-100"
                   />
                 </div>
               </div>
               
               {/* Location Search Field */}
               <div className="space-y-2 relative" ref={locationInputRef}>
-                <Label htmlFor="location" className="text-black" style={{ color: '#000' }}>
+                <Label htmlFor="location" className="text-slate-200">
                   <MapPin className="inline w-4 h-4 mr-1" />
                   Birth Location (City, State)
                 </Label>
@@ -291,8 +289,7 @@ export function BirthChart({
                   onFocus={() => locationResults.length > 0 && setShowLocationResults(true)}
                   autoComplete="off"
                   required={!selectedLocation && !birthData.latitude}
-                  className="text-black"
-                  style={{ color: '#000' }}
+                  className="text-slate-100"
                 />
                 
                 {/* Location Search Results Dropdown */}

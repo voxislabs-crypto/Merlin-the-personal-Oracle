@@ -44,13 +44,13 @@ export function TimelineView({ birthYear, mbtiType }: TimelineViewProps) {
 
   const getEventColor = (type: TimelineEvent["type"], intensity: TimelineEvent["intensity"]) => {
     const baseColors = {
-      saturn: "border-red-300 bg-red-50 text-red-700",
-      jupiter: "border-green-300 bg-green-50 text-green-700",
-      uranus: "border-purple-300 bg-purple-50 text-purple-700",
-      neptune: "border-blue-300 bg-blue-50 text-blue-700",
-      pluto: "border-indigo-300 bg-indigo-50 text-indigo-700",
-      chiron: "border-orange-300 bg-orange-50 text-orange-700",
-      major: "border-gray-300 bg-gray-50 text-gray-700",
+      saturn: "border-red-700 bg-red-900/30 text-red-300",
+      jupiter: "border-green-700 bg-green-900/30 text-green-300",
+      uranus: "border-purple-700 bg-purple-900/30 text-purple-300",
+      neptune: "border-blue-700 bg-blue-900/30 text-blue-300",
+      pluto: "border-indigo-700 bg-indigo-900/30 text-indigo-300",
+      chiron: "border-orange-700 bg-orange-900/30 text-orange-300",
+      major: "border-slate-600 bg-slate-800/50 text-slate-300",
     }
 
     return baseColors[type] || baseColors.major
@@ -59,17 +59,17 @@ export function TimelineView({ birthYear, mbtiType }: TimelineViewProps) {
   const getToneColor = (tone: YearlyTheme["overallTone"]) => {
     switch (tone) {
       case "challenging":
-        return "bg-red-100 text-red-800 border-red-200"
+        return "bg-red-900/40 text-red-300 border-red-700"
       case "transformation":
-        return "bg-purple-100 text-purple-800 border-purple-200"
+        return "bg-purple-900/40 text-purple-300 border-purple-700"
       case "growth":
-        return "bg-blue-100 text-blue-800 border-blue-200"
+        return "bg-blue-900/40 text-blue-300 border-blue-700"
       case "expansion":
-        return "bg-green-100 text-green-800 border-green-200"
+        return "bg-green-900/40 text-green-300 border-green-700"
       case "stability":
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-slate-800 text-slate-300 border-slate-600"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-slate-800 text-slate-300 border-slate-600"
     }
   }
 
@@ -257,8 +257,8 @@ export function TimelineView({ birthYear, mbtiType }: TimelineViewProps) {
               <span>Chiron - Healing & Wisdom</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="p-1 rounded border-gray-300 bg-gray-50">
-                <ClockIcon className="w-4 h-4 text-gray-700" />
+              <div className="p-1 rounded border border-slate-600 bg-slate-800/50">
+                <ClockIcon className="w-4 h-4 text-slate-400" />
               </div>
               <span>General - Life Themes</span>
             </div>

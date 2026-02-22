@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { calculateBirthChart } from '@/lib/engine-fallback';
+import { calculateBirthChart } from '@/lib/engine';
+import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { InterpretationEngine } from '@/lib/astrology/interpretations';
 import { generateGrokInterpretation } from '@/lib/grok-service';
 import { BirthChartData } from '@/types/astrology';
@@ -19,12 +20,15 @@ export async function POST(request: Request) {
     }
 
     // Calculate natal birth chart
-    const natalChart = calculateBirthChart(
-      birthDate,
-      birthTime,
-      lat || 0,
-      lon || 0
-    ) as BirthChartData;
+    let natalChart: BirthChartData;
+    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
+    try {
+      natalChart = calculateBirthChart(birthDate, birthTime, lat || 0, lon || 0) as BirthChartData;
+    } catch (error) {
+      source = 'mock-fallback';
+      natalChart = calculateBirthChartFallback(birthDate, birthTime, lat || 0, lon || 0) as BirthChartData;
+      console.warn('[Interpret API] Swiss failed, using fallback:', error);
+    }
 
     let chartSummary = '';
     let planetInterpretations: Array<{ planet: string; interpretation: string }> = [];
@@ -100,6 +104,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       cached: cacheHit,
+      source,
       interpreter: usedGrok ? 'grok' : 'traditional',
       data: {
         chartSummary,
