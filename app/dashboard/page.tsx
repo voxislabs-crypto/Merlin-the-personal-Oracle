@@ -41,6 +41,7 @@ export default function UnifiedDashboard() {
   // Life Arc mode removed - now just raw timeline
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
+  const [noBullshit, setNoBullshit] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -415,7 +416,7 @@ export default function UnifiedDashboard() {
                   </div>
 
                   {/* Action Buttons Under Wheel */}
-                  <div className="flex gap-4 mt-8 justify-center">
+                  <div className="flex gap-4 mt-8 justify-center flex-wrap items-center">
                     <button
                       onClick={handleReadAloud}
                       className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all"
@@ -427,6 +428,20 @@ export default function UnifiedDashboard() {
                       className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
                     >
                       🌙 Daily Whisper
+                    </button>
+                    
+                    {/* No-Bullshit Mode Toggle */}
+                    <button
+                      onClick={() => setNoBullshit(!noBullshit)}
+                      className={`px-6 py-3 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                        noBullshit
+                          ? 'bg-red-500/20 border-red-500/30 text-red-200 hover:bg-red-500/30'
+                          : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                      }`}
+                    >
+                      <span className="text-xs">
+                        {noBullshit ? '🔥 No-BS Mode' : '✨ Warm Mode'}
+                      </span>
                     </button>
                   </div>
                 </motion.div>
@@ -447,10 +462,10 @@ export default function UnifiedDashboard() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6 }}
-                  className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-12"
+                  className="space-y-8 mt-12"
                 >
-                  {/* LEFT COLUMN: Forecast + Weekly (stacked) */}
-                  <div className="lg:col-span-2 space-y-6">
+                  {/* SECTION 1: Forecast + Weekly (full width) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Today's Forecast */}
                     <motion.div
                       className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm"
@@ -483,146 +498,146 @@ export default function UnifiedDashboard() {
                     </motion.div>
                   </div>
 
-                  {/* RIGHT COLUMN: Tabbed Analysis Panels */}
+                  {/* SECTION 2: Analysis Tabs (below chart) */}
                   <motion.div
-                    className="lg:col-span-1"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.7 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.75 }}
+                    className="space-y-4"
                   >
-                    {/* Tab Buttons */}
-                    <div className="flex flex-col gap-3 mb-6">
+                    {/* Tab Buttons - Horizontal */}
+                    <div className="flex flex-wrap gap-3">
                       <button
                         onClick={() => setActiveSection(activeSection === 'interpretation' ? 'wheel' : 'interpretation')}
-                        className={`w-full p-4 rounded-lg border transition-all font-semibold flex items-center justify-between ${
+                        className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'interpretation'
                             ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
                             : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
                         }`}
                       >
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4" />
-                          Chart Reading
-                        </span>
-                        {activeSection === 'interpretation' && <span className="text-xs">✓</span>}
+                        <Sparkles className="w-4 h-4" />
+                        Chart Reading
+                        {activeSection === 'interpretation' && <span className="text-xs ml-2">↓</span>}
                       </button>
 
                       <button
                         onClick={() => setActiveSection(activeSection === 'transits' ? 'wheel' : 'transits')}
-                        className={`w-full p-4 rounded-lg border transition-all font-semibold flex items-center justify-between ${
+                        className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'transits'
                             ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
                             : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
                         }`}
                       >
-                        <span className="flex items-center gap-2">
-                          <Zap className="w-4 h-4" />
-                          Active Transits
-                        </span>
-                        {activeSection === 'transits' && <span className="text-xs">✓</span>}
+                        <Zap className="w-4 h-4" />
+                        Active Transits
+                        {activeSection === 'transits' && <span className="text-xs ml-2">↓</span>}
                       </button>
 
                       <button
                         onClick={() => setActiveSection(activeSection === 'lifearc' ? 'wheel' : 'lifearc')}
-                        className={`w-full p-4 rounded-lg border transition-all font-semibold flex items-center justify-between ${
+                        className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'lifearc'
                             ? 'bg-green-500/20 border-green-500/50 text-green-300'
                             : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
                         }`}
                       >
-                        <span className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4" />
-                          Life Timeline
-                        </span>
-                        {activeSection === 'lifearc' && <span className="text-xs">✓</span>}
+                        <BookOpen className="w-4 h-4" />
+                        Life Timeline
+                        {activeSection === 'lifearc' && <span className="text-xs ml-2">↓</span>}
                       </button>
                     </div>
 
-                    {/* Content Panel - Full Height */}
-                    <motion.div
-                      className="bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm min-h-[600px] flex flex-col"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {/* Chart Interpretation */}
-                      {activeSection === 'interpretation' && (
-                        <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                          <div className="sticky top-0 bg-slate-900/50 pb-4 flex items-center gap-2">
-                            {cacheHit && (
-                              <span className="text-xs text-amber-400 flex items-center gap-1">
-                                ⚡ cached
-                              </span>
-                            )}
-                            <InterpretationModeToggle
-                              onModeChange={(mode) => setInterpretMode(mode)}
-                              defaultMode={interpretMode}
-                            />
+                    {/* Content Panel - Drops Down Below Buttons */}
+                    {['interpretation', 'transits', 'lifearc'].includes(activeSection) && (
+                      <motion.div
+                        className="bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm p-8"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {/* Chart Interpretation */}
+                        {activeSection === 'interpretation' && (
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2 mb-6">
+                                {cacheHit && (
+                                  <span className="text-xs text-amber-400 flex items-center gap-1">
+                                    ⚡ cached
+                                  </span>
+                                )}
+                                <InterpretationModeToggle
+                                  onModeChange={(mode) => setInterpretMode(mode)}
+                                  defaultMode={interpretMode}
+                                />
+                              </div>
+                              <ChartInterpretation
+                                summary={interpretations?.chartSummary || ''}
+                                planetInterpretations={interpretations?.planetInterpretations || []}
+                                aspectInterpretations={interpretations?.aspectInterpretations || []}
+                                interpreter={interpretations?.interpreter}
+                                loading={interpretLoading}
+                              />
+                            </div>
+                            
+                            {/* Grok Narrative below Chart Interpretation */}
+                            <div className="border-t border-slate-700 pt-6">
+                              <GrokNarrative
+                                mode={interpretMode === 'grok' ? 'grok' : 'traditional'}
+                                birthData={birthData}
+                                chartData={chartData}
+                                lifeArc={lifeArc}
+                                transits={transits}
+                                tone={noBullshit ? 'direct' : 'warm'}
+                              />
+                            </div>
                           </div>
-                          <ChartInterpretation
-                            summary={interpretations?.chartSummary || ''}
-                            planetInterpretations={interpretations?.planetInterpretations || []}
-                            aspectInterpretations={interpretations?.aspectInterpretations || []}
-                            interpreter={interpretations?.interpreter}
-                            loading={interpretLoading}
-                          />
-                        </div>
-                      )}
+                        )}
 
-                      {/* Active Transits */}
-                      {activeSection === 'transits' && (
-                        <div className="p-6 overflow-y-auto flex-1">
+                        {/* Active Transits */}
+                        {activeSection === 'transits' && (
                           <ActiveTransits
                             significant={transits?.significant || []}
                             approaching={transits?.approaching || []}
                             summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
                             loading={transitsLoading}
                           />
-                        </div>
-                      )}
+                        )}
 
-                      {/* Life Arc */}
-                      {activeSection === 'lifearc' && (
-                        <div className="p-6 flex flex-col flex-1 overflow-y-auto">
-                          <div className="flex gap-2 mb-4">
-                            <button
-                              onClick={() => setLifeArcView('timeline')}
-                              className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'timeline' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
-                            >
-                              Timeline
-                            </button>
-                            <button
-                              onClick={() => setLifeArcView('prose')}
-                              className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'prose' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
-                            >
-                              Prose
-                            </button>
-                          </div>
-
-                          {lifeArcView === 'timeline' ? (
-                            <LifeTimelineView
-                              timeline={lifeArc}
-                              loading={lifeArcLoading}
-                              userName={user?.firstName || undefined}
-                              defaultTimeFilter="current"
-                            />
-                          ) : (
-                            <div className="text-sm text-slate-100 leading-relaxed">
-                              {lifeArcNarrative}
+                        {/* Life Arc */}
+                        {activeSection === 'lifearc' && (
+                          <div className="space-y-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setLifeArcView('timeline')}
+                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'timeline' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                              >
+                                Timeline
+                              </button>
+                              <button
+                                onClick={() => setLifeArcView('prose')}
+                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'prose' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                              >
+                                Prose
+                              </button>
                             </div>
-                          )}
-                        </div>
-                      )}
 
-                      {/* Empty State */}
-                      {!['interpretation', 'transits', 'lifearc'].includes(activeSection) && (
-                        <div className="flex items-center justify-center h-full text-slate-400 text-center p-8">
-                          <div>
-                            <p className="text-sm">Select an analysis to view</p>
+                            {lifeArcView === 'timeline' ? (
+                              <LifeTimelineView
+                                timeline={lifeArc}
+                                loading={lifeArcLoading}
+                                userName={user?.firstName || undefined}
+                                defaultTimeFilter="current"
+                              />
+                            ) : (
+                              <div className="text-sm text-slate-100 leading-relaxed">
+                                {lifeArcNarrative}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </motion.div>
+                        )}
+                      </motion.div>
+                    )}
                   </motion.div>
                 </motion.div>
               </motion.div>

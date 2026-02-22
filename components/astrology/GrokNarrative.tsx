@@ -12,6 +12,7 @@ interface GrokNarrativeProps {
   chartData: BirthChartData | null;
   lifeArc: LifeTimeline | null;
   transits: TransitData | null;
+  tone?: 'direct' | 'warm'; // "No-Bullshit Mode" toggle
 }
 
 interface GrokNarrativeResponse {
@@ -20,7 +21,7 @@ interface GrokNarrativeResponse {
   interpreter?: 'grok' | 'traditional';
 }
 
-export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits }: GrokNarrativeProps) {
+export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits, tone = 'warm' }: GrokNarrativeProps) {
   const [narrative, setNarrative] = useState<GrokNarrativeResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +30,10 @@ export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits }:
 
     let active = true;
     setLoading(true);
+
+    // Default message if no transits
+    const hasTransits = transits?.significant && transits.significant.length > 0;
+    const quietDayMessage = 'Quiet day. Use it to think, not react.';
 
     fetch('/api/grok-narrative', {
       method: 'POST',
@@ -39,6 +44,7 @@ export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits }:
         chartData,
         lifeArc,
         transits,
+        tone, // Pass tone for direct/warm versions
       }),
     })
       .then((res) => res.json())
@@ -69,7 +75,7 @@ export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits }:
     return () => {
       active = false;
     };
-  }, [mode, birthData, chartData, lifeArc, transits]);
+  }, [mode, birthData, chartData, lifeArc, transits, tone]);
 
   const paragraphs = useMemo(() => {
     if (!narrative?.narrative) return [];
@@ -90,6 +96,9 @@ export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits }:
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-1 rounded border ${mode === 'grok' ? 'text-purple-300 border-purple-500/40' : 'text-amber-300 border-amber-500/40'}`}>
             {mode === 'grok' ? "Grok'd" : 'Traditional'}
+          </span>
+          <span className={`text-xs px-2 py-1 rounded border ${tone === 'direct' ? 'text-red-300 border-red-500/40' : 'text-emerald-300 border-emerald-500/40'}`}>
+            {tone === 'direct' ? 'No-BS' : 'Warm'}
           </span>
           {narrative?.cached && (
             <span className="text-xs px-2 py-1 rounded border border-emerald-500/40 text-emerald-300">Cached</span>

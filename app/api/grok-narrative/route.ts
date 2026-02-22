@@ -14,6 +14,7 @@ interface RequestBody {
   chartData?: any;
   lifeArc?: any;
   transits?: any;
+  tone?: 'direct' | 'warm'; // "No-Bullshit Mode"
 }
 
 function buildTraditionalNarrative({ chartData, lifeArc }: RequestBody): string {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
   
   try {
     const body = (await request.json()) as RequestBody;
-    const { mode = 'traditional', birthData, chartData, lifeArc, transits } = body;
+    const { mode = 'traditional', birthData, chartData, lifeArc, transits, tone = 'warm' } = body;
 
     if (!birthData || !chartData) {
       return NextResponse.json({ success: false, error: 'Missing birthData or chartData' }, { status: 400 });
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       birthData.time,
       birthData.latitude || 0,
       birthData.longitude || 0,
-      { useGrok: mode === 'grok' }
+      { useGrok: mode === 'grok', tone }
     );
 
     const cached = serverCache.get<{ narrative: string; interpreter: 'grok' | 'traditional' }>(`grok-narrative:${cacheKey}`);
@@ -86,14 +87,35 @@ export async function POST(request: Request) {
           },
         });
 
+        // Handle "Quiet day" message if no transits
+        if (!transits?.significant || transits.significant.length === 0) {
+          const quietDayMessage = "Quiet day. Use it to think, not react.";
+          const data = { narrative: quietDayMessage, interpreter: 'grok' as const };
+          serverCache.set(`grok-narrative:${cacheKey}`, data);
+          return NextResponse.json({ success: true, cached: false, interpreter: 'grok', data });
+        }
+
         const timelineEvents = (lifeArc?.events || [])
           .slice(0, 5)
           .map((e: any) => `${e.year}: ${e.transitingPlanet} ${e.aspect} ${e.natalPlanet}`)
           .join('; ');
 
-        const transitSummary = transits?.summary
-          ? `Active transits now: total ${transits.summary.total}, exact ${transits.summary.exact}, approaching ${transits.summary.approaching}.`
-          : '';
+        // Build tone-specific transit summary
+        let transitSummary = '';
+        if (transits?.significant && transits.significant.length > 0 && tone === 'direct') {
+          // Direct/No-Bullshit tone: specific callouts
+          const exactTransits = transits.significant.slice(0, 3);
+          const callouts = exactTransits.map((t: any) => {
+            const planet = t.transitingPlanet || 'Transiting planet';
+            const aspect = t.aspect || 'aspect';
+            const natalPlanet = t.natalPlanet || 'natal planet';
+            return `${planet} ${aspect} ${natalPlanet}? That's creating real friction right now—acknowledge it and work with it, don't ignore it.`;
+          });
+          transitSummary = callouts.join('\n');
+        } else if (transits?.summary) {
+          // Warm tone: standard summary
+          transitSummary = `Active transits now: total ${transits.summary.total}, exact ${transits.summary.exact}, approaching ${transits.summary.approaching}.`;
+        }
 
         const narrative = [
           grokResult.chartSummary,

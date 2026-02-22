@@ -16,9 +16,9 @@ export function generateChartHash(
   birthTime: string,
   lat: number,
   lon: number,
-  options?: { useGrok?: boolean; houseSystem?: string }
+  options?: { useGrok?: boolean; houseSystem?: string; tone?: 'direct' | 'warm' }
 ): string {
-  const normalized = `${birthDate}|${birthTime}|${lat.toFixed(4)}|${lon.toFixed(4)}|${options?.useGrok ? 'grok' : 'trad'}|${options?.houseSystem || 'placidus'}`;
+  const normalized = `${birthDate}|${birthTime}|${lat.toFixed(4)}|${lon.toFixed(4)}|${options?.useGrok ? 'grok' : 'trad'}|${options?.houseSystem || 'placidus'}|${options?.tone || 'warm'}`;
   return createHash('sha256').update(normalized).digest('hex').substring(0, 16);
 }
 
