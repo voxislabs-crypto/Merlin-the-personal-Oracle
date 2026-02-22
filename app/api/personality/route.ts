@@ -1,41 +1,55 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
-import { getMBTI } from '@/lib/personality/fusion';
+import { getMBTIDual } from '@/lib/personality/fusion';
 import { BirthChartData } from '@/types/astrology';
 
-function buildDualOverlay(chart: BirthChartData, mbtiType: string) {
+function buildDualOverlay(chart: BirthChartData, mbtiDual: any) {
   const sun = chart.positions?.find((p) => p.name === 'Sun');
   const moon = chart.positions?.find((p) => p.name === 'Moon');
   const mercury = chart.positions?.find((p) => p.name === 'Mercury');
   const asc = (chart as any).ascendant;
 
-  const natalArchetype = `${sun?.sign || 'Unknown'} Sun • ${asc?.sign || 'Unknown'} Rising`;
-  const firmwareArchetype = `${moon?.sign || 'Unknown'} Moon • ${mercury?.sign || 'Unknown'} Mercury`;
+  // Hardware Mascot: What they see on the surface
+  const hardwareMascot = `${sun?.sign || 'Unknown'} Sun • ${asc?.sign || 'Unknown'} Rising`;
+  const hardwareDesc = `They see the ${sun?.sign || 'solar'} radiance through a ${asc?.sign || 'mystic'} mask—charisma first, heart later.`;
 
-  const natalPoetic = `The world meets your ${sun?.sign || 'solar'} radiance through a ${asc?.sign || 'mystic'} mask—charisma first, heart later.`;
-  const firmwarePoetic =
-    mbtiType === 'INFJ'
-      ? `Stars gave you a lion's roar, but your code runs on quiet empathy. ${firmwareArchetype} is your hidden operating system.`
-      : `Under the surface, ${firmwareArchetype} powers a ${mbtiType} core that reads what others miss.`;
+  // Firmware Inner Core: The real you underneath
+  const firmwareCore = `${moon?.sign || 'Unknown'} Moon • ${mercury?.sign || 'Unknown'} Mercury`;
+  const firmwareDesc =
+    mbtiDual.firmware.type === 'INFJ'
+      ? `Your code runs on quiet empathy and deep knowing. ${firmwareCore} is your hidden operating system.`
+      : `Underneath, ${firmwareCore} powers a ${mbtiDual.firmware.type} core that reads what others miss.`;
 
   return {
-    natal: {
-      label: 'What they see',
-      archetype: natalArchetype,
-      description: natalPoetic,
+    // Mask (Hardware): What others see
+    hardware: {
+      label: 'The Mask You Wear',
+      sublabel: 'What they see',
+      mbtiType: mbtiDual.hardware.type,
+      confidence: mbtiDual.hardware.confidence,
+      archetype: hardwareMascot,
+      description: hardwareDesc,
     },
+    
+    // Core (Firmware): Who you really are
     firmware: {
-      label: "What's real",
-      mbtiType,
-      archetype: firmwareArchetype,
-      description: firmwarePoetic,
+      label: 'Your Inner Core',
+      sublabel: "What's real",
+      mbtiType: mbtiDual.firmware.type,
+      confidence: mbtiDual.firmware.confidence,
+      archetype: firmwareCore,
+      description: firmwareDesc,
     },
+    
+    // Final merged type (with INFJ override applied)
+    finalType: mbtiDual.type,
+    finalConfidence: mbtiDual.confidence,
   };
 }
 
 export async function POST(request: Request) {
-  console.log('[Personality] Received request for MBTI derivation');
+  console.log('[Personality] Received request for dual-layer MBTI derivation');
   
   try {
     const body = await request.json();
@@ -71,15 +85,24 @@ export async function POST(request: Request) {
       ) as BirthChartData;
     }
 
-    // Derive MBTI from chart
-    const mbtiType = getMBTI(natalChart);
-    const dualOverlay = buildDualOverlay(natalChart, mbtiType);
+    // Derive dual-layer MBTI from chart
+    const mbtiDual = getMBTIDual(natalChart);
+    const dualOverlay = buildDualOverlay(natalChart, mbtiDual);
 
-    console.log('[Personality] Successfully derived MBTI:', mbtiType);
+    // Log results
+    console.log('[Personality] Hardware Mascot:', mbtiDual.hardware.type, `(${mbtiDual.hardware.confidence}%)`);
+    console.log('[Personality] Firmware Inner Core:', mbtiDual.firmware.type, `(${mbtiDual.firmware.confidence}%)`);
+    console.log('[Personality] Final Type (with override):', mbtiDual.type);
+
     return NextResponse.json({
       success: true,
       source,
-      data: { mbtiType, dualOverlay }
+      data: { 
+        hardware: mbtiDual.hardware.type,
+        firmware: mbtiDual.firmware.type,
+        finalType: mbtiDual.type,
+        dualOverlay 
+      }
     });
   } catch (error) {
     console.error('[Personality] Error deriving MBTI:', error);

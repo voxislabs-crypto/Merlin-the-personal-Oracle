@@ -1,14 +1,15 @@
 // lib/personality/fusion.ts
 
 import { type MBTIType } from '@/shared/schema';
-import { computeMBTI } from '@/lib/astrology/mbtiFusion';
+import { computeMBTI, computeMBTIDual } from '@/lib/astrology/mbtiFusion';
 
 /**
  * Get MBTI type from birth chart using sophisticated astrological fusion
+ * (Legacy single-layer function - returns firmware core)
  */
 export function getMBTI(chart: any): MBTIType {
   try {
-    // Use the sophisticated MBTI fusion engine
+    // Use the sophisticated MBTI fusion engine (returns firmware)
     const result = computeMBTI(chart);
     console.log('[getMBTI] MBTI result:', result.type, 'confidence:', result.confidence);
     return result.type as MBTIType;
@@ -22,6 +23,38 @@ export function getMBTI(chart: any): MBTIType {
     const f_t = 'F'; // Default to feeling for safety  
     const j_p = ['Capricorn', 'Aries', 'Cancer', 'Libra'].includes(chart.ascendant?.sign) ? 'J' : 'P';
     return (e_i + n_s + f_t + j_p) as MBTIType;
+  }
+}
+
+/**
+ * Get DUAL-LAYER MBTI from birth chart
+ * Returns both Hardware (mask) and Firmware (inner core) with confidence scores
+ * Preferred for modern implementations
+ */
+export function getMBTIDual(chart: any) {
+  try {
+    const result = computeMBTIDual(chart);
+    console.log('[getMBTIDual] Hardware:', result.hardware.type, `(${result.hardware.confidence}%)`);
+    console.log('[getMBTIDual] Firmware:', result.firmware.type, `(${result.firmware.confidence}%)`);
+    console.log('[getMBTIDual] Final (with override):', result.type, `(${result.confidence}%)`);
+    return result;
+  } catch (error) {
+    console.error('[getMBTIDual] Error computing dual MBTI, using fallback:', error);
+    // Fallback: simple logic
+    const e_i = ['Aries', 'Leo', 'Sagittarius', 'Gemini', 'Libra', 'Aquarius'].some(s => 
+      chart.ascendant?.sign?.includes(s) || chart.sun?.sign?.includes(s)
+    ) ? 'E' : 'I';
+    const n_s = 'N';
+    const f_t = 'F';
+    const j_p = ['Capricorn', 'Aries', 'Cancer', 'Libra'].includes(chart.ascendant?.sign) ? 'J' : 'P';
+    const fallbackType = (e_i + n_s + f_t + j_p) as MBTIType;
+    
+    return {
+      hardware: { type: fallbackType, confidence: 50, breakdown: { e_i, s_n: n_s, t_f: f_t, j_p, reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'hardware' as const },
+      firmware: { type: 'INFJ' as MBTIType, confidence: 50, breakdown: { e_i: 'I', s_n: 'N', t_f: 'F', j_p: 'J', reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'firmware' as const },
+      type: 'INFJ' as MBTIType,
+      confidence: 50,
+    };
   }
 }
 

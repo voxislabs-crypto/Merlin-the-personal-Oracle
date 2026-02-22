@@ -159,7 +159,9 @@ export function MBTIDisplay({ mbti, className = '' }: MBTIDisplayProps) {
               <span className="text-xs font-semibold px-2 py-1 rounded border border-yellow-300 dark:border-yellow-700 bg-yellow-100 dark:bg-yellow-900/30">
                 Firmware Overlay
               </span>
-              <span className="text-sm font-semibold">{mbti.firmware}</span>
+              <span className="text-sm font-semibold">
+                {typeof mbti.firmware === 'string' ? mbti.firmware : mbti.firmware.type}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               Secondary personality pattern detected in chart
