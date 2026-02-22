@@ -1,4 +1,4 @@
-import { ClerkProvider } from '@clerk/nextjs';
+import { ClerkProvider } from './clerk-provider';
 import { Navigation } from '@/components/layout/Navigation';
 import { Footer } from '@/components/layout/Footer';
 import { PWAInstaller } from '@/components/PWAInstaller';
@@ -96,9 +96,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <head>
+    <html lang="en">
+      <head>
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#fcd34d" />
           <meta name="mobile-web-app-capable" content="yes" />
@@ -172,14 +171,15 @@ export default function RootLayout({
               }}
             />
           )}
-        </head>
-        <body className="flex flex-col min-h-screen">
+      </head>
+      <body className="flex flex-col min-h-screen">
+        <ClerkProvider>
           <PWAInstaller />
           <Navigation />
           <main className="flex-1">{children}</main>
           <Footer />
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

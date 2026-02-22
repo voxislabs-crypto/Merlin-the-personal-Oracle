@@ -2,15 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { loadStripe } from '@stripe/stripe-js';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Shield, Check } from 'lucide-react';
-
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-  : null;
 
 const features = [
   'Complete Birth Chart Analysis',
