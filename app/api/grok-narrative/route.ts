@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateGrokInterpretation } from '@/lib/grok-service';
 import { generateChartHash, serverCache } from '@/lib/cache-service';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 interface RequestBody {
   mode: 'grok' | 'traditional';
@@ -37,6 +38,19 @@ function buildTraditionalNarrative({ chartData, lifeArc }: RequestBody): string 
 }
 
 export async function POST(request: Request) {
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessGrokNarrative');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Grok AI Narratives are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
+  
   try {
     const body = (await request.json()) as RequestBody;
     const { mode = 'traditional', birthData, chartData, lifeArc, transits } = body;

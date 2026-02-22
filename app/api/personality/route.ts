@@ -3,6 +3,7 @@ import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { getMBTIDual } from '@/lib/personality/fusion';
 import { BirthChartData } from '@/types/astrology';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 function buildDualOverlay(chart: BirthChartData, mbtiDual: any) {
   const sun = chart.positions?.find((p) => p.name === 'Sun');
@@ -50,6 +51,19 @@ function buildDualOverlay(chart: BirthChartData, mbtiDual: any) {
 
 export async function POST(request: Request) {
   console.log('[Personality] Received request for dual-layer MBTI derivation');
+  
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessPersonality');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'MBTI Integration is not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
   
   try {
     const body = await request.json();

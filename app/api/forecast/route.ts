@@ -3,10 +3,24 @@ import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { BirthChartData } from '@/types/astrology';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: Request) {
   console.log('Received request for daily forecast');
   
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessForecast');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Daily Forecasts are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { birthDate, birthTime, lat, lon } = body;

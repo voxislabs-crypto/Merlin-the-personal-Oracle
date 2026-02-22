@@ -3,9 +3,23 @@ import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { getCurrentTransits } from '@/lib/astrology/transits';
 import { BirthChartData } from '@/types/astrology';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: Request) {
   console.log('Received request for transit analysis');
+  
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessTransits');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Active Transits are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
   
   try {
     const body = await request.json();

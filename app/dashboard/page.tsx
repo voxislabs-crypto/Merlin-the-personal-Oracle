@@ -604,6 +604,7 @@ export default function UnifiedDashboard() {
                               timeline={lifeArc}
                               loading={lifeArcLoading}
                               userName={user?.firstName || undefined}
+                              defaultTimeFilter="current"
                             />
                           ) : (
                             <div className="text-sm text-slate-100 leading-relaxed">

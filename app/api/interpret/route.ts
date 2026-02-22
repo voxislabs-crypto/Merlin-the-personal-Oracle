@@ -4,9 +4,23 @@ import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine
 import { InterpretationEngine } from '@/lib/astrology/interpretations';
 import { generateGrokInterpretation } from '@/lib/grok-service';
 import { BirthChartData } from '@/types/astrology';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: Request) {
   console.log('Received request for chart interpretation');
+  
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessInterpretations');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Chart Interpretations are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
   
   try {
     const body = await request.json();

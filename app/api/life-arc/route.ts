@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildLifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import { BirthChartData } from '@/types/astrology';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: NextRequest) {
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessLifeArc');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Life Timeline is not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
+  
   try {
     const body = await request.json();
     const { chartData, birthDate } = body;

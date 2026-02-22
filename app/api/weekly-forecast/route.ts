@@ -3,9 +3,23 @@ import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { getWeeklyWhispers } from '@/lib/astrology/weekly-whisper';
 import { BirthChartData } from '@/types/astrology';
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: Request) {
   console.log('[Weekly] Received request for weekly forecast');
+  
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessWeeklyForecast');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Weekly Whispers are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
   
   try {
     const body = await request.json();

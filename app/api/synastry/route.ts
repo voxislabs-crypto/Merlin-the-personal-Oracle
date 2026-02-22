@@ -2,8 +2,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BirthChartData } from "@/types/astrology";
 import { generateSynastryReport } from "@/lib/astrology/synastry";
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: NextRequest) {
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessSynastry');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Synastry Charts are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
+  
   try {
     const body = await request.json();
     const { chart1, chart2, person1Name, person2Name } = body as {

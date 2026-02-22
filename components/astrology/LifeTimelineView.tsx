@@ -11,20 +11,21 @@ interface LifeTimelineViewProps {
   timeline: LifeTimeline | null;
   loading?: boolean;
   userName?: string;
+  defaultTimeFilter?: 'all' | 'past' | 'current' | 'future';
 }
 
 type TimeFilter = 'all' | 'past' | 'current' | 'future';
 type IntensityFilter = 'all' | 'strike' | 'burn' | 'shift';
 type PlanetFilter = 'all' | 'saturn' | 'uranus' | 'neptune' | 'pluto' | 'chiron' | 'jupiter';
 
-export function LifeTimelineView({ timeline, loading = false, userName }: LifeTimelineViewProps) {
+export function LifeTimelineView({ timeline, loading = false, userName, defaultTimeFilter = 'all' }: LifeTimelineViewProps) {
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [eventDetails, setEventDetails] = useState<Record<string, { text: string; interpreter: string }>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
   const [isMobile, setIsMobile] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [printMode, setPrintMode] = useState<'full' | 'selected'>('full');
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>(defaultTimeFilter as TimeFilter);
   const [intensityFilter, setIntensityFilter] = useState<IntensityFilter>('all');
   const [planetFilter, setPlanetFilter] = useState<PlanetFilter>('all');
   const [collapsedDecades, setCollapsedDecades] = useState<Set<string>>(new Set());

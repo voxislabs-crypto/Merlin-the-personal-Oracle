@@ -3,8 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { BirthChartData } from "@/types/astrology";
 import { generateSoulReading } from "@/lib/soul/natal-voice";
 import { awardBadges } from "@/lib/soul/badges";
+import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 export async function POST(request: NextRequest) {
+  // Check subscription tier
+  const hasAccess = await validateFeatureAccess('canAccessSoulReading');
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Soul Readings are not available on the free tier',
+        code: 'FEATURE_NOT_AVAILABLE',
+      },
+      { status: 403 }
+    );
+  }
+  
   try {
     const body = await request.json();
     const { chartData } = body as { chartData: BirthChartData };
