@@ -85,6 +85,16 @@ export function Navigation() {
                 appearance={{
                   elements: {
                     avatarBox: 'w-9 h-9 ring-2 ring-amber-400/50 hover:ring-amber-400 transition-all',
+                    userButtonPopoverCard: 'bg-slate-900 border border-purple-500',
+                    userButtonPopoverActionButton: 'text-white hover:bg-purple-600',
+                    userButtonPopoverActionButtonText: 'text-white',
+                    dividerBox: 'bg-purple-500/30',
+                  },
+                }}
+                localization={{
+                  userButton: {
+                    action__manageAccount: 'Account Settings',
+                    action__signOut: 'Logout',
                   },
                 }}
               />
@@ -113,6 +123,16 @@ export function Navigation() {
                 appearance={{
                   elements: {
                     avatarBox: 'w-8 h-8',
+                    userButtonPopoverCard: 'bg-slate-900 border border-purple-500',
+                    userButtonPopoverActionButton: 'text-white hover:bg-purple-600',
+                    userButtonPopoverActionButtonText: 'text-white',
+                    dividerBox: 'bg-purple-500/30',
+                  },
+                }}
+                localization={{
+                  userButton: {
+                    action__manageAccount: 'Account Settings',
+                    action__signOut: 'Logout',
                   },
                 }}
               />

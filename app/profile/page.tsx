@@ -51,7 +51,17 @@ export default function ProfilePage() {
           <UserButton
             appearance={{
               elements: {
-                avatarBox: "w-12 h-12",
+                avatarBox: 'w-12 h-12',
+                userButtonPopoverCard: 'bg-slate-900 border border-purple-500',
+                userButtonPopoverActionButton: 'text-white hover:bg-purple-600',
+                userButtonPopoverActionButtonText: 'text-white',
+                dividerBox: 'bg-purple-500/30',
+              },
+            }}
+            localization={{
+              userButton: {
+                action__manageAccount: 'Account Settings',
+                action__signOut: 'Logout',
               },
             }}
           />
