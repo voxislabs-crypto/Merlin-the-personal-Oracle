@@ -41,26 +41,26 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }:
 
   // Get colors based on MBTI type (Extrovert = warm, Introvert = cool)
   const getMaskColor = () => {
-    const firstLetter = dualOverlay.firmware.mbtiType?.[0] || 'E';
+    const firstLetter = dualOverlay.hardware.mbtiType?.[0] || 'E';
     return firstLetter === 'E' 
       ? 'from-orange-600/40 to-yellow-600/40 border-orange-400/50' 
       : 'from-blue-600/40 to-cyan-600/40 border-blue-400/50';
   };
 
   const getCoreColor = () => {
-    const firstLetter = mbtiType?.[0] || 'I';
+    const firstLetter = dualOverlay.firmware.mbtiType?.[0] || 'I';
     return firstLetter === 'I'
       ? 'from-purple-600/40 to-indigo-600/40 border-purple-400/50'
       : 'from-red-600/40 to-pink-600/40 border-red-400/50';
   };
 
   const getMaskTextColor = () => {
-    const firstLetter = dualOverlay.firmware.mbtiType?.[0] || 'E';
+    const firstLetter = dualOverlay.hardware.mbtiType?.[0] || 'E';
     return firstLetter === 'E' ? 'text-orange-300' : 'text-blue-300';
   };
 
   const getCoreTextColor = () => {
-    const firstLetter = mbtiType?.[0] || 'I';
+    const firstLetter = dualOverlay.firmware.mbtiType?.[0] || 'I';
     return firstLetter === 'I' ? 'text-purple-300' : 'text-red-300';
   };
 
@@ -123,32 +123,33 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }:
             <div className="flex items-center gap-3">
               <Theater className={`w-6 h-6 ${getMaskTextColor()}`} />
               <span className="text-xs uppercase tracking-widest font-bold text-orange-200/70">
-                The Mask You Wear
+                {dualOverlay.hardware.label}
               </span>
             </div>
 
             {/* MBTI Type */}
             <div>
-              <p className="text-xs uppercase tracking-wide text-orange-300/80 mb-1">What they see</p>
+              <p className="text-xs uppercase tracking-wide text-orange-300/80 mb-1">{dualOverlay.hardware.sublabel}</p>
               <p className={`text-3xl font-bold ${getMaskTextColor()}`}>
-                {dualOverlay.firmware.mbtiType}
+                {dualOverlay.hardware.mbtiType}
               </p>
+              <p className="text-xs text-orange-200/60 mt-1">Confidence: {dualOverlay.hardware.confidence}%</p>
             </div>
 
             {/* Archetype */}
             <div>
               <p className="text-sm font-semibold text-white/90">
-                {dualOverlay.firmware.archetype}
+                {dualOverlay.hardware.archetype}
               </p>
               <p className="text-xs text-slate-300 italic mt-1">
-                {dualOverlay.firmware.description}
+                {dualOverlay.hardware.description}
               </p>
             </div>
 
             {/* Poetic line */}
             <div className="pt-4 border-t border-orange-400/30">
               <p className="text-sm italic text-orange-100">
-                {getOuterMaskPoetry(dualOverlay.firmware.mbtiType)}
+                {getOuterMaskPoetry(dualOverlay.hardware.mbtiType)}
               </p>
             </div>
           </div>
@@ -169,32 +170,33 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }:
             <div className="flex items-center gap-3">
               <Eye className={`w-6 h-6 ${getCoreTextColor()}`} />
               <span className="text-xs uppercase tracking-widest font-bold text-purple-200/70">
-                Your Inner Core
+                {dualOverlay.firmware.label}
               </span>
             </div>
 
             {/* MBTI Type */}
             <div>
-              <p className="text-xs uppercase tracking-wide text-purple-300/80 mb-1">What's real</p>
+              <p className="text-xs uppercase tracking-wide text-purple-300/80 mb-1">{dualOverlay.firmware.sublabel}</p>
               <p className={`text-3xl font-bold ${getCoreTextColor()}`}>
-                {mbtiType}
+                {dualOverlay.firmware.mbtiType}
               </p>
+              <p className="text-xs text-purple-200/60 mt-1">Confidence: {dualOverlay.firmware.confidence}%</p>
             </div>
 
             {/* Archetype */}
             <div>
               <p className="text-sm font-semibold text-white/90">
-                {dualOverlay.natal.archetype}
+                {dualOverlay.firmware.archetype}
               </p>
               <p className="text-xs text-slate-300 italic mt-1">
-                {dualOverlay.natal.description}
+                {dualOverlay.firmware.description}
               </p>
             </div>
 
             {/* Poetic line */}
             <div className="pt-4 border-t border-purple-400/30">
               <p className="text-sm italic text-purple-100">
-                {getInnerCorePoetry(mbtiType)}
+                {getInnerCorePoetry(dualOverlay.firmware.mbtiType)}
               </p>
             </div>
           </div>

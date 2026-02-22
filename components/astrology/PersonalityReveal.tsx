@@ -106,9 +106,9 @@ export function PersonalityReveal({ mbtiType, dualOverlay, loading = false }: Pe
             className="grid grid-cols-1 gap-3 pt-2"
           >
             <div className="rounded-lg border border-amber-500/30 bg-slate-900/60 p-3">
-              <p className="text-xs uppercase tracking-wide text-amber-300/80">{dualOverlay.natal.label}</p>
-              <p className="text-sm font-semibold text-white mt-1">{dualOverlay.natal.archetype}</p>
-              <p className="text-xs text-slate-300 mt-1 italic">{dualOverlay.natal.description}</p>
+              <p className="text-xs uppercase tracking-wide text-amber-300/80">{dualOverlay.hardware.label}</p>
+              <p className="text-sm font-semibold text-white mt-1">{dualOverlay.hardware.archetype}</p>
+              <p className="text-xs text-slate-300 mt-1 italic">{dualOverlay.hardware.description}</p>
             </div>
             <div className="rounded-lg border border-purple-500/30 bg-slate-900/60 p-3">
               <p className="text-xs uppercase tracking-wide text-purple-300/80">{dualOverlay.firmware.label}</p>

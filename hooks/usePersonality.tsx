@@ -3,17 +3,24 @@ import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { MBTIType } from '@/lib/mbti-overlay';
 
 export interface DualOverlay {
-  natal: {
+  hardware: {
     label: string;
+    sublabel: string;
+    mbtiType: string;
+    confidence: number;
     archetype: string;
     description: string;
   };
   firmware: {
     label: string;
+    sublabel: string;
     mbtiType: string;
+    confidence: number;
     archetype: string;
     description: string;
   };
+  finalType: string;
+  finalConfidence: number;
 }
 
 export interface PersonalityProfile {
