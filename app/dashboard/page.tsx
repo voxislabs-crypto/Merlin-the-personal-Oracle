@@ -376,14 +376,14 @@ export default function UnifiedDashboard() {
                 transition={{ delay: 0.3 }}
                 className="space-y-8"
               >
-                {/* TOP: Big Wheel */}
+                {/* TOP: Wheel with Left Sidebar */}
                 <motion.div
-                  className="bg-slate-900/40 rounded-lg p-8 pb-12 border border-amber-500/10 backdrop-blur-sm z-10 relative"
+                  className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm z-10 relative"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="flex justify-between items-center mb-8">
                     <h2 className="text-3xl font-bold text-amber-300">Your Birth Chart</h2>
                     <button
                       onClick={() => {
@@ -399,8 +399,17 @@ export default function UnifiedDashboard() {
                     </button>
                   </div>
                   
-                  <div className="w-full h-[600px] relative z-20">
-                    <WheelVisualization chartData={wheelData} />
+                  {/* Grid Layout: Left Sidebar + Wheel */}
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
+                    {/* Left: Placements Sidebar */}
+                    <div className="lg:col-span-1">
+                      <PlacementsSidebar planets={chartData?.planets || []} />
+                    </div>
+                    
+                    {/* Right: Wheel */}
+                    <div className="lg:col-span-3 h-[400px] relative z-20">
+                      <WheelVisualization chartData={wheelData} />
+                    </div>
                   </div>
 
                   {/* Action Buttons Under Wheel */}
@@ -431,7 +440,7 @@ export default function UnifiedDashboard() {
                   )}
                 </motion.div>
 
-                {/* BOTTOM: Grid Layout - Forecast + Weekly on Left, Grok on Right */}
+                {/* BOTTOM: Grid Layout - Forecast/Weekly + Tabbed Analysis */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -472,142 +481,145 @@ export default function UnifiedDashboard() {
                     </motion.div>
                   </div>
 
-                  {/* RIGHT COLUMN: Grok Chat (Collapsible) */}
+                  {/* RIGHT COLUMN: Tabbed Analysis Panels */}
                   <motion.div
                     className="lg:col-span-1"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.7 }}
                   >
-                    <div className="sticky top-8 space-y-6">
-                      {/* Chart Interpretation Card (collapsible) */}
-                      <motion.div
-                        className="bg-gradient-to-br from-blue-900/30 to-slate-900/40 rounded-lg border border-blue-500/30 backdrop-blur-sm overflow-hidden"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.75 }}
+                    {/* Tab Buttons */}
+                    <div className="flex flex-col gap-3 mb-6">
+                      <button
+                        onClick={() => setActiveSection(activeSection === 'interpretation' ? 'wheel' : 'interpretation')}
+                        className={`w-full p-4 rounded-lg border transition-all font-semibold flex items-center justify-between ${
+                          activeSection === 'interpretation'
+                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                            : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                        }`}
                       >
-                        <button
-                          onClick={() => setActiveSection(activeSection === 'interpretation' ? 'wheel' : 'interpretation')}
-                          className="w-full p-6 flex items-center justify-between hover:bg-blue-500/10 transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Sparkles className="w-5 h-5 text-blue-400" />
-                            <h3 className="font-bold text-blue-300">Chart Reading</h3>
-                          </div>
-                          <span className={`transform transition-transform ${activeSection === 'interpretation' ? 'rotate-180' : ''}`}>
-                            ▼
-                          </span>
-                        </button>
-                        
-                        {activeSection === 'interpretation' && (
-                          <div className="p-6 border-t border-blue-500/20 space-y-4 max-h-[600px] overflow-y-auto">
-                            <div className="flex items-center gap-2 mb-4">
-                              {cacheHit && (
-                                <span className="text-xs text-amber-400 flex items-center gap-1">
-                                  ⚡ cached
-                                </span>
-                              )}
-                              <InterpretationModeToggle
-                                onModeChange={(mode) => setInterpretMode(mode)}
-                                defaultMode={interpretMode}
-                              />
-                            </div>
-                            <ChartInterpretation
-                              summary={interpretations?.chartSummary || ''}
-                              planetInterpretations={interpretations?.planetInterpretations || []}
-                              aspectInterpretations={interpretations?.aspectInterpretations || []}
-                              interpreter={interpretations?.interpreter}
-                              loading={interpretLoading}
-                            />
-                          </div>
-                        )}
-                      </motion.div>
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4" />
+                          Chart Reading
+                        </span>
+                        {activeSection === 'interpretation' && <span className="text-xs">✓</span>}
+                      </button>
 
-                      {/* Active Transits Card (collapsible) */}
-                      <motion.div
-                        className="bg-gradient-to-br from-orange-900/30 to-slate-900/40 rounded-lg border border-orange-500/30 backdrop-blur-sm overflow-hidden"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.8 }}
+                      <button
+                        onClick={() => setActiveSection(activeSection === 'transits' ? 'wheel' : 'transits')}
+                        className={`w-full p-4 rounded-lg border transition-all font-semibold flex items-center justify-between ${
+                          activeSection === 'transits'
+                            ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                            : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                        }`}
                       >
-                        <button
-                          onClick={() => setActiveSection(activeSection === 'transits' ? 'wheel' : 'transits')}
-                          className="w-full p-6 flex items-center justify-between hover:bg-orange-500/10 transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Zap className="w-5 h-5 text-orange-400" />
-                            <h3 className="font-bold text-orange-300">Active Transits</h3>
-                          </div>
-                          <span className={`transform transition-transform ${activeSection === 'transits' ? 'rotate-180' : ''}`}>
-                            ▼
-                          </span>
-                        </button>
+                        <span className="flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          Active Transits
+                        </span>
+                        {activeSection === 'transits' && <span className="text-xs">✓</span>}
+                      </button>
 
-                        {activeSection === 'transits' && (
-                          <div className="p-6 border-t border-orange-500/20 max-h-[600px] overflow-y-auto">
-                            <ActiveTransits
-                              significant={transits?.significant || []}
-                              approaching={transits?.approaching || []}
-                              summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
-                              loading={transitsLoading}
-                            />
-                          </div>
-                        )}
-                      </motion.div>
-
-                      {/* Life Arc Card (collapsible) */}
-                      <motion.div
-                        className="bg-gradient-to-br from-green-900/30 to-slate-900/40 rounded-lg border border-green-500/30 backdrop-blur-sm overflow-hidden"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.85 }}
+                      <button
+                        onClick={() => setActiveSection(activeSection === 'lifearc' ? 'wheel' : 'lifearc')}
+                        className={`w-full p-4 rounded-lg border transition-all font-semibold flex items-center justify-between ${
+                          activeSection === 'lifearc'
+                            ? 'bg-green-500/20 border-green-500/50 text-green-300'
+                            : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                        }`}
                       >
-                        <button
-                          onClick={() => setActiveSection(activeSection === 'lifearc' ? 'wheel' : 'lifearc')}
-                          className="w-full p-6 flex items-center justify-between hover:bg-green-500/10 transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <BookOpen className="w-5 h-5 text-green-400" />
-                            <h3 className="font-bold text-green-300">Life Timeline</h3>
-                          </div>
-                          <span className={`transform transition-transform ${activeSection === 'lifearc' ? 'rotate-180' : ''}`}>
-                            ▼
-                          </span>
-                        </button>
-
-                        {activeSection === 'lifearc' && (
-                          <div className="p-6 border-t border-green-500/20 max-h-[600px] overflow-y-auto">
-                            <div className="flex gap-2 mb-4">
-                              <button
-                                onClick={() => setLifeArcView('timeline')}
-                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'timeline' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
-                              >
-                                Timeline
-                              </button>
-                              <button
-                                onClick={() => setLifeArcView('prose')}
-                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'prose' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
-                              >
-                                Prose
-                              </button>
-                            </div>
-
-                            {lifeArcView === 'timeline' ? (
-                              <LifeTimelineView
-                                timeline={lifeArc}
-                                loading={lifeArcLoading}
-                                userName={user?.firstName || undefined}
-                              />
-                            ) : (
-                              <div className="text-sm text-slate-100 leading-relaxed">
-                                {lifeArcNarrative}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </motion.div>
+                        <span className="flex items-center gap-2">
+                          <BookOpen className="w-4 h-4" />
+                          Life Timeline
+                        </span>
+                        {activeSection === 'lifearc' && <span className="text-xs">✓</span>}
+                      </button>
                     </div>
+
+                    {/* Content Panel - Full Height */}
+                    <motion.div
+                      className="bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm min-h-[600px] flex flex-col"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {/* Chart Interpretation */}
+                      {activeSection === 'interpretation' && (
+                        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                          <div className="sticky top-0 bg-slate-900/50 pb-4 flex items-center gap-2">
+                            {cacheHit && (
+                              <span className="text-xs text-amber-400 flex items-center gap-1">
+                                ⚡ cached
+                              </span>
+                            )}
+                            <InterpretationModeToggle
+                              onModeChange={(mode) => setInterpretMode(mode)}
+                              defaultMode={interpretMode}
+                            />
+                          </div>
+                          <ChartInterpretation
+                            summary={interpretations?.chartSummary || ''}
+                            planetInterpretations={interpretations?.planetInterpretations || []}
+                            aspectInterpretations={interpretations?.aspectInterpretations || []}
+                            interpreter={interpretations?.interpreter}
+                            loading={interpretLoading}
+                          />
+                        </div>
+                      )}
+
+                      {/* Active Transits */}
+                      {activeSection === 'transits' && (
+                        <div className="p-6 overflow-y-auto flex-1">
+                          <ActiveTransits
+                            significant={transits?.significant || []}
+                            approaching={transits?.approaching || []}
+                            summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
+                            loading={transitsLoading}
+                          />
+                        </div>
+                      )}
+
+                      {/* Life Arc */}
+                      {activeSection === 'lifearc' && (
+                        <div className="p-6 flex flex-col flex-1 overflow-y-auto">
+                          <div className="flex gap-2 mb-4">
+                            <button
+                              onClick={() => setLifeArcView('timeline')}
+                              className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'timeline' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                            >
+                              Timeline
+                            </button>
+                            <button
+                              onClick={() => setLifeArcView('prose')}
+                              className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'prose' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                            >
+                              Prose
+                            </button>
+                          </div>
+
+                          {lifeArcView === 'timeline' ? (
+                            <LifeTimelineView
+                              timeline={lifeArc}
+                              loading={lifeArcLoading}
+                              userName={user?.firstName || undefined}
+                            />
+                          ) : (
+                            <div className="text-sm text-slate-100 leading-relaxed">
+                              {lifeArcNarrative}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Empty State */}
+                      {!['interpretation', 'transits', 'lifearc'].includes(activeSection) && (
+                        <div className="flex items-center justify-center h-full text-slate-400 text-center p-8">
+                          <div>
+                            <p className="text-sm">Select an analysis to view</p>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
                   </motion.div>
                 </motion.div>
               </motion.div>
