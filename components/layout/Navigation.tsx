@@ -91,12 +91,6 @@ export function Navigation() {
                     dividerBox: 'bg-purple-500/30',
                   },
                 }}
-                localization={{
-                  userButton: {
-                    action__manageAccount: 'Account Settings',
-                    action__signOut: 'Logout',
-                  },
-                }}
               />
             ) : (
               <div className="flex items-center space-x-2">
@@ -127,12 +121,6 @@ export function Navigation() {
                     userButtonPopoverActionButton: 'text-white hover:bg-purple-600',
                     userButtonPopoverActionButtonText: 'text-white',
                     dividerBox: 'bg-purple-500/30',
-                  },
-                }}
-                localization={{
-                  userButton: {
-                    action__manageAccount: 'Account Settings',
-                    action__signOut: 'Logout',
                   },
                 }}
               />

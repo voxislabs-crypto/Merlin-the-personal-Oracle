@@ -58,12 +58,6 @@ export default function ProfilePage() {
                 dividerBox: 'bg-purple-500/30',
               },
             }}
-            localization={{
-              userButton: {
-                action__manageAccount: 'Account Settings',
-                action__signOut: 'Logout',
-              },
-            }}
           />
         </motion.div>
 
