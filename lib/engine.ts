@@ -27,13 +27,14 @@ import {
 } from "./astrology/advanced";
 import { calculateBirthChart as calculateFallbackBirthChart } from "./engine-fallback";
 
-// Dynamically load sweph with graceful fallback
-let sweph: any = null;
-try {
-  sweph = require("sweph");
-  console.log("[engine] sweph loaded successfully");
-} catch (error) {
-  console.warn("[engine] sweph not available, will use fallback:", String(error).slice(0, 100));
+// Function to safely get sweph at runtime (not at module load time)
+function getSweph() {
+  try {
+    return require("sweph");
+  } catch (error) {
+    console.warn("[engine] Cannot load sweph at runtime:", String(error).slice(0, 100));
+    return null;
+  }
 }
 
 export const normalizeAngle = (deg: number): number =>
@@ -75,6 +76,7 @@ interface Aspect {
 }
 
 const calculateHouses = (jd: number, lat: number, lon: number) => {
+  const sweph = getSweph();
   if (!sweph) {
     console.warn("[engine.calculateHouses] sweph not available, using fallback");
     return {
@@ -170,6 +172,7 @@ export const calculateNatalPositions = (
   birthDate: string,
   birthTime: string = "12:00"
 ) => {
+  const sweph = getSweph();
   if (!sweph) {
     console.warn("[engine.calculateNatalPositions] sweph not available, using fallback");
     return { jd: 0, positions: [] };
@@ -249,6 +252,7 @@ export const calculateNatalPositions = (
 };
 
 const calculatePlanets = (jd: number): PlanetPosition[] => {
+  const sweph = getSweph();
   if (!sweph) {
     console.warn("[engine.calculatePlanets] sweph not available, returning empty array");
     return [];
@@ -308,6 +312,8 @@ export const calculateBirthChart = (
     progressedYears?: number;
   }
 ): BirthChartData => {
+  const sweph = getSweph();
+  
   // If sweph not available, use fallback
   if (!sweph) {
     console.warn("[engine.calculateBirthChart] sweph not available, using fallback");

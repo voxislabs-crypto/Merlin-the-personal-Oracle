@@ -17,13 +17,14 @@ export interface PlanetPositions {
   trueNode: { longitude: number; latitude: number; distance: number; speedLongitude: number }
 }
 
-// Try to load sweph dynamically
-let swisseph: any = null
-try {
-  swisseph = require("sweph")
-  console.log("[swiss-ephemeris-core] sweph loaded successfully")
-} catch (error) {
-  console.warn("[swiss-ephemeris-core] sweph not available, will use fallback mock data")
+// Try to load sweph dynamically at runtime (not at module load time)
+function getSwisseph() {
+  try {
+    return require("sweph");
+  } catch (error) {
+    console.warn("[swiss-ephemeris-core] sweph not available at runtime");
+    return null;
+  }
 }
 
 // Planet numbers for Swiss Ephemeris
@@ -72,6 +73,7 @@ export function toJulianDay(year: number, month: number, day: number, hour: numb
  * Uses Swiss Ephemeris if available, otherwise generates mock data
  */
 export async function getPlanetPositions(date: Date): Promise<PlanetPositions> {
+  const swisseph = getSwisseph();
   if (!swisseph) {
     console.log("[swiss-ephemeris-core] Using mock positions")
     return generateMockPositions(date)
@@ -88,18 +90,20 @@ export async function getPlanetPositions(date: Date): Promise<PlanetPositions> {
 
     // Calculate positions for all planets
     const calculatePlanet = (planetNum: number) => {
-      const flag = swisseph.SEFLG_SWIEPH | swisseph.SEFLG_SPEED
-      const result = swisseph.swe_calc_ut(julianDay, planetNum, flag)
+      // Use correct sweph constants
+      const flag = (swisseph.constants?.SEFLG_SWIEPH || 2) | (swisseph.constants?.SEFLG_SPEED || 256)
+      const result = swisseph.calc_ut(julianDay, planetNum, flag)
 
-      if (result.error) {
+      if (result.error && result.flag < 0) {
         throw new Error(`swisseph calculation error for planet ${planetNum}: ${result.error}`)
       }
 
+      // Extract data from result.data array: [longitude, latitude, distance, 0, 0, speedLongitude]
       return {
-        longitude: result.longitude,
-        latitude: result.latitude,
-        distance: result.distance,
-        speedLongitude: result.longitudeSpeed,
+        longitude: result.data?.[0] || 0,
+        latitude: result.data?.[1] || 0,
+        distance: result.data?.[2] || 1.0,
+        speedLongitude: result.data?.[5] || 0,
       }
     }
 
