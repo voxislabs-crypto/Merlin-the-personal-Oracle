@@ -2,6 +2,7 @@
 // Handles chart-aware system prompts, conversation context, and tactical suggestions
 
 import { BirthChartData } from '@/types/astrology';
+import { Timeline } from '@/lib/timeline-service';
 
 export interface OracleMessage {
   role: 'user' | 'assistant';
@@ -11,6 +12,7 @@ export interface OracleMessage {
 
 export interface OracleContext {
   birthChart?: BirthChartData;
+  timeline?: Timeline; // Long-range forecast context
   progressedChart?: any;
   conversationHistory: OracleMessage[];
   userId?: string;
@@ -86,10 +88,34 @@ function detectChartSignature(chart: BirthChartData): string {
 }
 
 /**
+ * Format timeline data into context for oracle response
+ */
+function formatTimelineContext(timeline: Timeline | undefined): string {
+  if (!timeline) return '';
+
+  const nextTurningPoints = timeline.majorTurningPoints.slice(0, 3);
+  const upcomingPhase = timeline.phases[0];
+
+  const turningPointsStr = nextTurningPoints
+    .map(tp => `- ${tp.title} (${tp.month}): ${tp.guidance}`)
+    .join('\n');
+
+  return `
+TIME MACHINE CONTEXT (Next ${timeline.lookAheadMonths} months):
+- Current Phase: ${upcomingPhase?.theme || 'unknown'}
+- Life Theme: ${upcomingPhase?.lifeTheme || 'unknown'}
+- Key Turning Points:
+${turningPointsStr || 'None in immediate timeframe'}
+- Year Outlook: ${timeline.yearlyNarrative.split('\n')[0]}
+  `.trim();
+}
+
+/**
  * Build system prompt for Grok with chart context and oracle personality
  */
 export function buildOracleSystemPrompt(context: OracleContext): string {
   const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
+  const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
   const conversationLength = context.conversationHistory.length;
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
 
@@ -108,11 +134,13 @@ YOUR APPROACH:
 2. Reference their chart when relevant (use context below)
 3. Offer both "what the chart says" and "what you should do about it"
 4. Suggest 3-5 tactical moves (specific, doable)
-5. If time-sensitive, offer a 4-day or weekly forecast
+5. Reference upcoming timeline events when relevant to their question
 6. Look for patterns in their situation - they often repeat the same lesson until they learn it
 7. When appropriate, identify their "current level" - what test they're facing, what reward waits
 
 ${chartContext}
+
+${timelineContext ? `\n${timelineContext}` : ''}
 
 CONVERSATION HISTORY (last few messages):
 ${recentContext || '[First message]'}
@@ -125,6 +153,7 @@ TONE CALIBRATION:
 
 Your response should be honest, actionable, and grounded in real astrology. Keep it under 300 words unless the question demands more depth.`;
 }
+
 
 /**
  * Generate tactical suggestions based on chart context
