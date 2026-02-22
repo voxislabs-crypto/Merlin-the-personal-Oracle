@@ -112,7 +112,7 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
   const aspects = chartData.aspects || [];
 
   return (
-    <div className="flex justify-center my-16 bg-black relative">
+    <div className="flex items-center justify-center w-full h-full bg-black relative">
       {/* Transit Toggle Checkbox */}
       <label className="absolute top-4 right-4 z-30 flex items-center space-x-2 text-amber-300">
         <input
@@ -124,7 +124,7 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
         <span className="text-sm">Show transits</span>
       </label>
 
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="drop-shadow-2xl z-20 relative">
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="drop-shadow-2xl z-20 max-w-full max-h-full w-auto h-auto">
         {/* Book cover background */}
         <defs>
           <radialGradient id="bookBg" cx="50%" cy="50%" r="80%">

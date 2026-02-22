@@ -407,8 +407,10 @@ export default function UnifiedDashboard() {
                     </div>
                     
                     {/* Right: Wheel */}
-                    <div className="lg:col-span-3 h-[400px] relative z-20">
-                      <WheelVisualization chartData={wheelData} />
+                    <div className="lg:col-span-3 flex items-center justify-center overflow-hidden">
+                      <div className="w-full max-w-[450px] h-[450px] flex items-center justify-center">
+                        <WheelVisualization chartData={wheelData} />
+                      </div>
                     </div>
                   </div>
 
