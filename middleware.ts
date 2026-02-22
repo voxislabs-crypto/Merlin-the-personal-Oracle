@@ -8,7 +8,8 @@ const isProtected = createRouteMatcher([
   '/settings(.*)',
   '/enhanced-dashboard(.*)',
   '/soul-dashboard(.*)',
-  '/astro-calculator(.*)',
+  // Oracle routes are public for now (testing)
+  // '/oracle-chat(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

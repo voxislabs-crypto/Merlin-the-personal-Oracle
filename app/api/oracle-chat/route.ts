@@ -1,0 +1,308 @@
+// API Route: Oracle Chat - Streaming Q&A with chart context
+import { NextRequest, NextResponse } from 'next/server';
+import { generateGrokInterpretationStream } from '@/lib/grok-service';
+import {
+  buildOracleSystemPrompt,
+  generateTacticalSuggestions,
+  generateMicroForecast,
+  identifyCurrentLevel,
+  oracleMemory,
+  OracleContext,
+  OracleMessage,
+} from '@/lib/oracle-service';
+
+interface OracleChatRequest {
+  question: string;
+  birthChart?: any;
+  progressedChart?: any;
+  userId?: string;
+}
+
+/**
+ * POST /api/oracle-chat
+ * Streaming oracle chat endpoint with chart context awareness
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as OracleChatRequest;
+    const { question, birthChart, progressedChart, userId = 'anonymous' } = body;
+
+    if (!question || question.trim().length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Question cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    // Get conversation history
+    const history = oracleMemory.getHistory(userId);
+
+    // Build context
+    const context: OracleContext = {
+      birthChart,
+      progressedChart,
+      conversationHistory: history,
+      userId,
+      currentDate: new Date(),
+    };
+
+    // Add user message to history
+    const userMessage: OracleMessage = {
+      role: 'user',
+      content: question,
+      timestamp: new Date(),
+    };
+    oracleMemory.addMessage(userId, userMessage);
+
+    // Build system prompt with chart context
+    const systemPrompt = buildOracleSystemPrompt(context);
+
+    // Convert conversation history to format Grok expects
+    const messages = [
+      ...history.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      })),
+      {
+        role: 'user' as const,
+        content: question,
+      },
+    ];
+
+    // Use ReadableStream for streaming response
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Call Grok API with streaming
+          const grokResponse = await fetch(
+            'https://api.x.ai/v1/chat/completions',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: 'grok-beta',
+                messages: [
+                  {
+                    role: 'system',
+                    content: systemPrompt,
+                  },
+                  ...messages.map(m => ({
+                    role: m.role,
+                    content: m.content,
+                  })),
+                ],
+                temperature: 0.8,
+                max_tokens: 1500,
+                stream: true,
+              }),
+            }
+          );
+
+          if (!grokResponse.ok) {
+            const error = await grokResponse.text();
+            console.error('[Oracle] Grok error:', error);
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  error: 'Oracle failed to respond',
+                  type: 'error',
+                })
+              )
+            );
+            controller.close();
+            return;
+          }
+
+          const reader = grokResponse.body?.getReader();
+          if (!reader) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  error: 'No response stream',
+                  type: 'error',
+                })
+              )
+            );
+            controller.close();
+            return;
+          }
+
+          let fullResponse = '';
+          const decoder = new TextDecoder();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n').filter(line => line.trim());
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content;
+                  if (content) {
+                    fullResponse += content;
+                    // Send streaming chunk to client
+                    controller.enqueue(
+                      encoder.encode(
+                        JSON.stringify({
+                          type: 'chunk',
+                          content,
+                        }) + '\n'
+                      )
+                    );
+                  }
+                } catch (e) {
+                  // Skip parse errors in stream
+                  continue;
+                }
+              }
+            }
+          }
+
+          // After streaming complete, generate enhancements
+          const tactics = generateTacticalSuggestions(fullResponse, birthChart, context);
+          const forecast = generateMicroForecast(new Date(), birthChart);
+          const level = identifyCurrentLevel(context);
+
+          // Send enhancements as separate JSON objects
+          controller.enqueue(
+            encoder.encode(
+              JSON.stringify({
+                type: 'tactics',
+                data: tactics,
+              }) + '\n'
+            )
+          );
+
+          controller.enqueue(
+            encoder.encode(
+              JSON.stringify({
+                type: 'forecast',
+                data: forecast,
+              }) + '\n'
+            )
+          );
+
+          controller.enqueue(
+            encoder.encode(
+              JSON.stringify({
+                type: 'level',
+                data: level,
+              }) + '\n'
+            )
+          );
+
+          // Store assistant message
+          const assistantMessage: OracleMessage = {
+            role: 'assistant',
+            content: fullResponse,
+            timestamp: new Date(),
+          };
+          oracleMemory.addMessage(userId, assistantMessage);
+
+          // Signal completion
+          controller.enqueue(
+            encoder.encode(
+              JSON.stringify({
+                type: 'done',
+              }) + '\n'
+            )
+          );
+
+          controller.close();
+        } catch (error) {
+          console.error('[Oracle Chat] Stream error:', error);
+          controller.enqueue(
+            encoder.encode(
+              JSON.stringify({
+                error: 'Stream processing failed',
+                type: 'error',
+              })
+            )
+          );
+          controller.close();
+        }
+      },
+    });
+
+    return new NextResponse(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  } catch (error) {
+    console.error('[Oracle Chat] Error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/oracle-chat?userId=xxx
+ * Retrieve conversation history
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const userId = request.nextUrl.searchParams.get('userId') || 'anonymous';
+    const history = oracleMemory.getHistory(userId);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        history,
+        messageCount: history.length,
+      },
+    });
+  } catch (error) {
+    console.error('[Oracle Chat] GET error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to retrieve history',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/oracle-chat?userId=xxx
+ * Clear conversation history
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = request.nextUrl.searchParams.get('userId') || 'anonymous';
+    oracleMemory.clearHistory(userId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Conversation cleared',
+    });
+  } catch (error) {
+    console.error('[Oracle Chat] DELETE error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to clear history',
+      },
+      { status: 500 }
+    );
+  }
+}
