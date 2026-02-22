@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { BirthChart } from '@/components/astrology/BirthChart';
 import { WheelVisualization } from '@/components/astrology/WheelVisualization';
 import { ChartInterpretation } from '@/components/astrology/ChartInterpretation';
@@ -431,105 +431,22 @@ export default function UnifiedDashboard() {
                   )}
                 </motion.div>
 
-                {/* Quick Access Buttons */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-12">
-                  <button
-                    onClick={() => setActiveSection('interpretation')}
-                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
-                      activeSection === 'interpretation'
-                        ? 'bg-blue-500/20 border-blue-400 shadow-lg shadow-blue-500/20'
-                        : 'bg-slate-800/50 border-slate-700/50 hover:border-blue-400/50'
-                    }`}
-                  >
-                    <Sparkles className="w-8 h-8 text-blue-400 mb-2 mx-auto" />
-                    <h3 className="text-lg font-semibold text-blue-300">Interpretation</h3>
-                    <p className="text-sm text-slate-400 mt-1">Deep chart reading</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveSection('forecast')}
-                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
-                      activeSection === 'forecast'
-                        ? 'bg-purple-500/20 border-purple-400 shadow-lg shadow-purple-500/20'
-                        : 'bg-slate-800/50 border-slate-700/50 hover:border-purple-400/50'
-                    }`}
-                  >
-                    <Moon className="w-8 h-8 text-purple-400 mb-2 mx-auto" />
-                    <h3 className="text-lg font-semibold text-purple-300">Today's Forecast</h3>
-                    <p className="text-sm text-slate-400 mt-1">Current energies</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveSection('transits')}
-                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
-                      activeSection === 'transits'
-                        ? 'bg-orange-500/20 border-orange-400 shadow-lg shadow-orange-500/20'
-                        : 'bg-slate-800/50 border-slate-700/50 hover:border-orange-400/50'
-                    }`}
-                  >
-                    <Zap className="w-8 h-8 text-orange-400 mb-2 mx-auto" />
-                    <h3 className="text-lg font-semibold text-orange-300">Active Transits</h3>
-                    <p className="text-sm text-slate-400 mt-1">Cosmic events now</p>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveSection('lifearc')}
-                    className={`p-6 rounded-lg border-2 transition-all z-10 relative ${
-                      activeSection === 'lifearc'
-                        ? 'bg-green-500/20 border-green-400 shadow-lg shadow-green-500/20'
-                        : 'bg-slate-800/50 border-slate-700/50 hover:border-green-400/50'
-                    }`}
-                  >
-                    <BookOpen className="w-8 h-8 text-green-400 mb-2 mx-auto" />
-                    <h3 className="text-lg font-semibold text-green-300">Life Timeline</h3>
-                    <p className="text-sm text-slate-400 mt-1">Every strike, every scar</p>
-                  </button>
-                </div>
-
-                {/* Dynamic Content Section */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeSection}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm min-h-[400px]"
-                  >
-                    {activeSection === 'interpretation' && (
-                      <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                          <h2 className="text-2xl font-bold text-amber-300">Chart Interpretation</h2>
-                          <div className="flex items-center gap-3">
-                            {cacheHit && (
-                              <span className="text-xs text-amber-400 flex items-center gap-1">
-                                ⚡ cached
-                              </span>
-                            )}
-                            <InterpretationModeToggle
-                              onModeChange={(mode) => setInterpretMode(mode)}
-                              defaultMode={interpretMode}
-                            />
-                          </div>
-                        </div>
-                        <ChartInterpretation
-                          summary={interpretations?.chartSummary || ''}
-                          planetInterpretations={interpretations?.planetInterpretations || []}
-                          aspectInterpretations={interpretations?.aspectInterpretations || []}
-                          interpreter={interpretations?.interpreter}
-                          loading={interpretLoading}
-                        />
-                        <GrokNarrative
-                          mode={interpretMode}
-                          birthData={birthData}
-                          chartData={chartData}
-                          lifeArc={lifeArc}
-                          transits={transits}
-                        />
-                      </div>
-                    )}
-
-                    {activeSection === 'forecast' && (
+                {/* BOTTOM: Grid Layout - Forecast + Weekly on Left, Grok on Right */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-12"
+                >
+                  {/* LEFT COLUMN: Forecast + Weekly (stacked) */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Today's Forecast */}
+                    <motion.div
+                      className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.65 }}
+                    >
                       <DailyForecast
                         date={forecast?.date || new Date().toISOString()}
                         summary={forecast?.summary || 'Loading forecast...'}
@@ -538,57 +455,161 @@ export default function UnifiedDashboard() {
                         advice={forecast?.advice || ''}
                         loading={forecastLoading}
                       />
-                    )}
+                    </motion.div>
 
-                    {activeSection === 'transits' && (
-                      <ActiveTransits
-                        significant={transits?.significant || []}
-                        approaching={transits?.approaching || []}
-                        summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
-                        loading={transitsLoading}
+                    {/* Weekly Whisper */}
+                    <motion.div
+                      className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/20 backdrop-blur-sm"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.7 }}
+                    >
+                      <h2 className="text-2xl font-bold text-amber-300 mb-6">Weekly Overview</h2>
+                      <WeeklyWhisper
+                        week={weeklyForecast?.week || []}
+                        loading={weeklyLoading}
                       />
-                    )}
+                    </motion.div>
+                  </div>
 
-                    {activeSection === 'lifearc' && (
-                      <div className="space-y-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setLifeArcView('timeline')}
-                            className={`px-3 py-2 rounded border text-sm ${lifeArcView === 'timeline' ? 'border-amber-500/50 text-amber-200 bg-amber-500/10' : 'border-slate-700 text-slate-300'}`}
-                          >
-                            Timeline
-                          </button>
-                          <button
-                            onClick={() => setLifeArcView('prose')}
-                            className={`px-3 py-2 rounded border text-sm ${lifeArcView === 'prose' ? 'border-purple-500/50 text-purple-200 bg-purple-500/10' : 'border-slate-700 text-slate-300'}`}
-                          >
-                            Prose
-                          </button>
-                        </div>
-
-                        {lifeArcView === 'timeline' ? (
-                          <LifeTimelineView
-                            timeline={lifeArc}
-                            loading={lifeArcLoading}
-                            userName={user?.firstName || undefined}
-                          />
-                        ) : (
-                          <div className="rounded-lg border border-purple-500/20 bg-slate-900/40 p-6">
-                            <p className="text-slate-100 leading-relaxed">{lifeArcNarrative}</p>
+                  {/* RIGHT COLUMN: Grok Chat (Collapsible) */}
+                  <motion.div
+                    className="lg:col-span-1"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.7 }}
+                  >
+                    <div className="sticky top-8 space-y-6">
+                      {/* Chart Interpretation Card (collapsible) */}
+                      <motion.div
+                        className="bg-gradient-to-br from-blue-900/30 to-slate-900/40 rounded-lg border border-blue-500/30 backdrop-blur-sm overflow-hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.75 }}
+                      >
+                        <button
+                          onClick={() => setActiveSection(activeSection === 'interpretation' ? 'wheel' : 'interpretation')}
+                          className="w-full p-6 flex items-center justify-between hover:bg-blue-500/10 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Sparkles className="w-5 h-5 text-blue-400" />
+                            <h3 className="font-bold text-blue-300">Chart Reading</h3>
+                          </div>
+                          <span className={`transform transition-transform ${activeSection === 'interpretation' ? 'rotate-180' : ''}`}>
+                            ▼
+                          </span>
+                        </button>
+                        
+                        {activeSection === 'interpretation' && (
+                          <div className="p-6 border-t border-blue-500/20 space-y-4 max-h-[600px] overflow-y-auto">
+                            <div className="flex items-center gap-2 mb-4">
+                              {cacheHit && (
+                                <span className="text-xs text-amber-400 flex items-center gap-1">
+                                  ⚡ cached
+                                </span>
+                              )}
+                              <InterpretationModeToggle
+                                onModeChange={(mode) => setInterpretMode(mode)}
+                                defaultMode={interpretMode}
+                              />
+                            </div>
+                            <ChartInterpretation
+                              summary={interpretations?.chartSummary || ''}
+                              planetInterpretations={interpretations?.planetInterpretations || []}
+                              aspectInterpretations={interpretations?.aspectInterpretations || []}
+                              interpreter={interpretations?.interpreter}
+                              loading={interpretLoading}
+                            />
                           </div>
                         )}
-                      </div>
-                    )}
+                      </motion.div>
 
-                    {activeSection === 'wheel' && (
-                      <div className="text-center py-12">
-                        <p className="text-slate-400 text-lg">
-                          Select a section above to explore your cosmic insights
-                        </p>
-                      </div>
-                    )}
+                      {/* Active Transits Card (collapsible) */}
+                      <motion.div
+                        className="bg-gradient-to-br from-orange-900/30 to-slate-900/40 rounded-lg border border-orange-500/30 backdrop-blur-sm overflow-hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.8 }}
+                      >
+                        <button
+                          onClick={() => setActiveSection(activeSection === 'transits' ? 'wheel' : 'transits')}
+                          className="w-full p-6 flex items-center justify-between hover:bg-orange-500/10 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Zap className="w-5 h-5 text-orange-400" />
+                            <h3 className="font-bold text-orange-300">Active Transits</h3>
+                          </div>
+                          <span className={`transform transition-transform ${activeSection === 'transits' ? 'rotate-180' : ''}`}>
+                            ▼
+                          </span>
+                        </button>
+
+                        {activeSection === 'transits' && (
+                          <div className="p-6 border-t border-orange-500/20 max-h-[600px] overflow-y-auto">
+                            <ActiveTransits
+                              significant={transits?.significant || []}
+                              approaching={transits?.approaching || []}
+                              summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
+                              loading={transitsLoading}
+                            />
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Life Arc Card (collapsible) */}
+                      <motion.div
+                        className="bg-gradient-to-br from-green-900/30 to-slate-900/40 rounded-lg border border-green-500/30 backdrop-blur-sm overflow-hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.85 }}
+                      >
+                        <button
+                          onClick={() => setActiveSection(activeSection === 'lifearc' ? 'wheel' : 'lifearc')}
+                          className="w-full p-6 flex items-center justify-between hover:bg-green-500/10 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <BookOpen className="w-5 h-5 text-green-400" />
+                            <h3 className="font-bold text-green-300">Life Timeline</h3>
+                          </div>
+                          <span className={`transform transition-transform ${activeSection === 'lifearc' ? 'rotate-180' : ''}`}>
+                            ▼
+                          </span>
+                        </button>
+
+                        {activeSection === 'lifearc' && (
+                          <div className="p-6 border-t border-green-500/20 max-h-[600px] overflow-y-auto">
+                            <div className="flex gap-2 mb-4">
+                              <button
+                                onClick={() => setLifeArcView('timeline')}
+                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'timeline' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                              >
+                                Timeline
+                              </button>
+                              <button
+                                onClick={() => setLifeArcView('prose')}
+                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'prose' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                              >
+                                Prose
+                              </button>
+                            </div>
+
+                            {lifeArcView === 'timeline' ? (
+                              <LifeTimelineView
+                                timeline={lifeArc}
+                                loading={lifeArcLoading}
+                                userName={user?.firstName || undefined}
+                              />
+                            ) : (
+                              <div className="text-sm text-slate-100 leading-relaxed">
+                                {lifeArcNarrative}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    </div>
                   </motion.div>
-                </AnimatePresence>
+                </motion.div>
               </motion.div>
             )}
           </div>
