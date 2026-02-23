@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Loader2, ChevronDown, X, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import type { BirthChartData } from '@/types/astrology';
 
 interface Message {
@@ -259,6 +260,22 @@ export function OracleChat({
           <X size={20} />
         </button>
       </div>
+
+      {/* Avatar Display Area */}
+      {isSpeaking && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="border-b border-purple-500/20 bg-gradient-to-b from-purple-900/20 to-transparent p-4 flex justify-center"
+        >
+          <VoiceAvatar
+            isPlaying={isSpeaking}
+            audioRef={audioRef}
+            messageText={messages.find(m => m.id === playingMessageId)?.content || ''}
+          />
+        </motion.div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 p-4">
