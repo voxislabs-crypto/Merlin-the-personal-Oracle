@@ -43,9 +43,12 @@ export function CollapsibleChatPanel({
   const [isPaused, setIsPaused] = useState(false);
   const [isTTSLoading, setIsTTSLoading] = useState(false);
   const [expanded, setExpanded] = useState(isExpanded);
+  const [ttsFallback, setTtsFallback] = useState(false); // Track if using Web Speech API
+  const [ttsError, setTtsError] = useState<string | null>(null); // Track TTS errors
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -66,16 +69,24 @@ export function CollapsibleChatPanel({
   const readMessageAloud = async (messageId: string, text: string) => {
     // If already playing this message
     if (playingMessageId === messageId) {
-      if (isSpeaking) {
-        // Pause
-        if (audioRef.current) {
+      if (ttsFallback && utteranceRef.current) {
+        // Web Speech API fallback control
+        if (isSpeaking) {
+          window.speechSynthesis.pause();
+          setIsPaused(true);
+          setIsSpeaking(false);
+        } else if (isPaused) {
+          window.speechSynthesis.resume();
+          setIsSpeaking(true);
+          setIsPaused(false);
+        }
+      } else if (audioRef.current) {
+        // ElevenLabs audio control
+        if (isSpeaking) {
           audioRef.current.pause();
           setIsPaused(true);
           setIsSpeaking(false);
-        }
-      } else if (isPaused) {
-        // Resume
-        if (audioRef.current) {
+        } else if (isPaused) {
           audioRef.current.play();
           setIsSpeaking(true);
           setIsPaused(false);
@@ -89,83 +100,167 @@ export function CollapsibleChatPanel({
       audioRef.current.pause();
       audioRef.current = null;
     }
+    if (utteranceRef.current) {
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+    }
 
     try {
       setPlayingMessageId(messageId);
       setIsSpeaking(false);
       setIsPaused(false);
+      setTtsError(null);
+      setTtsFallback(false);
 
       // Check cache first
       const cachedAudio = getCachedAudio(text, 'oracle');
       let audioUrl = cachedAudio;
 
-      // If not in cache, generate with TTS
+      // If not in cache, try ElevenLabs TTS
       if (!audioUrl) {
         setIsTTSLoading(true);
-        const response = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text,
-            voice: 'oracle',
-            provider: 'elevenlabs',
-          }),
-        });
+        try {
+          const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text,
+              voice: 'oracle',
+              provider: 'elevenlabs',
+            }),
+          });
 
-        if (!response.ok) throw new Error('TTS request failed');
-
-        const data = await response.json();
-        if (!data.success || !data.data?.audio) {
-          throw new Error('No audio data returned');
-        }
-
-        audioUrl = data.data.audio;
-        
-        // Cache the audio for future use
-        if (audioUrl) {
-          cacheAudio(text, 'oracle', audioUrl);
-          console.log('[Audio] Generated and cached new audio');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.audio) {
+              audioUrl = data.data.audio;
+              // Cache the audio for future use
+              cacheAudio(text, 'oracle', audioUrl);
+              console.log('[TTS] Generated and cached ElevenLabs audio');
+            } else {
+              throw new Error(data.error || 'No audio data returned');
+            }
+          } else {
+            const data = await response.json();
+            throw new Error(data.error || `API error: ${response.status}`);
+          }
+        } catch (apiError) {
+          console.warn('[TTS] ElevenLabs failed, falling back to Web Speech API:', apiError);
+          setTtsError(`ElevenLabs unavailable: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
+          setTtsFallback(true);
+          // Continue to fallback below
         }
       }
 
       setIsTTSLoading(false);
 
-      if (!audioUrl) {
-        throw new Error('No audio URL available');
+      // Use ElevenLabs audio if available
+      if (audioUrl && !ttsFallback) {
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+
+        audio.onplay = () => {
+          setIsSpeaking(true);
+          setIsPaused(false);
+          setTtsError(null);
+        };
+
+        audio.onpause = () => {
+          setIsSpeaking(false);
+        };
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+          setPlayingMessageId(null);
+          audioRef.current = null;
+        };
+
+        audio.onerror = (e) => {
+          console.error('Audio playback error:', e);
+          setTtsError('Failed to play audio. Falling back to Web Speech API.');
+          setTtsFallback(true);
+          audioRef.current = null;
+          // Trigger fallback
+          playWithWebSpeechAPI(text, messageId);
+        };
+
+        await audio.play();
+        return;
       }
 
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onplay = () => {
-        setIsSpeaking(true);
-        setIsPaused(false);
-      };
-
-      audio.onpause = () => {
-        setIsSpeaking(false);
-      };
-
-      audio.onended = () => {
-        setIsSpeaking(false);
-        setIsPaused(false);
-        setPlayingMessageId(null);
-      };
-
-      audio.onerror = (e) => {
-        console.error('Audio playback error:', e);
-        setIsSpeaking(false);
-        setIsPaused(false);
-        setPlayingMessageId(null);
-      };
-
-      await audio.play();
+      // Fallback to Web Speech API (if ElevenLabs failed or audio playback failed)
+      playWithWebSpeechAPI(text, messageId);
     } catch (error) {
-      console.error('TTS error:', error);
+      console.error('[TTS] Fatal error:', error);
+      setTtsError(`Error: ${error instanceof Error ? error.message : 'Unknown'}`);
       setIsSpeaking(false);
       setIsPaused(false);
       setPlayingMessageId(null);
       setIsTTSLoading(false);
+    }
+  };
+
+  const playWithWebSpeechAPI = async (text: string, messageId: string) => {
+    if (!('speechSynthesis' in window)) {
+      setTtsError('Text-to-speech not supported in this browser');
+      return;
+    }
+
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 0.95;
+      utterance.volume = 1.0;
+
+      // Try to use a good voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v =>
+        (v.name.includes('Karen') || v.name.includes('Samantha') || v.name.includes('Zira')) &&
+        v.lang.startsWith('en')
+      ) || voices.find(v => v.lang.startsWith('en'));
+
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsPaused(false);
+      };
+
+      utterance.onpause = () => {
+        setIsSpeaking(false);
+      };
+
+      utterance.onresume = () => {
+        setIsSpeaking(true);
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setPlayingMessageId(null);
+        utteranceRef.current = null;
+        setTtsFallback(false);
+      };
+
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setTtsError(`Speech error: ${event.error}`);
+        setIsSpeaking(false);
+        setIsPaused(false);
+        setPlayingMessageId(null);
+        utteranceRef.current = null;
+      };
+
+      utteranceRef.current = utterance;
+      setTtsFallback(true);
+      console.log('[TTS] Using Web Speech API (browser voice)');
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error('[TTS] Web Speech API error:', error);
+      setTtsError(`Web Speech error: ${error instanceof Error ? error.message : 'Unknown'}`);
     }
   };
 
@@ -320,6 +415,9 @@ export function CollapsibleChatPanel({
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-purple-200">🔮 Oracle Chat</h3>
           <p className="text-xs text-purple-400">Ask about your chart</p>
+          {ttsError && (
+            <p className="text-xs text-orange-400 mt-1">⚠️ {ttsError}</p>
+          )}
         </div>
         <div className="flex gap-1 flex-shrink-0">
           <button
