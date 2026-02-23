@@ -7,6 +7,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TimelineStrike, LifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import * as HoverCard from '@radix-ui/react-hover-card';
 
+const PLANET_GLYPHS: Record<string, string> = {
+  saturn: '♄', uranus: '♅', neptune: '♆', pluto: '♇', chiron: '⚷', jupiter: '♃',
+  sun: '☉', moon: '☽', mercury: '☿', venus: '♀', mars: '♂',
+};
+
+const PLANET_MEANINGS: Record<string, string> = {
+  saturn: 'Discipline, karma & real-world tests',
+  uranus: 'Disruption, rebellion & sudden change',
+  neptune: 'Illusion, spiritual dissolution & fog',
+  pluto: 'Death/rebirth, power & transformation',
+  chiron: 'Core wounds & the path to healing',
+  jupiter: 'Expansion, luck & overreach',
+};
+
+const INTENSITY_MEANINGS = {
+  strike: { label: 'Strike ⚡', color: 'text-red-300', desc: 'Life-altering — the moments you never forget' },
+  burn: { label: 'Burn 🔥', color: 'text-orange-300', desc: 'Intense pressure sustained over months' },
+  shift: { label: 'Shift 🌊', color: 'text-blue-300', desc: 'Notable changes in direction or perspective' },
+};
+
 interface LifeTimelineViewProps {
   timeline: LifeTimeline | null;
   loading?: boolean;
@@ -41,12 +61,15 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
   const currentYear = new Date().getFullYear();
 
   // Filter and group events
-  const { filteredEvents, groupedByDecade, stats, planetCounts } = useMemo(() => {
+  const { filteredEvents, groupedByDecade, stats, planetCounts, currentEvents, nextEvents, topPlanets } = useMemo(() => {
     if (!timeline) return { 
       filteredEvents: [], 
       groupedByDecade: new Map(), 
       stats: { past: 0, current: 0, future: 0, strike: 0, burn: 0, shift: 0 },
-      planetCounts: { saturn: 0, uranus: 0, neptune: 0, pluto: 0, chiron: 0, jupiter: 0 }
+      planetCounts: { saturn: 0, uranus: 0, neptune: 0, pluto: 0, chiron: 0, jupiter: 0 },
+      currentEvents: [],
+      nextEvents: [],
+      topPlanets: [] as { planet: string; count: number }[],
     };
 
     let events = [...timeline.events];
@@ -66,6 +89,24 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
         planetCounts[planet as keyof typeof planetCounts]++;
       }
     });
+
+    // Current year events (spotlight)
+    const currentEvents = timeline.events
+      .filter((e: TimelineStrike) => e.year === currentYear)
+      .sort((a, b) => a.orb - b.orb);
+
+    // Next upcoming events
+    const nextEvents = timeline.events
+      .filter((e: TimelineStrike) => e.year > currentYear)
+      .sort((a, b) => a.year - b.year || a.orb - b.orb)
+      .slice(0, 3);
+
+    // Top planets by count
+    const topPlanets = Object.entries(planetCounts)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([planet, count]) => ({ planet, count }));
 
     // Apply filters
     if (timeFilter !== 'all') {
@@ -94,7 +135,7 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
       grouped.get(key)!.push(event);
     });
 
-    return { filteredEvents: events, groupedByDecade: grouped, stats, planetCounts };
+    return { filteredEvents: events, groupedByDecade: grouped, stats, planetCounts, currentEvents, nextEvents, topPlanets };
   }, [timeline, timeFilter, intensityFilter, planetFilter, currentYear]);
 
   const toggleDecade = (decade: string) => {
@@ -328,6 +369,139 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Life Progress Bar */}
+          <div className="mb-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700/30 no-print">
+            <div className="flex justify-between text-xs text-slate-500 mb-2">
+              <span>Born {timeline.birthYear}</span>
+              <span className="text-amber-400 font-semibold">Age {timeline.currentAge} · {currentYear}</span>
+              <span>~{timeline.birthYear + 85}</span>
+            </div>
+            <div className="relative h-3 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-700"
+                style={{ width: `${Math.min((timeline.currentAge / 85) * 100, 100)}%` }}
+              />
+              <div
+                className="absolute top-0 h-full w-0.5 bg-white/80"
+                style={{ left: `${Math.min((timeline.currentAge / 85) * 100, 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-600 mt-1">
+              <span>{stats.past} events behind you</span>
+              <span>{stats.current > 0 ? `${stats.current} happening now` : ''}</span>
+              <span>{stats.future} events ahead</span>
+            </div>
+          </div>
+
+          {/* Right Now Spotlight */}
+          {currentEvents.length > 0 && (
+            <div className="mb-6 no-print">
+              <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/40">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                  <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider">Happening Right Now</h3>
+                  <span className="text-xs text-amber-500">({currentYear})</span>
+                </div>
+                <div className="space-y-2">
+                  {currentEvents.map((e: TimelineStrike) => (
+                    <div key={e.id} className="flex items-start gap-3">
+                      <span className="text-lg leading-none mt-0.5">
+                        {PLANET_GLYPHS[e.transitingPlanet.toLowerCase()] || '●'}
+                      </span>
+                      <div>
+                        <p className="text-amber-100 font-medium text-sm">{e.oneLiner}</p>
+                        <p className="text-xs text-amber-600">{e.raw} · orb {e.orb.toFixed(1)}°</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Coming Next */}
+          {nextEvents.length > 0 && (
+            <div className="mb-6 no-print">
+              <div className="p-4 bg-blue-900/20 rounded-lg border border-blue-500/20">
+                <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider mb-3">Coming Up Next</h3>
+                <div className="space-y-2">
+                  {nextEvents.map((e: TimelineStrike, i: number) => (
+                    <div key={e.id} className={`flex items-start gap-3 ${i > 0 ? 'opacity-70' : ''}`}>
+                      <span className="text-base leading-none mt-0.5 text-blue-400">
+                        {PLANET_GLYPHS[e.transitingPlanet.toLowerCase()] || '●'}
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-blue-100 text-sm">{e.oneLiner}</p>
+                        <p className="text-xs text-blue-600">{e.year} · Age {e.age} · {e.raw}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        e.intensity === 'strike' ? 'bg-red-500/20 text-red-300' :
+                        e.intensity === 'burn' ? 'bg-orange-500/20 text-orange-300' :
+                        'bg-blue-500/20 text-blue-300'
+                      }`}>
+                        {e.year - currentYear}y
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dominant Planets + Legend */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+            {/* Dominant planets */}
+            {topPlanets.length > 0 && (
+              <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/30">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Your Dominant Forces</h3>
+                <div className="space-y-2">
+                  {topPlanets.map(({ planet, count }) => (
+                    <div key={planet} className="flex items-center gap-3">
+                      <span className="text-lg w-6 text-center">
+                        {PLANET_GLYPHS[planet] || '●'}
+                      </span>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-semibold text-slate-300 capitalize">{planet}</span>
+                          <span className="text-xs text-slate-500">{count} hits</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-amber-500/60 rounded-full"
+                            style={{ width: `${(count / (topPlanets[0]?.count || 1)) * 100}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">{PLANET_MEANINGS[planet]}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Intensity legend */}
+            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/30">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Intensity Guide</h3>
+              <div className="space-y-3">
+                {(Object.entries(INTENSITY_MEANINGS) as [keyof typeof INTENSITY_MEANINGS, typeof INTENSITY_MEANINGS[keyof typeof INTENSITY_MEANINGS]][]).map(([key, val]) => (
+                  <div key={key} className="flex items-start gap-2">
+                    <div className={`w-2 h-2 rounded-full mt-1.5 ${
+                      key === 'strike' ? 'bg-red-500' : key === 'burn' ? 'bg-orange-500' : 'bg-blue-500'
+                    }`} />
+                    <div>
+                      <p className={`text-xs font-semibold ${val.color}`}>{val.label}</p>
+                      <p className="text-xs text-slate-500">{val.desc}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="pt-2 border-t border-slate-700/50">
+                  <p className="text-xs font-semibold text-red-200">STORM</p>
+                  <p className="text-xs text-slate-500">Orb &lt;1° with Saturn/Pluto/Uranus/Chiron in hard aspect — life-reshaping moments</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -605,53 +779,69 @@ function EventCard({
         `}
       >
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className={`text-sm font-mono font-bold ${style.text}`}>
-                {event.year}
-              </span>
-              <span className="text-xs text-slate-500">
-                Age {event.age}
-              </span>
-              {isCurrent && (
-                <span className="text-xs text-amber-400 font-semibold px-1.5 py-0.5 bg-amber-500/20 rounded">
-                  NOW
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            {/* Planet glyph */}
+            <span className="text-xl leading-none mt-0.5 shrink-0 w-6 text-center" title={event.transitingPlanet}>
+              {PLANET_GLYPHS[event.transitingPlanet.toLowerCase()] || '●'}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={`text-sm font-mono font-bold ${style.text}`}>
+                  {event.year}
                 </span>
-              )}
-              {!isPast && !isCurrent && (
-                <span className="text-xs text-slate-600 px-1.5 py-0.5 bg-slate-700/30 rounded">
-                  Future
+                <span className="text-xs text-slate-500">
+                  Age {event.age}
                 </span>
-              )}
-              {eventIsStorm && (
-                <HoverCard.Root openDelay={200}>
-                  <HoverCard.Trigger asChild>
-                    <span className="text-xs text-red-200 font-bold px-1.5 py-0.5 bg-red-500/30 border border-red-500/50 rounded hover:animate-pulse cursor-help">
-                      STORM
-                    </span>
-                  </HoverCard.Trigger>
-                  <HoverCard.Portal>
-                    <HoverCard.Content
-                      side="top"
-                      align="center"
-                      className="z-50 w-64 rounded-md bg-slate-900 p-3 text-xs text-slate-200 shadow-xl border border-red-500/30"
-                    >
-                      <p className="font-semibold text-red-300 mb-1">Extreme Transit — Life-Altering Intensity</p>
-                      <p className="text-slate-400">
-                        Orb &lt;1° with heavy planets (Saturn, Pluto, Uranus, Chiron) in hard aspect. These are the moments that reshape everything.
-                      </p>
-                      <HoverCard.Arrow className="fill-slate-900" />
-                    </HoverCard.Content>
-                  </HoverCard.Portal>
-                </HoverCard.Root>
-              )}
+                {isCurrent && (
+                  <span className="text-xs text-amber-400 font-semibold px-1.5 py-0.5 bg-amber-500/20 rounded">
+                    NOW
+                  </span>
+                )}
+                {!isPast && !isCurrent && (
+                  <span className="text-xs text-blue-400 px-1.5 py-0.5 bg-blue-500/10 rounded">
+                    in {event.year - currentYear}y
+                  </span>
+                )}
+                {eventIsStorm && (
+                  <HoverCard.Root openDelay={200}>
+                    <HoverCard.Trigger asChild>
+                      <span className="text-xs text-red-200 font-bold px-1.5 py-0.5 bg-red-500/30 border border-red-500/50 rounded hover:animate-pulse cursor-help">
+                        STORM
+                      </span>
+                    </HoverCard.Trigger>
+                    <HoverCard.Portal>
+                      <HoverCard.Content
+                        side="top"
+                        align="center"
+                        className="z-50 w-64 rounded-md bg-slate-900 p-3 text-xs text-slate-200 shadow-xl border border-red-500/30"
+                      >
+                        <p className="font-semibold text-red-300 mb-1">Extreme Transit — Life-Altering Intensity</p>
+                        <p className="text-slate-400">
+                          Orb &lt;1° with heavy planets (Saturn, Pluto, Uranus, Chiron) in hard aspect. These are the moments that reshape everything.
+                        </p>
+                        <HoverCard.Arrow className="fill-slate-900" />
+                      </HoverCard.Content>
+                    </HoverCard.Portal>
+                  </HoverCard.Root>
+                )}
+              </div>
+              <p className="text-slate-200 text-sm font-medium leading-snug mb-1 truncate">
+                {event.oneLiner}
+              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-slate-500 truncate">
+                  {event.raw}
+                </p>
+                {/* Orb quality pill */}
+                <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                  event.orb < 0.5 ? 'bg-red-500/20 text-red-300' :
+                  event.orb < 1.5 ? 'bg-orange-500/20 text-orange-300' :
+                  'bg-slate-700/50 text-slate-400'
+                }`}>
+                  {event.orb < 0.5 ? 'exact' : event.orb < 1.5 ? `${event.orb.toFixed(1)}°` : `${event.orb.toFixed(1)}°`}
+                </span>
+              </div>
             </div>
-            <p className="text-slate-200 text-sm font-medium leading-snug mb-1 truncate">
-              {event.oneLiner}
-            </p>
-            <p className="text-xs text-slate-500 truncate">
-              {event.raw} · {event.orb.toFixed(2)}° orb
-            </p>
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
             <button
