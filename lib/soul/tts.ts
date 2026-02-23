@@ -7,7 +7,8 @@ export type VoiceArchetype =
   | "mentor" // Deep, calm, wise
   | "mystic" // Ethereal, soft, reverent
   | "warrior" // Firm, direct, grounded
-  | "sage"; // Balanced, warm, knowing
+  | "sage" // Balanced, warm, knowing
+  | "oracle"; // Mystical, authoritative, otherworldly
 
 export interface VoiceConfig {
   provider: VoiceProvider;
@@ -66,6 +67,13 @@ const VOICE_PRESETS: Record<VoiceArchetype, VoiceConfig> = {
     stability: 0.7,
     similarityBoost: 0.75,
   },
+  oracle: {
+    provider: "elevenlabs",
+    voiceId: getVoiceId("EXAVITQu4vr4xnSDxMaL"), // Custom or Bella (mystical female voice)
+    archetype: "oracle",
+    stability: 0.65,
+    similarityBoost: 0.8,
+  },
 };
 
 // ElevenLabs TTS API call
@@ -76,6 +84,7 @@ async function generateWithElevenLabs(
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
   if (!apiKey) {
+    console.warn('[ElevenLabs TTS] API key not configured');
     return {
       error: "ElevenLabs API key not configured",
       provider: "elevenlabs",
@@ -83,6 +92,8 @@ async function generateWithElevenLabs(
   }
 
   try {
+    console.log(`[ElevenLabs TTS] Generating audio with voice ID: ${config.voiceId} (archetype: ${config.archetype})`);
+    
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}`,
       {
@@ -103,17 +114,20 @@ async function generateWithElevenLabs(
     );
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[ElevenLabs TTS] API error: ${response.status} ${response.statusText}`, errorText);
       throw new Error(`ElevenLabs API error: ${response.statusText}`);
     }
 
     const audioBlob = await response.blob();
+    console.log(`[ElevenLabs TTS] Successfully generated audio (${audioBlob.size} bytes, archetype: ${config.archetype})`);
 
     return {
       audioBlob,
       provider: "elevenlabs",
     };
   } catch (error) {
-    console.error("ElevenLabs TTS error:", error);
+    console.error("[ElevenLabs TTS] Error:", error);
     return {
       error: error instanceof Error ? error.message : "Unknown error",
       provider: "elevenlabs",

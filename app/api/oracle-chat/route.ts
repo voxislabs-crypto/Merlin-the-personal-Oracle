@@ -74,6 +74,23 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          // Verify Grok API key is configured
+          if (!process.env.XAI_API_KEY) {
+            console.error('[Oracle] XAI_API_KEY is not configured');
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'error',
+                  error: 'Grok API key not configured. Please set XAI_API_KEY in your environment.',
+                }) + '\n'
+              )
+            );
+            controller.close();
+            return;
+          }
+
+          console.log(`[Oracle Chat] Starting stream for user: ${userId}, question: "${question.substring(0, 50)}..."`);
+
           // Call Grok API with streaming
           const grokResponse = await fetch(
             'https://api.x.ai/v1/chat/completions',
@@ -104,13 +121,13 @@ export async function POST(request: NextRequest) {
 
           if (!grokResponse.ok) {
             const error = await grokResponse.text();
-            console.error('[Oracle] Grok error:', error);
+            console.error('[Oracle] Grok API error:', grokResponse.status, error);
             controller.enqueue(
               encoder.encode(
                 JSON.stringify({
-                  error: 'Oracle failed to respond',
+                  error: `Grok API failed with status ${grokResponse.status}`,
                   type: 'error',
-                })
+                }) + '\n'
               )
             );
             controller.close();
@@ -210,6 +227,8 @@ export async function POST(request: NextRequest) {
           };
           oracleMemory.addMessage(userId, assistantMessage);
 
+          console.log(`[Oracle Chat] Stream completed successfully for user: ${userId} (response length: ${fullResponse.length})`);
+
           // Signal completion
           controller.enqueue(
             encoder.encode(
@@ -221,13 +240,13 @@ export async function POST(request: NextRequest) {
 
           controller.close();
         } catch (error) {
-          console.error('[Oracle Chat] Stream error:', error);
+          console.error('[Oracle Chat] Stream error:', error, 'for user:', userId);
           controller.enqueue(
             encoder.encode(
               JSON.stringify({
                 error: 'Stream processing failed',
                 type: 'error',
-              })
+              }) + '\n'
             )
           );
           controller.close();

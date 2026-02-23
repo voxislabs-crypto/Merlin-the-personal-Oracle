@@ -14,6 +14,7 @@ import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
 import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
+import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -42,6 +43,8 @@ export default function UnifiedDashboard() {
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
   const [noBullshit, setNoBullshit] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(true);
+  const [userId, setUserId] = useState('');
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -75,6 +78,9 @@ export default function UnifiedDashboard() {
         variant: 'destructive',
       });
       router.replace('/sign-in');
+    } else {
+      // Set userId from Clerk user
+      setUserId(user.id || `user-${Date.now()}`);
     }
   }, [isLoaded, user, router, toast]);
 
@@ -400,17 +406,31 @@ export default function UnifiedDashboard() {
                     </button>
                   </div>
                   
-                  {/* Grid Layout: Left Sidebar + Wheel */}
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
+                  {/* Grid Layout: Left Sidebar + Wheel + Right Chat */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Left: Placements Sidebar */}
-                    <div className="lg:col-span-1">
+                    <div className="lg:col-span-2">
                       <PlacementsSidebar planets={chartData?.planets || []} />
                     </div>
                     
-                    {/* Right: Wheel */}
-                    <div className="lg:col-span-3 flex items-center justify-center overflow-hidden">
+                    {/* Center: Wheel */}
+                    <div className="lg:col-span-5 flex items-center justify-center overflow-hidden">
                       <div className="w-full max-w-[450px] h-[450px] flex items-center justify-center">
                         <WheelVisualization chartData={wheelData} />
+                      </div>
+                    </div>
+
+                    {/* Right: Chat Panel - Expandable/Collapsible */}
+                    <div style={{ gridColumn: chatExpanded ? 'span 5' : 'span 1' }} className="transition-all duration-300">
+                      <div className="h-[450px] rounded-lg overflow-hidden">
+                        {userId && (
+                          <CollapsibleChatPanel
+                            birthChart={chartData}
+                            userId={userId}
+                            isExpanded={chatExpanded}
+                            onToggleExpand={setChatExpanded}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

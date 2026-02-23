@@ -100,28 +100,49 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.4 }}
-            className="text-lg md:text-xl mb-12 text-gray-300 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg md:text-xl mb-4 text-gray-300 max-w-2xl mx-auto leading-relaxed"
           >
-            Where ancient celestial wisdom meets cybernetic divination. Unlock the secrets written in your stars.
+            I built Merlin because astrology shouldn't lie. Input your birth, get the real map. No fluff. No ads.
           </motion.p>
+
+          {/* Beta notice */}
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.5 }}
+            className="text-sm md:text-base mb-8 text-purple-300 italic max-w-2xl mx-auto"
+          >
+            Still in beta. Bugs happen. But the stars? They don't.
+          </motion.p>
+
+          {/* Pricing */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.6 }}
+            className="mb-8 text-xl font-semibold text-purple-200"
+          >
+            <p className="mb-2">$10/month or $50 forever</p>
+            <p className="text-sm text-gray-400">7 days free—card required, cancel anytime</p>
+          </motion.div>
 
           {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.6 }}
+            transition={{ duration: 1, delay: 0.7 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <Link href={isSignedIn ? '/oracle-chat' : '/sign-in'}>
+            <Link href={isSignedIn ? '/dashboard' : '/sign-in'}>
               <button className="relative group px-8 py-4 font-bold text-lg rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:from-pink-500 hover:to-purple-500 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-pink-500/50">
-                ✨ Enter the Oracle
+                Start Free Trial
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-20 blur transition-opacity"></div>
               </button>
             </Link>
             
-            <Link href="#features">
+            <Link href="#faq">
               <button className="px-8 py-4 font-bold text-lg rounded-lg border-2 border-purple-400/50 text-purple-200 hover:border-purple-300 hover:text-purple-100 transition-all duration-300 hover:bg-purple-900/20">
-                Learn More
+                Questions?
               </button>
             </Link>
           </motion.div>
@@ -140,78 +161,11 @@ export default function Home() {
       {/* Features Section */}
       <FeaturesSection />
 
-      {/* Stats Section */}
-      <StatsSection />
-
-      {/* Features Section */}
-      <FeaturesSection />
-
       {/* Pricing Section */}
       <PricingSection />
 
-      {/* Testimonials Section */}
-      <TestimonialsSection />
-
       {/* FAQ Section */}
       <FAQSection />
-
-      {/* CTA Section */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8 }}
-        className="relative z-10 py-20 px-4"
-      >
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-amber-900/60 to-purple-900/40 backdrop-blur-sm border-2 border-amber-500/50 rounded-3xl p-12 shadow-2xl">
-            <motion.div
-              initial={{ scale: 0.9 }}
-              whileInView={{ scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-4xl md:text-5xl font-bold text-amber-300 mb-4">
-                Your Cosmic Truth Awaits
-              </h2>
-              <p className="text-gray-300 text-lg mb-6 max-w-2xl mx-auto">
-                Join 2,400+ seekers who discovered their authentic path through the stars.
-              </p>
-              <div className="bg-amber-400/10 border border-amber-500/30 rounded-xl p-6 mb-8">
-                <p className="text-amber-200 text-2xl font-bold mb-2">
-                  🎁 Early Adopter Pricing: $50
-                </p>
-                <p className="text-gray-400">
-                  Regular price: <span className="line-through">$299</span>
-                  {' · '}
-                  <span className="text-red-300 font-semibold">Save $249</span>
-                </p>
-              </div>
-              <Link
-                href="#top"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                  // Track CTA click
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'cta_click', {
-                      location: 'bottom_cta'
-                    });
-                  }
-                }}
-                className="inline-flex items-center px-10 py-5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold text-xl rounded-xl shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 transition-all duration-300 transform hover:scale-105"
-              >
-                Claim Your Lifetime Access
-                <ArrowRight className="ml-3 w-6 h-6" />
-              </Link>
-              <p className="text-gray-400 text-sm mt-6">
-                <Shield className="w-4 h-4 inline mr-1" />
-                30-day money-back guarantee · Secure payment · Instant access
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </motion.section>
 
       {/* Footer Disclaimer */}
       <footer className="relative z-10 border-t border-white/10 bg-slate-950/40 px-4 py-10">
