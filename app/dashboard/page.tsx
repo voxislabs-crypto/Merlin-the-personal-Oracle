@@ -45,6 +45,7 @@ export default function UnifiedDashboard() {
   const [noBullshit, setNoBullshit] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
   const [userId, setUserId] = useState('');
+  const [ttsLoading, setTtsLoading] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -273,6 +274,7 @@ export default function UnifiedDashboard() {
   };
 
   const playWithElevenLabs = async (text: string) => {
+    setTtsLoading(true);
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
@@ -287,6 +289,7 @@ export default function UnifiedDashboard() {
       if (!response.ok) {
         // Fallback to Web Speech API if ElevenLabs fails
         console.log('[ReadAloud] ElevenLabs unavailable, using Web Speech API');
+        setTtsLoading(false);
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 0.9;
         utterance.pitch = 1;
@@ -296,6 +299,7 @@ export default function UnifiedDashboard() {
       }
 
       const result = await response.json();
+      setTtsLoading(false);
       
       if (result.success && result.data.audio) {
         // If audio is a URL, play it
@@ -321,6 +325,7 @@ export default function UnifiedDashboard() {
       }
     } catch (error) {
       console.error('[ReadAloud] Error:', error);
+      setTtsLoading(false);
       // Ultimate fallback to Web Speech API
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.9;
@@ -439,9 +444,20 @@ export default function UnifiedDashboard() {
                   <div className="flex gap-4 mt-8 justify-center flex-wrap items-center">
                     <button
                       onClick={handleReadAloud}
-                      className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all"
+                      disabled={ttsLoading}
+                      className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Read Aloud
+                      {ttsLoading ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-amber-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                          </svg>
+                          <span>Generating voice...</span>
+                        </>
+                      ) : (
+                        'Read Aloud'
+                      )}
                     </button>
                     <button
                       onClick={handleDailyWhisper}

@@ -39,17 +39,20 @@ function buildTraditionalNarrative({ chartData, lifeArc }: RequestBody): string 
 }
 
 export async function POST(request: Request) {
-  // Check subscription tier
-  const hasAccess = await validateFeatureAccess('canAccessGrokNarrative');
-  if (!hasAccess) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Grok AI Narratives are not available on the free tier',
-        code: 'FEATURE_NOT_AVAILABLE',
-      },
-      { status: 403 }
-    );
+  // In development, allow Grok access regardless of subscription
+  const isDev = process.env.NODE_ENV === 'development';
+  if (!isDev) {
+    const hasAccess = await validateFeatureAccess('canAccessGrokNarrative');
+    if (!hasAccess) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Grok AI Narratives are not available on the free tier',
+          code: 'FEATURE_NOT_AVAILABLE',
+        },
+        { status: 403 }
+      );
+    }
   }
   
   try {
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
 
     if (mode === 'grok') {
       try {
+        console.log('[Grok Narrative] Attempting to generate Grok interpretation...');
         const grokResult = await generateGrokInterpretation({
           planets: chartData.positions || chartData.planets || [],
           aspects: chartData.aspects || [],
@@ -86,6 +90,8 @@ export async function POST(request: Request) {
             location: `${birthData.latitude},${birthData.longitude}`,
           },
         });
+
+        console.log('[Grok Narrative] ✅ Successfully generated Grok interpretation');
 
         // Handle "Quiet day" message if no transits
         if (!transits?.significant || transits.significant.length === 0) {

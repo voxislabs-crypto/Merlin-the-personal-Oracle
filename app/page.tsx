@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useAuth } from '@clerk/nextjs';
 import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
@@ -60,14 +61,21 @@ export default function Home() {
       {/* Hero Section */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
         <div className="text-center max-w-4xl mx-auto">
-          {/* Eye symbol */}
+          {/* Merlin Logo */}
           <motion.div
             initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="mb-8"
+            className="mb-8 flex justify-center"
           >
-            <div className="text-6xl animate-pulse">🧿</div>
+            <Image
+              src="/merlin-logo.png"
+              alt="Merlin Oracle"
+              width={200}
+              height={200}
+              className="w-48 h-48 object-contain"
+              priority
+            />
           </motion.div>
 
           {/* Main title */}

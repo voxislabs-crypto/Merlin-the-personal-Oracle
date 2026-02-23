@@ -241,8 +241,16 @@ export function chooseVoiceForTheme(theme: string): VoiceArchetype {
   return themeVoiceMap[theme] || "mentor";
 }
 
-// Convert audio blob to base64 (for client-side playback)
+// Convert audio blob to base64 (works on both client and server)
 export async function blobToBase64(blob: Blob): Promise<string> {
+  // Server-side: use Buffer
+  if (typeof FileReader === 'undefined') {
+    const buffer = await blob.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:audio/mpeg;base64,${base64}`;
+  }
+  
+  // Client-side: use FileReader
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
