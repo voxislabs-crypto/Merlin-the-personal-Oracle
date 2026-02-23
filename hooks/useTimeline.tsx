@@ -23,7 +23,7 @@ export const useTimeline = () => {
 
   const generateTimeline = useCallback(
     async (birthChart: BirthChartData, months: number = 12) => {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState((prev: any) => ({ ...prev, loading: true, error: null }));
 
       try {
         const response = await fetch('/api/timeline', {
@@ -45,7 +45,7 @@ export const useTimeline = () => {
           throw new Error(result.error || 'Timeline generation failed');
         }
 
-        setState(prev => ({
+        setState((prev: any) => ({
           ...prev,
           timeline: result.data,
           lookAheadMonths: months,
@@ -55,7 +55,7 @@ export const useTimeline = () => {
         return result.data;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        setState(prev => ({
+        setState((prev: any) => ({
           ...prev,
           error: errorMessage,
           loading: false,

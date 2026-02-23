@@ -12,7 +12,7 @@ interface TimeMachineProps {
   onEventClick?: (event: TimelineEvent) => void;
 }
 
-export const TimeMachine: React.FC<TimeMachineProps> = ({ timeline, onEventClick }) => {
+export const TimeMachine: React.FC<TimeMachineProps> = ({ timeline, onEventClick }: TimeMachineProps) => {
   const [expandedPhase, setExpandedPhase] = useState<number | null>(0);
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ export const TimeMachine: React.FC<TimeMachineProps> = ({ timeline, onEventClick
         {timeline.keyThemes && timeline.keyThemes.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="text-xs text-purple-400 font-semibold">Key Themes:</span>
-            {timeline.keyThemes.map((theme, i) => (
+            {timeline.keyThemes.map((theme: string, i: number) => (
               <span
                 key={i}
                 className="text-xs bg-purple-500/30 text-purple-200 px-2.5 py-1 rounded-full border border-purple-500/20"
@@ -65,7 +65,7 @@ export const TimeMachine: React.FC<TimeMachineProps> = ({ timeline, onEventClick
           </div>
 
           <div className="space-y-3">
-            {timeline.majorTurningPoints.slice(0, 5).map((event, i) => (
+            {timeline.majorTurningPoints.slice(0, 5).map((event: any, i: number) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -10 }}
@@ -111,7 +111,7 @@ export const TimeMachine: React.FC<TimeMachineProps> = ({ timeline, onEventClick
         </h3>
 
         <AnimatePresence mode="popLayout">
-          {timeline.phases.map((phase, phaseIdx) => (
+          {timeline.phases.map((phase: any, phaseIdx: number) => (
             <motion.div
               key={phaseIdx}
               initial={{ opacity: 0, y: 10 }}
@@ -173,7 +173,7 @@ export const TimeMachine: React.FC<TimeMachineProps> = ({ timeline, onEventClick
                     <div>
                       <p className="text-xs font-semibold text-purple-300 mb-3">Key Events</p>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {phase.majorEvents.map((event, eventIdx) => (
+                        {phase.majorEvents.map((event: any, eventIdx: number) => (
                           <motion.div
                             key={`${phaseIdx}-${eventIdx}`}
                             initial={{ opacity: 0, x: -5 }}

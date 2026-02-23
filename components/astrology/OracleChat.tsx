@@ -134,7 +134,7 @@ export function OracleChat({
     fetchHistory();
   }, [userId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
@@ -145,7 +145,7 @@ export function OracleChat({
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev: Message[]) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     setStreamingContent('');
@@ -216,7 +216,7 @@ export function OracleChat({
         level: level || undefined,
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev: Message[]) => [...prev, assistantMessage]);
       setStreamingContent('');
     } catch (error) {
       console.error('Chat error:', error);
@@ -226,7 +226,7 @@ export function OracleChat({
         content: 'Merlin encountered a disruption. Try again?',
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev: Message[]) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
@@ -272,7 +272,7 @@ export function OracleChat({
           <VoiceAvatar
             isPlaying={isSpeaking}
             audioRef={audioRef}
-            messageText={messages.find(m => m.id === playingMessageId)?.content || ''}
+            messageText={messages.find((m: Message) => m.id === playingMessageId)?.content || ''}
           />
         </motion.div>
       )}
@@ -295,7 +295,7 @@ export function OracleChat({
             </motion.div>
           )}
 
-          {messages.map((msg, idx) => (
+          {messages.map((msg: Message, idx: number) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 10 }}
@@ -344,7 +344,7 @@ export function OracleChat({
                   >
                     <p className="text-xs font-semibold text-purple-300 mb-2">⚡ Tactical Moves:</p>
                     <ul className="space-y-1 text-xs text-purple-200">
-                      {msg.tactics.map((tactic, i) => (
+                      {msg.tactics.map((tactic: string, i: number) => (
                         <li key={i} className="flex gap-2">
                           <span className="text-purple-400">→</span>
                           <span>{tactic}</span>
@@ -365,7 +365,7 @@ export function OracleChat({
                       📅 {msg.forecast.timeframe}:
                     </p>
                     <div className="flex gap-2 flex-wrap">
-                      {msg.forecast.themes.map((theme, i) => (
+                      {msg.forecast.themes.map((theme: string, i: number) => (
                         <span
                           key={i}
                           className="text-xs bg-purple-500/30 text-purple-200 px-2 py-1 rounded"
@@ -477,7 +477,7 @@ export function OracleChat({
             ref={inputRef}
             type="text"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
             placeholder="Ask your question..."
             disabled={isLoading}
             className="flex-1 bg-slate-800/50 border border-purple-500/30 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/60 disabled:opacity-50"

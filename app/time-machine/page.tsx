@@ -73,7 +73,7 @@ export default function TimeMachinePage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <BirthChartCalculator onCalculate={(data) => setChartData(data)}>
-              {({ chartData: _, loading, error, calculateChart: handleCalculate }) => (
+              {({ chartData: _, loading, error, calculateChart: handleCalculate }: any) => (
                 <div className="space-y-4">
                   {error && (
                     <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-200">
@@ -135,7 +135,7 @@ export default function TimeMachinePage() {
             {timeline && !timelineLoading && (
               <TimeMachine
                 timeline={timeline}
-                onEventClick={event => {
+                onEventClick={(event: any) => {
                   console.log('Event clicked:', event);
                 }}
               />
