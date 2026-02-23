@@ -19,239 +19,126 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
-      {/* Animated background elements */}
+      {/* Cosmic swirl background effect */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-amber-300 rounded-full animate-ping"></div>
-        <div className="absolute bottom-20 left-20 w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-10 right-10 w-2 h-2 bg-amber-200 rounded-full animate-ping"></div>
-        <div className="absolute top-1/2 left-1/4 w-1 h-1 bg-white rounded-full animate-pulse"></div>
-        <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-amber-400 rounded-full animate-ping"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/40 via-transparent to-transparent"></div>
+        <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1000 1000">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <circle cx="500" cy="500" r="400" fill="none" stroke="url(#grad1)" strokeWidth="2" opacity="0.3" filter="url(#glow)">
+            <animateTransform attributeName="r" values="400;450;400" dur="8s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="500" cy="500" r="300" fill="none" stroke="url(#grad2)" strokeWidth="1.5" opacity="0.2" filter="url(#glow)">
+            <animateTransform attributeName="r" values="300;350;300" dur="10s" repeatCount="indefinite"/>
+          </circle>
+          <defs>
+            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{stopColor: '#ec4899', stopOpacity: 1}} />
+              <stop offset="100%" style={{stopColor: '#8b5cf6', stopOpacity: 1}} />
+            </linearGradient>
+            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{stopColor: '#a855f7', stopOpacity: 1}} />
+              <stop offset="100%" style={{stopColor: '#6d28d9', stopOpacity: 1}} />
+            </linearGradient>
+          </defs>
+        </svg>
+        
+        {/* Twinkling stars */}
+        <div className="absolute top-20 left-20 w-1 h-1 bg-purple-300 rounded-full animate-pulse"></div>
+        <div className="absolute top-32 right-32 w-1.5 h-1.5 bg-pink-300 rounded-full animate-ping"></div>
+        <div className="absolute bottom-32 left-1/3 w-1 h-1 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 right-1/4 w-1 h-1 bg-pink-300 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
       </div>
 
       {/* Hero Section */}
-      <div className="relative z-10 pt-32 pb-20 px-4">
-        <div className="text-center max-w-4xl mx-auto mb-16">
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="text-center max-w-4xl mx-auto">
+          {/* Eye symbol */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: -30 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="mb-6"
+            className="mb-8"
           >
-            <Star className="w-16 h-16 text-amber-400 mx-auto mb-4 animate-pulse" />
+            <div className="text-6xl animate-pulse">🧿</div>
           </motion.div>
 
+          {/* Main title */}
           <motion.h1 
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-            className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent"
-          >
-            Merlin
-          </motion.h1>
-
-          <motion.p 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="text-2xl md:text-3xl mb-4 text-gray-200"
-          >
-            The astrology that doesn&apos;t lie.
-          </motion.p>
-
-          <motion.p 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.4 }}
-            className="text-xl md:text-2xl mb-6 text-amber-200"
-          >
-            Your chart. Your type. Your whisper.
-          </motion.p>
-
-          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, delay: 0.6 }}
-            className="mb-6"
+            transition={{ duration: 1 }}
+            className="text-7xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-2xl"
+            style={{
+              textShadow: '0 0 30px rgba(236, 72, 153, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)',
+              fontWeight: '900',
+              letterSpacing: '0.1em'
+            }}
           >
-            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-900/60 to-purple-900/40 backdrop-blur-sm border-2 border-amber-500/50 rounded-full px-6 py-3 mb-4">
-              <Shield className="w-5 h-5 text-amber-400" />
-              <span className="text-xl md:text-2xl font-bold text-amber-300">
-                $50 Lifetime Access
-              </span>
-              <span className="text-gray-400 line-through text-lg">$299</span>
-            </div>
+            MERLIN
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.2 }}
+            className="text-3xl md:text-4xl font-light mb-6 text-purple-200"
+          >
+            Your Personal Oracle
+          </motion.p>
+
+          {/* Description */}
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.4 }}
+            className="text-lg md:text-xl mb-12 text-gray-300 max-w-2xl mx-auto leading-relaxed"
+          >
+            Where ancient celestial wisdom meets cybernetic divination. Unlock the secrets written in your stars.
+          </motion.p>
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.6 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+          >
+            <Link href={isSignedIn ? '/oracle-chat' : '/sign-in'}>
+              <button className="relative group px-8 py-4 font-bold text-lg rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:from-pink-500 hover:to-purple-500 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-pink-500/50">
+                ✨ Enter the Oracle
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-20 blur transition-opacity"></div>
+              </button>
+            </Link>
             
-            <p className="text-red-300 text-sm font-semibold animate-pulse">
-              ⚠️ Limited spots available - Price increases soon
-            </p>
+            <Link href="#features">
+              <button className="px-8 py-4 font-bold text-lg rounded-lg border-2 border-purple-400/50 text-purple-200 hover:border-purple-300 hover:text-purple-100 transition-all duration-300 hover:bg-purple-900/20">
+                Learn More
+              </button>
+            </Link>
           </motion.div>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto"
+          {/* Bottom glow element */}
+          <motion.div
+            animate={{ y: [0, 20, 0] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-4xl opacity-30"
           >
-            Swiss Ephemeris precision meets MBTI insights. Calculate your birth chart, track transits, and receive daily cosmic guidance.
-            <span className="block mt-2 text-amber-300 font-semibold">
-              Try 7 days free (card required) or own it forever for $50
-            </span>
-          </motion.p>
-          
-          <TrustBadges />
+            🔮
+          </motion.div>
         </div>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1 }}
-          className="max-w-3xl mx-auto mb-12"
-        >
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Trial Button */}
-            <div className="bg-gradient-to-br from-purple-900/80 to-blue-900/80 backdrop-blur-sm border-2 border-purple-500/50 rounded-2xl p-8 shadow-2xl hover:border-purple-400/70 transition-all">
-              <div className="text-center mb-4">
-                <p className="text-purple-300 text-sm font-semibold mb-2">MONTHLY PLAN</p>
-                <div className="flex items-baseline justify-center gap-2 mb-2">
-                  <span className="text-4xl font-bold text-white">$9.99</span>
-                  <span className="text-gray-400">/month</span>
-                </div>
-                <p className="text-sm text-purple-200">7-day free trial</p>
-              </div>
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  
-                  // Track click
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'trial_click', { location: 'hero' });
-                  }
-                  
-                  // Check if user is signed in
-                  if (!isSignedIn) {
-                    window.location.href = '/sign-in?redirect_url=/checkout-subscription';
-                    return;
-                  }
-                  
-                  // Call API to create Stripe session
-                  try {
-                    // Get saved birth data if available (for better checkout experience)
-                    const savedBirth = localStorage.getItem('merlin_birth_data');
-                    const birthData = savedBirth ? JSON.parse(savedBirth) : {};
-                    
-                    const response = await fetch('/api/create-checkout-session', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        birthDate: birthData.date || '',
-                        birthTime: birthData.time || '',
-                        birthCity: birthData.city || '',
-                      }),
-                    });
-                    
-                    if (!response.ok) {
-                      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.url) {
-                      window.location.href = data.url;
-                    } else if (data.error) {
-                      console.error('Checkout error:', data.error);
-                      alert(data.error);
-                    } else {
-                      console.error('No checkout URL returned');
-                      alert('Error creating checkout session. Please try again.');
-                    }
-                  } catch (error) {
-                    console.error('Error:', error);
-                    const message = error instanceof Error ? error.message : 'Unknown error';
-                    alert(`Error creating checkout session: ${message}`);
-                  }
-                }}
-                className="block w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center cursor-pointer"
-              >
-                Start 7-Day Free Trial
-              </button>
-              <p className="text-gray-400 text-xs text-center mt-3">Card required · Cancel anytime</p>
-            </div>
-
-            {/* Lifetime Button */}
-            <div className="bg-gradient-to-br from-amber-900/80 to-orange-900/80 backdrop-blur-sm border-2 border-amber-500/50 rounded-2xl p-8 shadow-2xl hover:border-amber-400/70 transition-all">
-              <div className="text-center mb-4">
-                <p className="text-amber-300 text-sm font-semibold mb-2">BEST VALUE</p>
-                <div className="flex items-baseline justify-center gap-2 mb-2">
-                  <span className="text-4xl font-bold text-white">$50</span>
-                  <span className="text-gray-400 line-through">$299</span>
-                </div>
-                <p className="text-sm text-amber-200">One-time payment</p>
-              </div>
-              <Link
-                href="#intake-form"
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById('intake-form')?.scrollIntoView({ behavior: 'smooth' });
-                  if (typeof window !== 'undefined' && (window as any).gtag) {
-                    (window as any).gtag('event', 'lifetime_click', { location: 'hero' });
-                  }
-                }}
-                className="block w-full py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-center"
-              >
-                Get Lifetime Access
-              </Link>
-              <p className="text-gray-400 text-xs text-center mt-3">Save $249 · Lifetime updates</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Birth Intake Form */}
-        <motion.div
-          id="intake-form"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.2 }}
-          className="max-w-md mx-auto mb-12"
-        >
-          <div className="bg-gradient-to-br from-slate-900/80 to-slate-800/80 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-2xl font-bold text-amber-300 mb-2 text-center">
-              Start Your Cosmic Journey
-            </h3>
-            <p className="text-gray-400 text-sm text-center mb-6">
-              Enter your birth details to unlock your complete astrological profile
-            </p>
-            <BirthIntakeForm showPayment redirectTo="dashboard" />
-          </div>
-        </motion.div>
-
-        {/* Quick Access for Existing Users */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 1.2 }}
-          className="text-center"
-        >
-          <p className="text-gray-400 mb-4">Already have an account?</p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 text-amber-300 rounded-lg font-semibold transition-all duration-300 border border-amber-500/30 hover:border-amber-500/50 group"
-            >
-              View Dashboard
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/enhanced-dashboard"
-              className="inline-flex items-center px-6 py-3 bg-gray-800/50 hover:bg-gray-800/70 text-amber-300 rounded-lg font-semibold transition-all duration-300 border border-amber-500/30 hover:border-amber-500/50 group"
-            >
-              Calculate Birth Chart
-              <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </motion.div>
       </div>
+
+      {/* Features Section */}
+      <FeaturesSection />
 
       {/* Stats Section */}
       <StatsSection />
