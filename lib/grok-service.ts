@@ -95,7 +95,7 @@ export async function generateGrokInterpretation(
         'Authorization': `Bearer ${XAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'grok-4-1-fast-reasoning',
+        model: 'grok-3-fast',
         messages: [
           {
             role: 'system',
@@ -193,7 +193,7 @@ export async function generateGrokInterpretationStream(
         'Authorization': `Bearer ${XAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'grok-4-1-fast-reasoning',
+        model: 'grok-3-fast',
         messages: [
           {
             role: 'system',
@@ -416,7 +416,7 @@ Speak as Merlin, directly to the person. What energies are active today? What sh
         'Authorization': `Bearer ${XAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'grok-4-1-fast-reasoning',
+        model: 'grok-3-fast',
         messages: [
           {
             role: 'system',

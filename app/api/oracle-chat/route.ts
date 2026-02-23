@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
                 Authorization: `Bearer ${process.env.XAI_API_KEY}`,
               },
               body: JSON.stringify({
-                model: 'grok-beta',
+                model: 'grok-3-fast',
                 messages: [
                   {
                     role: 'system',

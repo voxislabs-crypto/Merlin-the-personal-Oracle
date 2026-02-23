@@ -37,12 +37,9 @@ export function PWAInstaller() {
     let deferredPrompt: any;
     
     window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
       deferredPrompt = e;
       console.log('[PWA] Install prompt available');
-      
-      // Could show custom install button here
-      // For now, just log it
+      // Let the browser show its native install banner
     });
 
     window.addEventListener('appinstalled', () => {
