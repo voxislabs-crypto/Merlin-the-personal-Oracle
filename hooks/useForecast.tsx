@@ -6,11 +6,19 @@ export interface DailyForecast {
   summary: string;
   planetaryHighlights: string[];
   moonPhase: string;
+  moonSign?: string;
+  sunSign?: string;
   transits: string[];
   advice: string;
   summary_raw?: string;
   summary_mbti_adjusted?: string;
   day_rating?: 'Very Positive' | 'Positive' | 'Neutral' | 'Challenging' | 'Very Challenging';
+  focusAreas?: {
+    love: string;
+    career: string;
+    mind: string;
+    mood: string;
+  };
   mbti_overlay?: {
     type: string;
     confidence: number;

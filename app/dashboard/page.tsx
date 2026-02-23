@@ -514,6 +514,11 @@ export default function UnifiedDashboard() {
                         summary={forecast?.summary || 'Loading forecast...'}
                         planetaryHighlights={forecast?.planetaryHighlights || []}
                         moonPhase={forecast?.moonPhase || 'Unknown'}
+                        moonSign={forecast?.moonSign}
+                        sunSign={forecast?.sunSign}
+                        transits={forecast?.transits || []}
+                        day_rating={forecast?.day_rating}
+                        focusAreas={forecast?.focusAreas}
                         advice={forecast?.advice || ''}
                         loading={forecastLoading}
                       />
