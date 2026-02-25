@@ -135,8 +135,10 @@ export function CollapsibleChatPanel({
             if (data.success && data.data?.audio) {
               audioUrl = data.data.audio;
               // Cache the audio for future use
-              cacheAudio(text, 'oracle', audioUrl);
-              console.log('[TTS] Generated and cached ElevenLabs audio');
+              if (audioUrl) {
+                cacheAudio(text, 'oracle', audioUrl);
+                console.log('[TTS] Generated and cached ElevenLabs audio');
+              }
             } else {
               throw new Error(data.error || 'No audio data returned');
             }
