@@ -37,16 +37,38 @@ export function OracleChat({
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-scroll to latest message
-  const scrollToBottom = useCallback(() => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+  // Check if user is near the bottom of the chat
+  const checkIfNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    
+    const threshold = 150; // pixels from bottom
+    const position = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return position < threshold;
   }, []);
+
+  // Handle scroll events to detect user position
+  const handleScroll = useCallback(() => {
+    const nearBottom = checkIfNearBottom();
+    setIsNearBottom(nearBottom);
+    setShowScrollButton(!nearBottom);
+  }, [checkIfNearBottom]);
+
+  // Auto-scroll to latest message only if user is near bottom
+  const scrollToBottom = useCallback((force = false) => {
+    if (force || isNearBottom) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [isNearBottom]);
 
   // Read message aloud using ElevenLabs TTS
   const readMessageAloud = useCallback(async (messageId: string, text: string) => {
@@ -109,6 +131,15 @@ export function OracleChat({
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
 
+  // Attach scroll listener
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
   // Fetch conversation history on mount
   useEffect(() => {
     const fetchHistory = async () => {
@@ -149,6 +180,8 @@ export function OracleChat({
     setInput('');
     setIsLoading(true);
     setStreamingContent('');
+    setIsNearBottom(true); // Force scroll on new user message
+    scrollToBottom(true);
 
     try {
       const response = await fetch('/api/oracle-chat', {
@@ -261,24 +294,28 @@ export function OracleChat({
         </button>
       </div>
 
-      {/* Avatar Display Area */}
-      {isSpeaking && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="border-b border-purple-500/20 bg-gradient-to-b from-purple-900/20 to-transparent p-4 flex justify-center"
-        >
-          <VoiceAvatar
-            isPlaying={isSpeaking}
-            audioRef={audioRef}
-            messageText={messages.find((m: Message) => m.id === playingMessageId)?.content || ''}
-          />
-        </motion.div>
-      )}
+      {/* Avatar Display Area - Always visible */}
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ 
+          opacity: 1, 
+          height: 'auto',
+        }}
+        className="border-b border-purple-500/20 bg-gradient-to-b from-purple-900/20 to-transparent p-4 flex justify-center"
+      >
+        <VoiceAvatar
+          isPlaying={isSpeaking || isLoading || !!streamingContent}
+          audioRef={audioRef}
+          messageText={
+            streamingContent || 
+            messages.find((m: Message) => m.id === playingMessageId)?.content || 
+            (isLoading ? 'Contemplating your question...' : '')
+          }
+        />
+      </motion.div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 p-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-4 p-4 relative">
         <AnimatePresence mode="popLayout">
           {messages.length === 0 && !isLoading && (
             <motion.div
@@ -469,6 +506,22 @@ export function OracleChat({
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Scroll to bottom button */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            onClick={() => scrollToBottom(true)}
+            className="fixed bottom-24 right-8 bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3 shadow-lg transition z-10"
+            title="Scroll to bottom"
+          >
+            <ChevronDown size={20} />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Input */}
       <div className="border-t border-purple-500/20 bg-slate-900/50 backdrop-blur p-4 space-y-2">
