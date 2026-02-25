@@ -1,8 +1,29 @@
 // middleware.ts
-import { authMiddleware } from '@clerk/nextjs/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-export default authMiddleware();
+// Define protected routes (these require auth)
+const isProtected = createRouteMatcher([
+  '/dashboard(.*)',
+  '/profile(.*)',
+  '/settings(.*)',
+  '/enhanced-dashboard(.*)',
+  '/soul-dashboard(.*)',
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtected(req)) {
+    const authObj = await auth();
+    if (!authObj.userId) {
+      // Redirect to sign-in if not authenticated
+      const signInUrl = new URL('/sign-in', req.url);
+      return Response.redirect(signInUrl);
+    }
+  }
+});
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: [
+    // Skip Next.js internals and static files
+    '/((?!_next/static|_next/image|_next/webpack|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot)$).*)',
+  ],
 };
