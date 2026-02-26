@@ -45,15 +45,26 @@ export function CollapsibleChatPanel({
   const [expanded, setExpanded] = useState(isExpanded);
   const [ttsFallback, setTtsFallback] = useState(false); // Track if using Web Speech API
   const [ttsError, setTtsError] = useState<string | null>(null); // Track TTS errors
+  const [autoScroll, setAutoScroll] = useState(true); // Track if user has scrolled up
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const scrollToBottom = useCallback(() => {
+    if (!autoScroll) return; // Don't force scroll if user has scrolled up
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
+  }, [autoScroll]);
+
+  // Check if user is at bottom of scroll
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    setAutoScroll(isAtBottom);
   }, []);
 
   useEffect(() => {
@@ -379,6 +390,13 @@ export function CollapsibleChatPanel({
 
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
+      
+      // Auto-read the message aloud after a brief delay
+      setTimeout(() => {
+        if (fullContent.trim()) {
+          readMessageAloud(assistantMessage.id, fullContent);
+        }
+      }, 500);
     } catch (error) {
       console.error('Chat error:', error);
       setStreamingContent('');
@@ -440,7 +458,11 @@ export function CollapsibleChatPanel({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto space-y-3 p-4">
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto space-y-3 p-4"
+      >
         {/* Avatar Display - Shows when speaking/TTS playing */}
         {isSpeaking && (
           <motion.div

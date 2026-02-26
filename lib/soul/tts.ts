@@ -103,12 +103,13 @@ async function generateWithElevenLabs(
           "xi-api-key": apiKey,
         },
         body: JSON.stringify({
-          text,
-          model_id: "eleven_monolingual_v1",
+          text: text.slice(0, 2500), // Limit to 2500 chars for faster generation
+          model_id: "eleven_turbo_v2", // MUCH faster than v1 (3-5x speedup)
           voice_settings: {
             stability: config.stability || 0.75,
             similarity_boost: config.similarityBoost || 0.75,
           },
+          optimize_streaming_latency: 3, // Max optimization for speed
         }),
       }
     );
