@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import ThumbsFeedback from './ThumbsFeedback';
 
 interface TransitData {
   transitingPlanet: string;
@@ -22,13 +23,15 @@ interface ActiveTransitsProps {
   approaching: TransitData[];
   summary: TransitSummary;
   loading?: boolean;
+  userId?: string;
 }
 
 export function ActiveTransits({
   significant,
   approaching,
   summary,
-  loading = false
+  loading = false,
+  userId
 }: ActiveTransitsProps) {
   if (loading) {
     return (
@@ -114,6 +117,9 @@ export function ActiveTransits({
                 <p className="text-red-200/70 text-sm">
                   This is a powerful time for {describeAspect(transit.aspect)} between your {transit.natalPlanet} and {transit.transitingPlanet}.
                 </p>
+                <div className="mt-2">
+                  <ThumbsFeedback itemId={`transit-sig-${transit.transitingPlanet}-${transit.natalPlanet}`} label="transit" userId={userId} theme="transits" />
+                </div>
               </motion.div>
             ))}
           </div>
@@ -144,6 +150,9 @@ export function ActiveTransits({
                 <p className="text-amber-200/70 text-sm">
                   This transit is coming into focus. Pay attention to emerging patterns around {transit.natalPlanet}.
                 </p>
+                <div className="mt-2">
+                  <ThumbsFeedback itemId={`transit-app-${transit.transitingPlanet}-${transit.natalPlanet}`} label="transit" userId={userId} theme="transits" />
+                </div>
               </motion.div>
             ))}
           </div>

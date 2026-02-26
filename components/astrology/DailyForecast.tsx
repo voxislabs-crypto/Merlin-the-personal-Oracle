@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Lightbulb, Sparkles, Heart, Briefcase, MessageSquare, Waves } from 'lucide-react';
+import ThumbsFeedback from './ThumbsFeedback';
 
 interface DailyForecastProps {
   date: string;
@@ -21,6 +22,7 @@ interface DailyForecastProps {
     mood: string;
   };
   loading?: boolean;
+  userId?: string;
 }
 
 export function DailyForecast({
@@ -34,7 +36,8 @@ export function DailyForecast({
   advice,
   day_rating = 'Neutral',
   focusAreas,
-  loading = false
+  loading = false,
+  userId
 }: DailyForecastProps) {
   if (loading) {
     return (
@@ -181,6 +184,9 @@ export function DailyForecast({
         <p className="text-white text-base leading-relaxed">
           {summary || 'A day of quiet potential. Use it to build what matters.'}
         </p>
+        <div className="mt-3">
+          <ThumbsFeedback itemId={`forecast-summary-${date}`} label="daily reading" userId={userId} theme="forecast" />
+        </div>
       </motion.div>
 
       {/* ── Focus Areas (Love / Career / Mind / Mood) ─────────────────────── */}
@@ -266,6 +272,9 @@ export function DailyForecast({
                 <span className="text-white text-sm">{highlight}</span>
               </motion.div>
             ))}
+          </div>
+          <div className="mt-3">
+            <ThumbsFeedback itemId={`forecast-highlights-${date}`} label="planetary energies" userId={userId} theme="forecast" />
           </div>
         </motion.div>
       )}

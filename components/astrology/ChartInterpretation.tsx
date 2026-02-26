@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import ThumbsFeedback from './ThumbsFeedback';
 
 interface ChartInterpretationProps {
   summary: string;
@@ -15,6 +16,7 @@ interface ChartInterpretationProps {
   }>;
   loading?: boolean;
   interpreter?: 'grok' | 'traditional';
+  userId?: string;
 }
 
 export function ChartInterpretation({
@@ -22,7 +24,8 @@ export function ChartInterpretation({
   planetInterpretations,
   aspectInterpretations,
   loading = false,
-  interpreter = 'traditional'
+  interpreter = 'traditional',
+  userId
 }: ChartInterpretationProps) {
   if (loading) {
     return (
@@ -75,6 +78,9 @@ export function ChartInterpretation({
         )}
         <h3 className="text-xl font-bold text-amber-300 mb-3">Your Cosmic Blueprint</h3>
         <p className="text-white text-lg leading-relaxed">{summary}</p>
+        <div className="mt-3">
+          <ThumbsFeedback itemId="chart-summary" label="reading" userId={userId} theme="natal" />
+        </div>
       </motion.div>
 
       {/* Planet Interpretations */}
@@ -92,6 +98,9 @@ export function ChartInterpretation({
               >
                 <h4 className="text-lg font-semibold text-amber-200 mb-2">{item.planet}</h4>
                 <p className="text-white text-lg leading-relaxed">{item.interpretation}</p>
+                <div className="mt-2">
+                  <ThumbsFeedback itemId={`planet-${item.planet}`} label="interpretation" userId={userId} theme="natal" />
+                </div>
               </motion.div>
             ))}
           </div>
@@ -113,6 +122,9 @@ export function ChartInterpretation({
               >
                 <h4 className="text-lg font-semibold text-amber-200 mb-2">{item.planets}</h4>
                 <p className="text-white text-lg leading-relaxed">{item.interpretation}</p>
+                <div className="mt-2">
+                  <ThumbsFeedback itemId={`aspect-${item.planets.replace(/\s/g, '-')}`} label="aspect" userId={userId} theme="natal" />
+                </div>
               </motion.div>
             ))}
           </div>

@@ -16,6 +16,7 @@ import { InterpretationModeToggle } from '@/components/astrology/InterpretationM
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
 import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
+import QuestLog from '@/components/astrology/QuestLog';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -26,7 +27,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Moon, Zap, BookOpen, Brain } from 'lucide-react';
+import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -46,6 +47,7 @@ export default function UnifiedDashboard() {
   const [noBullshit, setNoBullshit] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
   const [userId, setUserId] = useState('');
+  const [questLogEnabled, setQuestLogEnabled] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -390,6 +392,21 @@ export default function UnifiedDashboard() {
                         {noBullshit ? '🔥 No-BS Mode' : '✨ Warm Mode'}
                       </span>
                     </button>
+
+                    {/* Quest Log Toggle */}
+                    <button
+                      onClick={() => setQuestLogEnabled(prev => !prev)}
+                      className={`px-6 py-3 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                        questLogEnabled
+                          ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-200 hover:bg-yellow-500/30'
+                          : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                      }`}
+                    >
+                      <Scroll className="w-3.5 h-3.5" />
+                      <span className="text-xs">
+                        {questLogEnabled ? 'Quests: On' : 'Quests: Off'}
+                      </span>
+                    </button>
                   </div>
                 </motion.div>
 
@@ -407,6 +424,15 @@ export default function UnifiedDashboard() {
                       loading={weeklyLoading}
                     />
                   </div>
+                  {/* Quest Log — only renders when enabled */}
+                  <QuestLog
+                    enabled={questLogEnabled}
+                    chartData={chartData}
+                    transits={transits}
+                    forecast={forecast}
+                    mbtiType={mbtiType || undefined}
+                    userId={userId || undefined}
+                  />
                 </motion.div>
 
                 {/* MIDDLE: Dual MBTI Cards */}
@@ -485,6 +511,7 @@ export default function UnifiedDashboard() {
                         focusAreas={forecast?.focusAreas}
                         advice={forecast?.advice || ''}
                         loading={forecastLoading}
+                        userId={userId || undefined}
                       />
                     </div>
                   </motion.div>
@@ -583,6 +610,7 @@ export default function UnifiedDashboard() {
                                 aspectInterpretations={interpretations?.aspectInterpretations || []}
                                 interpreter={interpretations?.interpreter}
                                 loading={interpretLoading}
+                                userId={userId || undefined}
                               />
                             </div>
                             
@@ -607,6 +635,7 @@ export default function UnifiedDashboard() {
                             approaching={transits?.approaching || []}
                             summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
                             loading={transitsLoading}
+                            userId={userId || undefined}
                           />
                         )}
 
