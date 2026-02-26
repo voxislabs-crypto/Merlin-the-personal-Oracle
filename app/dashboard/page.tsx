@@ -516,26 +516,66 @@ export default function UnifiedDashboard() {
                   transition={{ delay: 0.7 }}
                   className="space-y-8 mt-12"
                 >
-                  {/* Today's Forecast - Full Width */}
+                  {/* Today's Forecast - Full Width with Active Indicator */}
                   <motion.div
-                    className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm"
+                    className="relative"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.75 }}
                   >
-                    <DailyForecast
-                      date={forecast?.date || new Date().toISOString()}
-                      summary={forecast?.summary || 'Loading forecast...'}
-                      planetaryHighlights={forecast?.planetaryHighlights || []}
-                      moonPhase={forecast?.moonPhase || 'Unknown'}
-                      moonSign={forecast?.moonSign}
-                      sunSign={forecast?.sunSign}
-                      transits={forecast?.transits || []}
-                      day_rating={forecast?.day_rating}
-                      focusAreas={forecast?.focusAreas}
-                      advice={forecast?.advice || ''}
-                      loading={forecastLoading}
-                    />
+                    {/* Section Label with ACTIVE indicator */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                        Daily Transit Forecast
+                      </h2>
+                      <motion.div
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-600/30 to-emerald-600/30 border-2 border-green-400/60"
+                        animate={{
+                          borderColor: ['rgba(74, 222, 128, 0.6)', 'rgba(74, 222, 128, 1)', 'rgba(74, 222, 128, 0.6)'],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                      >
+                        <motion.div
+                          className="w-3 h-3 rounded-full bg-green-400"
+                          animate={{
+                            scale: [1, 1.4, 1],
+                            boxShadow: [
+                              '0 0 0px rgba(74, 222, 128, 0)',
+                              '0 0 15px rgba(74, 222, 128, 1)',
+                              '0 0 0px rgba(74, 222, 128, 0)'
+                            ]
+                          }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                        />
+                        <span className="text-sm font-bold text-green-300 uppercase tracking-wider">
+                          ACTIVE NOW
+                        </span>
+                      </motion.div>
+                    </div>
+                    
+                    <div className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm">
+                      <DailyForecast
+                        date={forecast?.date || new Date().toISOString()}
+                        summary={forecast?.summary || 'Loading forecast...'}
+                        planetaryHighlights={forecast?.planetaryHighlights || []}
+                        moonPhase={forecast?.moonPhase || 'Unknown'}
+                        moonSign={forecast?.moonSign}
+                        sunSign={forecast?.sunSign}
+                        transits={forecast?.transits || []}
+                        day_rating={forecast?.day_rating}
+                        focusAreas={forecast?.focusAreas}
+                        advice={forecast?.advice || ''}
+                        loading={forecastLoading}
+                      />
+                    </div>
                   </motion.div>
 
                   {/* Analysis Tabs */}

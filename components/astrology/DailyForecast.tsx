@@ -68,12 +68,60 @@ export function DailyForecast({
     >
       {/* ── Header: Date + Moon + Sun ─────────────────────────────────────── */}
       <motion.div
-        className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg border border-amber-500/30 backdrop-blur-sm"
+        className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg border border-amber-500/30 backdrop-blur-sm relative overflow-hidden"
         variants={itemVariants}
       >
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h3 className="text-2xl font-bold text-amber-300">Today's Cosmic Forecast</h3>
+        {/* Active Transit Indicator - Pulsing glow */}
+        <motion.div
+          className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        
+        <div className="flex justify-between items-start mb-3 relative z-10">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h3 className="text-2xl font-bold text-amber-300">Today's Cosmic Forecast</h3>
+              {/* LIVE Badge */}
+              <motion.div
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-purple-600/40 to-pink-600/40 border border-purple-400/50"
+                animate={{
+                  boxShadow: [
+                    '0 0 0px rgba(168, 85, 247, 0)',
+                    '0 0 20px rgba(168, 85, 247, 0.8)',
+                    '0 0 0px rgba(168, 85, 247, 0)'
+                  ]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <motion.span
+                  className="w-2 h-2 rounded-full bg-purple-400"
+                  animate={{
+                    scale: [1, 1.3, 1],
+                    opacity: [1, 0.5, 1]
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+                <span className="text-xs font-bold text-purple-200 uppercase tracking-wider">
+                  Active Transit
+                </span>
+              </motion.div>
+            </div>
             <p className="text-slate-400 text-sm mt-1">
               {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
