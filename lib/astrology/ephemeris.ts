@@ -209,31 +209,107 @@ function buildSummary(
   day_rating: DailyForecast['day_rating']
 ): string {
   const moonSign  = transitMoon?.sign || '';
-  const topTransits = active.slice(0, 3);
+  const topTransits = active.slice(0, 2); // Only use top 2 for cleaner narrative
+
+  // Human-readable transit descriptors
+  const transitDescriptors: Record<string, Record<string, string>> = {
+    Sun: {
+      positive: 'your vitality is amplified',
+      challenging: 'your core intentions face tests',
+      intensifying: 'your life force is activated'
+    },
+    Moon: {
+      positive: 'your emotions flow easily',
+      challenging: 'feelings need gentle attention',
+      intensifying: 'your emotional world is heightened'
+    },
+    Mercury: {
+      positive: 'communication feels clear and productive',
+      challenging: 'messages may be misunderstood—slow down',
+      intensifying: 'your mind sharpens and penetrates'
+    },
+    Venus: {
+      positive: 'love and connection come naturally',
+      challenging: 'relationships may need extra care',
+      intensifying: 'desire and attraction intensify'
+    },
+    Mars: {
+      positive: 'your drive and initiative are strong',
+      challenging: 'frustration may arise—channel it wisely',
+      intensifying: 'energy surges—direct it purposefully'
+    },
+    Jupiter: {
+      positive: 'opportunities expand around you',
+      challenging: 'excess or overconfidence needs watching',
+      intensifying: 'growth accelerates dramatically'
+    },
+    Saturn: {
+      positive: 'structure and discipline pay off',
+      challenging: 'limitations teach important lessons',
+      intensifying: 'reality demands your attention'
+    },
+    Uranus: {
+      positive: 'breakthroughs and innovation arise',
+      challenging: 'disruption forces adaptation',
+      intensifying: 'sudden changes catalyze transformation'
+    },
+    Neptune: {
+      positive: 'intuition and creativity flow',
+      challenging: 'confusion clears if you stay grounded',
+      intensifying: 'spiritual insights emerge'
+    },
+    Pluto: {
+      positive: 'transformation unfolds naturally',
+      challenging: 'power dynamics surface for healing',
+      intensifying: 'deep change is inevitable'
+    }
+  };
 
   let opening = '';
   switch (day_rating) {
-    case 'Very Positive':  opening = `The stars are lining up in your favour, ${natalSunSign}.`; break;
-    case 'Positive':       opening = `A constructive cosmic current carries you forward today, ${natalSunSign}.`; break;
-    case 'Neutral':        opening = `The sky holds a balanced tone for you today, ${natalSunSign}.`; break;
-    case 'Challenging':    opening = `The cosmos is pressing pause and asking you to pay attention, ${natalSunSign}.`; break;
-    case 'Very Challenging': opening = `Today's sky is charged with friction, ${natalSunSign}—but friction polishes.`; break;
-    default:               opening = `The cosmic weather has a story for you today, ${natalSunSign}.`;
+    case 'Very Positive':  opening = `The stars are beautifully aligned for you today, ${natalSunSign}.`; break;
+    case 'Positive':       opening = `Today carries forward momentum for you, ${natalSunSign}.`; break;
+    case 'Neutral':        opening = `The cosmic weather is steady and balanced for you, ${natalSunSign}.`; break;
+    case 'Challenging':    opening = `The universe has a lesson waiting for you today, ${natalSunSign}.`; break;
+    case 'Very Challenging': opening = `Today's energies are intense, ${natalSunSign}—but remember, pressure creates diamonds.`; break;
+    default:               opening = `The cosmos speaks to you today, ${natalSunSign}.`;
   }
 
+  // Build natural-sounding transit description
   let middle = '';
   if (topTransits.length > 0) {
-    const parts = topTransits.map(t => {
-      const verb = t.nature === 'positive' ? 'harmonises with' :
-                   t.nature === 'challenging' ? 'challenges' : 'activates';
-      return `transiting ${t.transitPlanet} in ${t.transitSign} ${verb} your natal ${t.natalPlanet}`;
+    const descriptions = topTransits.map(t => {
+      const natalPlanetDesc = transitDescriptors[t.natalPlanet];
+      if (natalPlanetDesc) {
+        return natalPlanetDesc[t.nature] || `your ${t.natalPlanet} is activated`;
+      }
+      return `your natal ${t.natalPlanet} is highlighted`;
     });
-    middle = ' ' + parts.join('; ') + '.';
+    
+    if (descriptions.length === 1) {
+      middle = ` ${descriptions[0].charAt(0).toUpperCase() + descriptions[0].slice(1)}.`;
+    } else if (descriptions.length === 2) {
+      middle = ` ${descriptions[0].charAt(0).toUpperCase() + descriptions[0].slice(1)}, and ${descriptions[1]}.`;
+    }
   }
 
-  const moonClause = moonSign
-    ? ` The Moon moves through ${moonSign} (${moonPhase}), colouring the emotional atmosphere.`
-    : ` The ${moonPhase} Moon shapes your emotional backdrop.`;
+  // Moon phase wisdom
+  const moonWisdom: Record<string, string> = {
+    'New Moon': `With the ${moonPhase} in ${moonSign}, this is a time for new beginnings and setting intentions`,
+    'Waxing Crescent': `The ${moonPhase} in ${moonSign} supports taking first steps toward your goals`,
+    'First Quarter': `The ${moonPhase} in ${moonSign} calls for decisive action and commitment`,
+    'Waxing Gibbous': `The ${moonPhase} in ${moonSign} asks you to refine and perfect your approach`,
+    'Full Moon': `The ${moonPhase} in ${moonSign} illuminates what needs completion or release`,
+    'Waning Gibbous': `The ${moonPhase} in ${moonSign} invites sharing wisdom and gratitude`,
+    'Last Quarter': `The ${moonPhase} in ${moonSign} supports letting go of what no longer serves`,
+    'Waning Crescent': `The ${moonPhase} in ${moonSign} whispers of rest and preparation for renewal`
+  };
+
+  const moonClause = moonWisdom[moonPhase] 
+    ? ` ${moonWisdom[moonPhase]}.`
+    : moonSign 
+      ? ` The Moon in ${moonSign} colors your emotional landscape.`
+      : ' Trust your intuition.';
 
   return opening + middle + moonClause;
 }

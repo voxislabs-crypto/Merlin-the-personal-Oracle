@@ -9,7 +9,7 @@ import { DailyForecast } from '@/components/astrology/DailyForecast';
 import { ActiveTransits } from '@/components/astrology/ActiveTransits';
 import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
 import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
-import { WeeklyWhisper } from '@/components/astrology/WeeklyWhisper';
+import { WeeklyCalendar } from '@/components/astrology/WeeklyCalendar';
 import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
 import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
@@ -482,68 +482,67 @@ export default function UnifiedDashboard() {
                   </div>
                 </motion.div>
 
-                {/* MIDDLE: Dual MBTI Cards */}
+                {/* Weekly Calendar - Below Birth Chart */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
+                  className="mt-8"
+                >
+                  <div className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/20 backdrop-blur-sm">
+                    <h2 className="text-2xl font-bold text-amber-300 mb-6">7-Day Cosmic Forecast</h2>
+                    <WeeklyCalendar
+                      week={weeklyForecast?.week || []}
+                      loading={weeklyLoading}
+                    />
+                  </div>
+                </motion.div>
+
+                {/* MIDDLE: Dual MBTI Cards */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
                 >
                   {mbtiType && (
                     <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} loading={personalityLoading} />
                   )}
                 </motion.div>
 
-                {/* BOTTOM: Grid Layout - Forecast/Weekly + Tabbed Analysis */}
+                {/* BOTTOM: Today's Forecast + Tabbed Analysis */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
+                  transition={{ delay: 0.7 }}
                   className="space-y-8 mt-12"
                 >
-                  {/* SECTION 1: Forecast + Weekly (full width) */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Today's Forecast */}
-                    <motion.div
-                      className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.65 }}
-                    >
-                      <DailyForecast
-                        date={forecast?.date || new Date().toISOString()}
-                        summary={forecast?.summary || 'Loading forecast...'}
-                        planetaryHighlights={forecast?.planetaryHighlights || []}
-                        moonPhase={forecast?.moonPhase || 'Unknown'}
-                        moonSign={forecast?.moonSign}
-                        sunSign={forecast?.sunSign}
-                        transits={forecast?.transits || []}
-                        day_rating={forecast?.day_rating}
-                        focusAreas={forecast?.focusAreas}
-                        advice={forecast?.advice || ''}
-                        loading={forecastLoading}
-                      />
-                    </motion.div>
-
-                    {/* Weekly Whisper */}
-                    <motion.div
-                      className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/20 backdrop-blur-sm"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.7 }}
-                    >
-                      <h2 className="text-2xl font-bold text-amber-300 mb-6">Weekly Overview</h2>
-                      <WeeklyWhisper
-                        week={weeklyForecast?.week || []}
-                        loading={weeklyLoading}
-                      />
-                    </motion.div>
-                  </div>
-
-                  {/* SECTION 2: Analysis Tabs (below chart) */}
+                  {/* Today's Forecast - Full Width */}
                   <motion.div
+                    className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.75 }}
+                  >
+                    <DailyForecast
+                      date={forecast?.date || new Date().toISOString()}
+                      summary={forecast?.summary || 'Loading forecast...'}
+                      planetaryHighlights={forecast?.planetaryHighlights || []}
+                      moonPhase={forecast?.moonPhase || 'Unknown'}
+                      moonSign={forecast?.moonSign}
+                      sunSign={forecast?.sunSign}
+                      transits={forecast?.transits || []}
+                      day_rating={forecast?.day_rating}
+                      focusAreas={forecast?.focusAreas}
+                      advice={forecast?.advice || ''}
+                      loading={forecastLoading}
+                    />
+                  </motion.div>
+
+                  {/* Analysis Tabs */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.8 }}
                     className="space-y-4"
                   >
                     {/* Tab Buttons - Horizontal */}
