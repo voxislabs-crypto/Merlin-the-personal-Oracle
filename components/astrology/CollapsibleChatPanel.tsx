@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import { getCachedAudio, cacheAudio, generateCacheKey, clearAllAudioCache } from '@/lib/audio-cache';
+import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
 
 interface Message {
@@ -49,10 +50,12 @@ export function CollapsibleChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  // Keep audio element persisted to prevent garbage collection
-  const persistedAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Create a ref to the global audio element for VoiceAvatar visualization
+  const globalAudioRef = useRef<HTMLAudioElement | null>(
+    typeof window !== 'undefined' && globalAudioManager ? globalAudioManager.getAudioElement() : null
+  );
 
   const scrollToBottom = useCallback(() => {
     if (!autoScroll) return; // Don't force scroll if user has scrolled up
@@ -93,14 +96,14 @@ export function CollapsibleChatPanel({
           setIsSpeaking(true);
           setIsPaused(false);
         }
-      } else if (audioRef.current) {
-        // ElevenLabs audio control
-        if (isSpeaking) {
-          audioRef.current.pause();
+      } else if (globalAudioManager) {
+        // Global audio manager control
+        if (globalAudioManager.isPlaying()) {
+          globalAudioManager.pause();
           setIsPaused(true);
           setIsSpeaking(false);
-        } else if (isPaused) {
-          audioRef.current.play();
+        } else if (globalAudioManager.isPaused()) {
+          globalAudioManager.resume();
           setIsSpeaking(true);
           setIsPaused(false);
         }
@@ -109,13 +112,8 @@ export function CollapsibleChatPanel({
     }
 
     // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    if (persistedAudioRef.current) {
-      persistedAudioRef.current.pause();
-      persistedAudioRef.current = null;
+    if (globalAudioManager) {
+      globalAudioManager.stop();
     }
     if (utteranceRef.current) {
       window.speechSynthesis.cancel();
@@ -175,94 +173,37 @@ export function CollapsibleChatPanel({
 
       setIsTTSLoading(false);
 
-      // Use ElevenLabs audio if available
-      if (audioUrl && !ttsFallback) {
-        const audio = new Audio();
-        // Store in BOTH refs to prevent garbage collection
-        audioRef.current = audio;
-        persistedAudioRef.current = audio;
-        
-        // Prevent audio from being paused by keeping reference alive
-        let hasEnded = false;
-        
-        // Set up event handlers BEFORE setting src
-        audio.onloadeddata = () => {
-          console.log('[TTS] Audio loaded, ready to play');
-        };
-
-        audio.onplay = () => {
-          console.log('[TTS] Audio playback started');
-          setIsSpeaking(true);
-          setIsPaused(false);
-          setTtsError(null);
-        };
-
-        audio.onpause = () => {
-          if (!hasEnded) {
-            console.log('[TTS] Audio paused (not ended yet)');
+      // Use global audio manager if available
+      if (audioUrl && globalAudioManager && !ttsFallback) {
+        // Set up callbacks for state management
+        globalAudioManager.setCallbacks({
+          onPlay: () => {
+            setIsSpeaking(true);
+            setIsPaused(false);
+            setTtsError(null);
+          },
+          onPause: () => {
             setIsSpeaking(false);
+          },
+          onEnd: () => {
+            setIsSpeaking(false);
+            setIsPaused(false);
+            setPlayingMessageId(null);
+          },
+          onError: (error) => {
+            setTtsError(error);
+            setTtsFallback(true);
+            playWithWebSpeechAPI(text, messageId);
           }
-        };
+        });
 
-        audio.onended = () => {
-          console.log('[TTS] Audio playback completed successfully');
-          hasEnded = true;
-          setIsSpeaking(false);
-          setIsPaused(false);
-          setPlayingMessageId(null);
-          // Only clear refs after playback is truly done
-          audioRef.current = null;
-          persistedAudioRef.current = null;
-        };
-
-        audio.onerror = (e) => {
-          console.error('[TTS] Audio playback error:', e, audio.error);
-          setTtsError('Failed to play audio. Falling back to Web Speech API.');
-          setTtsFallback(true);
-          audioRef.current = null;
-          persistedAudioRef.current = null;
-          // Trigger fallback
-          playWithWebSpeechAPI(text, messageId);
-        };
-
-        audio.onstalled = () => {
-          console.warn('[TTS] Audio stalled, attempting to continue...');
-          // Try to resume if stalled
-          if (!hasEnded && audio.paused) {
-            audio.play().catch(e => console.error('[TTS] Resume failed:', e));
-          }
-        };
-
-        audio.onwaiting = () => {
-          console.warn('[TTS] Audio buffering...');
-        };
-
-        audio.oncanplay = () => {
-          console.log('[TTS] Audio can start playing');
-        };
-
-        audio.oncanplaythrough = () => {
-          console.log('[TTS] Audio can play through without interruption');
-        };
-
-        // Set source and load
-        audio.src = audioUrl;
-        audio.preload = 'auto'; // Force preload
-        audio.load();
-        
-        // Wait a bit for buffer, then play
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Wait for audio to be ready, then play
         try {
-          await audio.play();
-          console.log('[TTS] Play promise resolved successfully');
+          await globalAudioManager.play(audioUrl, messageId);
+          console.log('[TTS] Global audio manager playback started');
         } catch (playError) {
-          console.error('[TTS] Play failed:', playError);
+          console.error('[TTS] Global audio manager play failed:', playError);
           setTtsError('Playback failed. Falling back to Web Speech API.');
           setTtsFallback(true);
-          audioRef.current = null;
-          persistedAudioRef.current = null;
           playWithWebSpeechAPI(text, messageId);
         }
         return;
@@ -380,7 +321,7 @@ export function CollapsibleChatPanel({
   // Prevent audio cutoff when messages change
   useEffect(() => {
     // Don't interfere with playing audio when new messages arrive
-    if (audioRef.current && isSpeaking) {
+    if (globalAudioManager?.isPlaying() && isSpeaking) {
       console.log('[TTS] Messages updated but audio still playing - maintaining playback');
     }
   }, [messages, isSpeaking]);
@@ -496,13 +437,9 @@ export function CollapsibleChatPanel({
       clearAllAudioCache();
       
       // Stop any playing audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      if (persistedAudioRef.current) {
-        persistedAudioRef.current.pause();
-        persistedAudioRef.current = null;
+      if (globalAudioManager) {
+        globalAudioManager.stop();
+        globalAudioManager.clearCallbacks();
       }
       
       setMessages([]);
@@ -564,7 +501,7 @@ export function CollapsibleChatPanel({
               <div className="w-48 h-56">
                 <VoiceAvatar
                   isPlaying={isSpeaking}
-                  audioRef={audioRef}
+                  audioRef={globalAudioRef}
                   messageText={messages.find((m: Message) => m.id === playingMessageId)?.content}
                 />
               </div>
