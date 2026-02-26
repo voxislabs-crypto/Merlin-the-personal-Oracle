@@ -65,7 +65,8 @@ export function getWeeklyWhispers(birthChart: BirthChartData): WeeklyForecast {
 
 /**
  * Generate a single-line whisper for one day
- * Based on transit Moon, aspects, and planetary positions
+ * Based on transit Moon sign and the day itself
+ * Clear, conversational, actionable guidance
  */
 function generateDayWhisper(
   natalChart: BirthChartData,
@@ -75,116 +76,130 @@ function generateDayWhisper(
   // Get transit Moon sign
   const transitMoon = transitChart.positions.find(p => p.name === 'Moon');
   const moonSign = transitMoon?.sign || 'Unknown';
-  
-  // Get transit Sun
   const transitSun = transitChart.positions.find(p => p.name === 'Sun');
   
-  // Get natal Sun and Moon for aspect checks
-  const natalSun = natalChart.positions.find(p => p.name === 'Sun');
-  const natalMoon = natalChart.positions.find(p => p.name === 'Moon');
-  const natalMercury = natalChart.positions.find(p => p.name === 'Mercury');
-  
-  // Moon sign whispers (primary guidance)
-  const moonWhispers: Record<string, string> = {
-    'Aries': 'Fire wants motion. Let it burn.',
-    'Taurus': 'Ground yourself. Feel the earth.',
-    'Gemini': 'Words scatter. Pick one truth.',
-    'Cancer': 'Home calls. Answer it.',
-    'Leo': 'The stage is yours. Own it.',
-    'Virgo': 'Details matter. Clean the lens.',
-    'Libra': 'Balance wobbles. Find center.',
-    'Scorpio': 'Dive deep. Trust the dark.',
-    'Sagittarius': 'Aim higher. Risk the leap.',
-    'Capricorn': 'Build the mountain. Climb it.',
-    'Aquarius': 'Break the pattern. Breathe different.',
-    'Pisces': 'Dream the ocean. Swim across.'
-  };
-  
-  // Check for challenging transits
-  if (transitMoon && natalMoon) {
-    const orb = Math.abs(transitMoon.longitude - natalMoon.longitude);
-    const normalizedOrb = ((orb % 360) + 360) % 360;
-    
-    // Square (90° or 270°)
-    if (Math.abs(normalizedOrb - 90) < 10 || Math.abs(normalizedOrb - 270) < 10) {
-      if (natalMercury) return 'Mercury square Moon. Write it, burn it.';
-      return 'Old itch. Say no.';
-    }
-    
-    // Opposition (180°)
-    if (Math.abs(normalizedOrb - 180) < 10) {
-      return 'Moon opposite Pluto. Dive.';
-    }
-    
-    // Trine (120° or 240°)
-    if (Math.abs(normalizedOrb - 120) < 10 || Math.abs(normalizedOrb - 240) < 10) {
-      return 'Venus trine Mars. Let the heat be quiet.';
-    }
-    
-    // Sextile (60° or 300°)
-    if (Math.abs(normalizedOrb - 60) < 10 || Math.abs(normalizedOrb - 300) < 10) {
-      return 'Jupiter sextile Sun. Say yes to the small.';
-    }
-  }
-  
-  // Check if Sun is changing signs (ingress)
-  if (transitSun && natalSun) {
+  // Check if Sun is changing signs (major shift)
+  if (transitSun) {
     const sunDegree = transitSun.longitude % 30;
-    if (sunDegree < 1 || sunDegree > 29) {
-      return `Sun into ${transitSun.sign}. New chapter.`;
+    if (sunDegree < 1) {
+      return `The Sun enters ${transitSun.sign} today—a new chapter begins. Set fresh intentions.`;
+    } else if (sunDegree > 29) {
+      return `The Sun completes its journey through ${transitSun.sign}. Reflect on what you've learned.`;
     }
   }
   
-  // Special day-specific whispers
-  const dayWhispers: Record<string, string[]> = {
-    'Monday': [
-      'Monday holds the Moon. Start slow.',
-      'New week. Old wounds. Choose light.',
-      'Moon in {sign}. {moonWhisper}'
+  // Moon sign guidance - clear and actionable
+  const moonGuidance: Record<string, string[]> = {
+    'Aries': [
+      'The Moon in Aries brings bold energy. Take initiative on something you\'ve been postponing.',
+      'Fiery Aries Moon fuels courage. Start that conversation or project you\'ve been avoiding.',
+      'Moon in Aries says: act first, think later. Trust your instincts today.'
     ],
-    'Tuesday': [
-      'Mars rules this day. Act or rest.',
-      'Tuesday friction. Use it or lose it.',
-      '{moonWhisper}'
+    'Taurus': [
+      'The Moon in Taurus craves stability. Focus on comfort, good food, and simple pleasures.',
+      'Grounded Taurus Moon asks you to slow down. Enjoy sensory experiences—taste, touch, beauty.',
+      'Moon in Taurus favors patience. Build something tangible, even if it\'s small.'
     ],
-    'Wednesday': [
-      'Mercury speaks. Listen twice, say once.',
-      'Midweek mirror. What do you see?',
-      '{moonWhisper}'
+    'Gemini': [
+      'The Moon in Gemini sparks curiosity. Learn something new or have a meaningful conversation.',
+      'Chatty Gemini Moon makes connections easy. Reach out, share ideas, stay mentally active.',
+      'Moon in Gemini feeds your mind. Read, write, or explore a topic that intrigues you.'
     ],
-    'Thursday': [
-      'Jupiter expands. Let something grow.',
-      'Thursday threshold. Step through.',
-      '{moonWhisper}'
+    'Cancer': [
+      'The Moon in Cancer calls you home. Nurture yourself and those you love today.',
+      'Emotional Cancer Moon heightens sensitivity. Honor your feelings without judgment.',
+      'Moon in Cancer asks: what makes you feel safe? Create that space for yourself.'
     ],
-    'Friday': [
-      'Venus whispers. Answer with softness.',
-      'Friday feels good. Trust it.',
-      '{moonWhisper}'
+    'Leo': [
+      'The Moon in Leo wants you to shine. Express yourself boldly and celebrate your uniqueness.',
+      'Dramatic Leo Moon says the stage is yours. Share your talents or do something creative.',
+      'Moon in Leo fuels confidence. Play, laugh, and don\'t dim your light for anyone.'
     ],
-    'Saturday': [
-      'Saturn teaches. Learn the lesson.',
-      'Weekend starts. Rest is work.',
-      '{moonWhisper}'
+    'Virgo': [
+      'The Moon in Virgo helps you organize. Tackle a task that needs attention to detail.',
+      'Practical Virgo Moon brings clarity. Clean up one area of your life—physical or mental.',
+      'Moon in Virgo asks: what small improvement would make a big difference? Do that.'
     ],
-    'Sunday': [
-      'Sun day. Shine or hide. Both holy.',
-      'The week ends. Let it go.',
-      '{moonWhisper}'
+    'Libra': [
+      'The Moon in Libra seeks harmony. Smooth over conflicts or beautify your surroundings.',
+      'Diplomatic Libra Moon favors connection. Compromise where needed, but don\'t lose yourself.',
+      'Moon in Libra reminds you: balance is dynamic, not static. Adjust as you go.'
+    ],
+    'Scorpio': [
+      'The Moon in Scorpio dives deep. Face what you\'ve been avoiding—there\'s power there.',
+      'Intense Scorpio Moon brings emotional truth to the surface. Don\'t fear it.',
+      'Moon in Scorpio says: transformation requires letting go. What\'s ready to die?'
+    ],
+    'Sagittarius': [
+      'The Moon in Sagittarius expands your vision. Think bigger or explore something new.',
+      'Adventurous Sagittarius Moon asks: what would you do if you weren\'t afraid?',
+      'Moon in Sagittarius seeks meaning. Connect your daily actions to your larger purpose.'
+    ],
+    'Capricorn': [
+      'The Moon in Capricorn favors discipline. Do the hard thing—it will pay off later.',
+      'Ambitious Capricorn Moon helps you build. Take one practical step toward a long-term goal.',
+      'Moon in Capricorn reminds you: patience and persistence are their own reward.'
+    ],
+    'Aquarius': [
+      'The Moon in Aquarius sees the future. Think outside the box or connect with your community.',
+      'Innovative Aquarius Moon says: be weird, be you. Your uniqueness is your superpower.',
+      'Moon in Aquarius asks: what would benefit everyone, not just you? Act on that.'
+    ],
+    'Pisces': [
+      'The Moon in Pisces opens your intuition. Trust what you feel, even if it doesn\'t make sense.',
+      'Dreamy Pisces Moon blurs boundaries. Create art, meditate, or just let yourself float.',
+      'Moon in Pisces asks for compassion—for others and for yourself. Soften where you can.'
     ]
   };
   
-  // Pick a whisper for this day
-  const options = dayWhispers[dayName] || ['{moonWhisper}'];
-  const baseWhisper = moonWhispers[moonSign] || 'Quiet sky. Breathe.';
+  // Get moon guidance options
+  const moonOptions = moonGuidance[moonSign] || [
+    `The Moon in ${moonSign} brings its own wisdom. Stay present and observant.`
+  ];
   
-  // Choose randomly or based on degree
-  const index = (transitMoon?.degree || 0) % options.length;
-  let whisper = options[index];
+  // Day-specific themes
+  const dayThemes: Record<string, string[]> = {
+    'Monday': [
+      'Monday energy is for fresh starts. What do you want this week to feel like?',
+      'Monday asks you to ease in. Don\'t force—just begin.',
+      moonOptions[0]
+    ],
+    'Tuesday': [
+      'Tuesday brings momentum. Channel your energy into action, not anxiety.',
+      'Tuesday is ruled by Mars—get things done today.',
+      moonOptions[1] || moonOptions[0]
+    ],
+    'Wednesday': [
+      'Wednesday is for communication. Have that important conversation.',
+      'Midweek clarity arrives. What\'s become obvious now?',
+      moonOptions[2] || moonOptions[0]
+    ],
+    'Thursday': [
+      'Thursday carries expansive energy. Say yes to an opportunity.',
+      'Thursday is Jupiter\'s day—let something grow.',
+      moonOptions[0]
+    ],
+    'Friday': [
+      'Friday invites pleasure. Do something that brings you joy.',
+      'Friday is Venus\'s day—prioritize beauty, love, and rest.',
+      moonOptions[1] || moonOptions[0]
+    ],
+    'Saturday': [
+      'Saturday asks for structure. Complete something you started.',
+      'Saturday is for catching up. Tie up loose ends before the week turns.',
+      moonOptions[0]
+    ],
+    'Sunday': [
+      'Sunday is for restoration. Rest isn\'t unproductive—it\'s essential.',
+      'Sunday asks you to reflect. What worked this week? What didn\'t?',
+      moonOptions[2] || moonOptions[0]
+    ]
+  };
   
-  // Replace placeholders
-  whisper = whisper.replace('{moonWhisper}', baseWhisper);
-  whisper = whisper.replace('{sign}', moonSign);
+  // Select message based on day and moon
+  const dayOptions = dayThemes[dayName] || moonOptions;
+  const degree = transitMoon?.degree || 0;
+  const index = Math.floor(degree / 10) % dayOptions.length;
   
-  return whisper;
+  return dayOptions[index];
 }
