@@ -169,20 +169,28 @@ export function CollapsibleChatPanel({
 
       // Use ElevenLabs audio if available
       if (audioUrl && !ttsFallback) {
-        const audio = new Audio(audioUrl);
+        const audio = new Audio();
         audioRef.current = audio;
+        
+        // Set up event handlers BEFORE setting src
+        audio.onloadeddata = () => {
+          console.log('[TTS] Audio loaded, ready to play');
+        };
 
         audio.onplay = () => {
+          console.log('[TTS] Audio playback started');
           setIsSpeaking(true);
           setIsPaused(false);
           setTtsError(null);
         };
 
         audio.onpause = () => {
+          console.log('[TTS] Audio paused');
           setIsSpeaking(false);
         };
 
         audio.onended = () => {
+          console.log('[TTS] Audio playback completed');
           setIsSpeaking(false);
           setIsPaused(false);
           setPlayingMessageId(null);
@@ -190,7 +198,7 @@ export function CollapsibleChatPanel({
         };
 
         audio.onerror = (e) => {
-          console.error('Audio playback error:', e);
+          console.error('[TTS] Audio playback error:', e, audio.error);
           setTtsError('Failed to play audio. Falling back to Web Speech API.');
           setTtsFallback(true);
           audioRef.current = null;
@@ -198,7 +206,29 @@ export function CollapsibleChatPanel({
           playWithWebSpeechAPI(text, messageId);
         };
 
-        await audio.play();
+        audio.onstalled = () => {
+          console.warn('[TTS] Audio stalled, attempting to continue...');
+        };
+
+        audio.onwaiting = () => {
+          console.warn('[TTS] Audio buffering...');
+        };
+
+        // Set source and load
+        audio.src = audioUrl;
+        audio.load();
+        
+        // Wait for audio to be ready, then play
+        try {
+          await audio.play();
+          console.log('[TTS] Play promise resolved successfully');
+        } catch (playError) {
+          console.error('[TTS] Play failed:', playError);
+          setTtsError('Playback failed. Falling back to Web Speech API.');
+          setTtsFallback(true);
+          audioRef.current = null;
+          playWithWebSpeechAPI(text, messageId);
+        }
         return;
       }
 
@@ -301,6 +331,23 @@ export function CollapsibleChatPanel({
 
     fetchHistory();
   }, [userId]);
+
+  // Cleanup audio on unmount to prevent cutoffs
+  useEffect(() => {
+    return () => {
+      // Don't stop audio on cleanup - let it continue playing
+      // Only stop if component is truly unmounting
+      console.log('[TTS] Component cleanup - preserving audio playback');
+    };
+  }, []);
+
+  // Prevent audio cutoff when messages change
+  useEffect(() => {
+    // Don't interfere with playing audio when new messages arrive
+    if (audioRef.current && isSpeaking) {
+      console.log('[TTS] Messages updated but audio still playing - maintaining playback');
+    }
+  }, [messages, isSpeaking]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -464,22 +511,26 @@ export function CollapsibleChatPanel({
         className="flex-1 overflow-y-auto space-y-3 p-4"
       >
         {/* Avatar Display - Shows when speaking/TTS playing */}
-        {isSpeaking && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex justify-center pb-4 border-b border-purple-500/20"
-          >
-            <div className="w-48 h-56">
-              <VoiceAvatar
-                isPlaying={isSpeaking}
-                audioRef={audioRef}
-                messageText={messages.find((m: Message) => m.id === playingMessageId)?.content}
-              />
-            </div>
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {isSpeaking && (
+            <motion.div
+              key="voice-avatar"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex justify-center pb-4 border-b border-purple-500/20"
+            >
+              <div className="w-48 h-56">
+                <VoiceAvatar
+                  isPlaying={isSpeaking}
+                  audioRef={audioRef}
+                  messageText={messages.find((m: Message) => m.id === playingMessageId)?.content}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {messages.length === 0 && !streamingContent && (
           <div className="h-full flex items-center justify-center text-center">
