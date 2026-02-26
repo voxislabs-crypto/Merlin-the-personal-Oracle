@@ -51,6 +51,8 @@ export function CollapsibleChatPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Keep audio element persisted to prevent garbage collection
+  const persistedAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const scrollToBottom = useCallback(() => {
     if (!autoScroll) return; // Don't force scroll if user has scrolled up
@@ -111,6 +113,10 @@ export function CollapsibleChatPanel({
       audioRef.current.pause();
       audioRef.current = null;
     }
+    if (persistedAudioRef.current) {
+      persistedAudioRef.current.pause();
+      persistedAudioRef.current = null;
+    }
     if (utteranceRef.current) {
       window.speechSynthesis.cancel();
       utteranceRef.current = null;
@@ -161,7 +167,9 @@ export function CollapsibleChatPanel({
           console.warn('[TTS] ElevenLabs failed, falling back to Web Speech API:', apiError);
           setTtsError(`ElevenLabs unavailable: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
           setTtsFallback(true);
-          // Continue to fallback below
+          setIsTTSLoading(false);
+          playWithWebSpeechAPI(text, messageId);
+          return;
         }
       }
 
@@ -170,7 +178,12 @@ export function CollapsibleChatPanel({
       // Use ElevenLabs audio if available
       if (audioUrl && !ttsFallback) {
         const audio = new Audio();
+        // Store in BOTH refs to prevent garbage collection
         audioRef.current = audio;
+        persistedAudioRef.current = audio;
+        
+        // Prevent audio from being paused by keeping reference alive
+        let hasEnded = false;
         
         // Set up event handlers BEFORE setting src
         audio.onloadeddata = () => {
@@ -185,16 +198,21 @@ export function CollapsibleChatPanel({
         };
 
         audio.onpause = () => {
-          console.log('[TTS] Audio paused');
-          setIsSpeaking(false);
+          if (!hasEnded) {
+            console.log('[TTS] Audio paused (not ended yet)');
+            setIsSpeaking(false);
+          }
         };
 
         audio.onended = () => {
-          console.log('[TTS] Audio playback completed');
+          console.log('[TTS] Audio playback completed successfully');
+          hasEnded = true;
           setIsSpeaking(false);
           setIsPaused(false);
           setPlayingMessageId(null);
+          // Only clear refs after playback is truly done
           audioRef.current = null;
+          persistedAudioRef.current = null;
         };
 
         audio.onerror = (e) => {
@@ -202,21 +220,38 @@ export function CollapsibleChatPanel({
           setTtsError('Failed to play audio. Falling back to Web Speech API.');
           setTtsFallback(true);
           audioRef.current = null;
+          persistedAudioRef.current = null;
           // Trigger fallback
           playWithWebSpeechAPI(text, messageId);
         };
 
         audio.onstalled = () => {
           console.warn('[TTS] Audio stalled, attempting to continue...');
+          // Try to resume if stalled
+          if (!hasEnded && audio.paused) {
+            audio.play().catch(e => console.error('[TTS] Resume failed:', e));
+          }
         };
 
         audio.onwaiting = () => {
           console.warn('[TTS] Audio buffering...');
         };
 
+        audio.oncanplay = () => {
+          console.log('[TTS] Audio can start playing');
+        };
+
+        audio.oncanplaythrough = () => {
+          console.log('[TTS] Audio can play through without interruption');
+        };
+
         // Set source and load
         audio.src = audioUrl;
+        audio.preload = 'auto'; // Force preload
         audio.load();
+        
+        // Wait a bit for buffer, then play
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Wait for audio to be ready, then play
         try {
@@ -227,6 +262,7 @@ export function CollapsibleChatPanel({
           setTtsError('Playback failed. Falling back to Web Speech API.');
           setTtsFallback(true);
           audioRef.current = null;
+          persistedAudioRef.current = null;
           playWithWebSpeechAPI(text, messageId);
         }
         return;
@@ -463,6 +499,10 @@ export function CollapsibleChatPanel({
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
+      }
+      if (persistedAudioRef.current) {
+        persistedAudioRef.current.pause();
+        persistedAudioRef.current = null;
       }
       
       setMessages([]);
