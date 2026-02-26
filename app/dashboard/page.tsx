@@ -210,6 +210,18 @@ export default function UnifiedDashboard() {
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, interpretMode]);
 
+  // Build the read-aloud text (used by MerlinAudioPlayer) — must be before early returns
+  const readAloudText = React.useMemo(() => {
+    let t = '';
+    if (interpretations?.chartSummary) t += interpretations.chartSummary + '\n\n';
+    if (interpretations?.planetInterpretations?.length) {
+      t += 'Planetary Placements:\n';
+      interpretations.planetInterpretations.forEach(p => { t += `${p.planet}: ${p.interpretation}\n\n`; });
+    }
+    if (!t && forecast?.summary) t = forecast.summary;
+    return t || 'No interpretation available yet.';
+  }, [interpretations, forecast]);
+
   // Conditional render: Don't render until Clerk auth is loaded
   if (!isLoaded) {
     return (
@@ -245,18 +257,6 @@ export default function UnifiedDashboard() {
         .map((e) => `${e.transitingPlanet} ${e.aspect} ${e.natalPlanet}`)
         .join(', ')}. The pattern here is pressure turning into purpose.`
     : 'Your Life Arc narrative will appear once timeline events are calculated.';
-
-  // Build the read-aloud text (used by MerlinAudioPlayer)
-  const readAloudText = React.useMemo(() => {
-    let t = '';
-    if (interpretations?.chartSummary) t += interpretations.chartSummary + '\n\n';
-    if (interpretations?.planetInterpretations?.length) {
-      t += 'Planetary Placements:\n';
-      interpretations.planetInterpretations.forEach(p => { t += `${p.planet}: ${p.interpretation}\n\n`; });
-    }
-    if (!t && forecast?.summary) t = forecast.summary;
-    return t || 'No interpretation available yet.';
-  }, [interpretations, forecast]);
 
   const handleDailyWhisper = () => {
     setActiveSection('forecast');
