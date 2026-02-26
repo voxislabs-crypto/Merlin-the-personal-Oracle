@@ -1,5 +1,7 @@
 // Weekly Whisper - Seven days of transit whispers
-import { calculateBirthChart } from '../engine-fallback';
+import "server-only";
+import { calculateBirthChart } from '../engine';
+import { calculateBirthChart as calculateBirthChartFallback } from '../engine-fallback';
 import { BirthChartData, PlanetPosition } from '../../types/astrology';
 
 export interface DayWhisper {
@@ -35,13 +37,24 @@ export function getWeeklyWhispers(birthChart: BirthChartData): WeeklyForecast {
     const dayName = dayNames[currentDay.getDay()];
     const dateString = currentDay.toISOString().split('T')[0];
     
-    // Calculate transit chart for this day
-    const transitChart = calculateBirthChart(
-      dateString,
-      '12:00:00',
-      birthChart.birthData.coordinates?.lat || 0,
-      birthChart.birthData.coordinates?.lon || 0
-    );
+    // Calculate transit chart for this day (with fallback)
+    let transitChart: BirthChartData;
+    try {
+      transitChart = calculateBirthChart(
+        dateString,
+        '12:00:00',
+        birthChart.birthData.coordinates?.lat || 0,
+        birthChart.birthData.coordinates?.lon || 0
+      ) as BirthChartData;
+    } catch (error) {
+      console.warn(`[weekly-whisper] Swiss failed for ${dateString}, using fallback`);
+      transitChart = calculateBirthChartFallback(
+        dateString,
+        '12:00:00',
+        birthChart.birthData.coordinates?.lat || 0,
+        birthChart.birthData.coordinates?.lon || 0
+      ) as BirthChartData;
+    }
     
     // Generate whisper based on transits
     const whisper = generateDayWhisper(birthChart, transitChart, dayName);

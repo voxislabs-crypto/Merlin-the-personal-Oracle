@@ -1,4 +1,6 @@
-import { calculateBirthChart } from '../engine-fallback';
+import "server-only";
+import { calculateBirthChart } from '../engine';
+import { calculateBirthChart as calculateBirthChartFallback } from '../engine-fallback';
 import { BirthChartData, PlanetPosition } from '../../types/astrology';
 
 export interface DailyForecast {
@@ -318,16 +320,36 @@ export function getTodaysForecast(birthChart: BirthChartData): DailyForecast {
   const today = new Date();
   const dateString = today.toISOString().split('T')[0];
 
-  // ── Transiting chart at noon ──────────────────────────────────────────────
-  const todaysChart = calculateBirthChart(
-    dateString,
-    '12:00:00',
-    birthChart.birthData.coordinates?.lat || 0,
-    birthChart.birthData.coordinates?.lon || 0
-  );
+  // ── Transiting chart at noon (with fallback) ──────────────────────────────
+  let todaysChart: BirthChartData;
+  let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
+  
+  try {
+    console.log('[ephemeris] Calculating today\'s transiting chart with real sweph');
+    todaysChart = calculateBirthChart(
+      dateString,
+      '12:00:00',
+      birthChart.birthData.coordinates?.lat || 0,
+      birthChart.birthData.coordinates?.lon || 0
+    ) as BirthChartData;
+  } catch (error) {
+    console.warn('[ephemeris] Swiss failed, using fallback:', error);
+    source = 'mock-fallback';
+    todaysChart = calculateBirthChartFallback(
+      dateString,
+      '12:00:00',
+      birthChart.birthData.coordinates?.lat || 0,
+      birthChart.birthData.coordinates?.lon || 0
+    ) as BirthChartData;
+  }
 
   const natalPlanets   = birthChart.positions  || birthChart.planets || [];
   const transitPlanets = todaysChart.positions || todaysChart.planets || [];
+
+  console.log(`[ephemeris] Calculated transit positions (source: ${source}):`);
+  transitPlanets.forEach(p => {
+    console.log(`  ${p.name}: ${p.longitude.toFixed(2)}° (${p.sign} ${p.degree}°${p.minute}')`);
+  });
 
   // ── Real natal-to-transit aspect computation ──────────────────────────────
   const activeTransits = computeTransits(transitPlanets, natalPlanets);

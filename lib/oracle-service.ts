@@ -1,8 +1,10 @@
 // Oracle Service - Chat-based astrological guidance with chart context
 // Handles chart-aware system prompts, conversation context, and tactical suggestions
+import "server-only";
 
 import { BirthChartData } from '@/types/astrology';
 import { Timeline } from '@/lib/timeline-service';
+import { DailyForecast } from '@/lib/astrology/ephemeris';
 
 export interface OracleMessage {
   role: 'user' | 'assistant';
@@ -10,10 +12,29 @@ export interface OracleMessage {
   timestamp: Date;
 }
 
+export interface TransitData {
+  all: Array<{
+    transitingPlanet: string;
+    natalPlanet: string;
+    aspect: string;
+    orb: number;
+    exact: boolean;
+  }>;
+  significant: Array<any>;
+  approaching: Array<any>;
+  summary: {
+    total: number;
+    exact: number;
+    approaching: number;
+  };
+}
+
 export interface OracleContext {
   birthChart?: BirthChartData;
   timeline?: Timeline; // Long-range forecast context
   progressedChart?: any;
+  transits?: TransitData; // Current transits vs natal
+  dailyForecast?: DailyForecast; // Today's ephemeris forecast
   conversationHistory: OracleMessage[];
   userId?: string;
   currentDate?: Date;
@@ -88,6 +109,58 @@ function detectChartSignature(chart: BirthChartData): string {
 }
 
 /**
+ * Format current transits into readable context for oracle
+ */
+function formatTransitsContext(transits: TransitData | undefined): string {
+  if (!transits || transits.all.length === 0) return '';
+
+  const exactTransits = transits.significant.slice(0, 5);
+  const approachingTransits = transits.approaching.slice(0, 3);
+
+  const exactStr = exactTransits.length > 0
+    ? exactTransits.map((t: any) => 
+        `  • ${t.transitingPlanet} ${t.aspect} natal ${t.natalPlanet} (${t.orb.toFixed(1)}° orb)`
+      ).join('\n')
+    : '  None exact right now';
+
+  const approachingStr = approachingTransits.length > 0
+    ? approachingTransits.map((t: any) => 
+        `  • ${t.transitingPlanet} ${t.aspect} natal ${t.natalPlanet} (${t.orb.toFixed(1)}° orb)`
+      ).join('\n')
+    : '';
+
+  return `
+CURRENT TRANSITS (What's happening in the sky RIGHT NOW):
+Exact/Significant Aspects:
+${exactStr}${approachingStr ? `\n\nApproaching (within 3°):\n${approachingStr}` : ''}
+
+Total active transits: ${transits.summary.total}
+  `.trim();
+}
+
+/**
+ * Format daily forecast into context
+ */
+function formatDailyForecastContext(forecast: DailyForecast | undefined): string {
+  if (!forecast) return '';
+
+  const highlights = forecast.planetaryHighlights.slice(0, 4).join('\n  ');
+  const focusAreas = forecast.focusAreas
+    ? `\n- Love: ${forecast.focusAreas.love}\n- Career: ${forecast.focusAreas.career}\n- Mind: ${forecast.focusAreas.mind}\n- Mood: ${forecast.focusAreas.mood}`
+    : '';
+
+  return `
+TODAY'S COSMIC WEATHER (${forecast.date}):
+- Moon Phase: ${forecast.moonPhase}${forecast.moonSign ? ` in ${forecast.moonSign}` : ''}
+- Day Rating: ${forecast.day_rating}
+- Energy Summary: ${forecast.summary}
+
+Key Planetary Movements:
+  ${highlights}${focusAreas}
+  `.trim();
+}
+
+/**
  * Format timeline data into context for oracle response
  */
 function formatTimelineContext(timeline: Timeline | undefined): string {
@@ -115,6 +188,8 @@ ${turningPointsStr || 'None in immediate timeframe'}
  */
 export function buildOracleSystemPrompt(context: OracleContext): string {
   const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
+  const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
+  const forecastContext = context.dailyForecast ? formatDailyForecastContext(context.dailyForecast) : '';
   const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
   const conversationLength = context.conversationHistory.length;
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
@@ -139,6 +214,10 @@ YOUR APPROACH:
 7. When appropriate, identify their "current level" - what test they're facing, what reward waits
 
 ${chartContext}
+
+${transitsContext ? `\n${transitsContext}` : ''}
+
+${forecastContext ? `\n${forecastContext}` : ''}
 
 ${timelineContext ? `\n${timelineContext}` : ''}
 
@@ -198,15 +277,58 @@ export function generateTacticalSuggestions(
 
 /**
  * Generate a micro-forecast based on current transits or date
+ * Now uses real transit data when available
  */
 export function generateMicroForecast(
   currentDate: Date,
-  chart: BirthChartData | undefined
+  chart: BirthChartData | undefined,
+  transits?: TransitData
 ): { timeframe: string; themes: string[] } {
-  const day = currentDate.getDay();
-  const date = currentDate.getDate();
+  // If we have real transit data, use it!
+  if (transits && transits.significant.length > 0) {
+    const themes: string[] = [];
+    
+    // Analyze significant transits for themes
+    transits.significant.slice(0, 3).forEach((t: any) => {
+      const transitPlanet = t.transitingPlanet;
+      const aspect = t.aspect;
+      
+      // Map planets to themes
+      const planetThemes: { [key: string]: string } = {
+        'Sun': 'Identity & Purpose',
+        'Moon': 'Emotions & Comfort',
+        'Mercury': 'Communication & Ideas',
+        'Venus': 'Love & Values',
+        'Mars': 'Action & Drive',
+        'Jupiter': 'Growth & Opportunity',
+        'Saturn': 'Structure & Lessons',
+        'Uranus': 'Change & Innovation',
+        'Neptune': 'Dreams & Intuition',
+        'Pluto': 'Transformation & Power'
+      };
+      
+      const theme = planetThemes[transitPlanet];
+      if (theme) {
+        const nature = aspect === 'Square' || aspect === 'Opposition' ? 'challenges' : 'supports';
+        themes.push(`${theme} (${transitPlanet} ${nature})`);
+      }
+    });
+    
+    // Add moon phase theme if available
+    if (themes.length < 3) {
+      const day = currentDate.getDay();
+      const dayThemes = ['Reflection', 'Action', 'Choice', 'Emotion', 'Expression', 'Service', 'Balance'];
+      themes.push(dayThemes[day]);
+    }
+    
+    return {
+      timeframe: 'Right now',
+      themes: themes.slice(0, 3)
+    };
+  }
   
-  // Simple cycle-based forecast (can be expanded with real transit data)
+  // Fallback to simple cycle-based forecast
+  const day = currentDate.getDay();
   const dayThemes: { [key: number]: string[] } = {
     0: ['Reflection', 'Rest', 'Integration'],
     1: ['Communication', 'Beginnings', 'Movement'],

@@ -9,7 +9,11 @@ import {
   oracleMemory,
   OracleContext,
   OracleMessage,
+  TransitData,
 } from '@/lib/oracle-service';
+import { getCurrentTransits } from '@/lib/astrology/transits';
+import { getTodaysForecast } from '@/lib/astrology/ephemeris';
+import { BirthChartData } from '@/types/astrology';
 
 interface OracleChatRequest {
   question: string;
@@ -37,10 +41,48 @@ export async function POST(request: NextRequest) {
     // Get conversation history
     const history = oracleMemory.getHistory(userId);
 
+    // Calculate real-time transit and forecast data if birth chart provided
+    let transits: TransitData | undefined;
+    let dailyForecast;
+    
+    if (birthChart?.positions && birthChart.positions.length > 0) {
+      try {
+        console.log('[Oracle Chat] Calculating current transits for chart awareness');
+        // Get current transits
+        const transitMatches = getCurrentTransits(birthChart.positions);
+        
+        // Categorize transits
+        const significant = transitMatches.filter((t: any) => t.exact || t.orb < 1.5);
+        const approaching = transitMatches.filter((t: any) => !t.exact && t.orb >= 1.5 && t.orb < 3);
+        
+        transits = {
+          all: transitMatches,
+          significant,
+          approaching,
+          summary: {
+            total: transitMatches.length,
+            exact: significant.length,
+            approaching: approaching.length
+          }
+        };
+        
+        console.log(`[Oracle Chat] Found ${transits.summary.total} transits (${transits.summary.exact} exact, ${transits.summary.approaching} approaching)`);
+        
+        // Get today's forecast
+        dailyForecast = getTodaysForecast(birthChart as BirthChartData);
+        console.log(`[Oracle Chat] Generated today's forecast: ${dailyForecast.day_rating}`);
+      } catch (error) {
+        console.warn('[Oracle Chat] Could not calculate transits/forecast:', error);
+        // Continue without transit data - oracle will still work with natal chart only
+      }
+    }
+
     // Build context
     const context: OracleContext = {
       birthChart,
       progressedChart,
+      transits,
+      dailyForecast,
       conversationHistory: history,
       userId,
       currentDate: new Date(),
@@ -188,7 +230,7 @@ export async function POST(request: NextRequest) {
 
           // After streaming complete, generate enhancements
           const tactics = generateTacticalSuggestions(fullResponse, birthChart, context);
-          const forecast = generateMicroForecast(new Date(), birthChart);
+          const forecast = generateMicroForecast(new Date(), birthChart, transits);
           const level = identifyCurrentLevel(context);
 
           // Send enhancements as separate JSON objects
