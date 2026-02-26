@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getCachedAudio, cacheAudio } from '@/lib/audio-cache';
 
 interface MerlinAudioPlayerProps {
   /** Text to synthesize. When this changes the player resets. */
@@ -50,21 +51,44 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     setCurrent(0);
   }, []);
 
+  const VOICE = 'mystic';
+
   const loadAndPlay = useCallback(async () => {
     if (!text) return;
     setState('loading');
     setErrorMsg('');
 
     try {
+      // ── Cache check: skip ElevenLabs call if we already have this audio ──
+      const cached = getCachedAudio(text, VOICE);
+      if (cached) {
+        console.log('[MerlinAudioPlayer] Cache hit — skipping ElevenLabs');
+        const audio = new Audio(cached);
+        audioRef.current = audio;
+        audio.onloadedmetadata = () => setDuration(audio.duration);
+        audio.ontimeupdate = () => {
+          setCurrent(audio.currentTime);
+          setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
+        };
+        audio.onended = () => { setState('idle'); setProgress(0); setCurrent(0); };
+        audio.onerror = () => { setState('error'); setErrorMsg('Playback error'); };
+        setState('ready');
+        audio.play();
+        setState('playing');
+        return;
+      }
+
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: 'mystic', provider: 'elevenlabs' }),
+        body: JSON.stringify({ text, voice: VOICE, provider: 'elevenlabs' }),
       });
 
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data?.audio) {
+          // ── Cache write ──
+          cacheAudio(text, VOICE, result.data.audio);
           const audio = new Audio(result.data.audio);
           audioRef.current = audio;
 
