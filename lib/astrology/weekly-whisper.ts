@@ -22,9 +22,9 @@ export function getWeeklyWhispers(birthChart: BirthChartData): WeeklyForecast {
   const week: DayWhisper[] = [];
   const today = new Date();
   
-  // Start from tomorrow (or today if preferred)
+  // Start 3 days before today, so today is always centered
   const startDate = new Date(today);
-  startDate.setDate(startDate.getDate());
+  startDate.setDate(startDate.getDate() - 3);
   
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   
