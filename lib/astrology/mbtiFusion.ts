@@ -210,38 +210,54 @@ export function computeMBTIDual(chart: BirthChartData): {
   });
 
   // ============================================================================
-  // INFJ Override: If firmware is INFJ, keep it; otherwise check markers for override
+  // INFJ Override: Multi-marker detection with tuned threshold
+  // INFJ = the Counselor — deep empathy, hidden insight, inner conviction
+  // Key astrological signature: Water Moon (esp. Scorpio) + N + F + J inner sense
   // ============================================================================
   let finalType = firmware.type;
   let finalConfidence = firmware.confidence;
 
-  // If firmware is already INFJ, it stays
-  if (firmware.type === "INFJ") {
-    finalType = "INFJ";
-    finalConfidence = firmware.confidence;
+  if (firmware.type === 'INFJ') {
+    // Already correctly identified — reinforce confidence
+    finalType = 'INFJ';
+    finalConfidence = Math.min(firmware.confidence + 5, 100);
   } else {
-    // Count INFJ markers in firmware layer
+    // Score INFJ markers across both layers
     let infjMarkers = 0;
-    
-    // Strong intuition (N scored high)
-    if (firmware.breakdown.s_n === "N") infjMarkers++;
-    
-    // Water moon
-    if (moon && getElement(moon.sign) === "water") infjMarkers++;
-    
-    // Neptune in 12th house (core)
-    if (neptune && neptune.house === 12) infjMarkers++;
-    
-    // Mercury in 12th house (unconscious communication)
-    if (mercury && mercury.house === 12) infjMarkers++;
-    
-    // Feeling preference in firmware
-    if (firmware.breakdown.t_f === "F") infjMarkers++;
-    
-    // Force INFJ if 4+ markers align
-    if (infjMarkers >= 4) {
-      finalType = "INFJ";
-      finalConfidence = Math.min(firmware.confidence + 10, 100);
+    const infjReasons: string[] = [];
+
+    // Tier 1 — Strong markers (each = 1 point)
+    if (firmware.breakdown.s_n === 'N') { infjMarkers++; infjReasons.push('N in firmware'); }
+    if (firmware.breakdown.t_f === 'F') { infjMarkers++; infjReasons.push('F in firmware'); }
+    if (firmware.breakdown.e_i === 'I') { infjMarkers++; infjReasons.push('I in firmware'); }
+    if (firmware.breakdown.j_p === 'J') { infjMarkers++; infjReasons.push('J in firmware'); }
+
+    // Tier 2 — Specific planetary signatures (each = 1 point)
+    if (moon && moon.sign.toLowerCase() === 'scorpio') {
+      infjMarkers += 2; // Scorpio Moon = definitive INFJ signature (double weight)
+      infjReasons.push('Moon in Scorpio (core INFJ marker)');
+    } else if (moon && getElement(moon.sign) === 'water') {
+      infjMarkers++;
+      infjReasons.push(`Moon in ${moon.sign} (water — empathic core)`);
+    }
+    if (neptune && neptune.house === 12) { infjMarkers++; infjReasons.push('Neptune in 12th'); }
+    if (moon && (moon.house === 8 || moon.house === 12)) { infjMarkers++; infjReasons.push(`Moon in ${moon.house}th house`); }
+    if (mercury && mercury.house === 12) { infjMarkers++; infjReasons.push('Mercury in 12th'); }
+
+    // Tier 3 — Supporting indicators (0.5 each, tracked separately)
+    let softMarkers = 0;
+    if (pluto && (pluto.house === 8 || pluto.house === 12)) softMarkers++;
+    if (neptune && (neptune.house === 1 || neptune.house === 9)) softMarkers++;
+    if (northNode && getElement(northNode.sign) === 'water') softMarkers++;
+    if (moon && getMode(moon.sign) === 'fixed') softMarkers++; // fixed moon = INFJ resolve
+    if (softMarkers >= 3) infjMarkers++; // 3+ soft markers = 1 hard marker
+
+    console.log(`[INFJ Override] markers: ${infjMarkers}, reasons: ${infjReasons.join(', ')}`);
+
+    // Threshold: 3 hard markers (lowered from 4) triggers INFJ override
+    if (infjMarkers >= 3) {
+      finalType = 'INFJ';
+      finalConfidence = Math.min(firmware.confidence + Math.min(infjMarkers * 3, 15), 100);
     }
   }
 
@@ -571,6 +587,18 @@ function computeFirmwareLayer(params: {
     }
   }
 
+  // Moon in 8th house = hidden transformational depth (strong N for INFJ)
+  if (moon && moon.house === 8) {
+    nScore += 0.9;
+    intuitionReasons.push(`Moon in 8th house (hidden psychic depth)`);
+  }
+
+  // Moon in 4th house = roots-connected intuition
+  if (moon && moon.house === 4) {
+    nScore += 0.5;
+    intuitionReasons.push(`Moon in 4th house (ancestral intuition)`);
+  }
+
   // Moon in Scorpio/Pisces = profound psychic capacity
   if (moon) {
     const moonSign = moon.sign.toLowerCase();
@@ -655,37 +683,74 @@ function computeFirmwareLayer(params: {
 
   const firmwareT_F = tScore > 0.4 ? "T" : "F";
 
-  // === J/P: Perceiving (with possible J from Saturn/Uranus) ===
+  // === J/P: Judging vs Perceiving — inner commitment vs openness ===
+  // INFJ key insight: J comes from FIXED CONVICTION, not external structure.
+  // Fixed signs = deep inner commitment = J. Cardinal = initiating purpose = J.
+  // The old logic only penalized J, ignoring the most important signal.
   let jScore = 0;
 
-  // 12th house = mutable/mystical (P tendency)
-  if (twelfthHouseCount >= 2) {
-    jScore -= 0.6; // 12th house = intuitive, flexible (P)
-    judgingReasons.push(`${twelfthHouseCount} planets in 12th house (fluid)`);
-  }
-
-  // Pluto in 12th = hidden transformation (P - openness to change)
-  if (pluto && pluto.house === 12) {
-    jScore -= 0.5;
-    judgingReasons.push(`Pluto in 12th house (hidden dynamism)`);
-  }
-
-  // Neptune = flexible, adaptable (P)
-  if (neptune) {
-    const neptuneMode = getMode(neptune.sign);
-    if (neptuneMode !== "cardinal") {
-      jScore -= 0.4;
-      judgingReasons.push(`Neptune in mutable sign (adaptable)`);
+  // Moon in Fixed sign = STRONGEST J indicator in firmware
+  // Fixed signs (Scorpio, Taurus, Leo, Aquarius) signal unwavering inner resolve
+  if (moon) {
+    const moonMode = getMode(moon.sign);
+    if (moonMode === 'fixed') {
+      jScore += 1.2; // Fixed moon = deep inner commitment = J
+      judgingReasons.push(`Moon in ${moon.sign} (fixed — inner conviction, J)`);
+    } else if (moonMode === 'cardinal') {
+      jScore += 0.6; // Cardinal moon = purposeful inner drive = J
+      judgingReasons.push(`Moon in ${moon.sign} (cardinal — inner initiative, J)`);
+    } else if (moonMode === 'mutable') {
+      jScore -= 0.3; // Mutable moon = flexible inner world = P
+      judgingReasons.push(`Moon in ${moon.sign} (mutable — adaptable inner world)`);
     }
   }
 
-  // Saturn in 12th/1st = structured but introspective
-  if (saturn && (saturn.house === 1 || saturn.house === 12)) {
-    jScore += 0.3; // Some structure to inner world
-    judgingReasons.push(`Saturn in ${saturn.house}th house`);
+  // Saturn aspecting Moon = structured emotional life = J in inner world
+  if (saturn && moon) {
+    if (hasAspect(saturn, 'Moon', ['conjunction', 'trine', 'sextile', 'square'], chart)) {
+      jScore += 0.7;
+      judgingReasons.push(`Saturn aspect to Moon (structured inner life, J)`);
+    }
   }
 
-  const firmwareJ_P = jScore > 0.3 ? "J" : "P";
+  // Moon in 4th or 8th house = deep roots / fixed emotional intensity = inner J
+  if (moon && (moon.house === 4 || moon.house === 8)) {
+    jScore += 0.5;
+    judgingReasons.push(`Moon in ${moon.house}th house (emotionally anchored, J)`);
+  }
+
+  // Pluto prominent in water house = transformational but *purposeful* = slight J
+  if (pluto && (pluto.house === 8)) {
+    jScore += 0.3;
+    judgingReasons.push(`Pluto in 8th house (purposeful transformation, J)`);
+  }
+
+  // 12th house stellium = mutable/mystical but reduces J less severely than before
+  if (twelfthHouseCount >= 2) {
+    jScore -= 0.3; // (reduced from -0.6) – 12th house softens J but doesn't negate fixed moon
+    judgingReasons.push(`${twelfthHouseCount} planets in 12th house (fluid inner world)`);
+  }
+
+  // Neptune in mutable sign = slight P tendency (reduced from -0.4 to -0.2)
+  if (neptune) {
+    const neptuneMode = getMode(neptune.sign);
+    if (neptuneMode === 'mutable') {
+      jScore -= 0.2;
+      judgingReasons.push(`Neptune in mutable sign (fluid mysticism)`);
+    }
+  }
+
+  // North Node in fixed/cardinal water = spiritual J commitment
+  if (northNode) {
+    const nnMode = getMode(northNode.sign);
+    const nnElement = getElement(northNode.sign);
+    if ((nnMode === 'fixed' || nnMode === 'cardinal') && nnElement === 'water') {
+      jScore += 0.4;
+      judgingReasons.push(`North Node in ${northNode.sign} (purposeful soul direction, J)`);
+    }
+  }
+
+  const firmwareJ_P = jScore > 0.0 ? 'J' : 'P';
 
   // Compute firmware MBTI type
   const firmwareType = `${firmwareE_I}${firmwareS_N}${firmwareT_F}${firmwareJ_P}`;
