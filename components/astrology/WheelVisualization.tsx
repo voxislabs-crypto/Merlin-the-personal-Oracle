@@ -30,6 +30,19 @@ const PLANET_TOOLTIPS: Record<string, string> = {
   Pluto: 'Transformation, power, death, and rebirth. The phoenix.'
 };
 
+// Aspect Dictionary — Core + Minor definitions for wheel hover tooltips
+const ASPECT_DICTIONARY: Record<string, { symbol: string; angle: string; nature: string; definition: string; keywords: string[] }> = {
+  conjunction: { symbol: '☌', angle: '0°', nature: 'Fusion', definition: 'Two planets merge their energies into one unified force. Highly personal and intense — can be empowering or overwhelming depending on the planets involved.', keywords: ['fusion', 'intensity', 'new beginnings', 'focus'] },
+  opposition: { symbol: '☍', angle: '180°', nature: 'Tension', definition: 'Two planets pull in opposite directions, creating dynamic tension and awareness. Often shows up in relationships as projection or seeks balance through integration.', keywords: ['balance', 'projection', 'polarity', 'awareness'] },
+  trine: { symbol: '△', angle: '120°', nature: 'Harmony', definition: 'A flowing, effortless connection between planets of the same element. Gifts come naturally here — talent and ease, though sometimes taken for granted.', keywords: ['ease', 'talent', 'flow', 'opportunity'] },
+  square: { symbol: '□', angle: '90°', nature: 'Challenge', definition: 'Friction between two planets that forces action and growth. The most motivating aspect — pressure produces diamonds. Mastery comes through struggle.', keywords: ['friction', 'growth', 'motivation', 'mastery'] },
+  sextile: { symbol: '⚹', angle: '60°', nature: 'Opportunity', definition: 'A gentle, supportive link that offers opportunity if you take initiative. Less powerful than a trine but requires conscious engagement to activate.', keywords: ['opportunity', 'initiative', 'cooperation', 'talent'] },
+  quincunx: { symbol: '⚻', angle: '150°', nature: 'Adjustment', definition: 'An awkward aspect requiring constant fine-tuning. The two planets speak different languages and must learn to adjust to each other — often linked to health and service.', keywords: ['adjustment', 'redirection', 'health', 'service'] },
+  sesquiquadrate: { symbol: '⚼', angle: '135°', nature: 'Agitation', definition: 'A minor friction aspect that creates restlessness and the urge to act impulsively. Similar to a square but more subtle — nagging pressure that builds over time.', keywords: ['restlessness', 'agitation', 'impulsive action'] },
+  semisquare: { symbol: '∠', angle: '45°', nature: 'Irritation', definition: 'A minor stress aspect that causes friction and mild irritation. Like a splinter — small but persistently bothersome. Pushes toward necessary adjustments.', keywords: ['friction', 'adjustment', 'irritation'] },
+  semisextile: { symbol: '⚺', angle: '30°', nature: 'Subtle Link', definition: 'A subtle, separating connection between adjacent signs. Energy flows but awkwardly — neighboring planets that never quite understand each other, requiring mild mediation.', keywords: ['subtle', 'adjacent', 'minor link'] },
+};
+
 function getTransitInfluence(planet: string): string {
   const influences: Record<string, string> = {
     Sun: 'vitality and self-expression',
@@ -336,23 +349,42 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
                 className="cursor-pointer"
               />
 
-              {isHovered && (
-                <text
-                  x={(p1Pos.x + p2Pos.x) / 2}
-                  y={(p1Pos.y + p2Pos.y) / 2}
-                  fill="#fcd34d"
-                  fontSize="14"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="pointer-events-none"
-                >
-                  {a.type} {a.angle ? `${a.angle.toFixed(1)}°` : ''}
-                </text>
-              )}
+              {/* SVG aspect label stays minimal */}
             </g>
           );
         })}
       </svg>
+
+      {/* Aspect Definition Tooltip — appears over the wheel when an aspect line is hovered */}
+      {hoveredAspect && (() => {
+        const key = (hoveredAspect.type || hoveredAspect.label || '').toLowerCase().replace(/[^a-z]/g, '');
+        const def = ASPECT_DICTIONARY[key];
+        return (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+            <div className="bg-slate-900/95 border border-amber-500/50 rounded-xl px-5 py-4 max-w-xs shadow-2xl backdrop-blur-xl text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="text-2xl text-amber-400">{def?.symbol || '★'}</span>
+                <span className="text-amber-300 font-bold text-lg capitalize">{hoveredAspect.type || hoveredAspect.label}</span>
+                <span className="text-slate-400 text-sm">{def?.angle || ''}</span>
+              </div>
+              {def && (
+                <>
+                  <div className="text-xs font-semibold uppercase tracking-widest text-amber-500/80 mb-1">{def.nature}</div>
+                  <p className="text-slate-300 text-xs leading-relaxed mb-2">{def.definition}</p>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {def.keywords.map(kw => (
+                      <span key={kw} className="px-2 py-0.5 text-xs bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-300/70">{kw}</span>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="mt-2 text-xs text-slate-500">
+                {hoveredAspect.from} — {hoveredAspect.to}{hoveredAspect.angle ? ` · ${typeof hoveredAspect.angle === 'number' ? hoveredAspect.angle.toFixed(1) : hoveredAspect.angle}° orb` : ''}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Moon Phase Icon */}
       <div className="absolute bottom-4 left-4 text-2xl z-30">

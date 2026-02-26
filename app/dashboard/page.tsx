@@ -15,6 +15,7 @@ import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCard
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
+import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -25,7 +26,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Moon, Zap, BookOpen } from 'lucide-react';
+import { Sparkles, Moon, Zap, BookOpen, Brain } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -38,14 +39,13 @@ export default function UnifiedDashboard() {
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
-  const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc'>('wheel');
+  const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc' | 'personality'>('wheel');
   // Life Arc mode removed - now just raw timeline
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
   const [noBullshit, setNoBullshit] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
   const [userId, setUserId] = useState('');
-  const [ttsLoading, setTtsLoading] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -246,94 +246,17 @@ export default function UnifiedDashboard() {
         .join(', ')}. The pattern here is pressure turning into purpose.`
     : 'Your Life Arc narrative will appear once timeline events are calculated.';
 
-  const handleReadAloud = () => {
-    // Build full interpretation text
-    let text = '';
-    
-    if (interpretations?.chartSummary) {
-      text += interpretations.chartSummary + '\n\n';
+  // Build the read-aloud text (used by MerlinAudioPlayer)
+  const readAloudText = React.useMemo(() => {
+    let t = '';
+    if (interpretations?.chartSummary) t += interpretations.chartSummary + '\n\n';
+    if (interpretations?.planetInterpretations?.length) {
+      t += 'Planetary Placements:\n';
+      interpretations.planetInterpretations.forEach(p => { t += `${p.planet}: ${p.interpretation}\n\n`; });
     }
-    
-    if (interpretations?.planetInterpretations && interpretations.planetInterpretations.length > 0) {
-      text += 'Planetary Placements:\n';
-      interpretations.planetInterpretations.forEach(p => {
-        text += `${p.planet}: ${p.interpretation}\n\n`;
-      });
-    }
-    
-    if (!text && forecast?.summary) {
-      text = forecast.summary;
-    }
-    
-    if (!text) {
-      text = 'No interpretation available';
-    }
-
-    // Use ElevenLabs TTS via our endpoint with "mystic" voice archetype
-    playWithElevenLabs(text);
-  };
-
-  const playWithElevenLabs = async (text: string) => {
-    setTtsLoading(true);
-    try {
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          voice: 'mystic', // Use mystic voice for the readings
-          provider: 'elevenlabs',
-        }),
-      });
-
-      if (!response.ok) {
-        // Fallback to Web Speech API if ElevenLabs fails
-        console.log('[ReadAloud] ElevenLabs unavailable, using Web Speech API');
-        setTtsLoading(false);
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-        return;
-      }
-
-      const result = await response.json();
-      setTtsLoading(false);
-      
-      if (result.success && result.data.audio) {
-        // If audio is a URL, play it
-        if (result.data.audio.startsWith('data:audio') || result.data.audio.startsWith('http')) {
-          const audio = new Audio(result.data.audio);
-          audio.play().catch(err => {
-            console.error('[ReadAloud] Play error:', err);
-            // Final fallback to Web Speech API
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-            window.speechSynthesis.speak(utterance);
-          });
-        }
-      } else {
-        // Fallback if no audio data
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 1;
-        window.speechSynthesis.speak(utterance);
-      }
-    } catch (error) {
-      console.error('[ReadAloud] Error:', error);
-      setTtsLoading(false);
-      // Ultimate fallback to Web Speech API
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+    if (!t && forecast?.summary) t = forecast.summary;
+    return t || 'No interpretation available yet.';
+  }, [interpretations, forecast]);
 
   const handleDailyWhisper = () => {
     setActiveSection('forecast');
@@ -442,23 +365,11 @@ export default function UnifiedDashboard() {
 
                   {/* Action Buttons Under Wheel */}
                   <div className="flex gap-4 mt-8 justify-center flex-wrap items-center">
-                    <button
-                      onClick={handleReadAloud}
-                      disabled={ttsLoading}
-                      className="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg text-amber-200 font-semibold transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {ttsLoading ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 text-amber-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                          </svg>
-                          <span>Generating voice...</span>
-                        </>
-                      ) : (
-                        'Read Aloud'
-                      )}
-                    </button>
+                    {/* ElevenLabs Audio Mini-Player */}
+                    <MerlinAudioPlayer
+                      text={readAloudText}
+                      label="Hear Merlin"
+                    />
                     <button
                       onClick={handleDailyWhisper}
                       className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
@@ -625,10 +536,25 @@ export default function UnifiedDashboard() {
                         Life Timeline
                         {activeSection === 'lifearc' && <span className="text-xs ml-2">↓</span>}
                       </button>
+
+                      {/* Dual MBTI tab — shows when personality data is available */}
+                      <button
+                        onClick={() => setActiveSection(activeSection === 'personality' ? 'wheel' : 'personality')}
+                        className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
+                          activeSection === 'personality'
+                            ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
+                            : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                        }`}
+                      >
+                        <Brain className="w-4 h-4" />
+                        Dual MBTI
+                        {mbtiType && <span className="text-xs bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full ml-1">{mbtiType}</span>}
+                        {activeSection === 'personality' && <span className="text-xs ml-2">↓</span>}
+                      </button>
                     </div>
 
                     {/* Content Panel - Drops Down Below Buttons */}
-                    {['interpretation', 'transits', 'lifearc'].includes(activeSection) && (
+                    {['interpretation', 'transits', 'lifearc', 'personality'].includes(activeSection) && (
                       <motion.div
                         className="bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm p-8"
                         initial={{ opacity: 0, y: -10 }}
@@ -686,6 +612,7 @@ export default function UnifiedDashboard() {
 
                         {/* Life Arc */}
                         {activeSection === 'lifearc' && (
+
                           <div className="space-y-4">
                             <div className="flex gap-2">
                               <button
@@ -714,6 +641,19 @@ export default function UnifiedDashboard() {
                                 {lifeArcNarrative}
                               </div>
                             )}
+                          </div>
+                        )}
+                        {/* Dual MBTI Personality Cards */}
+                        {activeSection === 'personality' && (
+                          <div className="space-y-4">
+                            <p className="text-slate-400 text-sm">
+                              Your natal chart encodes two layers of personality — the <span className="text-orange-300 font-semibold">Mask</span> the world sees (Sun/Ascendant) and the <span className="text-purple-300 font-semibold">Core</span> that drives you beneath (Moon/Mercury).
+                            </p>
+                            <DualPersonalityCards
+                              mbtiType={mbtiType}
+                              dualOverlay={dualOverlay}
+                              loading={personalityLoading}
+                            />
                           </div>
                         )}
                       </motion.div>

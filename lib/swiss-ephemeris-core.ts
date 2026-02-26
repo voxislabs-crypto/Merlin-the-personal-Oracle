@@ -20,9 +20,13 @@ export interface PlanetPositions {
 // Try to load sweph dynamically at runtime (not at module load time)
 function getSwisseph() {
   try {
-    return require("sweph");
+    const swe = require("sweph");
+    return swe;
   } catch (error) {
-    console.warn("[swiss-ephemeris-core] sweph not available at runtime");
+    const missing = process.env.NODE_ENV === 'production'
+      ? ' Set SWISSEPH_PATH and ensure the native module is compiled for this platform.'
+      : ' Run: npm install sweph  (native module required)';
+    console.warn("[swiss-ephemeris-core] sweph not available at runtime \u2014 falling back to mock positions." + missing);
     return null;
   }
 }

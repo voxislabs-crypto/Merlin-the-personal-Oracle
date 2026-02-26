@@ -63,7 +63,8 @@ export function usePersonality() {
           throw new Error(result.error || 'Failed to derive personality');
         }
 
-        const nextMbti = result.data.mbtiType as MBTIType;
+        // API returns { hardware, firmware, finalType, dualOverlay } - use finalType as the canonical MBTI type
+        const nextMbti = (result.data.finalType || result.data.mbtiType) as MBTIType;
         setMbtiType(nextMbti);
         setProfile({
           mbtiType: nextMbti,
