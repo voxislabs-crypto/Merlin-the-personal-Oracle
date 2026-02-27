@@ -3,9 +3,23 @@
 import { UserButton, useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { Eye, Sparkles } from "lucide-react";
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
+  const [clarityMode, setClarityMode] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('merlin_clarity_mode');
+    if (saved !== null) setClarityMode(saved !== 'false');
+  }, []);
+
+  const toggleClarityMode = () => {
+    const next = !clarityMode;
+    setClarityMode(next);
+    localStorage.setItem('merlin_clarity_mode', String(next));
+  };
 
   if (!isLoaded) {
     return (
@@ -103,6 +117,48 @@ export default function ProfilePage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="bg-black/50 backdrop-blur-sm border border-amber-800 rounded-lg p-8 mb-8"
+        >
+          <h2 className="text-2xl font-bold text-amber-300 mb-2">Oracle Preferences</h2>
+          <p className="text-gray-400 text-sm mb-6">Customize how Merlin communicates with you.</p>
+
+          <div className="flex items-start justify-between gap-6 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-white font-semibold mb-1 flex items-center gap-2">
+                {clarityMode ? <Eye size={16} className="text-emerald-400" /> : <Sparkles size={16} className="text-purple-400" />}
+                {clarityMode ? 'Clarity Mode' : 'Oracle Full Mode'}
+              </p>
+              <p className="text-gray-400 text-sm">
+                {clarityMode
+                  ? 'Plain English — no astrology jargon. Easy for everyone to understand.'
+                  : 'Full astrological detail — planetary aspects, house positions, confidence scores.'}
+              </p>
+            </div>
+            <button
+              onClick={toggleClarityMode}
+              className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none ${
+                clarityMode ? 'bg-emerald-500 border-emerald-600' : 'bg-purple-700 border-purple-600'
+              }`}
+              role="switch"
+              aria-checked={clarityMode}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                  clarityMode ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          <p className="text-gray-600 text-xs mt-4">
+            This setting applies to Oracle Chat across all pages and syncs automatically.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
           className="flex gap-4"
         >
@@ -119,6 +175,7 @@ export default function ProfilePage() {
             Home
           </Link>
         </motion.div>
+
       </div>
     </div>
   );

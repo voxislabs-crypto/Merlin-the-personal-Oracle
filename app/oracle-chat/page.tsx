@@ -25,23 +25,25 @@ export default function OracleChatPage() {
     // Try to load birth chart from session/localStorage
     const loadChartData = async () => {
       try {
-        // First check localStorage for cached chart
-        const cachedChart = localStorage.getItem('merlin-birth-chart');
-        if (cachedChart) {
-          try {
-            const chart = JSON.parse(cachedChart);
-            setBirthChart(chart);
-          } catch (e) {
-            // Invalid cached chart
+        // Check all possible localStorage keys where the dashboard might save chart data
+        const CHART_KEYS = ['merlin_chart_data', 'merlin-birth-chart', 'merlin-chart'];
+        
+        for (const key of CHART_KEYS) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            try {
+              const chart = JSON.parse(raw);
+              // Validate it has the planets array we need
+              if (chart?.planets?.length > 0) {
+                setBirthChart(chart);
+                console.log(`[Oracle Chat Page] Loaded birth chart from "${key}" (${chart.planets.length} planets)`);
+                break;
+              }
+            } catch (e) {
+              // Invalid JSON, skip
+            }
           }
         }
-
-        // Optionally: fetch from API if available
-        // const response = await fetch('/api/current-birth-chart');
-        // if (response.ok) {
-        //   const data = await response.json();
-        //   setBirthChart(data.chart);
-        // }
       } catch (error) {
         console.error('Failed to load chart data:', error);
       } finally {

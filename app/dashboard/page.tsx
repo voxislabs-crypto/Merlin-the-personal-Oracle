@@ -359,6 +359,7 @@ export default function UnifiedDashboard() {
                             userId={userId}
                             isExpanded={chatExpanded}
                             onToggleExpand={setChatExpanded}
+                            mbtiType={mbtiType || undefined}
                           />
                         )}
                       </div>

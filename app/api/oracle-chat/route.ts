@@ -20,6 +20,8 @@ interface OracleChatRequest {
   birthChart?: any;
   progressedChart?: any;
   userId?: string;
+  plainEnglish?: boolean; // Clarity Mode - strips astro jargon
+  mbtiType?: string; // MBTI archetype for storm cross-reference
 }
 
 /**
@@ -29,7 +31,7 @@ interface OracleChatRequest {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as OracleChatRequest;
-    const { question, birthChart, progressedChart, userId = 'anonymous' } = body;
+    const { question, birthChart, progressedChart, userId = 'anonymous', plainEnglish = true, mbtiType } = body;
 
     if (!question || question.trim().length === 0) {
       return NextResponse.json(
@@ -45,11 +47,14 @@ export async function POST(request: NextRequest) {
     let transits: TransitData | undefined;
     let dailyForecast;
     
-    if (birthChart?.positions && birthChart.positions.length > 0) {
+    // Support both .planets (BirthChartData) and .positions (legacy) field names
+    const natalPlanets = birthChart?.planets || birthChart?.positions || [];
+    
+    if (natalPlanets.length > 0) {
       try {
         console.log('[Oracle Chat] Calculating current transits for chart awareness');
         // Get current transits
-        const transitMatches = getCurrentTransits(birthChart.positions);
+        const transitMatches = getCurrentTransits(natalPlanets);
         
         // Categorize transits
         const significant = transitMatches.filter((t: any) => t.exact || t.orb < 1.5);
@@ -68,8 +73,9 @@ export async function POST(request: NextRequest) {
         
         console.log(`[Oracle Chat] Found ${transits.summary.total} transits (${transits.summary.exact} exact, ${transits.summary.approaching} approaching)`);
         
-        // Get today's forecast
-        dailyForecast = getTodaysForecast(birthChart as BirthChartData);
+        // Get today's forecast — ensure planets field is populated for the forecast engine
+        const chartForForecast = { ...birthChart, planets: natalPlanets };
+        dailyForecast = getTodaysForecast(chartForForecast as BirthChartData);
         console.log(`[Oracle Chat] Generated today's forecast: ${dailyForecast.day_rating}`);
       } catch (error) {
         console.warn('[Oracle Chat] Could not calculate transits/forecast:', error);
@@ -86,6 +92,8 @@ export async function POST(request: NextRequest) {
       conversationHistory: history,
       userId,
       currentDate: new Date(),
+      plainEnglish,
+      mbtiType,
     };
 
     // Add user message to history

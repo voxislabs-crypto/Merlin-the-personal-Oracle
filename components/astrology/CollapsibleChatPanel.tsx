@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, VolumeX, Trash2, Play, Pause } from 'lucide-react';
+import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, VolumeX, Trash2, Play, Pause, Eye, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
@@ -25,6 +25,7 @@ interface CollapsibleChatPanelProps {
   userId?: string;
   isExpanded?: boolean;
   onToggleExpand?: (expanded: boolean) => void;
+  mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
 }
 
 export function CollapsibleChatPanel({
@@ -33,6 +34,7 @@ export function CollapsibleChatPanel({
   userId = 'anonymous',
   isExpanded = true,
   onToggleExpand,
+  mbtiType,
 }: CollapsibleChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -47,6 +49,7 @@ export function CollapsibleChatPanel({
   const [ttsFallback, setTtsFallback] = useState(false); // Track if using Web Speech API
   const [ttsError, setTtsError] = useState<string | null>(null); // Track TTS errors
   const [autoScroll, setAutoScroll] = useState(true); // Track if user has scrolled up
+  const [plainEnglish, setPlainEnglish] = useState(true); // Clarity Mode - no astro jargon
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -284,6 +287,18 @@ export function CollapsibleChatPanel({
     }
   };
 
+  // Load Clarity Mode setting from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('merlin_clarity_mode');
+    if (saved !== null) setPlainEnglish(saved !== 'false');
+  }, []);
+
+  const toggleClarityMode = () => {
+    const next = !plainEnglish;
+    setPlainEnglish(next);
+    localStorage.setItem('merlin_clarity_mode', String(next));
+  };
+
   // Load chat history on mount
   useEffect(() => {
     const fetchHistory = async () => {
@@ -351,6 +366,8 @@ export function CollapsibleChatPanel({
           birthChart,
           progressedChart,
           userId,
+          plainEnglish,
+          mbtiType,
         }),
       });
 
@@ -464,6 +481,19 @@ export function CollapsibleChatPanel({
           )}
         </div>
         <div className="flex gap-1 flex-shrink-0">
+          {/* Clarity Mode toggle */}
+          <button
+            onClick={toggleClarityMode}
+            title={plainEnglish ? 'Clarity Mode ON — plain English (click for Oracle Full)' : 'Oracle Full Mode — click for plain English'}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
+              plainEnglish
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
+            }`}
+          >
+            {plainEnglish ? <Eye size={11} /> : <Sparkles size={11} />}
+            <span>{plainEnglish ? 'Clear' : 'Full'}</span>
+          </button>
           <button
             onClick={clearHistory}
             className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-700/50 rounded transition"

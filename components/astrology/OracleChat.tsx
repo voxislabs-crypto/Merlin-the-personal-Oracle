@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, ChevronDown, X, Volume2, VolumeX } from 'lucide-react';
+import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
@@ -39,6 +39,7 @@ export function OracleChat({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [plainEnglish, setPlainEnglish] = useState(true); // Clarity Mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +143,18 @@ export function OracleChat({
 
   // Fetch conversation history on mount
   useEffect(() => {
+    const saved = localStorage.getItem('merlin_clarity_mode');
+    if (saved !== null) setPlainEnglish(saved !== 'false');
+  }, []);
+
+  const toggleClarityMode = () => {
+    const next = !plainEnglish;
+    setPlainEnglish(next);
+    localStorage.setItem('merlin_clarity_mode', String(next));
+  };
+
+  // Fetch conversation history on mount
+  useEffect(() => {
     const fetchHistory = async () => {
       try {
         const response = await fetch(`/api/oracle-chat?userId=${userId}`);
@@ -192,6 +205,7 @@ export function OracleChat({
           birthChart,
           progressedChart,
           userId,
+          plainEnglish,
         }),
       });
 
@@ -285,13 +299,28 @@ export function OracleChat({
           <h2 className="text-lg font-semibold text-purple-200">🔮 Oracle Chat</h2>
           <p className="text-xs text-purple-400">Ask Merlin anything about your chart</p>
         </div>
-        <button
-          onClick={onClose}
-          className="text-slate-400 hover:text-white transition"
-          aria-label="Close chat"
-        >
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Clarity Mode toggle */}
+          <button
+            onClick={toggleClarityMode}
+            title={plainEnglish ? 'Clarity Mode ON — plain English (click for Oracle Full)' : 'Oracle Full Mode ON — click for plain English'}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
+              plainEnglish
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
+            }`}
+          >
+            {plainEnglish ? <Eye size={12} /> : <Sparkles size={12} />}
+            <span>{plainEnglish ? 'Clarity' : 'Oracle Full'}</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition"
+            aria-label="Close chat"
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Avatar Display Area - Always visible */}
