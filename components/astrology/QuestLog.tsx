@@ -35,16 +35,26 @@ export default function QuestLog({ enabled, chartData, transits, forecast, mbtiT
 
   // Load persisted quests on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: Quest[] = JSON.parse(stored);
-        setQuests(parsed);
-        setTotalXp(parsed.filter(q => q.completed).reduce((sum, q) => sum + q.xp, 0));
+    const loadFromStorage = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed: Quest[] = JSON.parse(stored);
+          setQuests(parsed);
+          setTotalXp(parsed.filter(q => q.completed).reduce((sum, q) => sum + q.xp, 0));
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
+    };
+    loadFromStorage();
+
+    // Listen for storage events fired when chat saves a tactic as a quest
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) loadFromStorage();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const persistQuests = (updated: Quest[]) => {

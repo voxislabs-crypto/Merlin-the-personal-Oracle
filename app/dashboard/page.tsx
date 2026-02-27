@@ -27,7 +27,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll } from 'lucide-react';
+import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -47,7 +47,8 @@ export default function UnifiedDashboard() {
   const [noBullshit, setNoBullshit] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
   const [userId, setUserId] = useState('');
-  const [questLogEnabled, setQuestLogEnabled] = useState(false);
+  const [questLogEnabled, setQuestLogEnabled] = useState(true); // ON by default
+  const [clarityMode, setClarityMode] = useState(true); // Plain English mode — ON by default
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -63,7 +64,16 @@ export default function UnifiedDashboard() {
     if (saved === 'grok' || saved === 'traditional') {
       setInterpretMode(saved);
     }
+    // Load clarity mode setting
+    const savedClarity = localStorage.getItem('merlin_clarity_mode');
+    if (savedClarity !== null) setClarityMode(savedClarity !== 'false');
   }, []);
+
+  const toggleClarityMode = () => {
+    const next = !clarityMode;
+    setClarityMode(next);
+    localStorage.setItem('merlin_clarity_mode', String(next));
+  };
   
   // Re-generate interpretations when mode changes
   useEffect(() => {
@@ -360,6 +370,8 @@ export default function UnifiedDashboard() {
                             isExpanded={chatExpanded}
                             onToggleExpand={setChatExpanded}
                             mbtiType={mbtiType || undefined}
+                            clarityMode={clarityMode}
+                            onClarityChange={toggleClarityMode}
                           />
                         )}
                       </div>
@@ -378,6 +390,22 @@ export default function UnifiedDashboard() {
                       className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
                     >
                       🌙 Daily Whisper
+                    </button>
+
+                    {/* Clarity Mode Toggle — Plain English vs Oracle Full */}
+                    <button
+                      onClick={toggleClarityMode}
+                      title={clarityMode ? 'Clarity Mode ON: plain English (click for Oracle Full)' : 'Oracle Full Mode: astrology jargon ON (click for plain English)'}
+                      className={`px-6 py-3 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                        clarityMode
+                          ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/30'
+                          : 'bg-purple-500/20 border-purple-500/30 text-purple-200 hover:bg-purple-500/30'
+                      }`}
+                    >
+                      {clarityMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      <span className="text-xs">
+                        {clarityMode ? 'Plain English' : 'Oracle Full'}
+                      </span>
                     </button>
                     
                     {/* No-Bullshit Mode Toggle */}

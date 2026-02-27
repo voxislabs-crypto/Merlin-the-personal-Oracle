@@ -26,6 +26,8 @@ interface CollapsibleChatPanelProps {
   isExpanded?: boolean;
   onToggleExpand?: (expanded: boolean) => void;
   mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
+  clarityMode?: boolean; // Controlled from parent dashboard; falls back to localStorage
+  onClarityChange?: () => void; // Propagate toggle back up to parent
 }
 
 export function CollapsibleChatPanel({
@@ -35,6 +37,8 @@ export function CollapsibleChatPanel({
   isExpanded = true,
   onToggleExpand,
   mbtiType,
+  clarityMode: clarityModeProp,
+  onClarityChange,
 }: CollapsibleChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -49,7 +53,9 @@ export function CollapsibleChatPanel({
   const [ttsFallback, setTtsFallback] = useState(false); // Track if using Web Speech API
   const [ttsError, setTtsError] = useState<string | null>(null); // Track TTS errors
   const [autoScroll, setAutoScroll] = useState(true); // Track if user has scrolled up
-  const [plainEnglish, setPlainEnglish] = useState(true); // Clarity Mode - no astro jargon
+  const [plainEnglishInternal, setPlainEnglishInternal] = useState(true); // Clarity Mode fallback
+  // Use parent-controlled value if provided, else internal state
+  const plainEnglish = clarityModeProp !== undefined ? clarityModeProp : plainEnglishInternal;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -290,13 +296,43 @@ export function CollapsibleChatPanel({
   // Load Clarity Mode setting from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('merlin_clarity_mode');
-    if (saved !== null) setPlainEnglish(saved !== 'false');
+    if (saved !== null) setPlainEnglishInternal(saved !== 'false');
   }, []);
 
   const toggleClarityMode = () => {
-    const next = !plainEnglish;
-    setPlainEnglish(next);
-    localStorage.setItem('merlin_clarity_mode', String(next));
+    if (onClarityChange) {
+      // Delegate to parent when controlled
+      onClarityChange();
+    } else {
+      const next = !plainEnglishInternal;
+      setPlainEnglishInternal(next);
+      localStorage.setItem('merlin_clarity_mode', String(next));
+    }
+  };
+
+  // Save a tactic as a quest to localStorage
+  const saveTacticAsQuest = (tactic: string) => {
+    const QUEST_KEY = 'merlin_quests';
+    try {
+      const existing = JSON.parse(localStorage.getItem(QUEST_KEY) || '[]');
+      const alreadyExists = existing.some((q: any) => q.title === tactic);
+      if (alreadyExists) return;
+      const newQuest = {
+        id: `quest_chat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        title: tactic,
+        description: 'Suggested by Merlin in your Oracle Chat session.',
+        category: 'spirit',
+        difficulty: 1,
+        xp: 50,
+        cosmicSource: 'Oracle Chat',
+        completed: false,
+      };
+      localStorage.setItem(QUEST_KEY, JSON.stringify([...existing, newQuest]));
+      // Fire a storage event so QuestLog can react without a page reload
+      window.dispatchEvent(new StorageEvent('storage', { key: QUEST_KEY }));
+    } catch {
+      // ignore
+    }
   };
 
   // Load chat history on mount
@@ -618,11 +654,18 @@ export function CollapsibleChatPanel({
                   className="mt-2 pt-2 border-t border-purple-500/20"
                 >
                   <p className="text-xs font-semibold text-purple-300 mb-1">⚡ Moves:</p>
-                  <ul className="space-y-0.5 text-xs text-purple-200">
+                  <ul className="space-y-1 text-xs text-purple-200">
                     {msg.tactics.map((tactic: string, i: number) => (
-                      <li key={i} className="flex gap-1">
-                        <span className="text-purple-400">→</span>
-                        <span>{tactic}</span>
+                      <li key={i} className="flex items-start gap-1 group">
+                        <span className="text-purple-400 mt-0.5">→</span>
+                        <span className="flex-1">{tactic}</span>
+                        <button
+                          onClick={() => saveTacticAsQuest(tactic)}
+                          title="Save to Quest Log"
+                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-yellow-500 hover:text-yellow-300 transition-opacity text-xs px-1 py-0.5 rounded hover:bg-yellow-500/10"
+                        >
+                          📜
+                        </button>
                       </li>
                     ))}
                   </ul>
