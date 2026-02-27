@@ -1,11 +1,20 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCachedAudio, cacheAudio } from '@/lib/audio-cache';
 
 // ── ElevenLabs has a ~5000 char hard limit. We stay well under it. ──
 const CHUNK_MAX = 3500;
+
+/**
+ * Split text into individual sentences for the narrator highlight.
+ */
+function splitIntoSentences(text: string): string[] {
+  const raw = text.match(/[^.!?…]+[.!?…]+["'»]?(\s|$)|[^.!?…]+$/g) || [text];
+  return raw.map(s => s.trim()).filter(Boolean);
+}
 
 /**
  * Split text into chunks at natural paragraph / sentence boundaries,
@@ -52,6 +61,109 @@ function splitIntoChunks(text: string, max = CHUNK_MAX): string[] {
   return chunks.filter(Boolean);
 }
 
+// ─────────────────────────────────────────────
+// Narrator popup — portal-rendered floating panel
+// ─────────────────────────────────────────────
+interface NarratorPopupProps {
+  sentences: string[];
+  activeSentenceIndex: number;
+  chunkIndex: number;
+  totalChunks: number;
+  onClose: () => void;
+}
+
+function NarratorPopup({ sentences, activeSentenceIndex, chunkIndex, totalChunks, onClose }: NarratorPopupProps) {
+  const activeRef = useRef<HTMLSpanElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll highlighted sentence into view
+  useEffect(() => {
+    if (activeRef.current && scrollRef.current) {
+      activeRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [activeSentenceIndex]);
+
+  if (typeof window === 'undefined') return null;
+
+  return createPortal(
+    <motion.div
+      className="fixed bottom-6 left-1/2 z-[9999] w-[min(90vw,680px)] -translate-x-1/2"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 40 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+    >
+      <div className="relative rounded-2xl border border-amber-500/30 bg-slate-950/95 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden">
+        {/* Glow bar */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <motion.div
+              className="w-2 h-2 rounded-full bg-amber-400"
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1.4, repeat: Infinity }}
+            />
+            <span className="text-xs font-semibold tracking-widest text-amber-300/80 uppercase">
+              Merlin Speaks
+            </span>
+            {totalChunks > 1 && (
+              <span className="text-xs text-slate-500 ml-1">
+                · Part {chunkIndex + 1}/{totalChunks}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-amber-300 transition-colors p-1 rounded-md hover:bg-slate-800"
+            title="Close narrator"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable text body */}
+        <div
+          ref={scrollRef}
+          className="max-h-[30vh] overflow-y-auto px-5 py-4 text-sm leading-7 space-x-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+        >
+          {sentences.map((sentence, i) => {
+            const isActive = i === activeSentenceIndex;
+            const isPast = i < activeSentenceIndex;
+            return (
+              <span key={i}>
+                {isActive ? (
+                  <motion.span
+                    ref={activeRef}
+                    className="inline rounded px-0.5 text-amber-100 bg-amber-500/25 border-b-2 border-amber-400/70 font-medium"
+                    initial={{ backgroundColor: 'rgba(245,158,11,0.1)' }}
+                    animate={{ backgroundColor: ['rgba(245,158,11,0.2)', 'rgba(245,158,11,0.30)', 'rgba(245,158,11,0.2)'] }}
+                    transition={{ duration: 1.8, repeat: Infinity }}
+                  >
+                    {sentence}
+                  </motion.span>
+                ) : (
+                  <span className={isPast ? 'text-slate-500' : 'text-slate-300'}>
+                    {sentence}
+                  </span>
+                )}
+                {i < sentences.length - 1 ? ' ' : ''}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Bottom glow */}
+        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
+      </div>
+    </motion.div>,
+    document.body
+  );
+}
+
 interface MerlinAudioPlayerProps {
   /** Text to synthesize. When this changes the player resets. */
   text: string;
@@ -83,6 +195,11 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
   const textRef = useRef(text);
   const abortRef = useRef(false); // set true when user stops to cancel in-flight fetches
 
+  // Narrator state
+  const [narratorOpen, setNarratorOpen] = useState(false);
+  const [narratorSentences, setNarratorSentences] = useState<string[]>([]);
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
+
   const VOICE = 'mystic';
 
   // Reset when text changes
@@ -109,6 +226,9 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     setChunks([]);
     setChunkIndex(0);
     setLoadingChunk(0);
+    // Reset narrator
+    setActiveSentenceIndex(0);
+    setNarratorSentences([]);
   }, []);
 
   // Fetch (or hit cache for) a single chunk — returns base64 string
@@ -131,13 +251,23 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
   }, []);
 
   // Wire up an Audio element for the given base64 and play it
-  const playAudioData = useCallback((audioData: string, onEnd: () => void) => {
+  const playAudioData = useCallback((audioData: string, chunkText: string, onEnd: () => void) => {
+    const sentences = splitIntoSentences(chunkText);
+    setNarratorSentences(sentences);
+    setActiveSentenceIndex(0);
+
     const audio = new Audio(audioData);
     audioRef.current = audio;
     audio.onloadedmetadata = () => setDuration(audio.duration);
     audio.ontimeupdate = () => {
-      setCurrent(audio.currentTime);
-      setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
+      const t = audio.currentTime;
+      const d = audio.duration || 1;
+      const p = t / d;
+      setCurrent(t);
+      setProgress(p);
+      // Estimate which sentence we're on via linear interpolation
+      const idx = Math.min(Math.floor(p * sentences.length), sentences.length - 1);
+      setActiveSentenceIndex(idx);
     };
     audio.onended = onEnd;
     audio.onerror = () => { setState('error'); setErrorMsg('Playback error'); };
@@ -159,7 +289,7 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     setChunkIndex(index);
     setProgress(0);
     setCurrent(0);
-    playAudioData(allAudio[index], () => playChunkAt(index + 1, allChunks, allAudio));
+    playAudioData(allAudio[index], allChunks[index], () => playChunkAt(index + 1, allChunks, allAudio));
   }, [playAudioData]);
 
   const loadAndPlay = useCallback(async () => {
@@ -202,12 +332,31 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
       return;
     }
     window.speechSynthesis.cancel();
+    const sentences = splitIntoSentences(text);
+    setNarratorSentences(sentences);
+    setActiveSentenceIndex(0);
+
     const utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.9;
     utt.pitch = 0.95;
     utt.onstart = () => setState('playing');
-    utt.onend   = () => { setState('idle'); setProgress(0); };
+    utt.onend   = () => { setState('idle'); setProgress(0); setActiveSentenceIndex(sentences.length - 1); };
     utt.onerror  = () => setState('error');
+    // Use boundary events to track sentence-level position
+    utt.onboundary = (event) => {
+      if (event.name === 'sentence' || event.name === 'word') {
+        const charIdx = event.charIndex;
+        // Find which sentence contains this char position
+        let cumLen = 0;
+        for (let i = 0; i < sentences.length; i++) {
+          cumLen += sentences[i].length + 1;
+          if (charIdx < cumLen) {
+            setActiveSentenceIndex(i);
+            break;
+          }
+        }
+      }
+    };
     window.speechSynthesis.speak(utt);
     setState('playing');
     setChunks([text]);
@@ -244,6 +393,18 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
   const isLoading = state === 'loading';
   const totalChunks = chunks.length;
   const isMultiPart = totalChunks > 1;
+
+  // Auto-open narrator when playback starts for the first time
+  const hasAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (state === 'playing' && !hasAutoOpenedRef.current) {
+      hasAutoOpenedRef.current = true;
+      setNarratorOpen(true);
+    }
+    if (state === 'idle') {
+      hasAutoOpenedRef.current = false;
+    }
+  }, [state]);
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -375,6 +536,22 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
                 )}
               </button>
 
+              {/* Narrator toggle */}
+              <button
+                onClick={() => setNarratorOpen(v => !v)}
+                className={`p-1.5 rounded-lg transition-all ${
+                  narratorOpen
+                    ? 'text-amber-300 bg-amber-500/20 border border-amber-500/40'
+                    : 'text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
+                }`}
+                title={narratorOpen ? 'Hide narrator' : 'Show narrator (read along)'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
+
               <button
                 onClick={doStop}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
@@ -392,6 +569,19 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
       {state === 'error' && (
         <p className="text-xs text-red-400">{errorMsg || 'Audio unavailable'}</p>
       )}
+
+      {/* Narrator popup portal */}
+      <AnimatePresence>
+        {narratorOpen && isActive && narratorSentences.length > 0 && (
+          <NarratorPopup
+            sentences={narratorSentences}
+            activeSentenceIndex={activeSentenceIndex}
+            chunkIndex={chunkIndex}
+            totalChunks={totalChunks}
+            onClose={() => setNarratorOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
