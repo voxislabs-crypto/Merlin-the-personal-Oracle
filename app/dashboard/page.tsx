@@ -10,6 +10,7 @@ import { ActiveTransits } from '@/components/astrology/ActiveTransits';
 import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
 import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { WeeklyCalendar } from '@/components/astrology/WeeklyCalendar';
+import { StormsAndNavigations } from '@/components/astrology/StormsAndNavigations';
 import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
 import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
@@ -22,6 +23,7 @@ import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
 import { useLifeArc } from '@/hooks/useLifeArc';
 import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
+import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { useUser } from '@clerk/nextjs';
@@ -56,6 +58,7 @@ export default function UnifiedDashboard() {
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
+  const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
   const { mbtiType, dualOverlay, loading: personalityLoading, calculatePersonality } = usePersonality();
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
@@ -153,7 +156,7 @@ export default function UnifiedDashboard() {
           calculateTransits(birth),
           calculateLifeArc(birth, chart),
           calculateWeeklyForecast(birth),
-          calculatePersonality(birth).catch(e => console.log('Personality unavailable:', e.message))
+          calculatePersonality(birth).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
         ]).catch((e) => console.error('Error regenerating dashboard data:', e));
       }
     } catch (error) {
@@ -218,9 +221,9 @@ export default function UnifiedDashboard() {
       calculateTransits(derived),
       calculateLifeArc(derived, data),
       calculateWeeklyForecast(derived),
-      calculatePersonality(derived).catch(e => console.log('Personality unavailable:', e.message))
+      calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
-  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, interpretMode]);
+  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, calculateStorms, interpretMode]);
 
   // Build the read-aloud text (used by MerlinAudioPlayer) — must be before early returns
   const readAloudText = React.useMemo(() => {
@@ -451,6 +454,11 @@ export default function UnifiedDashboard() {
                     <WeeklyCalendar
                       week={weeklyForecast?.week || []}
                       loading={weeklyLoading}
+                    />
+                    <StormsAndNavigations
+                      report={stormsReport}
+                      loading={stormsLoading}
+                      mbtiType={mbtiType ?? undefined}
                     />
                   </div>
                   {/* Quest Log — only renders when enabled */}
