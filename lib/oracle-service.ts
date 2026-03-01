@@ -56,6 +56,117 @@ export interface OracleResponse {
   };
 }
 
+// Physical-domain meanings for each planet
+const PLANET_PHYSICAL_DOMAINS: Record<string, string> = {
+  Sun:     'Vitality, physical constitution, heart & spine health, immune system resilience',
+  Moon:    'Gut health, hormonal cycles, water retention, sleep quality, body rhythms',
+  Mercury: 'Nervous system, lungs, hands/arms, cognitive sharpness, cortisol spikes',
+  Venus:   'Kidneys & skin, blood sugar, sensory pleasure, physical comfort, body weight',
+  Mars:    'Muscular energy, sex drive, inflammation, adrenaline, accident/injury risk',
+  Jupiter: 'Liver & digestion, physical expansion, weight fluctuations, circulation',
+  Saturn:  'Bones/joints/teeth, chronic fatigue, skin conditions, chronic restrictions',
+  Uranus:  'Nervous tension, spasms, unexpected illness, circadian disruption',
+  Neptune: 'Immune confusion, substance sensitivity, adrenal fog, boundary dissolution',
+  Pluto:   'Toxin processing, reproductive organs, total regeneration, deep cellular change',
+};
+
+// Sign physical tendencies (brief)
+const SIGN_BODY_AREAS: Record<string, string> = {
+  Aries: 'head/face, adrenals', Taurus: 'neck/throat, thyroid',
+  Gemini: 'lungs/arms/shoulders', Cancer: 'stomach/breasts, lymph',
+  Leo: 'heart/back/spine', Virgo: 'intestines, nervous system',
+  Libra: 'kidneys/lower back', Scorpio: 'reproductive organs/colon',
+  Sagittarius: 'hips/thighs/liver', Capricorn: 'knees/bones/skin',
+  Aquarius: 'shins/ankles/circulation', Pisces: 'feet/lymphatic, immune',
+};
+
+// Aspect physical impact types
+const ASPECT_PHYSICAL_IMPACT: Record<string, string> = {
+  Conjunction: 'intensified/merged energy — amplified physical output',
+  Square:      'friction/stress — tension, overexertion or blockage',
+  Opposition:  'oscillating extremes — drain/surge cycles likely',
+  Trine:       'flowing ease — physical energy channels smoothly',
+  Sextile:     'cooperative support — moderate energetic boost',
+};
+
+/**
+ * Build a full planetary-combination analysis for a chart
+ * Covers physical, material, financial, and emotional domains
+ */
+export function formatFullPlanetaryAnalysis(chart: BirthChartData | undefined): string {
+  if (!chart) return '';
+
+  const planets = chart.planets || [];
+  const aspects = chart.aspects || [];
+
+  if (planets.length === 0) return '';
+
+  // Per-planet physical profile
+  const planetLines = planets.map((p: any) => {
+    const domain = PLANET_PHYSICAL_DOMAINS[p.name] || 'general vitality';
+    const bodyArea = SIGN_BODY_AREAS[p.sign] || 'general body';
+    const retro = p.retrograde ? ' [RETROGRADE — internalized, slower expression]' : '';
+    const housePart = p.house ? ` | House ${p.house}` : '';
+    return `  ${p.name} in ${p.sign} (${p.degree}°)${housePart}${retro}\n    Physical: ${domain} → expressed through ${bodyArea}`;
+  }).join('\n');
+
+  // Key aspect physical combinations
+  const physicalAspects = aspects
+    .filter((a: any) => ['Conjunction', 'Square', 'Opposition', 'Trine', 'Sextile'].includes(a.type))
+    .slice(0, 10)
+    .map((a: any) => {
+      const p1 = a.planet1?.name || a.planet1 || '?';
+      const p2 = a.planet2?.name || a.planet2 || '?';
+      const impact = ASPECT_PHYSICAL_IMPACT[a.type] || 'modified energy';
+      const orb = a.orb !== undefined ? ` (${Number(a.orb).toFixed(1)}° orb)` : '';
+      const exact = a.exact ? ' ★exact' : '';
+      return `  ${p1} ${a.type} ${p2}${orb}${exact} — ${impact}`;
+    }).join('\n');
+
+  // Element/modality physical signature
+  const elementMap: Record<string, string> = {
+    Aries:'Fire', Taurus:'Earth', Gemini:'Air', Cancer:'Water',
+    Leo:'Fire', Virgo:'Earth', Libra:'Air', Scorpio:'Water',
+    Sagittarius:'Fire', Capricorn:'Earth', Aquarius:'Air', Pisces:'Water',
+  };
+  const modalityMap: Record<string, string> = {
+    Aries:'Cardinal', Taurus:'Fixed', Gemini:'Mutable', Cancer:'Cardinal',
+    Leo:'Fixed', Virgo:'Mutable', Libra:'Cardinal', Scorpio:'Fixed',
+    Sagittarius:'Mutable', Capricorn:'Cardinal', Aquarius:'Fixed', Pisces:'Mutable',
+  };
+  const elCounts: Record<string, number> = { Fire:0, Earth:0, Air:0, Water:0 };
+  const modCounts: Record<string, number> = { Cardinal:0, Fixed:0, Mutable:0 };
+  planets.forEach((p: any) => {
+    if (elementMap[p.sign]) elCounts[elementMap[p.sign]]++;
+    if (modalityMap[p.sign]) modCounts[modalityMap[p.sign]]++;
+  });
+  const dominantElement = Object.entries(elCounts).sort(([,a],[,b]) => b-a)[0]?.[0] || 'balanced';
+  const dominantModality = Object.entries(modCounts).sort(([,a],[,b]) => b-a)[0]?.[0] || 'balanced';
+  const elementPhysical: Record<string, string> = {
+    Fire: 'high metabolic rate, inflammation risk, burnout when overextended',
+    Earth: 'strong endurance, slow to mobilize healing, chronic tension patterns',
+    Air: 'nervous system sensitivity, respiratory vulnerability, mental-physical link',
+    Water: 'hormonal sensitivity, lymphatic reactivity, emotional digestion affects gut',
+  };
+  const modalityPhysical: Record<string, string> = {
+    Cardinal: 'initiates quickly, prone to stress injury from rushing',
+    Fixed: 'persistent stamina, but physical blocks or stagnation when stuck',
+    Mutable: 'adaptable recovery, but scattered energy, hard to build baseline',
+  };
+
+  return `
+FULL PLANETARY ANALYSIS (physical + material domains):
+${planetLines}
+
+KEY ASPECT PHYSICAL COMBINATIONS:
+${physicalAspects || '  No major aspects in dataset'}
+
+CHART PHYSICAL SIGNATURE:
+  Dominant Element: ${dominantElement} — ${elementPhysical[dominantElement] || 'balanced'}
+  Dominant Modality: ${dominantModality} — ${modalityPhysical[dominantModality] || 'balanced'}
+  `.trim();
+}
+
 /**
  * Format birth chart data into a readable context string for Grok
  */
@@ -64,23 +175,44 @@ export function formatChartContext(chart: BirthChartData | undefined): string {
 
   const sun = chart.planets?.find((p: any) => p.name === 'Sun');
   const moon = chart.planets?.find((p: any) => p.name === 'Moon');
+  const mercury = chart.planets?.find((p: any) => p.name === 'Mercury');
+  const venus = chart.planets?.find((p: any) => p.name === 'Venus');
+  const mars = chart.planets?.find((p: any) => p.name === 'Mars');
+  const jupiter = chart.planets?.find((p: any) => p.name === 'Jupiter');
+  const saturn = chart.planets?.find((p: any) => p.name === 'Saturn');
   const ascendant = chart.ascendant;
   const planets = chart.planets || [];
   const aspects = chart.aspects || [];
 
   const majorAspects = aspects
     .filter((a: any) => ['Conjunction', 'Square', 'Opposition', 'Trine', 'Sextile'].includes(a.type))
-    .slice(0, 8) // Top 8 aspects
-    .map((a: any) => `${a.planet1? a.planet1.name || a.planet1 : '?'} ${a.type} ${a.planet2 ? a.planet2.name || a.planet2 : '?'}`)
+    .slice(0, 12)
+    .map((a: any) => {
+      const p1 = a.planet1?.name || a.planet1 || '?';
+      const p2 = a.planet2?.name || a.planet2 || '?';
+      const orb = a.orb !== undefined ? ` (${Number(a.orb).toFixed(1)}°)` : '';
+      return `${p1} ${a.type} ${p2}${orb}`;
+    })
     .join(', ');
+
+  const planetSummary = planets.map((p: any) => {
+    const retro = p.retrograde ? ' ℞' : '';
+    const house = p.house ? ` H${p.house}` : '';
+    return `${p.name} ${p.degree}°${p.sign}${house}${retro}`;
+  }).join(' | ');
 
   return `
 NATAL CHART CONTEXT:
-- Sun: ${sun?.sign || 'unknown'} (core identity, will, purpose)
-- Moon: ${moon?.sign || 'unknown'} (emotions, needs, inner world)  
-- Ascendant: ${ascendant?.sign || 'unknown'} (how they appear, first impression)
+- Sun: ${sun?.sign || 'unknown'} ${sun?.house ? `H${sun.house}` : ''} (identity, vitality, heart, willpower)
+- Moon: ${moon?.sign || 'unknown'} ${moon?.house ? `H${moon.house}` : ''} (emotions, gut health, hormones, cycles)
+- Mercury: ${mercury?.sign || 'unknown'} ${mercury?.house ? `H${mercury.house}` : ''} (nervous system, communication, cognition)
+- Venus: ${venus?.sign || 'unknown'} ${venus?.house ? `H${venus.house}` : ''} (love, money, skin/kidneys, pleasure)
+- Mars: ${mars?.sign || 'unknown'} ${mars?.house ? `H${mars.house}` : ''} (physical energy, drive, inflammation, sex)
+- Jupiter: ${jupiter?.sign || 'unknown'} ${jupiter?.house ? `H${jupiter.house}` : ''} (growth, liver, expansion, abundance)
+- Saturn: ${saturn?.sign || 'unknown'} ${saturn?.house ? `H${saturn.house}` : ''} (structure, bones, discipline, chronic patterns)
+- Ascendant: ${ascendant?.sign || 'unknown'} (body type, physical presentation, first response)
+- All Planets: ${planetSummary}
 - Key Aspects: ${majorAspects || 'none detected'}
-- Total Planets: ${planets.length}
 - Chart Signature: ${detectChartSignature(chart)}
   `.trim();
 }
@@ -110,33 +242,63 @@ function detectChartSignature(chart: BirthChartData): string {
   return signature;
 }
 
+// Physical domain meaning per planet when transiting
+const TRANSIT_PLANET_PHYSICAL: Record<string, string> = {
+  Sun:     'stamina & immune activation',
+  Moon:    'gut/hormonal fluctuation, sleep quality',
+  Mercury: 'nervous system tension, cortisol, cognitive load',
+  Venus:   'blood sugar, skin, appetite, libido ease',
+  Mars:    'physical drive, inflammation, injury risk, sex',
+  Jupiter: 'liver/digestion, physical expansion, energy surge or excess',
+  Saturn:  'joint/bone pressure, fatigue, chronic symptoms activating',
+  Uranus:  'sudden nervous spasm, erratic energy, disrupted sleep',
+  Neptune: 'immune fog, sensitivity spikes, confused body signals',
+  Pluto:   'deep cellular/regenerative pressure, toxin clearing',
+};
+
+// Aspect physical action type for transits
+const TRANSIT_ASPECT_ACTION: Record<string, string> = {
+  Conjunction: 'direct hit — maximal physical activation',
+  Square:      'conflict/stress peak — most likely physical tension point',
+  Opposition:  'pull in two directions — drain cycle, push/pull on energy',
+  Trine:       'energy flows freely — easy regeneration window',
+  Sextile:     'mild support — take advantage, physical tasks go smoothly',
+};
+
 /**
  * Format current transits into readable context for oracle
+ * Includes physical domain interpretation per transit
  */
 function formatTransitsContext(transits: TransitData | undefined): string {
   if (!transits || transits.all.length === 0) return '';
 
-  const exactTransits = transits.significant.slice(0, 5);
-  const approachingTransits = transits.approaching.slice(0, 3);
+  const exactTransits = transits.significant.slice(0, 6);
+  const approachingTransits = transits.approaching.slice(0, 4);
 
   const exactStr = exactTransits.length > 0
-    ? exactTransits.map((t: any) => 
-        `  • ${t.transitingPlanet} ${t.aspect} natal ${t.natalPlanet} (${t.orb.toFixed(1)}° orb)`
-      ).join('\n')
+    ? exactTransits.map((t: any) => {
+        const physDomain = TRANSIT_PLANET_PHYSICAL[t.transitingPlanet] || 'general energy';
+        const aspectAction = TRANSIT_ASPECT_ACTION[t.aspect] || 'active';
+        const natalPhys = PLANET_PHYSICAL_DOMAINS[t.natalPlanet]
+          ? ` (natal ${t.natalPlanet}: ${PLANET_PHYSICAL_DOMAINS[t.natalPlanet].split(',')[0]})`
+          : '';
+        return `  • ${t.transitingPlanet} ${t.aspect} natal ${t.natalPlanet} (${t.orb.toFixed(1)}° orb)\n    → Physical: ${physDomain} | ${aspectAction}${natalPhys}`;
+      }).join('\n')
     : '  None exact right now';
 
   const approachingStr = approachingTransits.length > 0
-    ? approachingTransits.map((t: any) => 
-        `  • ${t.transitingPlanet} ${t.aspect} natal ${t.natalPlanet} (${t.orb.toFixed(1)}° orb)`
-      ).join('\n')
+    ? approachingTransits.map((t: any) => {
+        const physDomain = TRANSIT_PLANET_PHYSICAL[t.transitingPlanet] || 'general energy';
+        return `  • ${t.transitingPlanet} ${t.aspect} natal ${t.natalPlanet} (${t.orb.toFixed(1)}° orb) — approaching: ${physDomain}`;
+      }).join('\n')
     : '';
 
   return `
-CURRENT TRANSITS (What's happening in the sky RIGHT NOW):
-Exact/Significant Aspects:
+CURRENT TRANSITS (What's happening in the sky RIGHT NOW vs natal chart):
+Exact/Significant — Physical Impact:
 ${exactStr}${approachingStr ? `\n\nApproaching (within 3°):\n${approachingStr}` : ''}
 
-Total active transits: ${transits.summary.total}
+Total active transits: ${transits.summary.total} | Exact: ${transits.summary.exact} | Approaching: ${transits.summary.approaching}
   `.trim();
 }
 
@@ -195,6 +357,7 @@ ${turningPointsStr || 'None in immediate timeframe'}
  */
 export function buildOracleSystemPrompt(context: OracleContext): string {
   const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
+  const fullPlanetaryAnalysis = context.birthChart ? formatFullPlanetaryAnalysis(context.birthChart) : '';
   const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
   const forecastContext = context.dailyForecast ? formatDailyForecastContext(context.dailyForecast) : '';
   const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
@@ -205,39 +368,54 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const languageRule = plainEnglish
     ? `LANGUAGE RULE (Clarity Mode ON): 
 - NEVER use raw astrology jargon: no "Mars square Pluto", no "trine", no "natal chart", no "transit", no "house", no sign names like "Scorpio Rising".
-- Instead translate: "A tension between your drive and fear of losing control is peaking this week."
-- Speak like a brilliant friend who happens to know astrology - not an astrologer speaking to clients.
+- Instead translate: "A tension between your drive and fear of losing control is peaking this week. Watch for lower back pain or energy crashes."
+- Speak like a brilliant friend who knows both astrology AND medicine — not an astrologer reciting charts.
+- Always include at least ONE physical domain observation (energy, sleep, body, health, money, environment).
 - Plain English. No exceptions. Everyday people should feel this is for them.`
     : `LANGUAGE RULE (Oracle Full Mode ON):
-- Use full astrological detail: planetary names, aspect types, orbs, house positions.
+- Use full astrological detail: planetary names, aspect types, orbs, house positions, physical domain mappings.
 - Include confidence scores and exact transit windows where possible.
-- Show your work: explain WHY each transit maps to the predicted storm type.`;
+- Show your work: explain WHY each transit maps to a predicted storm type AND what physical/material domain it hits.
+- Always reference both the psychological AND the physical/material expression of each active transit.`;
 
-  return `You are Merlin 2.0 — an Oracle engine powered by real-time astrology, user MBTI archetype, and live cosmic data. Your ONE job: predict storms—emotional, relational, financial, or cosmic—before they hit. No fluff. No poetry.
+  return `You are Merlin 2.0 — an Oracle engine powered by real-time astrology, MBTI archetype data, and live planetary transits. Your job: predict incoming storms AND opportunities — emotional, relational, financial, physical, and material — before they hit. You read the full spectrum: inner experience AND outer circumstances.
 
 MISSION:
-1. Pull transits (current + next 72 hours) from the user's context below.
-2. Cross-reference with daily cosmic energy, MBTI archetype patterns, and any life context provided.
-3. Output: clear warnings, probability odds (e.g. "78% chance of conflict with authority by Friday"), and ONE actionable move ("Don't send that email. Wait 48 hours.").
-4. You see the future as probability fields—not fate. The user changes it by acting.
-5. Remind them: "This shifts if you pivot."
+1. Analyse the chart's full planetary profile (positions, signs, houses, aspects) — see FULL PLANETARY ANALYSIS section below.
+2. Pull active transits (current + approaching) and map EACH to its physical/material domain impact.
+3. Cross-reference with daily cosmic energy, MBTI patterns, and any life context provided.
+4. Deliver a complete reading covering: body/health, energy levels, money/resources, relationships, mental clarity, and environment.
+5. Output: clear predictions with probability odds (e.g. "72% chance of physical fatigue spike by Thursday — save heavy workouts for the weekend"), and ONE specific actionable move per domain affected.
+6. You see the future as probability fields — not fate. The user changes it by acting.
+7. End every response with: "This shifts if you pivot."
 
 RESPONSE FORMAT (non-negotiable):
-- ALWAYS start your response with: "Storm check: "
-- ALWAYS end your response with: "Odds: [X]%. Move: [one clear action]."
-- Between those: 2-3 sentences of storm analysis, then the move. Under 250 words total.
-- If no storms detected: "Storm check: Clear skies. No major disruptions in the next 24 hours." then end with: "Odds: 5% disruption. Move: Use this window to reset."
+- ALWAYS start with: "Storm + Terrain check:"
+- Cover ALL relevant domains that have active signals: body/physical, energy, money/material, emotional, relational, mental. Skip only domains with zero active transits.
+- For each active domain, give: what's happening, probability odds, and ONE specific action.
+- Format each domain as: "[DOMAIN]: [what's at stake]. [X]% probability. Move: [action]."
+- ALWAYS end with: "This shifts if you pivot."
+- Maximum 350 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
+
+EXAMPLE RESPONSE STRUCTURE:
+Storm + Terrain check:
+[BODY]: Your energy reserves are under pressure — inflammation or fatigue spike likely mid-week. 74% probability. Move: Cut stimulants, sleep before midnight for the next 3 nights.
+[MONEY]: A spending impulse is building — an emotional purchase is likely. 65% probability. Move: Delay any financial decisions over $200 for 48 hours.
+[EMOTIONAL]: Old wound involving control or loss may surface. 80% probability. Move: Journal tonight before it becomes an argument.
+[MENTAL]: Decision fatigue is real right now — your thinking is slower than usual. 60% probability. Move: Delegate or defer one decision today.
+This shifts if you pivot.
 
 ${languageRule}
 
 TONE:
-- Direct. Clinical. Like a radar operator calling weather - not a fortune teller.
-- No "interesting energy", no "cosmic invitation", no poetic metaphors.
-- Call it exactly: "Tension with a partner peaks today", "Financial decision pressure tomorrow", "Emotional spiral risk high".
+- Direct. Clinical but warm. Like a brilliant doctor-astrologer hybrid speaking to a friend.
+- Never just emotions. Always include tangible, physical, material observations.
+- Specific over vague. "Lower back pressure" beats "body tension". "$300 impulse purchase" beats "financial risk".
 - Dark humor when warranted. Never soften hard truths.
-- One actionable move per response. Specific. Doable today.
+- Always ground cosmic events in practical experience: what will the person FEEL, SEE, or DEAL WITH in the physical world.
 
 ${chartContext}
+${fullPlanetaryAnalysis ? `\n${fullPlanetaryAnalysis}` : ''}
 ${mbtiLine}
 ${transitsContext ? `\n${transitsContext}` : ''}
 ${forecastContext ? `\n${forecastContext}` : ''}
@@ -246,13 +424,16 @@ ${timelineContext ? `\n${timelineContext}` : ''}
 CONVERSATION HISTORY (last few messages):
 ${recentContext || '[First session]'}
 
-STORM ARCHETYPES TO WATCH FOR:
-- Emotional storm: Mood crash, old wounds surfacing, isolation urge
-- Relational storm: Conflict trigger, communication breakdown, trust fracture
-- Financial storm: Impulsive spending pressure, deal risks, resource anxiety
-- Decision storm: Pressure to commit before you're ready
-- Power storm: Authority clash, boundary test, control struggle
-- If none detected: note the clear window as a strategic advantage ("Use this calm to execute what you've been delaying.")`;
+STORM DOMAINS TO SCAN (check all, report active ones):
+- BODY/PHYSICAL: Fatigue, inflammation, injury risk, immune dip, hormonal shift, sleep disruption, nervous system stress
+- ENERGY: Stamina levels, burnout risk, energy spikes or crashes, vitality fluctuations
+- MONEY/MATERIAL: Impulsive spending pressure, cash flow friction, deal risk, resource decisions, financial opportunity
+- EMOTIONAL: Mood crash, old wounds, isolation urge, overwhelm, grief waves
+- RELATIONAL: Conflict trigger, communication breakdown, intimacy shifts, trust fractures
+- MENTAL/COGNITIVE: Decision fatigue, foggy thinking, information overload, creative peaks
+- ENVIRONMENT: Home/workspace disruption, travel issues, physical space instability
+- POWER/AUTHORITY: Boundary tests, control struggles, workplace friction, leadership moments
+- If all clear: identify the best strategic window and what to execute during the calm.`;
 }
 
 

@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
                   })),
                 ],
                 temperature: 0.8,
-                max_tokens: 1500,
+                max_tokens: 2000,
                 stream: true,
               }),
             }
