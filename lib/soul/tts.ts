@@ -32,9 +32,12 @@ export interface TTSResponse {
   provider: VoiceProvider;
 }
 
-// Get custom voice ID from environment (fallback to default)
+// Backup ElevenLabs voice ID used when no env override and no archetype default
+const BACKUP_VOICE_ID = "nPczCjzI2devNBz1zQrb";
+
+// Get custom voice ID from environment (fallback to archetype default, then backup)
 const getVoiceId = (defaultVoice: string): string => {
-  return process.env.ELEVENLABS_VOICE_ID || defaultVoice;
+  return process.env.ELEVENLABS_VOICE_ID || defaultVoice || BACKUP_VOICE_ID;
 };
 
 // Voice presets for different archetypes
