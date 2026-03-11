@@ -4,6 +4,7 @@ import {
   BirthChartData,
 } from "@/components/astrology/BirthChartCalculator";
 import { BirthChart, BirthChartProps } from "@/components/astrology/BirthChart";
+import { calculateBirthChartClient } from "@/lib/astrology/client-calculate";
 
 interface UseBirthChartOptions {
   /**
@@ -61,33 +62,14 @@ export function useBirthChart(options: UseBirthChartOptions = {}) {
           throw new Error("Missing required birth data");
         }
 
-        const response = await fetch("/api/calculate-birth-chart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            birthDate: data.date,
-            birthTime: data.time,
-            lat: data.latitude,
-            lon: data.longitude,
-            houseSystem: data.houseSystem || "Placidus",
-            zodiac: data.zodiac || "Tropical",
-          }),
+        const chartData = await calculateBirthChartClient({
+          birthDate: data.date,
+          birthTime: data.time,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          houseSystem: data.houseSystem || "Placidus",
+          zodiac: data.zodiac || "Tropical",
         });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `Error calculating chart: ${response.status} ${response.statusText} - ${errorText}`
-          );
-        }
-
-        const result = await response.json();
-
-        if (!result.success) {
-          throw new Error(result.error || "Failed to calculate birth chart");
-        }
-
-        const chartData = result.data as BirthChartData;
         setChartData(chartData);
         onSuccess?.(chartData);
         return chartData;

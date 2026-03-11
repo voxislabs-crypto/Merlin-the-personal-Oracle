@@ -59,6 +59,7 @@ const AstroDashboard = dynamic(
 // Import the BirthChartCalculator and its types
 import { BirthChartCalculator } from '@/components/astrology/BirthChartCalculator';
 import type { BirthChartData, BirthData } from '@/components/astrology/BirthChartCalculator';
+import { calculateBirthChartClient } from '@/lib/astrology/client-calculate';
 
 export default function AstroDashboardPage() {
   const router = useRouter();
@@ -80,29 +81,16 @@ export default function AstroDashboardPage() {
     const loadInitialChart = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/calculate-birth-chart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            birthDate: birthData.date,
-            birthTime: birthData.time,
-            lat: birthData.latitude,
-            lon: birthData.longitude,
-            houseSystem: birthData.houseSystem,
-            zodiac: birthData.zodiac
-          })
+        const data = await calculateBirthChartClient({
+          birthDate: birthData.date,
+          birthTime: birthData.time,
+          latitude: birthData.latitude,
+          longitude: birthData.longitude,
+          houseSystem: birthData.houseSystem,
+          zodiac: birthData.zodiac,
         });
-        
-        if (!response.ok) {
-          throw new Error('Failed to calculate chart');
-        }
-        
-        const data = await response.json();
-        if (data.success) {
-          setChartData(data.data);
-        } else {
-          setError(data.error || 'Unknown error occurred');
-        }
+
+        setChartData(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load chart');
       } finally {

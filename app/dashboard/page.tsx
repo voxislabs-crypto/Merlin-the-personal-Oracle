@@ -18,6 +18,7 @@ import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
 import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
 import QuestLog from '@/components/astrology/QuestLog';
+import { LiveOraclePanel } from '@/components/astrology/LiveOraclePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -317,6 +318,15 @@ export default function UnifiedDashboard() {
                 />
               </motion.div>
             )}
+
+            {/* Live Oracle GPS Controls */}
+            <motion.div
+              className="mb-8"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <LiveOraclePanel birthData={birthData} />
+            </motion.div>
 
             {/* Main Dashboard Content */}
             {chartData && wheelData && (

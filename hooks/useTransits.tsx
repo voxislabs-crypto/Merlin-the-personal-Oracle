@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { calculateTransitsClient } from '@/lib/astrology/client-insights';
 
 export interface TransitData {
   all: Array<{
@@ -40,28 +41,9 @@ export function useTransits() {
     setError(null);
 
     try {
-      const response = await fetch('/api/transits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          birthDate: birthData.date,
-          birthTime: birthData.time,
-          lat: birthData.latitude,
-          lon: birthData.longitude
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to calculate transits');
-      }
-
-      setTransits(result.data);
-      return result.data;
+      const result = await calculateTransitsClient(birthData);
+      setTransits(result);
+      return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);

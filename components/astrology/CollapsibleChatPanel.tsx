@@ -8,6 +8,8 @@ import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import { getCachedAudio, cacheAudio, generateCacheKey, clearAllAudioCache } from '@/lib/audio-cache';
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
+import { askGrokOracleClient } from '@/lib/grok-client';
+import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
 
 interface Message {
   id: string;
@@ -40,6 +42,7 @@ export function CollapsibleChatPanel({
   clarityMode: clarityModeProp,
   onClarityChange,
 }: CollapsibleChatPanelProps) {
+  const chatStorageKey = `${LIVE_ORACLE_STORAGE_KEYS.chatHistoryPrefix}${userId}`;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -54,6 +57,7 @@ export function CollapsibleChatPanel({
   const [ttsError, setTtsError] = useState<string | null>(null); // Track TTS errors
   const [autoScroll, setAutoScroll] = useState(true); // Track if user has scrolled up
   const [plainEnglishInternal, setPlainEnglishInternal] = useState(true); // Clarity Mode fallback
+  const [hasGrokApiKey, setHasGrokApiKey] = useState(false);
   // Use parent-controlled value if provided, else internal state
   const plainEnglish = clarityModeProp !== undefined ? clarityModeProp : plainEnglishInternal;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -297,7 +301,40 @@ export function CollapsibleChatPanel({
   useEffect(() => {
     const saved = localStorage.getItem('merlin_clarity_mode');
     if (saved !== null) setPlainEnglishInternal(saved !== 'false');
+    const key = localStorage.getItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey) || process.env.NEXT_PUBLIC_XAI_API_KEY;
+    setHasGrokApiKey(Boolean(key && key.trim()));
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(chatStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Array<Message & { timestamp: string | Date }>;
+      const hydrated = parsed.map((m) => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }));
+      setMessages(hydrated);
+    } catch {
+      // Ignore malformed local chat history.
+    }
+  }, [chatStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(chatStorageKey, JSON.stringify(messages));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [chatStorageKey, messages]);
+
+  const configureGrokApiKey = () => {
+    const existing = localStorage.getItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey) || '';
+    const next = window.prompt('Paste your xAI API key (stored only on this device):', existing);
+    if (!next) return;
+    localStorage.setItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey, next.trim());
+    setHasGrokApiKey(Boolean(next.trim()));
+  };
 
   const toggleClarityMode = () => {
     if (onClarityChange) {
@@ -335,31 +372,6 @@ export function CollapsibleChatPanel({
     }
   };
 
-  // Load chat history on mount
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const response = await fetch(`/api/oracle-chat?userId=${userId}`);
-        if (response.ok) {
-          const data = await response.json();
-          const formattedMessages: Message[] = data.data.history.map(
-            (msg: any, idx: number) => ({
-              id: `${msg.role}-${idx}`,
-              role: msg.role,
-              content: msg.content,
-              timestamp: new Date(msg.timestamp),
-            })
-          );
-          setMessages(formattedMessages);
-        }
-      } catch (error) {
-        console.error('Failed to load history:', error);
-      }
-    };
-
-    fetchHistory();
-  }, [userId]);
-
   // Cleanup audio on unmount to prevent cutoffs
   useEffect(() => {
     return () => {
@@ -394,66 +406,18 @@ export function CollapsibleChatPanel({
     setStreamingContent('');
 
     try {
-      const response = await fetch('/api/oracle-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: input,
-          birthChart,
-          progressedChart,
-          userId,
-          plainEnglish,
-          mbtiType,
-        }),
+      const result = await askGrokOracleClient({
+        question: input,
+        birthChart,
+        progressedChart,
+        plainEnglish,
+        mbtiType,
       });
 
-      if (!response.ok) throw new Error('Stream failed');
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-      let tactics: string[] = [];
-      let forecast: any = null;
-      let level: any = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines[lines.length - 1];
-
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-
-          try {
-            const parsed = JSON.parse(line);
-
-            if (parsed.type === 'chunk') {
-              fullContent += parsed.content;
-              setStreamingContent(fullContent);
-            } else if (parsed.type === 'tactics') {
-              tactics = parsed.data || [];
-            } else if (parsed.type === 'forecast') {
-              forecast = parsed.data;
-            } else if (parsed.type === 'level') {
-              level = parsed.data;
-            } else if (parsed.type === 'done') {
-              // Message complete
-            } else if (parsed.type === 'error') {
-              console.error('Oracle error:', parsed.error);
-              setStreamingContent((prev) => prev + `\n\n[Error: ${parsed.error}]`);
-            }
-          } catch (e) {
-            // Skip parse errors
-          }
-        }
-      }
+      const fullContent = result.answer || 'I could not generate a response.';
+      const tactics = result.tactics || [];
+      const forecast = result.forecast || null;
+      const level = result.level || null;
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
@@ -476,6 +440,14 @@ export function CollapsibleChatPanel({
       }, 500);
     } catch (error) {
       console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const assistantMessage: Message = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: `I hit an issue: ${errorMessage}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
     } finally {
       setIsLoading(false);
@@ -486,7 +458,7 @@ export function CollapsibleChatPanel({
   const clearHistory = async () => {
     if (!confirm('Clear all chat history and audio cache?')) return;
     try {
-      await fetch(`/api/oracle-chat?userId=${userId}`, { method: 'DELETE' });
+      localStorage.removeItem(chatStorageKey);
       clearAllAudioCache();
       
       // Stop any playing audio
@@ -511,7 +483,7 @@ export function CollapsibleChatPanel({
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-purple-500/20 bg-slate-900/50 flex-shrink-0">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-purple-200">🔮 Oracle Chat</h3>
-          <p className="text-xs text-purple-400">Ask about your chart</p>
+          <p className="text-xs text-purple-400">Ask about your chart {hasGrokApiKey ? '• Grok ready' : '• Set Grok key'}</p>
           {ttsError && (
             <p className="text-xs text-orange-400 mt-1">⚠️ {ttsError}</p>
           )}
@@ -529,6 +501,13 @@ export function CollapsibleChatPanel({
           >
             {plainEnglish ? <Eye size={11} /> : <Sparkles size={11} />}
             <span>{plainEnglish ? 'Clear' : 'Full'}</span>
+          </button>
+          <button
+            onClick={configureGrokApiKey}
+            className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-700/50 rounded transition"
+            title="Set xAI API key"
+          >
+            <Sparkles size={14} />
           </button>
           <button
             onClick={clearHistory}

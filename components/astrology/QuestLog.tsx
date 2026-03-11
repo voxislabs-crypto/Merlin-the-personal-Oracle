@@ -3,7 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scroll, RefreshCw, CheckCircle2, Circle, Zap, ChevronDown, ChevronUp, Flame, Brain, Heart, Ghost, Star } from 'lucide-react';
-import type { Quest } from '@/app/api/quests/route';
+
+interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  cosmicSource?: string;
+  difficulty: number;
+  xp: number;
+  category: string;
+  completed?: boolean;
+}
 
 interface QuestLogProps {
   enabled: boolean;

@@ -13,6 +13,7 @@ import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlanetInfo } from './PlanetInfo';
 import { GeocodingService, type GeocodingResult } from '@/lib/astrology/geocoding';
+import { calculateBirthChartClient } from '@/lib/astrology/client-calculate';
 
 // Dynamically import the WheelVisualization component with SSR disabled
 const WheelVisualization = dynamic(
@@ -89,30 +90,14 @@ export function BirthChart({
     setError(null);
     
     try {
-      const response = await fetch('/api/calculate-birth-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          birthDate: data.date,
-          birthTime: data.time,
-          lat: data.latitude,
-          lon: data.longitude,
-          houseSystem: data.houseSystem || 'Placidus',
-          zodiac: data.zodiac || 'Tropical',
-        }),
+      const chartResult = await calculateBirthChartClient({
+        birthDate: data.date,
+        birthTime: data.time,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        houseSystem: data.houseSystem || 'Placidus',
+        zodiac: data.zodiac || 'Tropical',
       });
-
-      if (!response.ok) {
-        throw new Error(`Error calculating chart: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to calculate birth chart');
-      }
-
-      const chartResult = result.data as BirthChartData;
       setChartData(chartResult);
       onChartCalculated?.(chartResult);
       return chartResult;

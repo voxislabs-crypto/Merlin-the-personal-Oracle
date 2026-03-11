@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { BirthChartData } from '@/types/astrology';
+import { calculateBirthChartClient } from '@/lib/astrology/client-calculate';
 
 // Re-export for backward compatibility
 export type { BirthChartData };
@@ -83,30 +84,14 @@ export function BirthChartCalculator({
     setError(null);
     
     try {
-      const response = await fetch('/api/calculate-birth-chart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          birthDate: data.date,
-          birthTime: data.time,
-          lat: data.latitude,
-          lon: data.longitude,
-          houseSystem: data.houseSystem || 'Placidus',
-          zodiac: data.zodiac || 'Tropical',
-        }),
+      const chartData = await calculateBirthChartClient({
+        birthDate: data.date,
+        birthTime: data.time,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        houseSystem: data.houseSystem || 'Placidus',
+        zodiac: data.zodiac || 'Tropical',
       });
-
-      if (!response.ok) {
-        throw new Error(`Error calculating chart: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to calculate birth chart');
-      }
-
-      const chartData = result.data as BirthChartData;
       setChartData(chartData);
       onCalculate?.(chartData);
     } catch (err) {

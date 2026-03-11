@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
+const isStandaloneMobile = process.env.STANDALONE_MOBILE === 'true';
+
 const nextConfig = {
+  output: isStandaloneMobile ? 'export' : undefined,
+  trailingSlash: isStandaloneMobile,
   reactStrictMode: true,
   eslint: {
     // Allow warnings but fail on errors during production builds
@@ -11,10 +15,14 @@ const nextConfig = {
   },
   images: {
     domains: [],
-    unoptimized: false, // Enable image optimization for production
+    unoptimized: isStandaloneMobile, // Static export requires unoptimized images
   },
   // Production-ready headers
   async headers() {
+    if (isStandaloneMobile) {
+      return [];
+    }
+
     return [
       {
         source: '/:path*',
@@ -79,6 +87,13 @@ const nextConfig = {
   poweredByHeader: false,
   // Webpack configuration to handle optional native modules
   webpack: (config, { isServer }) => {
+    if (isStandaloneMobile) {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = config.resolve.alias || {};
+      config.resolve.alias['@clerk/nextjs'] = require('path').resolve(__dirname, 'lib/standalone/clerk-client.tsx');
+      config.resolve.alias['@clerk/nextjs/server'] = require('path').resolve(__dirname, 'lib/standalone/clerk-server.ts');
+    }
+
     if (isServer) {
       // Externalize swisseph/sweph to avoid bundling issues
       // These are native modules that will be loaded dynamically at runtime if available

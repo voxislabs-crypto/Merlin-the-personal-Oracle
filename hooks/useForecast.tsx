@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { calculateForecastClient } from '@/lib/astrology/client-insights';
 
 export interface DailyForecast {
   date: string;
@@ -38,28 +39,9 @@ export function useForecast() {
     setError(null);
 
     try {
-      const response = await fetch('/api/forecast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          birthDate: birthData.date,
-          birthTime: birthData.time,
-          lat: birthData.latitude,
-          lon: birthData.longitude
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate forecast');
-      }
-
-      setForecast(result.data);
-      return result.data;
+      const result = await calculateForecastClient(birthData);
+      setForecast(result);
+      return result;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);

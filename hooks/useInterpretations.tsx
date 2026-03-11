@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { generateInterpretationsClient } from '@/lib/astrology/client-insights';
 
 export interface InterpretationData {
   chartSummary: string;
@@ -32,37 +33,7 @@ export function useInterpretations() {
       setCacheHit(false);
 
       try {
-        const response = await fetch('/api/interpret', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            birthDate: birthData.date,
-            birthTime: birthData.time,
-            lat: birthData.latitude,
-            lon: birthData.longitude,
-            mode: mode
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to generate interpretations');
-        }
-
-        // Check if response indicates cache hit
-        if (result.cached || result.cacheHit) {
-          setCacheHit(true);
-        }
-
-        // Add interpreter info to data
-        const dataWithInterpreter = {
-          ...result.data,
-          interpreter: result.interpreter || mode
-        };
+        const dataWithInterpreter = await generateInterpretationsClient(birthData, mode);
 
         setInterpretations(dataWithInterpreter);
         return dataWithInterpreter;

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:standalone": "node scripts/build-standalone.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
@@ -12,10 +13,18 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "postinstall": "prisma generate || true"
+    "postinstall": "prisma generate || true",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android"
   },
   "dependencies": {
     "@builder.io/react": "^9.1.0",
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/background-runner": "^3.0.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/geolocation": "^8.1.0",
+    "@capacitor/local-notifications": "^8.0.2",
     "@clerk/nextjs": "^5.0.0",
     "@eslint/object-schema": "^3.0.0",
     "@prisma/client": "^5.7.0",
