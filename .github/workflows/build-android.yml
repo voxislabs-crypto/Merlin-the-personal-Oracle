@@ -44,16 +44,10 @@ jobs:
       - name: Accept Android SDK licenses & install platform
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          yes | sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
+          yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Sync Capacitor to Android
         run: npx cap sync android
-
-      - name: Enforce Android compile SDK levels
-        run: |
-          sed -i 's/compileSdkVersion = 35/compileSdkVersion = 36/g' android/variables.gradle
-          echo "Android variables in CI:"
-          grep -n "compileSdkVersion\|targetSdkVersion\|minSdkVersion" android/variables.gradle
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
