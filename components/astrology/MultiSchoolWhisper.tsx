@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { BirthChartData } from "@/types/astrology";
-import { MultiSchoolWhisper } from "@/lib/schools/multi-whisper";
+import { MultiSchoolWhisperPayload } from "@/lib/schools/multi-whisper";
 import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
 
 interface MultiSchoolWhisperDisplayProps {
@@ -15,7 +15,7 @@ export function MultiSchoolWhisperDisplay({
   chartData,
   date = new Date(),
 }: MultiSchoolWhisperDisplayProps) {
-  const [whisper, setWhisper] = useState<MultiSchoolWhisper | null>(null);
+  const [whisper, setWhisper] = useState<MultiSchoolWhisperPayload | null>(null);
   const [detailedReading, setDetailedReading] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +35,7 @@ export function MultiSchoolWhisperDisplay({
         }),
       });
 
-      const data = await readJsonResponse<{ success: boolean; data?: MultiSchoolWhisper }>(
+      const data = await readJsonResponse<{ success: boolean; data?: MultiSchoolWhisperPayload }>(
         response,
         "multi-school whisper"
       );

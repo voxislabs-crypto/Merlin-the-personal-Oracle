@@ -13,6 +13,10 @@ export interface MultiSchoolWhisper {
   agreement: "full" | "partial" | "none";
 }
 
+export interface MultiSchoolWhisperPayload extends MultiSchoolWhisper {
+  detailedReading: string;
+}
+
 export function getMultiSchoolWhisper(
   natal: BirthChartData,
   transits: any[],
