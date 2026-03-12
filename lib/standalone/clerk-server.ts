@@ -4,6 +4,27 @@ type StubAuth = {
   orgId: null;
 };
 
+export function createRouteMatcher() {
+  return () => false;
+}
+
+export function clerkMiddleware(
+  handler?: (auth: { protect: () => Promise<void> }, req: Request) => Promise<Response | void> | Response | void
+) {
+  return async (req: Request) => {
+    if (!handler) {
+      return;
+    }
+
+    return handler(
+      {
+        protect: async () => undefined,
+      },
+      req
+    );
+  };
+}
+
 export async function auth(): Promise<StubAuth> {
   return {
     userId: 'offline-user',
@@ -26,6 +47,7 @@ export function clerkClient() {
   return {
     users: {
       updateUserMetadata: async () => ({}),
+      updateUser: async () => ({}),
     },
   };
 }

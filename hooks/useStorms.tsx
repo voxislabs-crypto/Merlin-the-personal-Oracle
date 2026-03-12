@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { BirthData } from "@/components/astrology/BirthChartCalculator";
 import { MBTIType } from "@/shared/schema";
+import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
 
 export interface AstroStorm {
   id: string;
@@ -36,7 +37,7 @@ export function useStorms() {
       setError(null);
 
       try {
-        const response = await fetch("/api/storms", {
+        const response = await fetch(resolveApiUrl("/api/storms"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -52,7 +53,10 @@ export function useStorms() {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const result = await response.json();
+        const result = await readJsonResponse<{ success: boolean; error?: string; data: StormsReport }>(
+          response,
+          "storms"
+        );
         if (!result.success) {
           throw new Error(result.error ?? "Failed to calculate storms");
         }

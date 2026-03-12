@@ -5,6 +5,8 @@ import { Check, X, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 const lifetimeFeatures = [
   'Complete Birth Chart Analysis',
@@ -37,10 +39,14 @@ export function PricingSection() {
   const { isSignedIn } = useAuth();
   const [spotsLeft, setSpotsLeft] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const headline = isStandaloneMobileClient ? 'Android Standalone Access' : 'Choose Your Pricing Path';
+  const subheadline = isStandaloneMobileClient
+    ? 'This build skips sign-in and Stripe. Open the dashboard directly and use the app.'
+    : 'Try monthly with a 7-day free trial, own it forever for $50, or explore for free.';
 
   useEffect(() => {
-    fetch('/api/spots')
-      .then((res) => res.json())
+    fetch(resolveApiUrl('/api/spots'))
+      .then((res) => readJsonResponse<{ spotsLeft?: number }>(res, 'spots'))
       .then((data) => {
         setSpotsLeft(data.spotsLeft || 47);
         setIsLoading(false);
@@ -66,10 +72,10 @@ export function PricingSection() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
-            Choose Your Pricing Path
+            {headline}
           </h2>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Try monthly with a 7-day free trial, own it forever for $50, or explore for free.
+            {subheadline}
           </p>
         </motion.div>
 
@@ -84,33 +90,41 @@ export function PricingSection() {
           >
             <div className="mb-6">
               <div className="inline-block bg-purple-500/20 text-purple-300 text-xs font-bold px-3 py-1 rounded-full mb-3">
-                7-DAY FREE TRIAL
+                {isStandaloneMobileClient ? 'ANDROID BUILD' : '7-DAY FREE TRIAL'}
               </div>
-              <h3 className="text-2xl font-bold text-purple-200 mb-2">Monthly</h3>
+              <h3 className="text-2xl font-bold text-purple-200 mb-2">{isStandaloneMobileClient ? 'Standalone App' : 'Monthly'}</h3>
               <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-5xl font-bold text-white">$9.99</span>
-                <span className="text-gray-400">/month</span>
+                <span className="text-5xl font-bold text-white">{isStandaloneMobileClient ? 'Open' : '$9.99'}</span>
+                <span className="text-gray-400">{isStandaloneMobileClient ? 'now' : '/month'}</span>
               </div>
-              <p className="text-purple-200 text-sm mb-2">Try 7 days free</p>
-              <p className="text-gray-400 text-sm">Card required · Cancel anytime</p>
+              <p className="text-purple-200 text-sm mb-2">{isStandaloneMobileClient ? 'No account required' : 'Try 7 days free'}</p>
+              <p className="text-gray-400 text-sm">{isStandaloneMobileClient ? 'No Clerk or Stripe in this build' : 'Card required · Cancel anytime'}</p>
             </div>
 
-            <a
-              href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
-              onClick={(e) => {
-                if (typeof window !== 'undefined') {
-                  // Production mode: check if user is signed in first
-                  if (!isSignedIn) {
-                    e.preventDefault();
-                    window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
-                    return;
+            {isStandaloneMobileClient ? (
+              <Link
+                href="/dashboard"
+                className="block w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105"
+              >
+                Open Dashboard
+              </Link>
+            ) : (
+              <a
+                href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
+                onClick={(e) => {
+                  if (typeof window !== 'undefined') {
+                    if (!isSignedIn) {
+                      e.preventDefault();
+                      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
+                      return;
+                    }
                   }
-                }
-              }}
-              className="block w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105"
-            >
-              Start Free Trial
-            </a>
+                }}
+                className="block w-full py-3 px-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105"
+              >
+                Start Free Trial
+              </a>
+            )}
 
             <div className="space-y-3">
               {lifetimeFeatures.slice(0, 8).map((feature, i) => (
@@ -139,24 +153,24 @@ export function PricingSection() {
             <div className="mb-6 mt-2">
               <h3 className="text-2xl font-bold text-amber-200 mb-2">Lifetime Access</h3>
               <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-5xl font-bold text-white">$50</span>
-                <span className="text-gray-400 line-through text-xl">$299</span>
+                <span className="text-5xl font-bold text-white">{isStandaloneMobileClient ? 'Full' : '$50'}</span>
+                <span className="text-gray-400 line-through text-xl">{isStandaloneMobileClient ? 'Included' : '$299'}</span>
               </div>
-              <p className="text-amber-200 text-sm mb-2">One-time payment</p>
-              <p className="text-red-300 text-sm font-semibold">
-                {!isLoading && spotsLeft && `Only ${spotsLeft} spots left`}
-              </p>
+              <p className="text-amber-200 text-sm mb-2">{isStandaloneMobileClient ? 'No purchase step in standalone mode' : 'One-time payment'}</p>
+              <p className="text-red-300 text-sm font-semibold">{!isStandaloneMobileClient && !isLoading && spotsLeft ? `Only ${spotsLeft} spots left` : ''}</p>
             </div>
 
             <Link
-              href="#intake-form"
+              href={isStandaloneMobileClient ? '/astro-calculator' : '#intake-form'}
               onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('intake-form')?.scrollIntoView({ behavior: 'smooth' });
+                if (!isStandaloneMobileClient) {
+                  e.preventDefault();
+                  document.getElementById('intake-form')?.scrollIntoView({ behavior: 'smooth' });
+                }
               }}
               className="block w-full py-3 px-6 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-lg font-semibold text-center transition-all duration-300 mb-6 transform hover:scale-105 shadow-lg"
             >
-              Get Lifetime Access
+              {isStandaloneMobileClient ? 'Open Calculator' : 'Get Lifetime Access'}
             </Link>
 
             <div className="space-y-3">
@@ -170,7 +184,7 @@ export function PricingSection() {
 
             <div className="mt-6 pt-6 border-t border-amber-500/30">
               <p className="text-amber-200 text-sm text-center font-semibold">
-                💰 Save $249 compared to regular price
+                {isStandaloneMobileClient ? 'Android standalone mode uses direct app access' : '💰 Save $249 compared to regular price'}
               </p>
             </div>
           </motion.div>
@@ -224,9 +238,19 @@ export function PricingSection() {
           className="text-center mt-12"
         >
           <p className="text-gray-400 text-sm">
-            <span className="text-amber-400 font-semibold">30-Day Money-Back Guarantee</span>
-            {' · '}
-            If you're not completely satisfied, we'll refund you. No questions asked.
+            {isStandaloneMobileClient ? (
+              <>
+                <span className="text-amber-400 font-semibold">Standalone mode</span>
+                {' · '}
+                Clerk and Stripe are intentionally disabled for the Android app build.
+              </>
+            ) : (
+              <>
+                <span className="text-amber-400 font-semibold">30-Day Money-Back Guarantee</span>
+                {' · '}
+                If you're not completely satisfied, we'll refund you. No questions asked.
+              </>
+            )}
           </p>
         </motion.div>
       </div>

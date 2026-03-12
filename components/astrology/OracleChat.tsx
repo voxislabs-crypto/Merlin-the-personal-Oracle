@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import type { BirthChartData } from '@/types/astrology';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 interface Message {
   id: string;
@@ -88,7 +89,7 @@ export function OracleChat({
     setIsSpeaking(true);
 
     try {
-      const response = await fetch('/api/tts', {
+      const response = await fetch(resolveApiUrl('/api/tts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,7 +101,10 @@ export function OracleChat({
 
       if (!response.ok) throw new Error('TTS request failed');
 
-      const result = await response.json();
+      const result = await readJsonResponse<{
+        success: boolean;
+        data?: { audio?: string };
+      }>(response, 'tts');
 
       if (result.success && result.data.audio) {
         const audio = new Audio(result.data.audio);
@@ -157,9 +161,11 @@ export function OracleChat({
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`/api/oracle-chat?userId=${userId}`);
+        const response = await fetch(resolveApiUrl(`/api/oracle-chat?userId=${encodeURIComponent(userId)}`));
         if (response.ok) {
-          const data = await response.json();
+          const data = await readJsonResponse<{
+            data: { history: Array<{ role: Message['role']; content: string; timestamp: string }> };
+          }>(response, 'oracle chat history');
           const formattedMessages: Message[] = data.data.history.map(
             (msg: any, idx: number) => ({
               id: `${msg.role}-${idx}`,
@@ -197,7 +203,7 @@ export function OracleChat({
     scrollToBottom(true);
 
     try {
-      const response = await fetch('/api/oracle-chat', {
+      const response = await fetch(resolveApiUrl('/api/oracle-chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -284,7 +290,7 @@ export function OracleChat({
     if (!confirm('Clear all messages? This cannot be undone.')) return;
 
     try {
-      await fetch(`/api/oracle-chat?userId=${userId}`, { method: 'DELETE' });
+      await fetch(resolveApiUrl(`/api/oracle-chat?userId=${encodeURIComponent(userId)}`), { method: 'DELETE' });
       setMessages([]);
     } catch (error) {
       console.error('Failed to clear history:', error);

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { VoiceArchetype } from '@/lib/soul/tts';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 interface ReadAloudButtonProps {
   text: string;
@@ -32,13 +33,17 @@ export function ReadAloudButton({
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/tts', {
+      const response = await fetch(resolveApiUrl('/api/tts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voice }),
       });
 
-      const result = await response.json();
+      const result = await readJsonResponse<{
+        success: boolean;
+        error?: string;
+        data?: { audio?: string };
+      }>(response, 'tts');
 
       if (result.success && result.data.audio) {
         const audioElement = new Audio(result.data.audio);

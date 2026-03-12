@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, MapPin, Loader2 } from 'lucide-react';
 import { trackCheckoutStart } from '@/lib/analytics';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
@@ -27,6 +29,7 @@ export function BirthIntakeForm({
   className = '',
 }: BirthIntakeFormProps) {
   const router = useRouter();
+  const requiresPayment = showPayment && !isStandaloneMobileClient;
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     birthDate: '',
@@ -39,12 +42,12 @@ export function BirthIntakeForm({
     setLoading(true);
 
     // Track checkout initiation
-    if (showPayment) {
+    if (requiresPayment) {
       trackCheckoutStart(50);
     }
 
     try {
-      if (showPayment) {
+      if (requiresPayment) {
         // Process payment directly
         console.log('Starting payment flow...');
         const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
@@ -58,7 +61,7 @@ export function BirthIntakeForm({
         }
 
         console.log('Creating checkout session with:', { priceId, formData });
-        const response = await fetch('/api/stripe/create-session', {
+        const response = await fetch(resolveApiUrl('/api/stripe/create-session'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -69,12 +72,15 @@ export function BirthIntakeForm({
 
         console.log('Response status:', response.status);
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await readJsonResponse<{ error?: string }>(response, 'stripe checkout');
           console.error('API error:', errorData);
           throw new Error(errorData.error || 'Payment failed');
         }
 
-        const { sessionId, url } = await response.json();
+        const { sessionId, url } = await readJsonResponse<{ sessionId?: string; url?: string }>(
+          response,
+          'stripe checkout'
+        );
         console.log('Checkout session created:', { sessionId, url });
         console.log('Checkout session created:', { sessionId, url });
 
@@ -126,11 +132,13 @@ export function BirthIntakeForm({
     <Card className={`border-amber-500/20 bg-gray-900/40 backdrop-blur-sm ${className}`}>
       <CardHeader className="space-y-2">
         <CardTitle className="text-2xl font-bold text-amber-300">
-          {showPayment ? 'Unlock Your Cosmic Blueprint' : 'Enter Your Birth Details'}
+          {requiresPayment ? 'Unlock Your Cosmic Blueprint' : 'Enter Your Birth Details'}
         </CardTitle>
         <CardDescription className="text-gray-400">
-          {showPayment
+          {requiresPayment
             ? 'Get your lifetime access to personalized astrological insights'
+            : isStandaloneMobileClient
+            ? 'Android standalone mode opens the chart experience directly without payment or sign-in.'
             : 'Calculate your birth chart and discover your cosmic profile'}
         </CardDescription>
       </CardHeader>
@@ -219,7 +227,7 @@ export function BirthIntakeForm({
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Processing...
                 </>
-              ) : showPayment ? (
+              ) : requiresPayment ? (
                 <>Pay $50 & Reveal Your Fate</>
               ) : (
                 <>Calculate My Chart</>
@@ -227,7 +235,7 @@ export function BirthIntakeForm({
             </Button>
           </motion.div>
 
-          {showPayment && (
+          {requiresPayment && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

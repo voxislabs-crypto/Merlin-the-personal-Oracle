@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { BirthChartData } from "@/types/astrology";
 import { MultiSchoolWhisper } from "@/lib/schools/multi-whisper";
+import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
 
 interface MultiSchoolWhisperDisplayProps {
   chartData: BirthChartData;
@@ -25,7 +26,7 @@ export function MultiSchoolWhisperDisplay({
   const loadWhisper = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/multi-school-whisper", {
+      const response = await fetch(resolveApiUrl("/api/multi-school-whisper"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -34,10 +35,13 @@ export function MultiSchoolWhisperDisplay({
         }),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse<{ success: boolean; data?: MultiSchoolWhisper }>(
+        response,
+        "multi-school whisper"
+      );
       if (data.success) {
-        setWhisper(data.data);
-        setDetailedReading(data.data.detailedReading);
+        setWhisper(data.data || null);
+        setDetailedReading(data.data?.detailedReading || "");
       }
     } catch (error) {
       console.error("Failed to load multi-school whisper:", error);

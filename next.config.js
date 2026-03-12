@@ -2,6 +2,9 @@
 const isStandaloneMobile = process.env.STANDALONE_MOBILE === 'true';
 
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_STANDALONE_MOBILE: isStandaloneMobile ? 'true' : 'false',
+  },
   output: isStandaloneMobile ? 'export' : undefined,
   trailingSlash: isStandaloneMobile,
   reactStrictMode: true,

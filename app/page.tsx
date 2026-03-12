@@ -12,11 +12,13 @@ import { StatsSection } from '@/components/sections/StatsSection';
 import { PricingSection } from '@/components/sections/PricingSection';
 import { FAQSection } from '@/components/sections/FAQSection';
 import { ArrowRight, Star, Shield } from 'lucide-react';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 export const dynamic = 'force-dynamic';
 
 export default function Home() {
   const { isSignedIn } = useAuth();
+  const primaryHref = isStandaloneMobileClient ? '/dashboard' : isSignedIn ? '/dashboard' : '/sign-in';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
@@ -130,8 +132,17 @@ export default function Home() {
             transition={{ duration: 1, delay: 0.6 }}
             className="mb-8 text-xl font-semibold text-purple-200"
           >
-            <p className="mb-2">$10/month or $50 forever</p>
-            <p className="text-sm text-gray-400">7 days free—card required, cancel anytime</p>
+            {isStandaloneMobileClient ? (
+              <>
+                <p className="mb-2">Android standalone build</p>
+                <p className="text-sm text-gray-400">No sign-in. No Stripe. Open the dashboard directly.</p>
+              </>
+            ) : (
+              <>
+                <p className="mb-2">$10/month or $50 forever</p>
+                <p className="text-sm text-gray-400">7 days free—card required, cancel anytime</p>
+              </>
+            )}
           </motion.div>
 
           {/* CTA Buttons */}
@@ -141,9 +152,9 @@ export default function Home() {
             transition={{ duration: 1, delay: 0.7 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <Link href={isSignedIn ? '/dashboard' : '/sign-in'}>
+            <Link href={primaryHref}>
               <button className="relative group px-8 py-4 font-bold text-lg rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:from-pink-500 hover:to-purple-500 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-pink-500/50">
-                Start Free Trial
+                {isStandaloneMobileClient ? 'Open Dashboard' : 'Start Free Trial'}
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-20 blur transition-opacity"></div>
               </button>
             </Link>

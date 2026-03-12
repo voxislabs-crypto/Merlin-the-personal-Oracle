@@ -5,6 +5,7 @@ import { ReadAloudButton } from '@/components/astrology/ReadAloud';
 import { BirthChartData, BirthData } from '@/components/astrology/BirthChartCalculator';
 import { LifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import { TransitData } from '@/hooks/useTransits';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 interface GrokNarrativeProps {
   mode: 'grok' | 'traditional';
@@ -35,7 +36,7 @@ export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits, t
     const hasTransits = transits?.significant && transits.significant.length > 0;
     const quietDayMessage = 'Quiet day. Use it to think, not react.';
 
-    fetch('/api/grok-narrative', {
+    fetch(resolveApiUrl('/api/grok-narrative'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -47,12 +48,23 @@ export function GrokNarrative({ mode, birthData, chartData, lifeArc, transits, t
         tone, // Pass tone for direct/warm versions
       }),
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load Grok narrative: ${res.status} ${res.statusText}`);
+        }
+
+        return readJsonResponse<{
+          success: boolean;
+          cached?: boolean;
+          interpreter?: 'grok' | 'traditional';
+          data?: { narrative: string };
+        }>(res, 'grok narrative');
+      })
       .then((result) => {
         if (!active) return;
         if (result?.success) {
           setNarrative({
-            narrative: result.data.narrative,
+            narrative: result.data?.narrative || 'No narrative available right now.',
             cached: result.cached,
             interpreter: result.interpreter,
           });

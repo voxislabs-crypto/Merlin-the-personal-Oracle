@@ -1,4 +1,6 @@
 // lib/astrology/geocoding.ts - Real-world geocoding service
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+
 export interface GeocodingResult {
   city: string;
   state: string;
@@ -14,13 +16,13 @@ export class GeocodingService {
 
     try {
       const params = new URLSearchParams({ q: query });
-      const response = await fetch(`/api/geocoding?${params}`);
+      const response = await fetch(resolveApiUrl(`/api/geocoding?${params.toString()}`));
 
       if (!response.ok) {
         throw new Error(`Geocoding request failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await readJsonResponse<{ results?: GeocodingResult[] }>(response, 'geocoding');
       return data.results || [];
     } catch (error) {
       console.error("Geocoding error:", error);
@@ -58,14 +60,14 @@ export class GeocodingService {
         lon: longitude.toString(),
       });
 
-      const response = await fetch(`/api/geocoding?${params}`);
+      const response = await fetch(resolveApiUrl(`/api/geocoding?${params.toString()}`));
 
       if (!response.ok) {
         console.log('Reverse geocoding unavailable:', response.statusText);
         return null;
       }
 
-      const data = await response.json();
+      const data = await readJsonResponse<{ result?: GeocodingResult | null }>(response, 'reverse geocoding');
       return data.result || null;
     } catch (error) {
       console.error("Reverse geocoding error:", error);

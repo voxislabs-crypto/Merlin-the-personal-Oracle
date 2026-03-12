@@ -6,6 +6,7 @@ import { Mail, CheckCircle2, Loader2, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { trackLead } from '@/lib/analytics';
+import { resolveApiUrl } from '@/lib/api-client';
 
 interface EmailCaptureProps {
   variant?: 'default' | 'compact' | 'modal';
@@ -43,7 +44,7 @@ export function EmailCapture({
     try {
       // TODO: Replace with your actual email capture API endpoint
       // Options: Mailchimp, ConvertKit, Klaviyo, or custom database
-      const response = await fetch('/api/email-capture', {
+      const response = await fetch(resolveApiUrl('/api/email-capture'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

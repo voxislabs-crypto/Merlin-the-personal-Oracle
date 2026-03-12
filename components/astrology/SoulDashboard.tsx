@@ -9,6 +9,7 @@ import { ProgressedChart } from "@/lib/astrology/progressions";
 import { SynastryReport } from "@/lib/astrology/synastry";
 import { SoulWhisper } from "@/lib/soul/whisper-library";
 import { ReadAloudButton } from "@/components/ui/read-aloud-button";
+import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
 
 interface SoulDashboardProps {
   chartData: BirthChartData;
@@ -41,20 +42,23 @@ export function SoulDashboard({
     setLoading(true);
     try {
       // Load soul reading + badges
-      const soulResponse = await fetch("/api/soul-reading", {
+      const soulResponse = await fetch(resolveApiUrl("/api/soul-reading"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chartData }),
       });
-      const soulData = await soulResponse.json();
+      const soulData = await readJsonResponse<{
+        success: boolean;
+        data?: { soulReading: SoulReading; badges: ChartBadges };
+      }>(soulResponse, "soul reading");
       if (soulData.success) {
-        setSoulReading(soulData.data.soulReading);
-        setBadges(soulData.data.badges);
+        setSoulReading(soulData.data?.soulReading || null);
+        setBadges(soulData.data?.badges || null);
       }
 
       // Load soul whisper if user context provided
       if (userAge && userMood) {
-        const whisperResponse = await fetch("/api/soul-whisper", {
+        const whisperResponse = await fetch(resolveApiUrl("/api/soul-whisper"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -65,9 +69,12 @@ export function SoulDashboard({
             mbti: mbtiType,
           }),
         });
-        const whisperData = await whisperResponse.json();
+        const whisperData = await readJsonResponse<{ success: boolean; data?: SoulWhisper }>(
+          whisperResponse,
+          "soul whisper"
+        );
         if (whisperData.success) {
-          setWhisper(whisperData.data);
+          setWhisper(whisperData.data || null);
         }
       }
     } catch (error) {
@@ -79,14 +86,17 @@ export function SoulDashboard({
 
   const loadProgressedChart = async () => {
     try {
-      const response = await fetch("/api/progressed-chart", {
+      const response = await fetch(resolveApiUrl("/api/progressed-chart"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chartData, yearsInFuture: yearsAhead }),
       });
-      const data = await response.json();
+      const data = await readJsonResponse<{ success: boolean; data?: ProgressedChart }>(
+        response,
+        "progressed chart"
+      );
       if (data.success) {
-        setProgressedChart(data.data);
+        setProgressedChart(data.data || null);
       }
     } catch (error) {
       console.error("Failed to load progressed chart:", error);

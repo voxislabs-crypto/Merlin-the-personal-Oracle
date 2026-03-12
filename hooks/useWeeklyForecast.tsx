@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 export interface DayWhisper {
   day: string;
@@ -24,7 +25,7 @@ export function useWeeklyForecast() {
       setError(null);
 
       try {
-        const response = await fetch('/api/weekly-forecast', {
+        const response = await fetch(resolveApiUrl('/api/weekly-forecast'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -39,7 +40,10 @@ export function useWeeklyForecast() {
           throw new Error(`Error: ${response.statusText}`);
         }
 
-        const result = await response.json();
+        const result = await readJsonResponse<{ success: boolean; error?: string; data: WeeklyForecast }>(
+          response,
+          'weekly forecast'
+        );
         if (!result.success) {
           throw new Error(result.error || 'Failed to generate weekly forecast');
         }

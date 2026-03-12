@@ -7,11 +7,13 @@ import { UserButton, useUser } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
 
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/profile', label: 'Profile' },
+  { href: '/settings', label: 'Settings' },
 ];
 
 export function Navigation() {
@@ -35,6 +37,33 @@ export function Navigation() {
   }, []);
 
   const handleLinkClick = () => {
+    setIsOpen(false);
+  };
+
+  const handleSetGrokApiKey = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const existingKey = window.localStorage.getItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey) || '';
+    const nextKey = window.prompt(
+      'Paste your Grok/xAI API key. Leave blank and press OK to remove the saved key.',
+      existingKey
+    );
+
+    if (nextKey === null) {
+      return;
+    }
+
+    const trimmedKey = nextKey.trim();
+    if (trimmedKey) {
+      window.localStorage.setItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey, trimmedKey);
+      window.alert('Grok API key saved on this device.');
+    } else {
+      window.localStorage.removeItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey);
+      window.alert('Saved Grok API key removed from this device.');
+    }
+
     setIsOpen(false);
   };
 
@@ -162,6 +191,14 @@ export function Navigation() {
                   {link.label}
                 </Link>
               ))}
+
+              <button
+                type="button"
+                onClick={handleSetGrokApiKey}
+                className="block w-full px-4 py-3 rounded-lg text-sm font-medium text-left text-gray-300 hover:text-amber-300 hover:bg-amber-500/10 transition-all duration-200"
+              >
+                Set Grok API Key
+              </button>
 
               {!isSignedIn && mounted && (
                 <div className="pt-4 space-y-2 border-t border-amber-500/20">

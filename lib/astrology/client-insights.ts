@@ -1,6 +1,7 @@
 import { calculateBirthChart as calculateFallbackBirthChart } from "@/lib/engine-fallback";
 import { InterpretationEngine } from "@/lib/astrology/interpretations";
 import { calculateBirthChartClient } from "@/lib/astrology/client-calculate";
+import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
 import type { BirthData } from "@/components/astrology/BirthChartCalculator";
 import type { BirthChartData, PlanetPosition } from "@/types/astrology";
 
@@ -163,12 +164,45 @@ async function getNatalAndTransitCharts(birthData: BirthData): Promise<{
   });
 
   const now = new Date();
-  const transitChart = calculateFallbackBirthChart(
-    toIsoDate(now),
-    toHHMM(now),
-    birthData.latitude,
-    birthData.longitude
-  );
+  let transitChart: BirthChartData;
+
+  try {
+    const response = await fetch(resolveApiUrl('/api/calculate-birth-chart'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        birthDate: toIsoDate(now),
+        birthTime: toHHMM(now),
+        lat: birthData.latitude,
+        lon: birthData.longitude,
+        houseSystem: birthData.houseSystem,
+        zodiac: birthData.zodiac,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to calculate transit chart: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await readJsonResponse<{
+      success: boolean;
+      error?: string;
+      data: BirthChartData;
+    }>(response, 'transit chart');
+
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Transit chart calculation failed');
+    }
+
+    transitChart = result.data;
+  } catch {
+    transitChart = calculateFallbackBirthChart(
+      toIsoDate(now),
+      toHHMM(now),
+      birthData.latitude,
+      birthData.longitude
+    );
+  }
 
   return { natalChart, transitChart };
 }

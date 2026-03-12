@@ -3,17 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scroll, RefreshCw, CheckCircle2, Circle, Zap, ChevronDown, ChevronUp, Flame, Brain, Heart, Ghost, Star } from 'lucide-react';
-
-interface Quest {
-  id: string;
-  title: string;
-  description: string;
-  cosmicSource?: string;
-  difficulty: number;
-  xp: number;
-  category: string;
-  completed?: boolean;
-}
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { generateQuestsFromInputs, type Quest } from '@/lib/astrology/quest-generation';
 
 interface QuestLogProps {
   enabled: boolean;
@@ -79,19 +70,36 @@ export default function QuestLog({ enabled, chartData, transits, forecast, mbtiT
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/quests', {
+      const res = await fetch(resolveApiUrl('/api/quests'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chartData, transits, forecast, mbtiType }),
       });
-      const json = await res.json();
+
+      const json = await readJsonResponse<{ success: boolean; error?: string; data?: { quests: Quest[] } }>(
+        res,
+        'Quest generation API'
+      );
+
       if (!json.success) throw new Error(json.error || 'Unknown error');
       const freshQuests: Quest[] = json.data.quests.map((q: Quest) => ({ ...q, completed: false }));
       setQuests(freshQuests);
       setTotalXp(0);
       persistQuests(freshQuests);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to generate quests');
+      const fallbackQuests = generateQuestsFromInputs({ transits, forecast, mbtiType }).map((quest) => ({
+        ...quest,
+        completed: false,
+      }));
+
+      if (fallbackQuests.length > 0) {
+        setQuests(fallbackQuests);
+        setTotalXp(0);
+        persistQuests(fallbackQuests);
+        setError(null);
+      } else {
+        setError(e instanceof Error ? e.message : 'Failed to generate quests');
+      }
     } finally {
       setLoading(false);
     }

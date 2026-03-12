@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { MBTIType } from '@/lib/mbti-overlay';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 export interface DualOverlay {
   hardware: {
@@ -41,7 +42,7 @@ export function usePersonality() {
       setError(null);
 
       try {
-        const response = await fetch('/api/personality', {
+        const response = await fetch(resolveApiUrl('/api/personality'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -58,7 +59,16 @@ export function usePersonality() {
           return null;
         }
 
-        const result = await response.json();
+        const result = await readJsonResponse<{
+          success: boolean;
+          error?: string;
+          source?: 'swiss-real' | 'mock-fallback';
+          data: {
+            finalType?: MBTIType;
+            mbtiType?: MBTIType;
+            dualOverlay?: DualOverlay;
+          };
+        }>(response, 'personality');
         if (!result.success) {
           throw new Error(result.error || 'Failed to derive personality');
         }

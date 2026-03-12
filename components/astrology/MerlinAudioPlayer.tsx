@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCachedAudio, cacheAudio } from '@/lib/audio-cache';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 // ── ElevenLabs has a ~5000 char hard limit. We stay well under it. ──
 const CHUNK_MAX = 3500;
@@ -236,13 +237,16 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     const cached = getCachedAudio(chunkText, VOICE);
     if (cached) return cached;
 
-    const res = await fetch('/api/tts', {
+    const res = await fetch(resolveApiUrl('/api/tts'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: chunkText, voice: VOICE, provider: 'elevenlabs' }),
     });
     if (!res.ok) return null;
-    const result = await res.json();
+    const result = await readJsonResponse<{
+      success: boolean;
+      data?: { audio?: string };
+    }>(res, 'tts');
     if (result.success && result.data?.audio) {
       cacheAudio(chunkText, VOICE, result.data.audio);
       return result.data.audio;

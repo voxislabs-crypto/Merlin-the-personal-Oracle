@@ -169,6 +169,12 @@ export default function ProfilePage() {
             Go to Dashboard
           </Link>
           <Link
+            href="/settings"
+            className="px-6 py-3 bg-purple-700 hover:bg-purple-600 text-white rounded-lg font-semibold transition"
+          >
+            Settings
+          </Link>
+          <Link
             href="/"
             className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition"
           >

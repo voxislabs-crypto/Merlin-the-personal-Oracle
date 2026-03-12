@@ -1,5 +1,6 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { isStandaloneMobileServer } from '@/lib/runtime-mode';
 
 // Define protected routes (these require auth)
 const isProtected = createRouteMatcher([
@@ -13,13 +14,12 @@ const isProtected = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  if (isStandaloneMobileServer) {
+    return;
+  }
+
   if (isProtected(req)) {
-    const authObj = await auth();
-    if (!authObj.userId) {
-      // Redirect to sign-in if not authenticated
-      const signInUrl = new URL('/sign-in', req.url);
-      return Response.redirect(signInUrl);
-    }
+    await auth.protect();
   }
 });
 

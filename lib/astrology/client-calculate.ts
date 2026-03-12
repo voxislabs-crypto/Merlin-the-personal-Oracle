@@ -1,4 +1,5 @@
 import { calculateBirthChart as calculateFallbackBirthChart } from "@/lib/engine-fallback";
+import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
 import type { BirthChartData } from "@/types/astrology";
 
 export interface ClientBirthChartRequest {
@@ -8,6 +9,12 @@ export interface ClientBirthChartRequest {
   longitude: number;
   houseSystem?: "Placidus" | "Koch" | "Equal" | "Whole";
   zodiac?: "Tropical" | "Sidereal";
+}
+
+interface CalculateBirthChartApiResponse {
+  success: boolean;
+  error?: string;
+  data?: BirthChartData;
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -37,10 +44,43 @@ export async function calculateBirthChartClient(
 ): Promise<BirthChartData> {
   assertValidRequest(data);
 
-  return calculateFallbackBirthChart(
-    data.birthDate,
-    data.birthTime,
-    data.latitude,
-    data.longitude
-  );
+  try {
+    const response = await fetch(resolveApiUrl("/api/calculate-birth-chart"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        birthDate: data.birthDate,
+        birthTime: data.birthTime,
+        lat: data.latitude,
+        lon: data.longitude,
+        houseSystem: data.houseSystem,
+        zodiac: data.zodiac,
+      }),
+    });
+
+    const payload = await readJsonResponse<CalculateBirthChartApiResponse>(
+      response,
+      "Birth chart API"
+    );
+
+    if (!response.ok || !payload.success || !payload.data) {
+      throw new Error(payload.error || "Birth chart API request failed");
+    }
+
+    return payload.data;
+  } catch (error) {
+    console.warn(
+      "[client-calculate] API chart calculation failed, using local fallback:",
+      error instanceof Error ? error.message : String(error)
+    );
+
+    return calculateFallbackBirthChart(
+      data.birthDate,
+      data.birthTime,
+      data.latitude,
+      data.longitude
+    );
+  }
 }

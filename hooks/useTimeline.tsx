@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react';
 import { Timeline } from '@/lib/timeline-service';
 import { BirthChartData } from '@/types/astrology';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 export interface UseTimelineState {
   timeline: Timeline | null;
@@ -26,7 +27,7 @@ export const useTimeline = () => {
       setState((prev: any) => ({ ...prev, loading: true, error: null }));
 
       try {
-        const response = await fetch('/api/timeline', {
+        const response = await fetch(resolveApiUrl('/api/timeline'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -39,7 +40,10 @@ export const useTimeline = () => {
           throw new Error('Failed to generate timeline');
         }
 
-        const result = await response.json();
+        const result = await readJsonResponse<{ success: boolean; error?: string; data: Timeline }>(
+          response,
+          'timeline'
+        );
 
         if (!result.success) {
           throw new Error(result.error || 'Timeline generation failed');

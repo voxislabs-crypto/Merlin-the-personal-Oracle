@@ -10,6 +10,7 @@ import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
 import { askGrokOracleClient } from '@/lib/grok-client';
 import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 interface Message {
   id: string;
@@ -148,7 +149,7 @@ export function CollapsibleChatPanel({
       if (!audioUrl) {
         setIsTTSLoading(true);
         try {
-          const response = await fetch('/api/tts', {
+          const response = await fetch(resolveApiUrl('/api/tts'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -159,7 +160,11 @@ export function CollapsibleChatPanel({
           });
 
           if (response.ok) {
-            const data = await response.json();
+            const data = await readJsonResponse<{
+              success: boolean;
+              error?: string;
+              data?: { audio?: string };
+            }>(response, 'tts');
             if (data.success && data.data?.audio) {
               audioUrl = data.data.audio;
               // Cache the audio for future use
@@ -171,7 +176,7 @@ export function CollapsibleChatPanel({
               throw new Error(data.error || 'No audio data returned');
             }
           } else {
-            const data = await response.json();
+            const data = await readJsonResponse<{ error?: string }>(response, 'tts');
             throw new Error(data.error || `API error: ${response.status}`);
           }
         } catch (apiError) {

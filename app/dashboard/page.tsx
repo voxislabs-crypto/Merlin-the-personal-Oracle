@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { BirthChart } from '@/components/astrology/BirthChart';
 import { WheelVisualization } from '@/components/astrology/WheelVisualization';
@@ -30,8 +31,9 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, KeyRound, Settings } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
+import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -52,6 +54,7 @@ export default function UnifiedDashboard() {
   const [userId, setUserId] = useState('');
   const [questLogEnabled, setQuestLogEnabled] = useState(true); // ON by default
   const [clarityMode, setClarityMode] = useState(true); // Plain English mode — ON by default
+  const [hasGrokApiKey, setHasGrokApiKey] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -71,6 +74,18 @@ export default function UnifiedDashboard() {
     // Load clarity mode setting
     const savedClarity = localStorage.getItem('merlin_clarity_mode');
     if (savedClarity !== null) setClarityMode(savedClarity !== 'false');
+
+    const syncGrokApiKeyState = () => {
+      const savedKey = localStorage.getItem(LIVE_ORACLE_STORAGE_KEYS.grokApiKey) || process.env.NEXT_PUBLIC_XAI_API_KEY || '';
+      setHasGrokApiKey(Boolean(savedKey.trim()));
+    };
+
+    syncGrokApiKeyState();
+    window.addEventListener('storage', syncGrokApiKeyState);
+
+    return () => {
+      window.removeEventListener('storage', syncGrokApiKeyState);
+    };
   }, []);
 
   const toggleClarityMode = () => {
@@ -326,6 +341,40 @@ export default function UnifiedDashboard() {
               animate={{ opacity: 1, y: 0 }}
             >
               <LiveOraclePanel birthData={birthData} />
+            </motion.div>
+
+            {/* Quick Settings Card */}
+            <motion.div
+              className="mb-8"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+            >
+              <div className="rounded-lg border border-purple-500/20 bg-slate-900/40 backdrop-blur-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                    <KeyRound className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h2 className="text-lg font-semibold text-purple-200">Grok Settings</h2>
+                      <span className={`px-2 py-1 text-xs rounded border ${hasGrokApiKey ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                        {hasGrokApiKey ? 'Key Ready' : 'Key Needed'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-400 max-w-2xl">
+                      Manage your device-stored Grok key and Oracle preferences without leaving the signed-in dashboard flow.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/settings"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  Open Settings
+                </Link>
+              </div>
             </motion.div>
 
             {/* Main Dashboard Content */}

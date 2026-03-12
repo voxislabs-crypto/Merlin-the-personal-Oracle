@@ -6,6 +6,7 @@ import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Shield, Check } from 'lucide-react';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 const features = [
   'Complete Birth Chart Analysis',
@@ -25,6 +26,11 @@ export default function CheckoutSubscriptionPage() {
   const { isLoaded, isSignedIn } = useAuth();
 
   const handleSubscribe = async () => {
+    if (isStandaloneMobileClient) {
+      window.location.href = '/dashboard';
+      return;
+    }
+
     // If not signed in, redirect to sign-in page first
     if (!isSignedIn) {
       const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription';
@@ -87,10 +93,12 @@ export default function CheckoutSubscriptionPage() {
         >
           <Sparkles className="w-16 h-16 text-purple-400 mx-auto mb-4" />
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-300 via-blue-300 to-purple-300 bg-clip-text text-transparent">
-            Start Your 7-Day Free Trial
+            {isStandaloneMobileClient ? 'Android Standalone Access' : 'Start Your 7-Day Free Trial'}
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Experience the full power of Merlin for 7 days, absolutely free. Cancel anytime before the trial ends.
+            {isStandaloneMobileClient
+              ? 'This build launches the app directly. No sign-in or Stripe flow is required.'
+              : 'Experience the full power of Merlin for 7 days, absolutely free. Cancel anytime before the trial ends.'}
           </p>
         </motion.div>
 
@@ -103,20 +111,22 @@ export default function CheckoutSubscriptionPage() {
           >
             <Card className="bg-gradient-to-br from-purple-900/80 to-blue-900/80 backdrop-blur-sm border-purple-500/50 text-white">
               <CardHeader>
-                <CardTitle className="text-3xl text-purple-300">Monthly Plan</CardTitle>
+                <CardTitle className="text-3xl text-purple-300">{isStandaloneMobileClient ? 'Standalone Mode' : 'Monthly Plan'}</CardTitle>
                 <CardDescription className="text-gray-300">
-                  Full access to all features
+                  {isStandaloneMobileClient ? 'Direct app access without Clerk or Stripe' : 'Full access to all features'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-6">
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-bold">$9.99</span>
-                    <span className="text-gray-400">/month</span>
+                    <span className="text-5xl font-bold">{isStandaloneMobileClient ? 'Open' : '$9.99'}</span>
+                    <span className="text-gray-400">{isStandaloneMobileClient ? 'app' : '/month'}</span>
                   </div>
-                  <p className="text-purple-200 font-semibold">First 7 days free</p>
+                  <p className="text-purple-200 font-semibold">{isStandaloneMobileClient ? 'No billing in Android standalone' : 'First 7 days free'}</p>
                   <p className="text-sm text-gray-400 mt-2">
-                    Then $9.99/month. Cancel anytime before trial ends.
+                    {isStandaloneMobileClient
+                      ? 'This screen becomes a direct launch point instead of a checkout flow.'
+                      : 'Then $9.99/month. Cancel anytime before trial ends.'}
                   </p>
                 </div>
 
@@ -125,21 +135,21 @@ export default function CheckoutSubscriptionPage() {
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-6 text-lg"
                 >
-                  {loading ? 'Processing...' : (isSignedIn ? 'Start Free Trial' : 'Sign In to Continue')}
+                  {loading ? 'Processing...' : isStandaloneMobileClient ? 'Open Dashboard' : (isSignedIn ? 'Start Free Trial' : 'Sign In to Continue')}
                 </Button>
 
                 <div className="mt-6 space-y-2 text-sm text-gray-300">
                   <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-green-400" />
-                    <span>Credit card required (not charged for 7 days)</span>
+                    <span>{isStandaloneMobileClient ? 'No Clerk account required' : 'Credit card required (not charged for 7 days)'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-green-400" />
-                    <span>Cancel anytime from your dashboard</span>
+                    <span>{isStandaloneMobileClient ? 'No Stripe checkout required' : 'Cancel anytime from your dashboard'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-green-400" />
-                    <span>Secure payment via Stripe</span>
+                    <span>{isStandaloneMobileClient ? 'Standalone-friendly direct access' : 'Secure payment via Stripe'}</span>
                   </div>
                 </div>
               </CardContent>
@@ -182,10 +192,10 @@ export default function CheckoutSubscriptionPage() {
         >
           <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 inline-block">
             <p className="text-amber-300 font-semibold mb-2">
-              Or get lifetime access for just $50
+              {isStandaloneMobileClient ? 'Use the full app directly' : 'Or get lifetime access for just $50'}
             </p>
             <p className="text-gray-400 text-sm mb-4">
-              One-time payment · Save $249 compared to regular price
+              {isStandaloneMobileClient ? 'No billing step in standalone mode' : 'One-time payment · Save $249 compared to regular price'}
             </p>
             <Button
               onClick={() => window.location.href = '/'}

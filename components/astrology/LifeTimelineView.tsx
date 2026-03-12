@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TimelineStrike, LifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import * as HoverCard from '@radix-ui/react-hover-card';
+import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
 const PLANET_GLYPHS: Record<string, string> = {
   saturn: '♄', uranus: '♅', neptune: '♆', pluto: '♇', chiron: '⚷', jupiter: '♃',
@@ -183,7 +184,7 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
     setLoadingDetails(prev => ({ ...prev, [event.id]: true }));
 
     try {
-      const response = await fetch('/api/life-event-detail', {
+      const response = await fetch(resolveApiUrl('/api/life-event-detail'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,13 +196,16 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
       });
 
       if (response.ok) {
-        const result = await response.json();
+        const result = await readJsonResponse<{
+          success: boolean;
+          data?: { detailed: string; interpreter?: string };
+        }>(response, 'life event detail');
         if (result.success) {
           setEventDetails(prev => ({
             ...prev,
             [event.id]: {
-              text: result.data.detailed,
-              interpreter: result.data.interpreter || 'traditional'
+              text: result.data?.detailed || 'Could not load detailed interpretation.',
+              interpreter: result.data?.interpreter || 'traditional'
             }
           }));
         }
