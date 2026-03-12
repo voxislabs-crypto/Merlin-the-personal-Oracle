@@ -166,9 +166,12 @@ export function OracleChat({
         const response = await fetch(resolveApiUrl(`/api/oracle-chat?userId=${encodeURIComponent(userId)}`));
         if (response.ok) {
           const data = await readJsonResponse<{
-            data: { history: Array<{ role: Message['role']; content: string; timestamp: string }> };
+            data?: { history?: Array<{ role: Message['role']; content: string; timestamp: string }> };
           }>(response, 'oracle chat history');
-          const formattedMessages: Message[] = data.data.history.map(
+          const history = data.data?.history;
+          if (!history) return;
+
+          const formattedMessages: Message[] = history.map(
             (msg: any, idx: number) => ({
               id: `${msg.role}-${idx}`,
               role: msg.role,

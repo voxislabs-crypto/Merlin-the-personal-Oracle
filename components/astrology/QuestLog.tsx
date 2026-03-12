@@ -82,7 +82,10 @@ export default function QuestLog({ enabled, chartData, transits, forecast, mbtiT
       );
 
       if (!json.success) throw new Error(json.error || 'Unknown error');
-      const freshQuests: Quest[] = json.data.quests.map((q: Quest) => ({ ...q, completed: false }));
+      const quests = json.data?.quests;
+      if (!quests) throw new Error('Quest payload missing');
+
+      const freshQuests: Quest[] = quests.map((q: Quest) => ({ ...q, completed: false }));
       setQuests(freshQuests);
       setTotalXp(0);
       persistQuests(freshQuests);
