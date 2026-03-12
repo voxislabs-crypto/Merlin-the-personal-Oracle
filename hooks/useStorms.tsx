@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { BirthData } from "@/components/astrology/BirthChartCalculator";
 import { MBTIType } from "@/shared/schema";
 import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
+import { calculateStormsClient } from "@/lib/astrology/client-storms";
 
 export interface AstroStorm {
   id: string;
@@ -65,9 +66,22 @@ export function useStorms() {
         return result.data;
       } catch (err) {
         const e = err instanceof Error ? err : new Error("Unknown error");
-        setError(e);
-        console.error("[useStorms] Error:", e);
-        return null;
+        console.warn("[useStorms] API failed, trying local storms engine:", e.message);
+
+        try {
+          const localReport = await calculateStormsClient(birthData, mbtiType);
+          setStormsReport(localReport);
+          setError(null);
+          return localReport;
+        } catch (localErr) {
+          const finalErr =
+            localErr instanceof Error
+              ? localErr
+              : new Error("Failed to calculate storms locally");
+          setError(finalErr);
+          console.error("[useStorms] Error:", finalErr);
+          return null;
+        }
       } finally {
         setLoading(false);
       }

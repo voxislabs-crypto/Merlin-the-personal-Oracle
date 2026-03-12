@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
+    "test:wasm-parity": "jest tests/wasm-parity.test.ts",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",

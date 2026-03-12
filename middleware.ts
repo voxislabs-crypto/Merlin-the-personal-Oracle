@@ -19,7 +19,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   if (isProtected(req)) {
-    await auth.protect();
+    await auth().protect();
   }
 });
 
