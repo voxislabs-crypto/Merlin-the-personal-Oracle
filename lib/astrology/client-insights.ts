@@ -1,4 +1,3 @@
-import { calculateBirthChart as calculateFallbackBirthChart } from "@/lib/engine-fallback";
 import { InterpretationEngine } from "@/lib/astrology/interpretations";
 import { calculateBirthChartClient } from "@/lib/astrology/client-calculate";
 import { readJsonResponse, resolveApiUrl } from "@/lib/api-client";
@@ -196,12 +195,14 @@ async function getNatalAndTransitCharts(birthData: BirthData): Promise<{
 
     transitChart = result.data;
   } catch {
-    transitChart = calculateFallbackBirthChart(
-      toIsoDate(now),
-      toHHMM(now),
-      birthData.latitude,
-      birthData.longitude
-    );
+    transitChart = await calculateBirthChartClient({
+      birthDate: toIsoDate(now),
+      birthTime: toHHMM(now),
+      latitude: birthData.latitude,
+      longitude: birthData.longitude,
+      houseSystem: birthData.houseSystem,
+      zodiac: birthData.zodiac,
+    });
   }
 
   return { natalChart, transitChart };
