@@ -26,6 +26,7 @@ import {
   getElectionalWindows,
   calculateLunarPhase,
 } from "./astrology/advanced";
+import { computeMBTI } from "./personality/fusion";
 
 export const normalizeAngle = (deg: number): number =>
   ((deg % 360) + 360) % 360;
@@ -416,7 +417,8 @@ export const calculateBirthChart = (
     }));
   }
 
-  return {
+  // Calculate MBTI personality type from birth chart
+  const chartData: BirthChartData = {
     jd,
     positions: planetsWithDignities,
     houses,
@@ -460,5 +462,13 @@ export const calculateBirthChart = (
       coordinates:
         lat !== undefined && lon !== undefined ? { lat, lon } : undefined,
     },
+  };
+
+  // Compute MBTI after chart data is assembled
+  const mbti = computeMBTI(chartData);
+
+  return {
+    ...chartData,
+    mbti,
   };
 };

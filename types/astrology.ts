@@ -60,6 +60,18 @@ export interface BaseChartData {
 
 export interface ChartData extends BaseChartData {}
 
+export interface MBTIDetails {
+  type: string;
+  confidence: number;
+  breakdown: { 
+    e_i: string;
+    s_n: string;
+    t_f: string;
+    j_p: string;
+  };
+  firmware?: string; // ENFP overlay, etc.
+}
+
 export interface BirthChartData extends BaseChartData {
   jd: number;
   ascendant: {
@@ -77,6 +89,7 @@ export interface BirthChartData extends BaseChartData {
   electional: ElectionalWindow[];
   moonPhase: LunarPhase;
   transits: Transit[];
+  mbti?: MBTIDetails;
   houseSystem?: {
     cusps: number[];
     ascendant: number;
