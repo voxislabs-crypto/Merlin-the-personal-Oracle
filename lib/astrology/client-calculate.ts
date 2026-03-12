@@ -76,6 +76,24 @@ export async function calculateBirthChartClient(
       error instanceof Error ? error.message : String(error)
     );
 
+    if (typeof window !== "undefined") {
+      try {
+        const { calculateBirthChartWasm } = await import("@/lib/astrology/engine-wasm");
+        return await calculateBirthChartWasm({
+          birthDate: data.birthDate,
+          birthTime: data.birthTime,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          houseSystem: data.houseSystem,
+        });
+      } catch (wasmError) {
+        console.warn(
+          "[client-calculate] WASM chart calculation failed, using fallback:",
+          wasmError instanceof Error ? wasmError.message : String(wasmError)
+        );
+      }
+    }
+
     return calculateFallbackBirthChart(
       data.birthDate,
       data.birthTime,
