@@ -82,7 +82,6 @@ export function BirthIntakeForm({
           'stripe checkout'
         );
         console.log('Checkout session created:', { sessionId, url });
-        console.log('Checkout session created:', { sessionId, url });
 
         if (url) {
           console.log('Redirecting to Stripe checkout:', url);
@@ -98,6 +97,10 @@ export function BirthIntakeForm({
 
         if (!stripe) {
           throw new Error('Stripe failed to load');
+        }
+
+        if (!sessionId) {
+          throw new Error('Checkout session ID missing');
         }
 
         const { error } = await stripe.redirectToCheckout({ sessionId });

@@ -165,8 +165,9 @@ export function CollapsibleChatPanel({
               error?: string;
               data?: { audio?: string };
             }>(response, 'tts');
-            if (data.success && data.data?.audio) {
-              audioUrl = data.data.audio;
+            const generatedAudioUrl = data.data?.audio;
+            if (data.success && generatedAudioUrl) {
+              audioUrl = generatedAudioUrl;
               // Cache the audio for future use
               if (audioUrl) {
                 cacheAudio(text, 'oracle', audioUrl);

@@ -247,9 +247,10 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
       success: boolean;
       data?: { audio?: string };
     }>(res, 'tts');
-    if (result.success && result.data?.audio) {
-      cacheAudio(chunkText, VOICE, result.data.audio);
-      return result.data.audio;
+    const audioUrl = result.data?.audio;
+    if (result.success && audioUrl) {
+      cacheAudio(chunkText, VOICE, audioUrl);
+      return audioUrl;
     }
     return null;
   }, []);
