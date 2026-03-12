@@ -39,6 +39,14 @@ function getZodiacSign(longitude: number): string {
   return ZODIAC_SIGNS[Math.floor(longitude / 30) % 12];
 }
 
+function normalizeAngle(angle: number): number {
+  return ((angle % 360) + 360) % 360;
+}
+
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
 function getDegreeMinute(longitude: number): {
   degree: number;
   minute: number;
@@ -84,27 +92,58 @@ function calculatePlanetPosition(
 
   // Simplified position calculation
   const daysSinceEpoch = jd - 2451545.0; // J2000.0 epoch
-  let meanLongitude = (daysSinceEpoch * planetData.speed) % 360;
-  if (meanLongitude < 0) meanLongitude += 360;
+  let meanLongitude = normalizeAngle(daysSinceEpoch * planetData.speed);
+
+  // Use a better deterministic moon model so fallback charts stay astrologically plausible.
+  if (planetName === "Moon") {
+    const L0 = normalizeAngle(218.316 + 13.176396 * daysSinceEpoch);
+    const Mm = normalizeAngle(134.963 + 13.064993 * daysSinceEpoch);
+    const Ms = normalizeAngle(357.529 + 0.98560028 * daysSinceEpoch);
+    const D = normalizeAngle(297.85 + 12.190749 * daysSinceEpoch);
+    const F = normalizeAngle(93.272 + 13.22935 * daysSinceEpoch);
+
+    meanLongitude = normalizeAngle(
+      L0 +
+        6.289 * Math.sin(toRadians(Mm)) +
+        1.274 * Math.sin(toRadians(2 * D - Mm)) +
+        0.658 * Math.sin(toRadians(2 * D)) +
+        0.214 * Math.sin(toRadians(2 * Mm)) -
+        0.186 * Math.sin(toRadians(Ms)) -
+        0.059 * Math.sin(toRadians(2 * D - 2 * Mm)) -
+        0.057 * Math.sin(toRadians(2 * D - Ms - Mm)) +
+        0.053 * Math.sin(toRadians(2 * D + Mm)) +
+        0.046 * Math.sin(toRadians(2 * D - Ms)) +
+        0.041 * Math.sin(toRadians(Ms - Mm)) -
+        0.035 * Math.sin(toRadians(D)) -
+        0.031 * Math.sin(toRadians(Ms + Mm)) -
+        0.015 * Math.sin(toRadians(2 * F - 2 * D)) +
+        0.011 * Math.sin(toRadians(2 * D - 4 * Mm))
+    );
+  }
 
   // Add some corrections for more realistic results
   const correction = Math.sin(daysSinceEpoch * 0.1) * 5;
-  let finalLongitude = (meanLongitude + correction + longitude) % 360;
-  if (finalLongitude < 0) finalLongitude += 360;
+  const finalLongitude = planetName === "Moon"
+    ? meanLongitude
+    : normalizeAngle(meanLongitude + correction);
 
   const sign = getZodiacSign(finalLongitude);
   const { degree, minute } = getDegreeMinute(finalLongitude);
 
+  const latitudeBias = Math.sin(daysSinceEpoch * (planetData.speed / 25)) * 2;
+  const distanceBias = 1 + 0.2 * Math.cos(daysSinceEpoch * (planetData.speed / 50));
+  const retrogradeLike = Math.sin(daysSinceEpoch * (planetData.speed / 80)) < -0.92;
+
   return {
     name: planetName,
     longitude: finalLongitude,
-    latitude: latitude + Math.random() * 10 - 5, // Simplified latitude
-    distance: 1 + Math.random() * 2, // Simplified distance
+    latitude: latitudeBias,
+    distance: distanceBias,
     speed: planetData.speed,
     sign,
     degree,
     minute,
-    retrograde: Math.random() > 0.8, // Simplified retrograde calculation
+    retrograde: retrogradeLike,
   };
 }
 
