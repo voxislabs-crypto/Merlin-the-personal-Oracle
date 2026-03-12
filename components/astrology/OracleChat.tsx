@@ -106,8 +106,10 @@ export function OracleChat({
         data?: { audio?: string };
       }>(response, 'tts');
 
-      if (result.success && result.data.audio) {
-        const audio = new Audio(result.data.audio);
+      const audioUrl = result.data?.audio;
+
+      if (result.success && audioUrl) {
+        const audio = new Audio(audioUrl);
         audioRef.current = audio;
 
         audio.onended = () => {

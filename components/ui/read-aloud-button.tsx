@@ -45,8 +45,10 @@ export function ReadAloudButton({
         data?: { audio?: string };
       }>(response, 'tts');
 
-      if (result.success && result.data.audio) {
-        const audioElement = new Audio(result.data.audio);
+      const audioUrl = result.data?.audio;
+
+      if (result.success && audioUrl) {
+        const audioElement = new Audio(audioUrl);
         
         audioElement.onended = () => {
           setIsPlaying(false);
