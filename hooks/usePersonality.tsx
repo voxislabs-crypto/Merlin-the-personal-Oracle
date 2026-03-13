@@ -1,7 +1,10 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import type { BirthChartData } from '@/types/astrology';
 import { MBTIType } from '@/lib/mbti-overlay';
 import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
+import { computeMBTIDual } from '@/lib/astrology/mbtiFusion';
 
 export interface DualOverlay {
   hardware: {
@@ -37,9 +40,61 @@ export function usePersonality() {
   const [error, setError] = useState<Error | null>(null);
 
   const calculatePersonality = useCallback(
-    async (birthData: BirthData): Promise<MBTIType | null> => {
+    async (birthData: BirthData, chartData?: BirthChartData): Promise<MBTIType | null> => {
       setLoading(true);
       setError(null);
+
+      // In standalone mode: compute MBTI client-side directly from chart data
+      if (isStandaloneMobileClient) {
+        try {
+          // Check cached MBTI in localStorage first
+          const cached = localStorage.getItem('merlin_mbti_type');
+          if (cached && !chartData) {
+            const nextMbti = cached as MBTIType;
+            setMbtiType(nextMbti);
+            return nextMbti;
+          }
+
+          if (chartData) {
+            const dual = computeMBTIDual(chartData);
+            const nextMbti = (dual.type || dual.firmware?.type || 'INFJ') as MBTIType;
+            setMbtiType(nextMbti);
+            setProfile({
+              mbtiType: nextMbti,
+              dualOverlay: {
+                hardware: {
+                  label: dual.hardware?.type || nextMbti,
+                  sublabel: 'Outer expression',
+                  mbtiType: dual.hardware?.type || nextMbti,
+                  confidence: dual.hardware?.confidence || 70,
+                  archetype: dual.hardware?.type || nextMbti,
+                  description: 'Astrological hardware layer',
+                },
+                firmware: {
+                  label: dual.firmware?.type || nextMbti,
+                  sublabel: 'Inner core',
+                  mbtiType: dual.firmware?.type || nextMbti,
+                  confidence: dual.firmware?.confidence || 70,
+                  archetype: dual.firmware?.type || nextMbti,
+                  description: 'Astrological firmware layer',
+                },
+                finalType: nextMbti,
+                finalConfidence: dual.confidence || 70,
+              },
+              source: 'swiss-real',
+            });
+            localStorage.setItem('merlin_mbti_type', nextMbti);
+            return nextMbti;
+          }
+
+          return null;
+        } catch (err) {
+          console.error('[usePersonality] Client-side MBTI error:', err);
+          return null;
+        } finally {
+          setLoading(false);
+        }
+      }
 
       try {
         const response = await fetch(resolveApiUrl('/api/personality'), {

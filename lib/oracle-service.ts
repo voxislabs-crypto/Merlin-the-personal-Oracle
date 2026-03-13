@@ -611,7 +611,7 @@ export function identifyCurrentLevel(context: OracleContext): {
  */
 export class OracleMemory {
   private conversations: Map<string, OracleMessage[]> = new Map();
-  private maxMessages = 50; // Keep last 50 messages per user
+  private maxMessages = 500; // Keep last 500 messages per user (effectively unlimited)
 
   addMessage(userId: string, message: OracleMessage) {
     if (!this.conversations.has(userId)) {

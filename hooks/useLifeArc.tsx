@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 export function useLifeArc() {
   const [lifeArc, setLifeArc] = useState<LifeTimeline | null>(null);
@@ -9,6 +10,12 @@ export function useLifeArc() {
   const [error, setError] = useState<Error | null>(null);
 
   const calculateLifeArc = async (birthData: BirthData, chartData: BirthChartData) => {
+    // Life Arc uses server-side sweph calculations — not available in standalone builds
+    if (isStandaloneMobileClient) {
+      console.log('[useLifeArc] Skipped — server-only feature not available in standalone mode');
+      return null;
+    }
+
     setLoading(true);
     setError(null);
 

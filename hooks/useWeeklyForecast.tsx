@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
+import { calculateForecastClient } from '@/lib/astrology/client-insights';
 
 export interface DayWhisper {
   day: string;
@@ -23,6 +25,40 @@ export function useWeeklyForecast() {
     async (birthData: BirthData): Promise<WeeklyForecast | null> => {
       setLoading(true);
       setError(null);
+
+      // In standalone, generate week forecast from client-side calculations
+      if (isStandaloneMobileClient) {
+        try {
+          const today = await calculateForecastClient(birthData);
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const now = new Date();
+          const week: DayWhisper[] = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(now);
+            d.setDate(now.getDate() + i);
+            const dayName = dayNames[d.getDay()];
+            const dateStr = d.toISOString().slice(0, 10);
+            const whisper =
+              i === 0
+                ? today.advice || today.summary
+                : `${dayName}: ${today.moonPhase} energy continues. ${today.planetaryHighlights?.[i % (today.planetaryHighlights.length || 1)] || 'Steady forward motion.'}`;
+            return { day: dayName, date: dateStr, whisper };
+          });
+
+          const forecast: WeeklyForecast = {
+            week,
+            startDate: week[0].date,
+            endDate: week[6].date,
+          };
+          setWeeklyForecast(forecast);
+          return forecast;
+        } catch (err) {
+          console.error('[useWeeklyForecast] Client fallback error:', err);
+          setLoading(false);
+          return null;
+        } finally {
+          setLoading(false);
+        }
+      }
 
       try {
         const response = await fetch(resolveApiUrl('/api/weekly-forecast'), {

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
 import { FeaturesSection } from '@/components/sections/FeaturesSection';
@@ -18,7 +20,19 @@ export const dynamic = 'force-dynamic';
 
 export default function Home() {
   const { isSignedIn } = useAuth();
+  const router = useRouter();
   const primaryHref = isStandaloneMobileClient ? '/dashboard' : isSignedIn ? '/dashboard' : '/sign-in';
+
+  // In standalone mode, skip the marketing landing page and go straight to the app
+  useEffect(() => {
+    if (isStandaloneMobileClient) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
+  if (isStandaloneMobileClient) {
+    return null; // Will redirect immediately
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">

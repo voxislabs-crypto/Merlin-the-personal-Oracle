@@ -29,8 +29,9 @@ import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, KeyRound, Settings } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
@@ -41,6 +42,7 @@ const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
@@ -52,6 +54,13 @@ export default function UnifiedDashboard() {
   const [noBullshit, setNoBullshit] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(true);
   const [userId, setUserId] = useState('');
+
+  // Auto-expand Oracle chat when navigated from bottom nav Oracle tab
+  useEffect(() => {
+    if (searchParams.get('chat') === '1') {
+      setChatExpanded(true);
+    }
+  }, [searchParams]);
   const [questLogEnabled, setQuestLogEnabled] = useState(true); // ON by default
   const [clarityMode, setClarityMode] = useState(true); // Plain English mode — ON by default
   const [hasGrokApiKey, setHasGrokApiKey] = useState(false);
@@ -172,7 +181,7 @@ export default function UnifiedDashboard() {
           calculateTransits(birth),
           calculateLifeArc(birth, chart),
           calculateWeeklyForecast(birth),
-          calculatePersonality(birth).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
+          calculatePersonality(birth, chart).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
         ]).catch((e) => console.error('Error regenerating dashboard data:', e));
       }
     } catch (error) {
@@ -237,7 +246,7 @@ export default function UnifiedDashboard() {
       calculateTransits(derived),
       calculateLifeArc(derived, data),
       calculateWeeklyForecast(derived),
-      calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
+      calculatePersonality(derived, chartData ?? undefined).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, calculateStorms, interpretMode]);
 

@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import type { BirthChartData } from '@/types/astrology';
 import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
+import { askGrokOracleClient } from '@/lib/grok-client';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 interface Message {
   id: string;
@@ -22,6 +24,7 @@ interface OracleChatProps {
   birthChart?: BirthChartData;
   progressedChart?: any;
   userId?: string;
+  mbtiType?: string;
   onClose?: () => void;
 }
 
@@ -29,6 +32,7 @@ export function OracleChat({
   birthChart,
   progressedChart,
   userId = 'anonymous',
+  mbtiType,
   onClose,
 }: OracleChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -159,8 +163,28 @@ export function OracleChat({
     localStorage.setItem('merlin_clarity_mode', String(next));
   };
 
-  // Fetch conversation history on mount
+  // Load conversation history — localStorage in standalone, API otherwise
   useEffect(() => {
+    if (isStandaloneMobileClient) {
+      try {
+        const key = `merlin_oracle_history_${userId}`;
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        const history: Array<{ role: Message['role']; content: string; timestamp: string }> = JSON.parse(raw);
+        setMessages(
+          history.map((msg, idx) => ({
+            id: `${msg.role}-${idx}`,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+          }))
+        );
+      } catch {
+        // ignore corrupt history
+      }
+      return;
+    }
+
     const fetchHistory = async () => {
       try {
         const response = await fetch(resolveApiUrl(`/api/oracle-chat?userId=${encodeURIComponent(userId)}`));
@@ -207,6 +231,71 @@ export function OracleChat({
     setIsNearBottom(true); // Force scroll on new user message
     scrollToBottom(true);
 
+    // Persist user message to localStorage immediately (standalone)
+    const persistHistory = (msgs: Message[]) => {
+      if (!isStandaloneMobileClient) return;
+      try {
+        const key = `merlin_oracle_history_${userId}`;
+        const toSave = msgs.slice(-100).map((m) => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp.toISOString(),
+        }));
+        localStorage.setItem(key, JSON.stringify(toSave));
+      } catch { /* storage full? ignore */ }
+    };
+
+    // Resolve mbtiType: prop > localStorage
+    const resolvedMbti =
+      mbtiType ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('merlin_mbti_type') || undefined : undefined);
+
+    // In standalone mode, call Grok directly; in server mode use streaming API
+    if (isStandaloneMobileClient) {
+      try {
+        const result = await askGrokOracleClient({
+          question: input,
+          birthChart,
+          progressedChart,
+          plainEnglish,
+          mbtiType: resolvedMbti,
+        });
+
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.answer,
+          timestamp: new Date(),
+          tactics: result.tactics,
+          forecast: result.forecast,
+          level: result.level,
+        };
+
+        setMessages((prev: Message[]) => {
+          const next = [...prev, assistantMessage];
+          persistHistory(next);
+          return next;
+        });
+      } catch (error: any) {
+        console.error('Direct Grok error:', error);
+        const isKeyError = String(error?.message).includes('Missing xAI API key');
+        const errorMessage: Message = {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          content: isKeyError
+            ? 'Please set your xAI API key in Settings to use the Oracle.'
+            : 'Merlin encountered a disruption. Try again?',
+          timestamp: new Date(),
+        };
+        setMessages((prev: Message[]) => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
+        inputRef.current?.focus();
+      }
+      return;
+    }
+
+    // Server-mode: streaming API call
     try {
       const response = await fetch(resolveApiUrl('/api/oracle-chat'), {
         method: 'POST',
@@ -293,6 +382,12 @@ export function OracleChat({
 
   const clearHistory = async () => {
     if (!confirm('Clear all messages? This cannot be undone.')) return;
+
+    if (isStandaloneMobileClient) {
+      localStorage.removeItem(`merlin_oracle_history_${userId}`);
+      setMessages([]);
+      return;
+    }
 
     try {
       await fetch(resolveApiUrl(`/api/oracle-chat?userId=${encodeURIComponent(userId)}`), { method: 'DELETE' });

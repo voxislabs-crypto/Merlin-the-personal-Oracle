@@ -1,9 +1,11 @@
 import { ClerkProvider } from './clerk-provider';
 import { Navigation } from '@/components/layout/Navigation';
 import { Footer } from '@/components/layout/Footer';
+import { BottomNav } from '@/components/layout/BottomNav';
 import { PWAInstaller } from '@/components/PWAInstaller';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 const siteUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin-oracle.com';
 
@@ -172,13 +174,21 @@ export default function RootLayout({
             />
           )}
       </head>
-      <body className="flex flex-col min-h-screen">
-        <ClerkProvider>
-          <PWAInstaller />
-          <Navigation />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </ClerkProvider>
+      <body className={`flex flex-col min-h-screen ${isStandaloneMobileClient ? 'bg-slate-950' : ''}`}>
+        {isStandaloneMobileClient ? (
+          <>
+            <PWAInstaller />
+            <main className="flex-1 pb-16">{children}</main>
+            <BottomNav />
+          </>
+        ) : (
+          <ClerkProvider>
+            <PWAInstaller />
+            <Navigation />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </ClerkProvider>
+        )}
       </body>
     </html>
   );
