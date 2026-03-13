@@ -1,8 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { Suspense, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { BirthChart } from '@/components/astrology/BirthChart';
@@ -41,7 +39,7 @@ import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 
-export default function UnifiedDashboard() {
+function DashboardContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -805,5 +803,13 @@ export default function UnifiedDashboard() {
             )}
           </div>
         </div>
+  );
+}
+
+export default function UnifiedDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
