@@ -133,8 +133,11 @@ async function getWasmEngine() {
       const browserPkg = await import("@swisseph/browser");
       const core = (await import("@swisseph/core")) as unknown as SweCore;
 
-      const swe = new browserPkg.SwissEphemeris() as SweInstance & { init: () => Promise<void> };
-      await swe.init();
+      const swe = new browserPkg.SwissEphemeris() as SweInstance & { init: (wasmPath?: string) => Promise<void> };
+      // Explicitly point to the WASM binary in the public/ directory.
+      // This is critical for the Capacitor standalone app where import.meta.url
+      // resolves to a webpack bundle path that doesn't contain the .wasm file.
+      await swe.init("/swisseph.wasm");
 
       return { swe, core };
     })();

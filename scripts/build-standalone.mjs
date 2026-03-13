@@ -63,10 +63,25 @@ function restoreMovedDirs(movedDirs) {
   }
 }
 
+// Copy swisseph.wasm to public/ so it's available in the static export for the
+// Capacitor WebView.  The WASM engine (engine-wasm.ts) loads it from /swisseph.wasm.
+function copyWasmToPublic() {
+  const wasmSrc = path.join(root, "node_modules/@swisseph/browser/dist/swisseph.wasm");
+  const wasmDest = path.join(root, "public/swisseph.wasm");
+  if (fs.existsSync(wasmSrc)) {
+    fs.copyFileSync(wasmSrc, wasmDest);
+    console.log("[build-standalone] Copied swisseph.wasm to public/");
+  } else {
+    console.warn("[build-standalone] WARNING: swisseph.wasm not found at", wasmSrc);
+    console.warn("[build-standalone] Run `npm install sweph @swisseph/browser` first.");
+  }
+}
+
 let movedDirs = [];
 let exitCode = 0;
 
 try {
+  copyWasmToPublic();
   movedDirs = moveAsideForStandalone();
 
   const result = spawnSync("npx", ["next", "build"], {
