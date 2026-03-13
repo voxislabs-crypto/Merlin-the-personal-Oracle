@@ -62,12 +62,15 @@ const MAJOR_ASPECTS = [
 ];
 
 function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Use local date to avoid UTC-offset shifting the day
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function toHHMM(d: Date): string {
-  return `${d.getUTCHours().toString().padStart(2, "0")}:${d
-    .getUTCMinutes()
+  // Use local hours/minutes so transit calc matches user's current time
+  return `${d.getHours().toString().padStart(2, "0")}:${d
+    .getMinutes()
     .toString()
     .padStart(2, "0")}`;
 }

@@ -8,6 +8,7 @@ import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import type { BirthChartData } from '@/types/astrology';
 import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 import { askGrokOracleClient } from '@/lib/grok-client';
+import type { OracleTransitContext, OracleWeeklyForecast, OracleLifeArc, OracleStormsReport } from '@/lib/grok-client';
 import { isStandaloneMobileClient } from '@/lib/runtime-mode';
 
 interface Message {
@@ -25,6 +26,11 @@ interface OracleChatProps {
   progressedChart?: any;
   userId?: string;
   mbtiType?: string;
+  transits?: OracleTransitContext;
+  weeklyForecast?: OracleWeeklyForecast;
+  lifeArc?: OracleLifeArc;
+  chartSummary?: string;
+  stormsReport?: OracleStormsReport;
   onClose?: () => void;
 }
 
@@ -33,6 +39,11 @@ export function OracleChat({
   progressedChart,
   userId = 'anonymous',
   mbtiType,
+  transits,
+  weeklyForecast,
+  lifeArc,
+  chartSummary,
+  stormsReport,
   onClose,
 }: OracleChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -259,6 +270,11 @@ export function OracleChat({
           progressedChart,
           plainEnglish,
           mbtiType: resolvedMbti,
+          transits,
+          weeklyForecast,
+          lifeArc,
+          chartSummary,
+          stormsReport,
         });
 
         const assistantMessage: Message = {

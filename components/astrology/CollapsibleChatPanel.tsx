@@ -9,6 +9,7 @@ import { getCachedAudio, cacheAudio, generateCacheKey, clearAllAudioCache } from
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
 import { askGrokOracleClient } from '@/lib/grok-client';
+import type { OracleTransitContext, OracleWeeklyForecast, OracleLifeArc, OracleStormsReport } from '@/lib/grok-client';
 import { LIVE_ORACLE_STORAGE_KEYS } from '@/lib/astrology/live-oracle-storage';
 import { readJsonResponse, resolveApiUrl } from '@/lib/api-client';
 
@@ -31,6 +32,12 @@ interface CollapsibleChatPanelProps {
   mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
   clarityMode?: boolean; // Controlled from parent dashboard; falls back to localStorage
   onClarityChange?: () => void; // Propagate toggle back up to parent
+  // Full oracle context — wired from dashboard hooks
+  transits?: OracleTransitContext;
+  weeklyForecast?: OracleWeeklyForecast;
+  lifeArc?: OracleLifeArc;
+  chartSummary?: string;
+  stormsReport?: OracleStormsReport;
 }
 
 export function CollapsibleChatPanel({
@@ -42,6 +49,11 @@ export function CollapsibleChatPanel({
   mbtiType,
   clarityMode: clarityModeProp,
   onClarityChange,
+  transits,
+  weeklyForecast,
+  lifeArc,
+  chartSummary,
+  stormsReport,
 }: CollapsibleChatPanelProps) {
   const chatStorageKey = `${LIVE_ORACLE_STORAGE_KEYS.chatHistoryPrefix}${userId}`;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -418,6 +430,11 @@ export function CollapsibleChatPanel({
         progressedChart,
         plainEnglish,
         mbtiType,
+        transits,
+        weeklyForecast,
+        lifeArc,
+        chartSummary,
+        stormsReport,
       });
 
       const fullContent = result.answer || 'I could not generate a response.';

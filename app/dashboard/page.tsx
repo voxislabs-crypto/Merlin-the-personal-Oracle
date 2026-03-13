@@ -443,6 +443,11 @@ export default function UnifiedDashboard() {
                             mbtiType={mbtiType || undefined}
                             clarityMode={clarityMode}
                             onClarityChange={toggleClarityMode}
+                            transits={transits || undefined}
+                            weeklyForecast={weeklyForecast || undefined}
+                            lifeArc={lifeArc || undefined}
+                            chartSummary={interpretations?.chartSummary || undefined}
+                            stormsReport={stormsReport || undefined}
                           />
                         )}
                       </div>

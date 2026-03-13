@@ -32,11 +32,13 @@ export function useWeeklyForecast() {
           const today = await calculateForecastClient(birthData);
           const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
           const now = new Date();
+          const padL = (n: number) => String(n).padStart(2, '0');
           const week: DayWhisper[] = Array.from({ length: 7 }, (_, i) => {
             const d = new Date(now);
             d.setDate(now.getDate() + i);
             const dayName = dayNames[d.getDay()];
-            const dateStr = d.toISOString().slice(0, 10);
+            // Use local date to avoid UTC-offset day shift
+            const dateStr = `${d.getFullYear()}-${padL(d.getMonth() + 1)}-${padL(d.getDate())}`;
             const whisper =
               i === 0
                 ? today.advice || today.summary
