@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, MessageCircle, Zap, Settings } from 'lucide-react';
@@ -11,7 +12,7 @@ const TABS = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
-export function BottomNav() {
+function BottomNavContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,5 +84,13 @@ export function BottomNav() {
         </div>
       </nav>
     </>
+  );
+}
+
+export function BottomNav() {
+  return (
+    <Suspense fallback={<div className="h-20 flex-shrink-0" aria-hidden />}>
+      <BottomNavContent />
+    </Suspense>
   );
 }
