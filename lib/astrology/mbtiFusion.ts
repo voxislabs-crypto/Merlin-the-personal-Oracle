@@ -539,38 +539,61 @@ function computeFirmwareLayer(params: {
   const thinkingReasons: string[] = [];
   const judgingReasons: string[] = [];
 
-  // === E/I: Introversion (with possible E undertone from Moon) ===
-  let eScore = 0;
+  // === E/I: Introversion — Weight-based + Hard Locks ===
+  // Weights: Moon (35%), Ascendant (25%), Sun (20%), Mercury (20%)
+  // Hard lock: Scorpio Moon or Scorpio Ascendant → always 'I'
+  // Leo Sun special rule: E only when Moon AND Asc both vote E, otherwise I
 
-  // Moon in water = introspective core
-  if (moon) {
-    const moonElement = getElement(moon.sign);
-    if (moonElement === "water") {
-      eScore -= 1.0; // Strongly introverted
-      extraversionReasons.push(`Moon in ${moon.sign} (water - introspective)`);
-    } else if (moonElement === "earth") {
-      eScore -= 0.5;
-      extraversionReasons.push(`Moon in ${moon.sign} (earth - reserved)`);
-    } else if (moonElement === "air") {
-      eScore += 0.3; // Air moon adds slight extraversion
-      extraversionReasons.push(`Moon in ${moon.sign} (air - curious)`);
-    }
-  }
-
-  // 12th house planets = hidden, introverted nature
+  // 12th house count needed here and in J/P section below
   const twelfthHouseCount = positions.filter((p) => p.house === 12).length;
-  if (twelfthHouseCount >= 2) {
-    eScore -= 0.8;
-    extraversionReasons.push(`${twelfthHouseCount} planets in 12th house (hidden)`);
-  }
 
-  // Neptune in 12th = intensely private
-  if (neptune && neptune.house === 12) {
-    eScore -= 0.7;
-    extraversionReasons.push(`Neptune in 12th house (mystical withdraw)`);
-  }
+  const moonSign_ei  = moon?.sign?.toLowerCase() ?? '';
+  const ascSign_ei   = ascendant?.sign?.toLowerCase() ?? '';
+  const sunSign_ei   = params.sun?.sign?.toLowerCase() ?? '';
 
-  const firmwareE_I = eScore > 0.3 ? "E" : "I";
+  let firmwareE_I: string;
+
+  if (moonSign_ei === 'scorpio' || ascSign_ei === 'scorpio') {
+    // Hard lock — water fixed signs with hidden depth are always introverted
+    firmwareE_I = 'I';
+    const lockSrc = moonSign_ei === 'scorpio' ? 'Scorpio Moon' : 'Scorpio Ascendant';
+    extraversionReasons.push(`HARD LOCK: ${lockSrc} → I (unconditional)`);
+    console.log(`[MBTI E/I Firmware] HARD LOCK: ${lockSrc} → I`);
+  } else {
+    // Weight-based vote from each point of light
+    const moonVote: 'I' | 'E' =
+      getElement(moon?.sign) === 'water' || getElement(moon?.sign) === 'earth' ? 'I' : 'E';
+    const ascVote: 'I' | 'E' =
+      getElement(ascendant?.sign) === 'water' || getElement(ascendant?.sign) === 'earth' ? 'I' : 'E';
+
+    // Leo Sun → 'E' only when Moon AND Asc both already vote E; otherwise default to 'I'
+    let sunVote: 'I' | 'E';
+    if (sunSign_ei === 'leo') {
+      sunVote = (moonVote === 'E' && ascVote === 'E') ? 'E' : 'I';
+    } else {
+      sunVote =
+        getElement(params.sun?.sign) === 'fire' || getElement(params.sun?.sign) === 'air' ? 'E' : 'I';
+    }
+
+    const mercuryVote: 'I' | 'E' =
+      getElement(mercury?.sign) === 'air' || getElement(mercury?.sign) === 'fire' ? 'E' : 'I';
+
+    const iWeight =
+      (moonVote    === 'I' ? 0.35 : 0) +
+      (ascVote     === 'I' ? 0.25 : 0) +
+      (sunVote     === 'I' ? 0.20 : 0) +
+      (mercuryVote === 'I' ? 0.20 : 0);
+
+    firmwareE_I = iWeight >= 0.50 ? 'I' : 'E';
+
+    console.log(
+      `[MBTI E/I Firmware] Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), ` +
+      `Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → I-weight: ${iWeight.toFixed(2)} → ${firmwareE_I}`
+    );
+    extraversionReasons.push(
+      `Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → ${firmwareE_I}`
+    );
+  }
 
   // === S/N: Intuition (boosted for firmware core) ===
   let nScore = 0;

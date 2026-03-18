@@ -539,7 +539,7 @@ export default function UnifiedDashboard() {
                   transition={{ delay: 0.6 }}
                 >
                   {mbtiType && (
-                    <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} loading={personalityLoading} />
+                    <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} transits={transits} loading={personalityLoading} />
                   )}
                 </motion.div>
 
@@ -791,6 +791,7 @@ export default function UnifiedDashboard() {
                             <DualPersonalityCards
                               mbtiType={mbtiType}
                               dualOverlay={dualOverlay}
+                              transits={transits}
                               loading={personalityLoading}
                             />
                           </div>

@@ -1,14 +1,44 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/hooks/usePersonality';
-import { Theater, Eye } from 'lucide-react';
+import { Theater, Eye, AlertTriangle, Shuffle } from 'lucide-react';
+import { useUser } from '@clerk/nextjs';
+import flavorsRaw from '@/data/mbti-flavors.json';
+import shadowsRaw from '@/data/mbti-shadows.json';
+
+const flavors = flavorsRaw as Record<string, Record<string, string>>;
+const shadows = shadowsRaw as Record<string, Record<string, string>>;
+
+const MBTI_TYPES: MBTIType[] = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
+
+interface TransitItem {
+  transitingPlanet?: string;
+  natalPlanet?: string;
+  aspect?: string;
+}
+
+function findShadowTrigger(transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null): string | null {
+  if (!transits) return null;
+  const all: TransitItem[] = [...(transits.significant || []), ...(transits.approaching || [])];
+  for (const t of all) {
+    const planet = t.transitingPlanet?.toLowerCase() || '';
+    const aspect = t.aspect?.toLowerCase() || '';
+    const natal = t.natalPlanet?.toLowerCase() || '';
+    if (planet === 'mars' && aspect === 'square' && natal === 'moon') return 'Mars square Moon';
+    if (planet === 'saturn' && aspect === 'opposition' && natal === 'sun') return 'Saturn opposition Sun';
+    if (planet === 'saturn' && aspect === 'square' && natal === 'moon') return 'Saturn square Moon';
+    if (planet === 'pluto' && aspect === 'opposition' && natal === 'moon') return 'Pluto opposition Moon';
+  }
+  return null;
+}
 
 interface DualPersonalityCardsProps {
   mbtiType: MBTIType | null;
   dualOverlay?: DualOverlay | null;
+  transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null;
   loading?: boolean;
 }
 
@@ -16,7 +46,63 @@ interface DualPersonalityCardsProps {
  * Dual Personality Cards — What the world sees vs. what's real.
  * Mask (extrovert facade, Sun/Asc) & Core (inner truth, Moon/Mercury).
  */
-export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }: DualPersonalityCardsProps) {
+export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading = false }: DualPersonalityCardsProps) {
+  const { user } = useUser();
+  const savedOverride = (user?.unsafeMetadata?.mbtiOverride as MBTIType | undefined) ?? null;
+  const [showOverride, setShowOverride] = useState(false);
+  const [selectedType, setSelectedType] = useState<MBTIType | ''>(savedOverride || '');
+  const [savingOverride, setSavingOverride] = useState(false);
+  const [shadowExpanded, setShadowExpanded] = useState(false);
+
+  const finalType: MBTIType | null = savedOverride || (dualOverlay?.finalType as MBTIType) || mbtiType;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const flavor = useMemo(() => {
+    const type = finalType || 'INFJ';
+    const f = flavors[type as string];
+    if (!f) return null;
+    const keys = Object.keys(f);
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    return { name: key, text: f[key] };
+  }, [finalType]);
+
+  const shadowTrigger = useMemo(() => findShadowTrigger(transits), [transits]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shadow = useMemo(() => {
+    if (!shadowTrigger || !finalType) return null;
+    const s = shadows[finalType as string];
+    if (!s) return null;
+    const keys = Object.keys(s);
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    return { name: key, text: s[key] };
+  }, [shadowTrigger, finalType]);
+
+  const handleSaveOverride = async () => {
+    if (!selectedType || !user) return;
+    setSavingOverride(true);
+    try {
+      await user.update({ unsafeMetadata: { ...user.unsafeMetadata, mbtiOverride: selectedType } });
+      setShowOverride(false);
+    } catch (e) {
+      console.error('Failed to save MBTI override:', e);
+    } finally {
+      setSavingOverride(false);
+    }
+  };
+
+  const handleClearOverride = async () => {
+    if (!user) return;
+    setSavingOverride(true);
+    try {
+      const meta = { ...user.unsafeMetadata };
+      delete (meta as Record<string, unknown>).mbtiOverride;
+      await user.update({ unsafeMetadata: meta });
+    } finally {
+      setSavingOverride(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -94,7 +180,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }:
     >
       {/* Title */}
       <motion.h2 
-        className="text-2xl font-bold text-amber-300 mb-6 flex items-center gap-2"
+        className="text-2xl font-bold text-amber-300 mb-2 flex items-center gap-2"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.0 }}
@@ -102,6 +188,18 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }:
         <Eye className="w-6 h-6" />
         The Whole You
       </motion.h2>
+
+      {/* Flavor profile */}
+      {flavor && (
+        <motion.p
+          className="text-sm text-amber-200/70 italic mb-4 pl-1"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
+        >
+          <span className="text-amber-400/60 capitalize">{flavor.name}:</span> {flavor.text}
+        </motion.p>
+      )}
 
       {/* Two Cards Side-by-Side */}
       <motion.div
@@ -203,9 +301,100 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, loading = false }:
         </motion.div>
       </motion.div>
 
+      {/* Shadow Alert — only shown on tough transits */}
+      <AnimatePresence>
+        {shadow && shadowTrigger && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mt-4 rounded-lg border border-red-500/40 bg-red-950/30 overflow-hidden"
+          >
+            <button
+              className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-red-300 hover:text-red-200 transition-colors"
+              onClick={() => setShadowExpanded(v => !v)}
+            >
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span className="font-semibold">Shadow Alert</span>
+              <span className="text-red-400/60 ml-1">— {shadowTrigger}</span>
+              <span className="ml-auto text-xs">{shadowExpanded ? '▲' : '▼'}</span>
+            </button>
+            <AnimatePresence>
+              {shadowExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4">
+                    <p className="text-xs text-red-300/80 capitalize font-semibold mb-1">{shadow.name}</p>
+                    <p className="text-sm text-slate-300">{shadow.text}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Type Override */}
+      <motion.div
+        className="mt-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+      >
+        {!showOverride ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setShowOverride(true); setSelectedType(savedOverride || ''); }}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-300 transition-colors py-1"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              {savedOverride ? `Override: ${savedOverride}` : 'Override type'}
+            </button>
+            {savedOverride && (
+              <button
+                onClick={handleClearOverride}
+                disabled={savingOverride}
+                className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+              >
+                clear
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={selectedType}
+              onChange={e => setSelectedType(e.target.value as MBTIType)}
+              className="text-xs bg-slate-800 border border-slate-600 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-amber-500"
+            >
+              <option value="">-- select type --</option>
+              {MBTI_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button
+              onClick={handleSaveOverride}
+              disabled={!selectedType || savingOverride}
+              className="text-xs bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded px-3 py-1 transition-colors"
+            >
+              {savingOverride ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              onClick={() => setShowOverride(false)}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              cancel
+            </button>
+          </div>
+        )}
+      </motion.div>
+
       {/* Footer wisdom */}
       <motion.p
-        className="text-center text-sm text-slate-400 italic mt-8 pt-6 border-t border-amber-500/20"
+        className="text-center text-sm text-slate-400 italic mt-6 pt-6 border-t border-amber-500/20"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}

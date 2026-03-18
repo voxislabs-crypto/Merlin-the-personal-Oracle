@@ -1,0 +1,66 @@
+{
+  "INFJ": {
+    "doomsayer": "Overthinks every dark outcome—feels everyone's pain, predicts collapse. Withdraws completely, ghosts without warning.",
+    "manipulator": "Uses deep empathy as leverage—reads minds, twists trust. Intuition turned against the people you love."
+  },
+  "INTJ": {
+    "tyrant": "Micromanages everything into submission—'my way or the project dies.' Cold control masquerading as competence.",
+    "nihilist": "Sees no point in building anything—'why construct what entropy destroys?' Cynical shutdown disguised as realism."
+  },
+  "INFP": {
+    "martyr": "Drowns in other people's suffering while abandoning their own—absorbs wounds and calls it devotion.",
+    "escapist": "Retreats so deep into inner worlds that reality becomes optional. Disappears when it gets real."
+  },
+  "INTP": {
+    "paralyst": "Analysis loops forever—never commits, never decides, never lands. Brilliant in theory, absent in practice.",
+    "detacher": "Severs emotional connection when overwhelmed. Goes cold without knowing they've gone cold."
+  },
+  "ENFJ": {
+    "savior": "Needs to fix everyone—even those who didn't ask. Resentment builds when people won't be saved.",
+    "manipulator": "Guides people 'for their own good'—but really toward your preferred outcome. Warm-faced control."
+  },
+  "ENFP": {
+    "ghost": "Disappears at peak intimacy—flits to the next exciting thing before depth is required.",
+    "chaos-agent": "Sets fire to stable situations unconsciously. Pattern: create spark, watch burn, feel bad, repeat."
+  },
+  "ENTJ": {
+    "steamroller": "Crushes dissent disguised as decisiveness. Everyone's opinion is noise until proven otherwise.",
+    "workaholic": "Replaces connection with achievement. Builds an empire, populates it with no one."
+  },
+  "ENTP": {
+    "contrarian": "Argues against every position including their own—not to discover truth but to avoid committing.",
+    "dodger": "Uses wit to deflect accountability. Faster with a reframe than an apology."
+  },
+  "ISFJ": {
+    "people-pleaser": "Says yes until resentment becomes silence becomes distance. Martyrdom without announcement.",
+    "rigid": "Protects tradition past its expiration date—mistakes comfort for wisdom."
+  },
+  "ISTJ": {
+    "inflexible": "Facts only—no room for feeling, nuance, or context. Correct but cruel.",
+    "workload-hoarder": "Refuses to delegate because no one will do it right. Collapses under the weight of being needed."
+  },
+  "ESFJ": {
+    "approval-addict": "Self-worth collapses without constant validation. Manages perception at the cost of truth.",
+    "gossip": "Processes anxiety through social triangulation. Shares too much about others to feel connected."
+  },
+  "ESTJ": {
+    "authoritarian": "Enforces rules past their purpose—order for order's sake, not for people's sake.",
+    "dismisser": "Invalidates emotional experience as 'irrational.' Efficient with problems, brutal with feelings."
+  },
+  "ISFP": {
+    "avoider": "Disappears from conflict without explanation—leaves people wondering what they did wrong.",
+    "passive": "Resists gently until resentment calcifies. By the time you know, they're gone."
+  },
+  "ISTP": {
+    "shutdown": "Shuts down emotionally under pressure—becomes unreachable, unavailable, and doesn't understand why.",
+    "reckless": "Risk logic overrides consequence logic. 'It'll probably be fine' covers a multitude of disasters."
+  },
+  "ESFP": {
+    "escapist": "When things get heavy, you perform instead of process. The show covers the wound.",
+    "reactive": "Acts from pure emotion in the moment, deals with consequences later, often too late."
+  },
+  "ESTP": {
+    "opportunist": "Uses charm to extract advantage. Reads the angle before reading the room.",
+    "reckless": "Moves so fast that the collateral damage is someone else's problem. Usually is."
+  }
+}
