@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/hooks/usePersonality';
 import { Theater, Eye, AlertTriangle, Shuffle } from 'lucide-react';
@@ -10,7 +10,13 @@ import flavorsRaw from '@/data/mbti-flavors.json';
 import shadowsRaw from '@/data/mbti-shadows.json';
 
 const flavors = flavorsRaw as Record<string, Record<string, string>>;
-const shadows = shadowsRaw as Record<string, Record<string, string>>;
+
+interface ShadowEntry {
+  archetype: string;
+  description: string;
+  recovery: string;
+}
+const shadows = shadowsRaw as Record<string, Record<string, ShadowEntry>>;
 
 const MBTI_TYPES: MBTIType[] = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
 
@@ -18,21 +24,30 @@ interface TransitItem {
   transitingPlanet?: string;
   natalPlanet?: string;
   aspect?: string;
+  orb?: number;
 }
 
-function findShadowTrigger(transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null): string | null {
+function findShadowTrigger(
+  transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null
+): { trigger: string; orb: number } | null {
   if (!transits) return null;
   const all: TransitItem[] = [...(transits.significant || []), ...(transits.approaching || [])];
+  let best: { trigger: string; orb: number } | null = null;
   for (const t of all) {
     const planet = t.transitingPlanet?.toLowerCase() || '';
     const aspect = t.aspect?.toLowerCase() || '';
     const natal = t.natalPlanet?.toLowerCase() || '';
-    if (planet === 'mars' && aspect === 'square' && natal === 'moon') return 'Mars square Moon';
-    if (planet === 'saturn' && aspect === 'opposition' && natal === 'sun') return 'Saturn opposition Sun';
-    if (planet === 'saturn' && aspect === 'square' && natal === 'moon') return 'Saturn square Moon';
-    if (planet === 'pluto' && aspect === 'opposition' && natal === 'moon') return 'Pluto opposition Moon';
+    const orb = t.orb ?? 99;
+    let name: string | null = null;
+    if (planet === 'mars' && aspect === 'square' && natal === 'moon') name = 'Mars square Moon';
+    else if (planet === 'saturn' && aspect === 'opposition' && natal === 'sun') name = 'Saturn opposition Sun';
+    else if (planet === 'saturn' && aspect === 'square' && natal === 'moon') name = 'Saturn square Moon';
+    else if (planet === 'pluto' && aspect === 'opposition' && natal === 'moon') name = 'Pluto opposition Moon';
+    else if (planet === 'pluto' && aspect === 'square' && natal === 'moon') name = 'Pluto square Moon';
+    else if (planet === 'mars' && aspect === 'opposition' && natal === 'sun') name = 'Mars opposition Sun';
+    if (name && (!best || orb < best.orb)) best = { trigger: name, orb };
   }
-  return null;
+  return best;
 }
 
 interface DualPersonalityCardsProps {
@@ -52,7 +67,6 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
   const [showOverride, setShowOverride] = useState(false);
   const [selectedType, setSelectedType] = useState<MBTIType | ''>(savedOverride || '');
   const [savingOverride, setSavingOverride] = useState(false);
-  const [shadowExpanded, setShadowExpanded] = useState(false);
 
   const finalType: MBTIType | null = savedOverride || (dualOverlay?.finalType as MBTIType) || mbtiType;
 
@@ -68,15 +82,16 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
 
   const shadowTrigger = useMemo(() => findShadowTrigger(transits), [transits]);
 
+  // Always pick a shadow — stable per finalType, not transit-gated
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const shadow = useMemo(() => {
-    if (!shadowTrigger || !finalType) return null;
-    const s = shadows[finalType as string];
+  const shadowEntry = useMemo<ShadowEntry | null>(() => {
+    const type = finalType || 'INFJ';
+    const s = shadows[type as string];
     if (!s) return null;
     const keys = Object.keys(s);
     const key = keys[Math.floor(Math.random() * keys.length)];
-    return { name: key, text: s[key] };
-  }, [shadowTrigger, finalType]);
+    return s[key] ?? null;
+  }, [finalType]);
 
   const handleSaveOverride = async () => {
     if (!selectedType || !user) return;
@@ -301,43 +316,80 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
         </motion.div>
       </motion.div>
 
-      {/* Shadow Alert — only shown on tough transits */}
-      <AnimatePresence>
-        {shadow && shadowTrigger && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="mt-4 rounded-lg border border-red-500/40 bg-red-950/30 overflow-hidden"
-          >
-            <button
-              className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-red-300 hover:text-red-200 transition-colors"
-              onClick={() => setShadowExpanded(v => !v)}
-            >
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span className="font-semibold">Shadow Alert</span>
-              <span className="text-red-400/60 ml-1">— {shadowTrigger}</span>
-              <span className="ml-auto text-xs">{shadowExpanded ? '▲' : '▼'}</span>
-            </button>
-            <AnimatePresence>
-              {shadowExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-4 pb-4">
-                    <p className="text-xs text-red-300/80 capitalize font-semibold mb-1">{shadow.name}</p>
-                    <p className="text-sm text-slate-300">{shadow.text}</p>
-                  </div>
-                </motion.div>
+      {/* Shadow Name Card — always visible */}
+      {shadowEntry && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className={`relative rounded-lg border-2 overflow-hidden transition-colors duration-500 ${
+            shadowTrigger && shadowTrigger.orb < 2
+              ? 'border-red-500/60 bg-gradient-to-br from-red-950/60 to-slate-900/80'
+              : shadowTrigger && shadowTrigger.orb < 4
+              ? 'border-amber-600/50 bg-gradient-to-br from-amber-950/40 to-slate-900/80'
+              : 'border-slate-700/50 bg-gradient-to-br from-slate-800/50 to-slate-900/70'
+          }`}
+        >
+          {/* Blood-glow overlay when active */}
+          {shadowTrigger && shadowTrigger.orb < 2 && (
+            <div className="absolute inset-0 bg-red-900/10 pointer-events-none" />
+          )}
+
+          <div className="relative z-10 p-6">
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${
+                  shadowTrigger && shadowTrigger.orb < 2 ? 'text-red-400' :
+                  shadowTrigger && shadowTrigger.orb < 4 ? 'text-amber-400' : 'text-slate-500'
+                }`} />
+                <span className="text-xs uppercase tracking-widest font-bold text-slate-400">Your Shadow Name</span>
+              </div>
+              {shadowTrigger && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${
+                  shadowTrigger.orb < 2
+                    ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                }`}>
+                  {shadowTrigger.orb < 2 ? '⚡ Rising Now' : '⚠ Approaching'}
+                </span>
               )}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+
+            {/* Archetype name */}
+            <p className={`text-2xl font-bold mb-0.5 ${
+              shadowTrigger && shadowTrigger.orb < 2 ? 'text-red-300' :
+              shadowTrigger && shadowTrigger.orb < 4 ? 'text-amber-300' : 'text-slate-300'
+            }`}>
+              {shadowEntry.archetype}
+            </p>
+            <p className="text-xs text-slate-500 mb-3">Your hidden side when pressure hits</p>
+
+            {/* Transit alert line */}
+            {shadowTrigger && shadowTrigger.orb < 2 && (
+              <p className="text-sm text-red-300/90 font-medium mb-3">
+                Shadow Alert: {shadowEntry.archetype} is rising — {shadowTrigger.trigger} ({shadowTrigger.orb.toFixed(1)}° orb). Watch for it.
+              </p>
+            )}
+            {shadowTrigger && shadowTrigger.orb >= 2 && shadowTrigger.orb < 4 && (
+              <p className="text-sm text-amber-300/80 mb-3">
+                {shadowTrigger.trigger} ({shadowTrigger.orb.toFixed(1)}° orb) — shadow pressure building. Heads up.
+              </p>
+            )}
+
+            {/* Description */}
+            <p className="text-sm text-slate-300 leading-relaxed mb-4">
+              {shadowEntry.description}
+            </p>
+
+            {/* Recovery */}
+            <div className="border-t border-slate-700/50 pt-3">
+              <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Recovery</p>
+              <p className="text-sm text-slate-400 italic">{shadowEntry.recovery}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Type Override */}
       <motion.div
