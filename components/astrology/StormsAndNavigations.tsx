@@ -271,6 +271,22 @@ function StormCard({ storm, mbtiType, index }: { storm: AstroStorm; mbtiType?: s
                   </span>
                 </div>
                 <p className="text-[13px] text-slate-200 leading-relaxed">{storm.navigation}</p>
+                {storm.personalityReaction && (
+                  <p className="text-[12px] text-slate-300/90 leading-relaxed mt-2">
+                    <span className="font-semibold text-slate-200">Likely reaction: </span>
+                    {storm.personalityReaction}
+                  </p>
+                )}
+                {(storm.peakWindow || storm.recoveryNote) && (
+                  <div className="mt-2 space-y-1">
+                    {storm.peakWindow && (
+                      <p className="text-[11px] text-amber-200/90">Peak window: {storm.peakWindow}</p>
+                    )}
+                    {storm.recoveryNote && (
+                      <p className="text-[11px] text-emerald-200/90">Recovery: {storm.recoveryNote}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
             </div>

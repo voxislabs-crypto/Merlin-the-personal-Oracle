@@ -15,6 +15,11 @@ export interface AstroStorm {
   lifeArea: string;
   description: string;
   navigation: string;
+  personalityReaction?: string;
+  recoveryNote?: string;
+  peakWindow?: string;
+  intensityScore?: number;
+  phase?: "brewing" | "peak";
   keywords: string[];
 }
 
@@ -30,12 +35,33 @@ export function useStorms() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  const buildCacheKey = (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 7) => {
+    return `merlin_storms_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}`;
+  };
+
   const calculateStorms = useCallback(
-    async (birthData: BirthData, mbtiType?: MBTIType): Promise<StormsReport | null> => {
+    async (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 7): Promise<StormsReport | null> => {
       setLoading(true);
       setError(null);
 
       try {
+        const cacheKey = buildCacheKey(birthData, mbtiType, daysAhead);
+        if (typeof window !== 'undefined') {
+          const cachedRaw = localStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            try {
+              const cached = JSON.parse(cachedRaw) as { data: StormsReport; timestamp: number };
+              // 24 hour cache window for storms radar
+              if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+                setStormsReport(cached.data);
+                return cached.data;
+              }
+            } catch {
+              // ignore malformed cache
+            }
+          }
+        }
+
         const response = await fetch("/api/storms", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -45,6 +71,7 @@ export function useStorms() {
             lat: birthData.latitude,
             lon: birthData.longitude,
             mbtiType: mbtiType ?? null,
+            daysAhead,
           }),
         });
 
@@ -58,6 +85,10 @@ export function useStorms() {
         }
 
         setStormsReport(result.data);
+        if (typeof window !== 'undefined') {
+          const cacheKey = buildCacheKey(birthData, mbtiType, daysAhead);
+          localStorage.setItem(cacheKey, JSON.stringify({ data: result.data, timestamp: Date.now() }));
+        }
         return result.data;
       } catch (err) {
         const e = err instanceof Error ? err : new Error("Unknown error");

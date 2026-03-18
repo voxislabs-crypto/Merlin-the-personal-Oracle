@@ -29,7 +29,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -42,7 +42,7 @@ export default function UnifiedDashboard() {
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
-  const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc' | 'personality'>('wheel');
+  const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc' | 'personality' | 'stormradar'>('wheel');
   // Life Arc mode removed - now just raw timeline
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
@@ -455,11 +455,6 @@ export default function UnifiedDashboard() {
                       week={weeklyForecast?.week || []}
                       loading={weeklyLoading}
                     />
-                    <StormsAndNavigations
-                      report={stormsReport}
-                      loading={stormsLoading}
-                      mbtiType={mbtiType ?? undefined}
-                    />
                   </div>
                   {/* Quest Log — only renders when enabled */}
                   <QuestLog
@@ -615,10 +610,23 @@ export default function UnifiedDashboard() {
                         {mbtiType && <span className="text-xs bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full ml-1">{mbtiType}</span>}
                         {activeSection === 'personality' && <span className="text-xs ml-2">↓</span>}
                       </button>
+
+                      <button
+                        onClick={() => setActiveSection(activeSection === 'stormradar' ? 'wheel' : 'stormradar')}
+                        className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
+                          activeSection === 'stormradar'
+                            ? 'bg-red-500/20 border-red-500/50 text-red-300'
+                            : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                        }`}
+                      >
+                        <CloudLightning className="w-4 h-4" />
+                        Storm Radar
+                        {activeSection === 'stormradar' && <span className="text-xs ml-2">↓</span>}
+                      </button>
                     </div>
 
                     {/* Content Panel - Drops Down Below Buttons */}
-                    {['interpretation', 'transits', 'lifearc', 'personality'].includes(activeSection) && (
+                    {['interpretation', 'transits', 'lifearc', 'personality', 'stormradar'].includes(activeSection) && (
                       <motion.div
                         className="bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm p-8"
                         initial={{ opacity: 0, y: -10 }}
@@ -719,6 +727,19 @@ export default function UnifiedDashboard() {
                               mbtiType={mbtiType}
                               dualOverlay={dualOverlay}
                               loading={personalityLoading}
+                            />
+                          </div>
+                        )}
+
+                        {activeSection === 'stormradar' && (
+                          <div className="space-y-4">
+                            <p className="text-slate-400 text-sm">
+                              Forward-looking transit warnings with MBTI-personalized reaction and recovery guidance.
+                            </p>
+                            <StormsAndNavigations
+                              report={stormsReport}
+                              loading={stormsLoading}
+                              mbtiType={mbtiType ?? undefined}
                             />
                           </div>
                         )}

@@ -3,6 +3,7 @@
 import "server-only";
 import { BirthChartData, PlanetPosition } from "@/types/astrology";
 import { MBTIType } from "@/shared/schema";
+import mbtiStormResponses from "@/data/mbti-storm-responses.json";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,11 @@ export interface AstroStorm {
   lifeArea: string;
   description: string; // What this storm means
   navigation: string;  // MBTI-personalised advice
+  personalityReaction?: string;
+  recoveryNote?: string;
+  peakWindow?: string;
+  intensityScore?: number; // 1-10 signal strength
+  phase?: "brewing" | "peak";
   keywords: string[];
 }
 
@@ -449,9 +455,53 @@ function getNavigation(mbtiType: MBTIType | undefined, lifeArea: string): string
   if (!mbtiType) {
     return `When this storm approaches, slow down. Reflect on what this area of life has been asking of you, and choose one deliberate action rather than reacting.`;
   }
+
+  const fromJson = (mbtiStormResponses as Record<string, { advice?: string }>)[mbtiType];
+  if (fromJson?.advice) {
+    return fromJson.advice;
+  }
+
   const typeGuidance = MBTI_NAVIGATION[mbtiType];
   if (!typeGuidance) return "Navigate with patience and intentionality.";
   return typeGuidance[lifeArea] || typeGuidance["General Life"] || "Navigate with patience and intentionality.";
+}
+
+function getPersonalityReaction(mbtiType: MBTIType | undefined): string | undefined {
+  if (!mbtiType) return undefined;
+  return (mbtiStormResponses as Record<string, { reaction?: string }>)[mbtiType]?.reaction;
+}
+
+function getRecoveryPattern(mbtiType: MBTIType | undefined): string | undefined {
+  if (!mbtiType) return undefined;
+  return (mbtiStormResponses as Record<string, { recovery?: string }>)[mbtiType]?.recovery;
+}
+
+function getPeakWindow(intensity: "severe" | "moderate" | "mild", orb: number): string {
+  if (orb < 1) return "Storm peak likely around 2pm local time, easing by midnight.";
+  if (intensity === "severe") return "Pressure builds through afternoon, easing late evening.";
+  if (intensity === "moderate") return "Most noticeable in midday-to-evening window.";
+  return "Low-grade friction; monitor reactivity windows in late day.";
+}
+
+const PLANET_STORM_BASE: Record<string, number> = {
+  Mars: 8,
+  Saturn: 6,
+  Uranus: 9,
+  Pluto: 8,
+  Neptune: 7,
+  Sun: 5,
+  Moon: 5,
+  Mercury: 4,
+  Venus: 4,
+  Jupiter: 4,
+};
+
+function getIntensityScore(transitingPlanet: string, aspect: string, orbDiff: number): number {
+  const planetBase = PLANET_STORM_BASE[transitingPlanet] ?? 5;
+  const aspectBoost = aspect === "Opposition" ? 2 : aspect === "Square" ? 2 : 1;
+  const orbBoost = Math.max(0, 2 - orbDiff); // 0..2
+  const raw = planetBase + aspectBoost + orbBoost - 2;
+  return Math.max(1, Math.min(10, Math.round(raw)));
 }
 
 // ─── Sweph helpers (mirror of transits.ts pattern) ────────────────────────────
@@ -474,15 +524,57 @@ function normalizeAngle(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
 
-function calculatePlanetsForDate(dateString: string): PlanetPosition[] {
+function toLocalDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function getJulianDay(sweph: any, momentUtc: Date): number {
+  const y = momentUtc.getUTCFullYear();
+  const m = momentUtc.getUTCMonth() + 1;
+  const d = momentUtc.getUTCDate();
+  const h = momentUtc.getUTCHours();
+  const min = momentUtc.getUTCMinutes();
+  const sec = momentUtc.getUTCSeconds();
+
+  if (typeof sweph.julday === "function") {
+    const hourDecimal = h + min / 60 + sec / 3600;
+    return sweph.julday(y, m, d, hourDecimal, sweph.constants.SE_GREG_CAL);
+  }
+
+  const jdResult = sweph.utc_to_jd(y, m, d, h, min, sec, sweph.constants.SE_GREG_CAL);
+  if (jdResult.flag !== sweph.constants.OK) {
+    throw new Error("Failed to compute Julian day");
+  }
+  return jdResult.data[0];
+}
+
+function diffDegrees(a: number, b: number, sweph: any): number {
+  // Preferred precise diff if available in sweph bindings
+  try {
+    if (typeof sweph?.swe_difdeg === "function") {
+      return Math.abs(sweph.swe_difdeg(a, b));
+    }
+    if (typeof sweph?.difdeg2n === "function") {
+      return Math.abs(sweph.difdeg2n(a, b));
+    }
+    if (typeof sweph?.difdeg === "function") {
+      return Math.abs(sweph.difdeg(a, b));
+    }
+  } catch {
+    // fallback below
+  }
+
+  let d = Math.abs(normalizeAngle(a) - normalizeAngle(b));
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+function calculatePlanetsForMoment(momentUtc: Date): PlanetPosition[] {
   const sweph = getSweph();
   if (!sweph) return [];
 
   try {
-    const [year, month, day] = dateString.split("-").map(Number);
-    const jdResult = sweph.utc_to_jd(year, month, day, 12, 0, 0, sweph.constants.SE_GREG_CAL);
-    if (jdResult.flag !== sweph.constants.OK) return [];
-    const jd = jdResult.data[0];
+    const jd = getJulianDay(sweph, momentUtc);
 
     const planets = [
       { id: sweph.constants.SE_SUN, name: "Sun" },
@@ -508,6 +600,8 @@ function calculatePlanetsForDate(dateString: string): PlanetPosition[] {
         longitude,
         latitude: result.data[1],
         distance: result.data[2],
+        speed: result.data[3],
+        retrograde: result.data[3] < 0,
         sign: SIGN_NAMES[signIndex],
         degree: Math.floor(degreeInSign),
         minute: Math.floor((degreeInSign - Math.floor(degreeInSign)) * 60),
@@ -517,6 +611,12 @@ function calculatePlanetsForDate(dateString: string): PlanetPosition[] {
   } catch {
     return [];
   }
+}
+
+function calculatePlanetsForDate(dateString: string): PlanetPosition[] {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const m = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  return calculatePlanetsForMoment(m);
 }
 
 // Fallback: simple mean-motion approximation when sweph unavailable
@@ -568,10 +668,15 @@ function findStormsForDay(
   dayName: string,
   natalPositions: PlanetPosition[],
   transitPositions: PlanetPosition[],
-  mbtiType: MBTIType | undefined
+  mbtiType: MBTIType | undefined,
+  options?: { maxOrb?: number; minOrb?: number }
 ): AstroStorm[] {
   const storms: AstroStorm[] = [];
   const seenPairs = new Set<string>();
+  const maxOrb = options?.maxOrb ?? 2; // "storm brewing" window default
+  const minOrb = options?.minOrb ?? 0;
+  const sweph = getSweph();
+  const venusRetrograde = transitPositions.find((p) => p.name === "Venus")?.retrograde === true;
 
   for (const transit of transitPositions) {
     for (const natal of natalPositions) {
@@ -586,20 +691,35 @@ function findStormsForDay(
       }
 
       for (const asp of aspects) {
-        const orbDiff = Math.abs(angularDiff - asp.angle);
-        if (orbDiff <= asp.orb) {
+        const orbDiff = diffDegrees(angularDiff, asp.angle, sweph);
+        if (orbDiff <= asp.orb && orbDiff <= maxOrb && orbDiff >= minOrb) {
           const pairKey = `${transit.name}-${asp.type}-${natal.name}-${dateString}`;
           if (seenPairs.has(pairKey)) continue;
           seenPairs.add(pairKey);
 
           const weight = stormWeight(transit.name, natal.name, asp.type);
-          const intensity = intensityFromWeight(weight);
+          let intensity = intensityFromWeight(weight);
           const lifeArea = lifeAreaFor(natal.name);
           const template = getTemplate(transit.name, asp.type, natal.name);
           const descIdx = Math.floor(Math.random() * (template?.descriptions.length ?? 1));
           const description =
             template?.descriptions[descIdx] ??
             `${transit.name} ${asp.type} natal ${natal.name} creates significant tension in ${lifeArea.toLowerCase()}.`;
+
+          let intensityScore = getIntensityScore(transit.name, asp.type, orbDiff);
+          let navigation = getNavigation(mbtiType, lifeArea);
+          let personalityReaction = getPersonalityReaction(mbtiType);
+
+          // Mood modifier: Venus retrograde dampens social/emotional drama escalation
+          if (venusRetrograde && ["Love & Relationships", "Emotional Wellbeing"].includes(lifeArea)) {
+            intensityScore = Math.max(1, intensityScore - 1);
+            if (intensity === "severe") intensity = "moderate";
+            navigation = `${navigation} Venus retrograde modifier: lower reactivity, defer emotionally charged decisions 24h.`;
+            if (personalityReaction) {
+              personalityReaction = `${personalityReaction} Mood modifier active: emotional spikes may be less theatrical but more internalized.`;
+            }
+          }
+          const phase: "brewing" | "peak" = orbDiff < 1 ? "peak" : "brewing";
 
           storms.push({
             id: `${dateString}-${transit.name}-${asp.type}-${natal.name}`,
@@ -613,7 +733,12 @@ function findStormsForDay(
             orb: Math.round(orbDiff * 10) / 10,
             lifeArea,
             description,
-            navigation: getNavigation(mbtiType, lifeArea),
+            navigation,
+            personalityReaction,
+            recoveryNote: getRecoveryPattern(mbtiType),
+            peakWindow: getPeakWindow(intensity, orbDiff),
+            intensityScore,
+            phase,
             keywords: template?.keywords ?? ["tension", "challenge"],
           });
         }
@@ -636,6 +761,15 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 
 export function detectWeeklyStorms(
   birthChart: BirthChartData,
+  mbtiType?: MBTIType,
+  daysAhead = 7
+): StormsReport {
+  return predictStorms(birthChart, daysAhead, mbtiType);
+}
+
+export function predictStorms(
+  birthChart: BirthChartData,
+  daysAhead = 7,
   mbtiType?: MBTIType
 ): StormsReport {
   const natalPositions = birthChart.positions ?? birthChart.planets ?? [];
@@ -650,25 +784,33 @@ export function detectWeeklyStorms(
   const stormyDayNames = new Set<string>();
 
   // Seed current transit positions for fallback approximation
-  const seedPositions = calculatePlanetsForDate(new Date().toISOString().split("T")[0]);
+  const now = new Date();
+  const seedPositions = calculatePlanetsForMoment(now);
 
   const today = new Date();
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < daysAhead; i++) {
     const targetDate = new Date(today);
     targetDate.setDate(targetDate.getDate() + i);
-    const dateString = targetDate.toISOString().split("T")[0];
+    const dateString = toLocalDateString(targetDate);
     const dayName = DAY_NAMES[targetDate.getDay()];
     dayNames.push(dayName);
 
-    let transitPositions = calculatePlanetsForDate(dateString);
+    // Keep current clock-time precision for each day ahead (not rounded to midnight)
+    const targetMoment = new Date(now);
+    targetMoment.setDate(now.getDate() + i);
+
+    let transitPositions = calculatePlanetsForMoment(targetMoment);
     if (transitPositions.length === 0 && seedPositions.length > 0) {
       console.warn(`[storms] Sweph unavailable for ${dateString}, using approximation`);
       transitPositions = approximatePlanetsForDate(dateString, seedPositions);
     }
     if (transitPositions.length === 0) continue;
 
-    const dayStorms = findStormsForDay(dateString, dayName, natalPositions, transitPositions, mbtiType);
+    const dayStorms = findStormsForDay(dateString, dayName, natalPositions, transitPositions, mbtiType, {
+      maxOrb: 2,
+      minOrb: 0,
+    });
     if (dayStorms.length > 0) stormyDayNames.add(dayName);
     allStorms.push(...dayStorms);
   }
@@ -685,7 +827,8 @@ export function detectWeeklyStorms(
       countPerDay[storm.date]++;
     }
   }
-  const finalStorms = deduped.slice(0, 8);
+  const maxStorms = Math.max(8, daysAhead + 1);
+  const finalStorms = deduped.slice(0, maxStorms);
 
   const severeCount = finalStorms.filter((s) => s.intensity === "severe").length;
   const moderateCount = finalStorms.filter((s) => s.intensity === "moderate").length;
