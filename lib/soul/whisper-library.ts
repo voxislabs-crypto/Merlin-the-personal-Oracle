@@ -2,6 +2,7 @@
 // Factors: age, gender, mood, life phase, energy level
 
 import { MBTIType } from "@/lib/mbti-overlay";
+import oraclePhrases from "@/data/oracle-phrases.json";
 
 export type LifePhase =
   | "exploration" // 18-25
@@ -21,6 +22,7 @@ export type Mood =
   | "lost";
 
 export type Gender = "male" | "female" | "non-binary" | "prefer-not-to-say";
+export type WhisperMode = "plain" | "warm" | "bullshit" | "oracle";
 
 export interface WhisperContext {
   age: number;
@@ -28,12 +30,91 @@ export interface WhisperContext {
   mbti?: MBTIType;
   mood?: Mood;
   theme: string; // e.g., "Relationships", "Career", "Transformation"
+  mode?: WhisperMode;
+  currentTransit?: string;
 }
 
 export interface SoulWhisper {
   message: string;
   tone: "gentle" | "firm" | "playful" | "reverent" | "raw";
   source: "Saturn" | "Jupiter" | "Moon" | "Venus" | "Mars" | "Merlin";
+  mode: WhisperMode;
+  currentTransit?: string;
+}
+
+interface OraclePhrases {
+  intro: string[];
+  close: string[];
+  genericBody: string[];
+  aspectTemplates: Record<string, string[]>;
+}
+
+const oracleData = oraclePhrases as OraclePhrases;
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function normalizeTransitKey(transit: string): string {
+  return transit.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function findOracleBodyByTransit(currentTransit?: string): string {
+  if (!currentTransit) {
+    return pickRandom(oracleData.genericBody);
+  }
+
+  const normalizedInput = normalizeTransitKey(currentTransit);
+  const entries = Object.entries(oracleData.aspectTemplates);
+  const exactMatch = entries.find(([key]) => normalizeTransitKey(key) === normalizedInput);
+
+  if (exactMatch) {
+    return pickRandom(exactMatch[1]);
+  }
+
+  // Fallback: partial match for inputs that include extra context such as orb text.
+  const partialMatch = entries.find(([key]) => normalizedInput.includes(normalizeTransitKey(key)));
+  if (partialMatch) {
+    return pickRandom(partialMatch[1]);
+  }
+
+  return pickRandom(oracleData.genericBody);
+}
+
+function generateOracleWhisper(currentTransit?: string): string {
+  const intro = pickRandom(oracleData.intro);
+  const body = findOracleBodyByTransit(currentTransit);
+  const close = pickRandom(oracleData.close);
+  return `${intro} ${body} ${close}`;
+}
+
+function applyWhisperMode(base: string, mode: WhisperMode, currentTransit?: string): string {
+  if (mode === "plain") return base;
+
+  if (mode === "warm") {
+    const warmOpeners = ["Hey love <3", "Gentle reminder <3", "You got this <3", "Breathe first <3"];
+    const warmClosers = [" You are safe to go slow.", " One kind step is enough.", " Keep it soft and steady.", " You are held."];
+    return `${pickRandom(warmOpeners)} ${base}${pickRandom(warmClosers)}`;
+  }
+
+  if (mode === "bullshit") {
+    const snark = [
+      "No fluff:",
+      "Real talk:",
+      "Here's the blunt version:",
+      "No cosmic sugar-coating:"
+    ];
+    const endings = [
+      " Do not self-sabotage it.",
+      " Keep your drama budget low.",
+      " Handle it like an adult mystic.",
+      " You know exactly what to do."
+    ];
+    return `${pickRandom(snark)} ${base}${pickRandom(endings)}`;
+  }
+
+  // Oracle mode is transit-template driven and intentionally avoids slang.
+  return generateOracleWhisper(currentTransit);
 }
 
 // Determine life phase from age
@@ -229,7 +310,7 @@ function getGenderGuidance(gender: Gender, theme: string): string {
 export function getSoulWhisper(
   context: WhisperContext
 ): SoulWhisper {
-  const { age, mood, gender, theme, mbti } = context;
+  const { age, mood, gender, theme, mbti, mode = "warm", currentTransit } = context;
 
   // Start with age guidance
   let message = getAgeGuidance(age, theme);
@@ -255,6 +336,8 @@ export function getSoulWhisper(
     message = mbtiTone + " " + message;
   }
 
+  message = applyWhisperMode(message.trim(), mode, currentTransit);
+
   // Determine tone
   const tone = determineTone(mood, theme);
 
@@ -265,6 +348,8 @@ export function getSoulWhisper(
     message,
     tone,
     source,
+    mode,
+    currentTransit,
   };
 }
 

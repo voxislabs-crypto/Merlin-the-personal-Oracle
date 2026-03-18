@@ -32,6 +32,8 @@ export function SoulDashboard({
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"soul" | "progressed" | "badges" | "whisper">("soul");
   const [yearsAhead, setYearsAhead] = useState(5);
+  const [whisperMode, setWhisperMode] = useState<"plain" | "warm" | "bullshit" | "oracle">("warm");
+  const [transitFocus, setTransitFocus] = useState("");
 
   useEffect(() => {
     loadSoulData();
@@ -52,28 +54,34 @@ export function SoulDashboard({
         setBadges(soulData.data.badges);
       }
 
-      // Load soul whisper if user context provided
-      if (userAge && userMood) {
-        const whisperResponse = await fetch("/api/soul-whisper", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            age: userAge,
-            gender: userGender,
-            mood: userMood,
-            theme: "Transformation",
-            mbti: mbtiType,
-          }),
-        });
-        const whisperData = await whisperResponse.json();
-        if (whisperData.success) {
-          setWhisper(whisperData.data);
-        }
-      }
+      await loadWhisper();
     } catch (error) {
       console.error("Failed to load soul data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWhisper = async () => {
+    if (!userAge || !userMood) return;
+
+    const whisperResponse = await fetch("/api/soul-whisper", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        age: userAge,
+        gender: userGender,
+        mood: userMood,
+        theme: "Transformation",
+        mbti: mbtiType,
+        mode: whisperMode,
+        currentTransit: transitFocus.trim() || undefined,
+      }),
+    });
+
+    const whisperData = await whisperResponse.json();
+    if (whisperData.success) {
+      setWhisper(whisperData.data);
     }
   };
 
@@ -98,6 +106,10 @@ export function SoulDashboard({
       loadProgressedChart();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    loadWhisper().catch((e) => console.error("Failed to refresh whisper:", e));
+  }, [whisperMode, transitFocus, userAge, userMood, userGender, mbtiType]);
 
   if (loading) {
     return (
@@ -379,6 +391,36 @@ export function SoulDashboard({
 
       {activeTab === "whisper" && whisper && (
         <div className="space-y-6">
+          <div className="flex items-center justify-end">
+            <label className="text-sm text-slate-400 mr-2">Whisper Mode</label>
+            <select
+              value={whisperMode}
+              onChange={(e) => setWhisperMode(e.target.value as "plain" | "warm" | "bullshit" | "oracle")}
+              className="bg-slate-800 border border-slate-600 text-slate-200 rounded px-3 py-1.5 text-sm"
+            >
+              <option value="plain">Plain</option>
+              <option value="warm">Warm</option>
+              <option value="bullshit">Bullshit</option>
+              <option value="oracle">Oracle</option>
+            </select>
+          </div>
+
+          {whisperMode === "oracle" && (
+            <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4">
+              <label className="block text-sm text-slate-300 mb-2">Transit Focus (optional)</label>
+              <input
+                type="text"
+                value={transitFocus}
+                onChange={(e) => setTransitFocus(e.target.value)}
+                placeholder="Example: Mars square Moon"
+                className="w-full bg-slate-900 border border-slate-600 text-slate-100 rounded px-3 py-2 text-sm"
+              />
+              <p className="text-xs text-slate-400 mt-2">
+                Oracle mode will match this transit to a specific template when possible.
+              </p>
+            </div>
+          )}
+
           <section className="bg-gradient-to-br from-indigo-900 to-purple-900 p-8 rounded-lg">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -393,7 +435,8 @@ export function SoulDashboard({
               {whisper.message}
             </p>
             <div className="text-sm text-slate-400 mt-4">
-              Tone: {whisper.tone} | Source: {whisper.source}
+                Mode: {whisper.mode} | Tone: {whisper.tone} | Source: {whisper.source}
+                {whisper.currentTransit ? ` | Transit: ${whisper.currentTransit}` : ""}
             </div>
           </section>
         </div>
