@@ -1,0 +1,15 @@
+{
+  "planetHouse": {
+    "Moon_1st_Scorpio": "Moon in Scorpio in the 1st house gives your presence emotional gravity before you speak. People register your intensity fast, and you are rarely read as neutral. Protect your privacy with intention, because openness feels transformative rather than casual.",
+    "Sun_10th_Leo": "Sun in Leo in the 10th house places visibility at the center of your vocation. Leadership and recognition are not vanity here; they are fuel for purpose and contribution. Keep the spotlight warm, not scorching, so others can thrive beside you.",
+    "Mercury_8th_Gemini": "Mercury in Gemini in the 8th house thinks in layers, subtext, and hidden motives. You notice what others omit and can name what is usually left unsaid. Use this precision for truth, not control, and your voice becomes catalytic."
+  },
+  "intercepted": {
+    "Libra_12th": "Libra intercepted in the 12th house can keep diplomacy behind the curtain, where harmony is sought privately before it is shown publicly. Relationships may carry unspoken contracts or quiet sacrifices. Integration comes when your intuition is trusted as much as your social intelligence.",
+    "Aries_6th": "Aries intercepted in the 6th house can mute direct action in work and health rhythms until pressure builds. Assertiveness may arrive in bursts instead of steady cadence. Build deliberate routines for agency so urgency does not make every decision for you."
+  },
+  "rulerAspects": {
+    "Moon_rules_10th_square_Mars": "When the Moon rules your 10th house and squares Mars, ambition becomes emotionally charged and highly reactive to context. Career momentum surges when passion is focused, but conflict can spill into reputation if impulses lead. Channel heat into strategy and you turn volatility into authority.",
+    "Venus_rules_7th_trine_Jupiter": "When Venus rules your 7th house and trines Jupiter, partnership tends to open doors, resources, and perspective. Collaboration feels generous, and bonds often carry a protective luck factor. Guard against overpromising, and this ease becomes durable trust."
+  }
+}
