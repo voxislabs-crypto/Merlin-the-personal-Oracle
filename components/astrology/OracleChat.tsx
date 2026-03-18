@@ -197,6 +197,11 @@ export function OracleChat({
     scrollToBottom(true);
 
     try {
+      const inferredMbtiType =
+        (birthChart as any)?.personalitySnapshot?.finalType ||
+        (birthChart as any)?.mbti?.type ||
+        undefined;
+
       const response = await fetch('/api/oracle-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -206,6 +211,7 @@ export function OracleChat({
           progressedChart,
           userId,
           plainEnglish,
+          mbtiType: inferredMbtiType,
         }),
       });
 

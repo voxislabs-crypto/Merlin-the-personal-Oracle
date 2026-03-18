@@ -35,6 +35,18 @@ export interface OracleContext {
   progressedChart?: any;
   transits?: TransitData; // Current transits vs natal
   dailyForecast?: DailyForecast; // Today's ephemeris forecast
+  stormsReport?: {
+    storms: Array<{
+      date: string;
+      title: string;
+      intensity: 'severe' | 'moderate' | 'mild';
+      lifeArea: string;
+      navigation: string;
+    }>;
+    clearDays: string[];
+    weekSummary: string;
+    mbtiType?: string;
+  };
   conversationHistory: OracleMessage[];
   userId?: string;
   currentDate?: Date;
@@ -348,6 +360,34 @@ ${turningPointsStr || 'None in immediate timeframe'}
 }
 
 /**
+ * Format storms report into tactical context for oracle response
+ */
+function formatStormsContext(report: OracleContext['stormsReport']): string {
+  if (!report) return '';
+
+  const topStorms = report.storms.slice(0, 5);
+  const topStormsStr = topStorms
+    .map((s) => `- ${s.date} | ${s.intensity.toUpperCase()} | ${s.title} | ${s.lifeArea}`)
+    .join('\n');
+
+  const navigationHints = topStorms
+    .slice(0, 3)
+    .map((s) => `- ${s.title}: ${s.navigation}`)
+    .join('\n');
+
+  return `
+WEEKLY STORMS CONTEXT:
+- Storm count (7-day): ${report.storms.length}
+- MBTI lens used: ${report.mbtiType || 'not available'}
+- Week summary: ${report.weekSummary}
+- Top storm windows:
+${topStormsStr || '- No major storms detected'}
+- Suggested navigation patterns:
+${navigationHints || '- Use proactive planning during calm windows'}
+  `.trim();
+}
+
+/**
  * Build system prompt for Merlin 2.0 - Storm-Radar Oracle Engine
  * Predicts emotional, relational, financial, and cosmic storms using:
  * - Real-time transits (current + next 72 hours)
@@ -361,9 +401,12 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
   const forecastContext = context.dailyForecast ? formatDailyForecastContext(context.dailyForecast) : '';
   const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
+  const stormsContext = context.stormsReport ? formatStormsContext(context.stormsReport) : '';
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
   const plainEnglish = context.plainEnglish !== false; // Default ON
-  const mbtiLine = context.mbtiType ? `\nUSER MBTI ARCHETYPE: ${context.mbtiType}` : '';
+  const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
+  const effectiveMbti = context.mbtiType || chartMbti;
+  const mbtiLine = effectiveMbti ? `\nUSER MBTI ARCHETYPE: ${effectiveMbti}` : '';
 
   const languageRule = plainEnglish
     ? `LANGUAGE RULE (Clarity Mode ON): 
@@ -387,14 +430,14 @@ MISSION:
 4. Deliver a complete reading covering: body/health, energy levels, money/resources, relationships, mental clarity, and environment.
 5. Output: clear predictions with probability odds (e.g. "72% chance of physical fatigue spike by Thursday — save heavy workouts for the weekend"), and ONE specific actionable move per domain affected.
 6. You see the future as probability fields — not fate. The user changes it by acting.
-7. End every response with: "This shifts if you pivot."
+7. End with a concrete closing line that matches the evidence in this specific reading (no repeated slogans).
 
 RESPONSE FORMAT (non-negotiable):
 - ALWAYS start with: "Storm + Terrain check:"
 - Cover ALL relevant domains that have active signals: body/physical, energy, money/material, emotional, relational, mental. Skip only domains with zero active transits.
 - For each active domain, give: what's happening, probability odds, and ONE specific action.
 - Format each domain as: "[DOMAIN]: [what's at stake]. [X]% probability. Move: [action]."
-- ALWAYS end with: "This shifts if you pivot."
+- End with one short line that summarizes the single highest-leverage move for the next 24-72h.
 - Maximum 350 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
 
 EXAMPLE RESPONSE STRUCTURE:
@@ -403,7 +446,7 @@ Storm + Terrain check:
 [MONEY]: A spending impulse is building — an emotional purchase is likely. 65% probability. Move: Delay any financial decisions over $200 for 48 hours.
 [EMOTIONAL]: Old wound involving control or loss may surface. 80% probability. Move: Journal tonight before it becomes an argument.
 [MENTAL]: Decision fatigue is real right now — your thinking is slower than usual. 60% probability. Move: Delegate or defer one decision today.
-This shifts if you pivot.
+Leverage point: Protect sleep tonight and delay non-essential decisions until tomorrow afternoon.
 
 ${languageRule}
 
@@ -420,6 +463,7 @@ ${mbtiLine}
 ${transitsContext ? `\n${transitsContext}` : ''}
 ${forecastContext ? `\n${forecastContext}` : ''}
 ${timelineContext ? `\n${timelineContext}` : ''}
+${stormsContext ? `\n${stormsContext}` : ''}
 
 CONVERSATION HISTORY (last few messages):
 ${recentContext || '[First session]'}

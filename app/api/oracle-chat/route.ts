@@ -13,6 +13,8 @@ import {
 } from '@/lib/oracle-service';
 import { getCurrentTransits } from '@/lib/astrology/transits';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
+import { detectWeeklyStorms } from '@/lib/astrology/storms';
+import { getMBTIDual } from '@/lib/personality/fusion';
 import { BirthChartData } from '@/types/astrology';
 
 interface OracleChatRequest {
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
     // Calculate real-time transit and forecast data if birth chart provided
     let transits: TransitData | undefined;
     let dailyForecast;
+    let stormsReport;
     
     // Support both .planets (BirthChartData) and .positions (legacy) field names
     const natalPlanets = birthChart?.planets || birthChart?.positions || [];
@@ -77,11 +80,24 @@ export async function POST(request: NextRequest) {
         const chartForForecast = { ...birthChart, planets: natalPlanets };
         dailyForecast = getTodaysForecast(chartForForecast as BirthChartData);
         console.log(`[Oracle Chat] Generated today's forecast: ${dailyForecast.day_rating}`);
+
+        // Compute MBTI and weekly storms so Grok can use the same navigation intelligence as dashboard cards
+        const mbtiFromChart = (birthChart as any)?.personalitySnapshot?.finalType;
+        const mbtiDual = mbtiFromChart ? null : getMBTIDual(chartForForecast as BirthChartData);
+        const mbtiForStorms = mbtiType || mbtiFromChart || mbtiDual?.type;
+        stormsReport = detectWeeklyStorms(chartForForecast as BirthChartData, mbtiForStorms as any);
+        console.log(`[Oracle Chat] Weekly storms context: ${stormsReport.storms.length} storm(s), MBTI=${mbtiForStorms || 'n/a'}`);
       } catch (error) {
         console.warn('[Oracle Chat] Could not calculate transits/forecast:', error);
         // Continue without transit data - oracle will still work with natal chart only
       }
     }
+
+    const derivedMbtiType =
+      mbtiType ||
+      (birthChart as any)?.personalitySnapshot?.finalType ||
+      (birthChart as any)?.mbti?.type ||
+      stormsReport?.mbtiType;
 
     // Build context
     const context: OracleContext = {
@@ -89,11 +105,12 @@ export async function POST(request: NextRequest) {
       progressedChart,
       transits,
       dailyForecast,
+      stormsReport,
       conversationHistory: history,
       userId,
       currentDate: new Date(),
       plainEnglish,
-      mbtiType,
+      mbtiType: derivedMbtiType,
     };
 
     // Add user message to history
