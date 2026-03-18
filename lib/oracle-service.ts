@@ -542,7 +542,9 @@ export function generateMicroForecast(
   const buildOracleLine = (seed: number, transitLabel?: string): string => {
     const intro = pickBySeed(oraclePhrases.intro, seed);
     const close = pickBySeed(oraclePhrases.close, seed + 1);
-    const bodyFromAspect = transitLabel ? oraclePhrases.aspectTemplates?.[transitLabel] : undefined;
+    const bodyFromAspect = transitLabel
+      ? (oraclePhrases.aspectTemplates as Record<string, string[]>)?.[transitLabel]
+      : undefined;
     const body = bodyFromAspect && bodyFromAspect.length > 0
       ? pickBySeed(bodyFromAspect, seed + 2)
       : pickBySeed(oraclePhrases.genericBody, seed + 2);
