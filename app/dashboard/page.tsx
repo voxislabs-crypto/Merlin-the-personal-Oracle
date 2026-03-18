@@ -18,6 +18,7 @@ import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
 import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
 import QuestLog from '@/components/astrology/QuestLog';
+import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
@@ -440,6 +441,14 @@ export default function UnifiedDashboard() {
                       </span>
                     </button>
                   </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                >
+                  <DeepDivePanel birthData={chartData} />
                 </motion.div>
 
                 {/* Weekly Calendar - Below Birth Chart */}
