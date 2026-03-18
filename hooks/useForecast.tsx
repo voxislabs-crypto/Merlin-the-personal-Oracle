@@ -44,6 +44,7 @@ export function useForecast() {
   const calculateForecast = useCallback(async (birthData: BirthData): Promise<DailyForecast | null> => {
     setLoading(true);
     setError(null);
+    const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
 
     try {
       const response = await fetch('/api/forecast', {
@@ -54,6 +55,7 @@ export function useForecast() {
           birthTime: birthData.time,
           lat: birthData.latitude,
           lon: birthData.longitude,
+          timezoneOffset: timezoneOffsetHours,
           clientDate: getClientLocalDateString()
         })
       });

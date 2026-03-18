@@ -5,6 +5,7 @@ import "server-only";
 import { BirthChartData } from '@/types/astrology';
 import { Timeline } from '@/lib/timeline-service';
 import { DailyForecast } from '@/lib/astrology/ephemeris';
+import oraclePhrases from '@/data/oracle-phrases.json';
 
 export interface OracleMessage {
   role: 'user' | 'assistant';
@@ -531,6 +532,23 @@ export function generateMicroForecast(
   chart: BirthChartData | undefined,
   transits?: TransitData
 ): { timeframe: string; themes: string[] } {
+  const pickBySeed = <T,>(items: T[], seed: number): T => {
+    if (!items || items.length === 0) {
+      throw new Error('Template list cannot be empty');
+    }
+    return items[Math.abs(seed) % items.length];
+  };
+
+  const buildOracleLine = (seed: number, transitLabel?: string): string => {
+    const intro = pickBySeed(oraclePhrases.intro, seed);
+    const close = pickBySeed(oraclePhrases.close, seed + 1);
+    const bodyFromAspect = transitLabel ? oraclePhrases.aspectTemplates?.[transitLabel] : undefined;
+    const body = bodyFromAspect && bodyFromAspect.length > 0
+      ? pickBySeed(bodyFromAspect, seed + 2)
+      : pickBySeed(oraclePhrases.genericBody, seed + 2);
+    return `${intro} ${body} ${close}`;
+  };
+
   // If we have real transit data, use it!
   if (transits && transits.significant.length > 0) {
     const themes: string[] = [];
@@ -539,6 +557,9 @@ export function generateMicroForecast(
     transits.significant.slice(0, 3).forEach((t: any) => {
       const transitPlanet = t.transitingPlanet;
       const aspect = t.aspect;
+      const natalPlanet = t.natalPlanet;
+      const transitLabel = `${transitPlanet} ${aspect} ${natalPlanet}`;
+      const seed = `${transitPlanet}-${aspect}-${natalPlanet}`.split('').reduce((n, ch) => n + ch.charCodeAt(0), 0);
       
       // Map planets to themes
       const planetThemes: { [key: string]: string } = {
@@ -558,6 +579,10 @@ export function generateMicroForecast(
       if (theme) {
         const nature = aspect === 'Square' || aspect === 'Opposition' ? 'challenges' : 'supports';
         themes.push(`${theme} (${transitPlanet} ${nature})`);
+      }
+
+      if (themes.length < 3) {
+        themes.push(buildOracleLine(seed, transitLabel));
       }
     });
     
@@ -588,7 +613,10 @@ export function generateMicroForecast(
 
   return {
     timeframe: 'This week',
-    themes: dayThemes[day] || ['Transition', 'Growth', 'Testing'],
+    themes: [
+      buildOracleLine(day * 97),
+      ...(dayThemes[day] || ['Transition', 'Growth', 'Testing']),
+    ].slice(0, 3),
   };
 }
 

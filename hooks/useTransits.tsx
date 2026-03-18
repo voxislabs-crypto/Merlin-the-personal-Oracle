@@ -38,6 +38,7 @@ export function useTransits() {
   const calculateTransits = useCallback(async (birthData: BirthData): Promise<TransitData | null> => {
     setLoading(true);
     setError(null);
+    const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
 
     try {
       const response = await fetch('/api/transits', {
@@ -47,7 +48,8 @@ export function useTransits() {
           birthDate: birthData.date,
           birthTime: birthData.time,
           lat: birthData.latitude,
-          lon: birthData.longitude
+          lon: birthData.longitude,
+          timezoneOffset: timezoneOffsetHours
         })
       });
 

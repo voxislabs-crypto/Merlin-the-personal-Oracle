@@ -43,6 +43,7 @@ export function useStorms() {
     async (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 7): Promise<StormsReport | null> => {
       setLoading(true);
       setError(null);
+      const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
 
       try {
         const cacheKey = buildCacheKey(birthData, mbtiType, daysAhead);
@@ -70,6 +71,7 @@ export function useStorms() {
             birthTime: birthData.time,
             lat: birthData.latitude,
             lon: birthData.longitude,
+            timezoneOffset: timezoneOffsetHours,
             mbtiType: mbtiType ?? null,
             daysAhead,
           }),

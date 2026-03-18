@@ -274,8 +274,39 @@ export default function UnifiedDashboard() {
         .join(', ')}. The pattern here is pressure turning into purpose.`
     : 'Your Life Arc narrative will appear once timeline events are calculated.';
 
+  type WhisperMode = 'plain' | 'warm' | 'bullshit' | 'oracle';
+
+  const activateWhisperMode = (mode: WhisperMode) => {
+    setActiveSection('interpretation');
+
+    if (mode === 'plain') {
+      setInterpretMode('traditional');
+      setNoBullshit(false);
+      if (!clarityMode) toggleClarityMode();
+      return;
+    }
+
+    if (mode === 'warm') {
+      setInterpretMode('grok');
+      setNoBullshit(false);
+      if (!clarityMode) toggleClarityMode();
+      return;
+    }
+
+    if (mode === 'bullshit') {
+      setInterpretMode('grok');
+      setNoBullshit(true);
+      if (!clarityMode) toggleClarityMode();
+      return;
+    }
+
+    setInterpretMode('grok');
+    setNoBullshit(false);
+    if (clarityMode) toggleClarityMode();
+  };
+
   const handleDailyWhisper = () => {
-    setActiveSection('forecast');
+    activateWhisperMode('warm');
   };
 
   return (
@@ -394,6 +425,31 @@ export default function UnifiedDashboard() {
                       className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
                     >
                       🌙 Daily Whisper
+                    </button>
+
+                    <button
+                      onClick={() => activateWhisperMode('plain')}
+                      className="px-4 py-2 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg text-emerald-200 font-semibold transition-all"
+                    >
+                      Plain
+                    </button>
+                    <button
+                      onClick={() => activateWhisperMode('warm')}
+                      className="px-4 py-2 text-xs bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 rounded-lg text-sky-200 font-semibold transition-all"
+                    >
+                      Warm
+                    </button>
+                    <button
+                      onClick={() => activateWhisperMode('bullshit')}
+                      className="px-4 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-200 font-semibold transition-all"
+                    >
+                      No-BS
+                    </button>
+                    <button
+                      onClick={() => activateWhisperMode('oracle')}
+                      className="px-4 py-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-lg text-violet-200 font-semibold transition-all"
+                    >
+                      Oracle
                     </button>
 
                     {/* Clarity Mode Toggle — Plain English vs Oracle Full */}
