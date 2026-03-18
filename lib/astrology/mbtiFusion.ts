@@ -562,9 +562,9 @@ function computeFirmwareLayer(params: {
   } else {
     // Weight-based vote from each point of light
     const moonVote: 'I' | 'E' =
-      getElement(moon?.sign) === 'water' || getElement(moon?.sign) === 'earth' ? 'I' : 'E';
+      getElement(moon?.sign ?? '') === 'water' || getElement(moon?.sign ?? '') === 'earth' ? 'I' : 'E';
     const ascVote: 'I' | 'E' =
-      getElement(ascendant?.sign) === 'water' || getElement(ascendant?.sign) === 'earth' ? 'I' : 'E';
+      getElement(ascendant?.sign ?? '') === 'water' || getElement(ascendant?.sign ?? '') === 'earth' ? 'I' : 'E';
 
     // Leo Sun → 'E' only when Moon AND Asc both already vote E; otherwise default to 'I'
     let sunVote: 'I' | 'E';
@@ -572,11 +572,11 @@ function computeFirmwareLayer(params: {
       sunVote = (moonVote === 'E' && ascVote === 'E') ? 'E' : 'I';
     } else {
       sunVote =
-        getElement(params.sun?.sign) === 'fire' || getElement(params.sun?.sign) === 'air' ? 'E' : 'I';
+        getElement(params.sun?.sign ?? '') === 'fire' || getElement(params.sun?.sign ?? '') === 'air' ? 'E' : 'I';
     }
 
     const mercuryVote: 'I' | 'E' =
-      getElement(mercury?.sign) === 'air' || getElement(mercury?.sign) === 'fire' ? 'E' : 'I';
+      getElement(mercury?.sign ?? '') === 'air' || getElement(mercury?.sign ?? '') === 'fire' ? 'E' : 'I';
 
     const iWeight =
       (moonVote    === 'I' ? 0.35 : 0) +
