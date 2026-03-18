@@ -88,6 +88,7 @@ export default function AstroDashboardPage() {
             birthTime: birthData.time,
             lat: birthData.latitude,
             lon: birthData.longitude,
+            timezoneOffset: -new Date().getTimezoneOffset() / 60,
             houseSystem: birthData.houseSystem,
             zodiac: birthData.zodiac
           })

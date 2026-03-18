@@ -39,6 +39,11 @@ export function usePersonality() {
     async (birthData: BirthData): Promise<MBTIType | null> => {
       setLoading(true);
       setError(null);
+      // Ensure previous result never leaks into a new chart calculation.
+      setMbtiType(null);
+      setProfile(null);
+
+      const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
 
       try {
         const response = await fetch('/api/personality', {
@@ -48,7 +53,8 @@ export function usePersonality() {
             birthDate: birthData.date,
             birthTime: birthData.time,
             lat: birthData.latitude,
-            lon: birthData.longitude
+            lon: birthData.longitude,
+            timezoneOffset: timezoneOffsetHours,
           })
         });
 

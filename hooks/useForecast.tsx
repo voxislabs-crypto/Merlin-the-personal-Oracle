@@ -33,6 +33,14 @@ export function useForecast() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  function getClientLocalDateString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   const calculateForecast = useCallback(async (birthData: BirthData): Promise<DailyForecast | null> => {
     setLoading(true);
     setError(null);
@@ -45,7 +53,8 @@ export function useForecast() {
           birthDate: birthData.date,
           birthTime: birthData.time,
           lat: birthData.latitude,
-          lon: birthData.longitude
+          lon: birthData.longitude,
+          clientDate: getClientLocalDateString()
         })
       });
 

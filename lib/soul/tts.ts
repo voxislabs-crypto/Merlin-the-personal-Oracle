@@ -106,7 +106,7 @@ async function generateWithElevenLabs(
           "xi-api-key": apiKey,
         },
         body: JSON.stringify({
-          text: text.slice(0, 2500), // Limit to 2500 chars for faster generation
+          text,
           model_id: "eleven_turbo_v2", // MUCH faster than v1 (3-5x speedup)
           voice_settings: {
             stability: config.stability || 0.75,

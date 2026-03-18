@@ -316,9 +316,10 @@ function buildSummary(
   return opening + middle + moonClause;
 }
 
-export function getTodaysForecast(birthChart: BirthChartData): DailyForecast {
+export function getTodaysForecast(birthChart: BirthChartData, targetDate?: string): DailyForecast {
   const today = new Date();
-  const dateString = today.toISOString().split('T')[0];
+  const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const dateString = targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate) ? targetDate : localDateString;
 
   // ── Transiting chart at noon (with fallback) ──────────────────────────────
   let todaysChart: BirthChartData;

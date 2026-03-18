@@ -69,6 +69,7 @@ export function useBirthChart(options: UseBirthChartOptions = {}) {
             birthTime: data.time,
             lat: data.latitude,
             lon: data.longitude,
+            timezoneOffset: -new Date().getTimezoneOffset() / 60,
             houseSystem: data.houseSystem || "Placidus",
             zodiac: data.zodiac || "Tropical",
           }),

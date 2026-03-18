@@ -103,18 +103,25 @@ describe("useBirthChart", () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.chartData).toEqual(mockChartData);
     expect(result.current.error).toBeNull();
-    expect(fetch).toHaveBeenCalledWith("/api/calculate-birth-chart", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        birthDate: "1990-01-01",
-        birthTime: "12:00",
-        lat: 40.7128,
-        lon: -74.006,
-        houseSystem: "Placidus",
-        zodiac: "Tropical",
-      }),
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/calculate-birth-chart",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const fetchArgs = (fetch as jest.Mock).mock.calls[0][1];
+    const body = JSON.parse(fetchArgs.body);
+    expect(body).toMatchObject({
+      birthDate: "1990-01-01",
+      birthTime: "12:00",
+      lat: 40.7128,
+      lon: -74.006,
+      houseSystem: "Placidus",
+      zodiac: "Tropical",
     });
+    expect(typeof body.timezoneOffset).toBe("number");
   });
 
   it("should handle API errors gracefully", async () => {

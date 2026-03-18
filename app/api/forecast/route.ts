@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon } = body;
+    const { birthDate, birthTime, lat, lon, clientDate } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -45,7 +45,10 @@ export async function POST(request: Request) {
     }
 
     // Generate today's forecast (ephemeris-based)
-    const forecast = getTodaysForecast(natalChart);
+    const forecastDate = typeof clientDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)
+      ? clientDate
+      : undefined;
+    const forecast = getTodaysForecast(natalChart, forecastDate);
 
     // Enrich with TRANSIT_LOOKUP (28-aspect library) + day_rating + mbti_overlay
     let enrichedFields: Record<string, unknown> = {};

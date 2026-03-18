@@ -18,8 +18,9 @@ export function WeeklyCalendar({ week, loading = false }: WeeklyCalendarProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedDay, setSelectedDay] = useState<string>('');
 
-  // Find today's date index
-  const todayDateString = new Date().toISOString().split('T')[0];
+  // Find today's date index — use local date components to avoid UTC midnight off-by-one
+  const _ld = new Date();
+  const todayDateString = `${_ld.getFullYear()}-${String(_ld.getMonth() + 1).padStart(2, '0')}-${String(_ld.getDate()).padStart(2, '0')}`;
   const todayIndex = week.findIndex(day => day.date === todayDateString);
 
   // Initialize selected day to today
@@ -79,8 +80,9 @@ export function WeeklyCalendar({ week, loading = false }: WeeklyCalendarProps) {
   }
 
   // Format date to show day number with suffix (1st, 2nd, 3rd, etc.)
+  // Parse at local noon to avoid UTC midnight off-by-one day in negative-UTC timezones
   const formatDayNumber = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = new Date(dateString + 'T12:00:00');
     const day = date.getDate();
     const suffix = getDaySuffix(day);
     return `${day}${suffix}`;
@@ -97,7 +99,8 @@ export function WeeklyCalendar({ week, loading = false }: WeeklyCalendarProps) {
   };
 
   const formatWeekday = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse at local noon to avoid UTC midnight showing prior weekday
+    const date = new Date(dateString + 'T12:00:00');
     return date.toLocaleDateString('en-US', { weekday: 'short' });
   };
 

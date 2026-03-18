@@ -55,6 +55,26 @@ export function DailyForecast({
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } }
   };
+
+  function formatForecastDate(value: string): string {
+    const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (ymdMatch) {
+      const year = Number(ymdMatch[1]);
+      const month = Number(ymdMatch[2]);
+      const day = Number(ymdMatch[3]);
+      // Use local noon to avoid timezone edge cases around midnight.
+      const localDate = new Date(year, month - 1, day, 12, 0, 0);
+      return localDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return parsed.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
@@ -126,7 +146,7 @@ export function DailyForecast({
               </motion.div>
             </div>
             <p className="text-slate-400 text-sm mt-1">
-              {new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {formatForecastDate(date)}
             </p>
           </div>
           <div className="text-right">

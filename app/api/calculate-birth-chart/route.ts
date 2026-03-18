@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart as calculateSwissBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateFallbackBirthChart } from '@/lib/engine-fallback';
+import { getMBTIDual } from '@/lib/personality/fusion';
 
 type ChartSource = 'swiss-real' | 'mock-fallback';
 
@@ -108,10 +109,20 @@ export async function POST(request: Request) {
       }
 
       console.log('[API] ✓ Swiss engine success, moonSign:', moonSign);
+      const taggedSwissData = tagSourceMetadata(swissData, 'swiss-real', appliedOffsetHours);
+      const mbtiDual = getMBTIDual(taggedSwissData);
       return NextResponse.json({
         success: true,
         source: 'swiss-real',
-        data: tagSourceMetadata(swissData, 'swiss-real', appliedOffsetHours),
+        data: {
+          ...taggedSwissData,
+          personalitySnapshot: {
+            hardware: mbtiDual.hardware.type,
+            firmware: mbtiDual.firmware.type,
+            finalType: mbtiDual.type,
+            finalConfidence: mbtiDual.confidence,
+          },
+        },
       });
     } catch (err) {
       console.log('[API] ✗ Swiss engine failed:', err instanceof Error ? err.message : String(err));
@@ -121,10 +132,20 @@ export async function POST(request: Request) {
         const chartData = calculateFallbackBirthChart(utcBirthDate, utcBirthTime, lat, lon);
         const fallbackMoon = chartData?.positions?.find((p: any) => p.name === 'Moon')?.sign;
         console.log('[API] ✓ Fallback engine success, moonSign:', fallbackMoon);
+        const taggedFallbackData = tagSourceMetadata(chartData, 'mock-fallback', appliedOffsetHours);
+        const mbtiDual = getMBTIDual(taggedFallbackData);
         return NextResponse.json({
           success: true,
           source: 'mock-fallback',
-          data: tagSourceMetadata(chartData, 'mock-fallback', appliedOffsetHours),
+          data: {
+            ...taggedFallbackData,
+            personalitySnapshot: {
+              hardware: mbtiDual.hardware.type,
+              firmware: mbtiDual.firmware.type,
+              finalType: mbtiDual.type,
+              finalConfidence: mbtiDual.confidence,
+            },
+          },
           fallback: true,
         });
       } catch (fallbackError) {

@@ -51,8 +51,8 @@ export function getMBTIDual(chart: any) {
     
     return {
       hardware: { type: fallbackType, confidence: 50, breakdown: { e_i, s_n: n_s, t_f: f_t, j_p, reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'hardware' as const },
-      firmware: { type: 'INFJ' as MBTIType, confidence: 50, breakdown: { e_i: 'I', s_n: 'N', t_f: 'F', j_p: 'J', reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'firmware' as const },
-      type: 'INFJ' as MBTIType,
+      firmware: { type: fallbackType, confidence: 50, breakdown: { e_i, s_n: n_s, t_f: f_t, j_p, reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'firmware' as const },
+      type: fallbackType,
       confidence: 50,
     };
   }

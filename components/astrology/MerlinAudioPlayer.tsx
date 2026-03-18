@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCachedAudio, cacheAudio } from '@/lib/audio-cache';
 
-// ── ElevenLabs has a ~5000 char hard limit. We stay well under it. ──
-const CHUNK_MAX = 3500;
+// Keep chunks below backend per-request clamp to avoid silent truncation.
+const CHUNK_MAX = 2400;
 
 /**
  * Split text into individual sentences for the narrator highlight.
@@ -194,6 +194,8 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const textRef = useRef(text);
   const abortRef = useRef(false); // set true when user stops to cancel in-flight fetches
+  const manualPauseRef = useRef(false);
+  const stateRef = useRef<PlayerState>('idle');
 
   // Narrator state
   const [narratorOpen, setNarratorOpen] = useState(false);
@@ -201,6 +203,10 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
 
   const VOICE = 'mystic';
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   // Reset when text changes
   useEffect(() => {
@@ -212,6 +218,7 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
 
   const doStop = useCallback(() => {
     abortRef.current = true;
+    manualPauseRef.current = false;
     const el = audioRef.current;
     if (el) { el.pause(); el.currentTime = 0; }
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -230,6 +237,20 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     setActiveSentenceIndex(0);
     setNarratorSentences([]);
   }, []);
+
+  async function safePlay(audio: HTMLAudioElement, retries = 2): Promise<void> {
+    let lastError: unknown;
+    for (let i = 0; i <= retries; i++) {
+      try {
+        await audio.play();
+        return;
+      } catch (err) {
+        lastError = err;
+        await new Promise(resolve => setTimeout(resolve, 150 * (i + 1)));
+      }
+    }
+    throw lastError;
+  }
 
   // Fetch (or hit cache for) a single chunk — returns base64 string
   const fetchChunk = useCallback(async (chunkText: string): Promise<string | null> => {
@@ -251,13 +272,16 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
   }, []);
 
   // Wire up an Audio element for the given base64 and play it
-  const playAudioData = useCallback((audioData: string, chunkText: string, onEnd: () => void) => {
+  const playAudioData = useCallback(async (audioData: string, chunkText: string, onEnd: () => void) => {
     const sentences = splitIntoSentences(chunkText);
     setNarratorSentences(sentences);
     setActiveSentenceIndex(0);
 
-    const audio = new Audio(audioData);
+    const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
+    manualPauseRef.current = false;
+    audio.src = audioData;
+    audio.load();
     audio.onloadedmetadata = () => setDuration(audio.duration);
     audio.ontimeupdate = () => {
       const t = audio.currentTime;
@@ -269,9 +293,37 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
       const idx = Math.min(Math.floor(p * sentences.length), sentences.length - 1);
       setActiveSentenceIndex(idx);
     };
-    audio.onended = onEnd;
+    audio.onended = () => {
+      manualPauseRef.current = false;
+      onEnd();
+    };
+    audio.onpause = () => {
+      const isUnexpectedPause =
+        !abortRef.current &&
+        !manualPauseRef.current &&
+        stateRef.current === 'playing' &&
+        audio.currentTime > 0 &&
+        !audio.ended;
+
+      if (isUnexpectedPause) {
+        setTimeout(() => {
+          if (
+            !abortRef.current &&
+            !manualPauseRef.current &&
+            stateRef.current === 'playing' &&
+            audio.paused &&
+            !audio.ended
+          ) {
+            safePlay(audio).catch(() => {
+              setState('error');
+              setErrorMsg('Playback paused unexpectedly');
+            });
+          }
+        }, 180);
+      }
+    };
     audio.onerror = () => { setState('error'); setErrorMsg('Playback error'); };
-    audio.play();
+    await safePlay(audio);
     setState('playing');
   }, []);
 
@@ -289,7 +341,16 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     setChunkIndex(index);
     setProgress(0);
     setCurrent(0);
-    playAudioData(allAudio[index], allChunks[index], () => playChunkAt(index + 1, allChunks, allAudio));
+    playAudioData(allAudio[index], allChunks[index], () => {
+      setTimeout(() => {
+        if (!abortRef.current) {
+          playChunkAt(index + 1, allChunks, allAudio);
+        }
+      }, 0);
+    }).catch(() => {
+      setState('error');
+      setErrorMsg('Unable to continue to next part');
+    });
   }, [playAudioData]);
 
   const loadAndPlay = useCallback(async () => {
@@ -367,11 +428,17 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
     const el = audioRef.current;
     if (!el) return;
     if (state === 'playing') {
+      manualPauseRef.current = true;
       el.pause();
       setState('paused');
     } else if (state === 'paused') {
-      el.play();
-      setState('playing');
+      manualPauseRef.current = false;
+      safePlay(el)
+        .then(() => setState('playing'))
+        .catch(() => {
+          setState('error');
+          setErrorMsg('Unable to resume playback');
+        });
     }
   }, [state]);
 
@@ -405,6 +472,43 @@ export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className 
       hasAutoOpenedRef.current = false;
     }
   }, [state]);
+
+  useEffect(() => {
+    const resumeIfInterrupted = () => {
+      const el = audioRef.current;
+      if (!el) return;
+
+      const shouldResume =
+        !abortRef.current &&
+        !manualPauseRef.current &&
+        stateRef.current === 'playing' &&
+        el.paused &&
+        !el.ended;
+
+      if (shouldResume) {
+        safePlay(el).catch(() => {
+          setState('error');
+          setErrorMsg('Playback interrupted by system audio focus');
+        });
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(resumeIfInterrupted, 120);
+      }
+    };
+
+    window.addEventListener('focus', resumeIfInterrupted);
+    window.addEventListener('pageshow', resumeIfInterrupted);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', resumeIfInterrupted);
+      window.removeEventListener('pageshow', resumeIfInterrupted);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
 
   return (
     <div className={`space-y-2 ${className}`}>

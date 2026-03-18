@@ -87,6 +87,7 @@ export function BirthChart({
   const calculateChart = async (data: BirthData) => {
     setLoading(true);
     setError(null);
+    const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
     
     try {
       const response = await fetch('/api/calculate-birth-chart', {
@@ -97,6 +98,7 @@ export function BirthChart({
           birthTime: data.time,
           lat: data.latitude,
           lon: data.longitude,
+          timezoneOffset: timezoneOffsetHours,
           houseSystem: data.houseSystem || 'Placidus',
           zodiac: data.zodiac || 'Tropical',
         }),
