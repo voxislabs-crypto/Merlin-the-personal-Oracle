@@ -11,7 +11,6 @@ import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
 import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { WeeklyCalendar } from '@/components/astrology/WeeklyCalendar';
 import { StormsAndNavigations } from '@/components/astrology/StormsAndNavigations';
-import { PersonalityReveal } from '@/components/astrology/PersonalityReveal';
 import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
 import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
@@ -30,7 +29,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Moon, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning } from 'lucide-react';
+import { Sparkles, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -71,7 +70,17 @@ export default function UnifiedDashboard() {
     // Load clarity mode setting
     const savedClarity = localStorage.getItem('merlin_clarity_mode');
     if (savedClarity !== null) setClarityMode(savedClarity !== 'false');
-  }, []);
+  }, [
+    calculateForecast,
+    calculateLifeArc,
+    calculatePersonality,
+    calculateStorms,
+    calculateTransits,
+    calculateWeeklyForecast,
+    generateInterpretations,
+    interpretMode,
+    mbtiType,
+  ]);
 
   const toggleClarityMode = () => {
     const next = !clarityMode;
@@ -168,7 +177,17 @@ export default function UnifiedDashboard() {
     } catch (error) {
       console.error('Error loading persisted data:', error);
     }
-  }, []);
+  }, [
+    calculateForecast,
+    calculateLifeArc,
+    calculatePersonality,
+    calculateStorms,
+    calculateTransits,
+    calculateWeeklyForecast,
+    generateInterpretations,
+    interpretMode,
+    mbtiType,
+  ]);
 
   const handleChartCalculated = useCallback((data: BirthChartData) => {
     // Derive birth data
@@ -229,7 +248,17 @@ export default function UnifiedDashboard() {
       calculateWeeklyForecast(derived),
       calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
-  }, [generateInterpretations, calculateForecast, calculateTransits, calculateLifeArc, calculateWeeklyForecast, calculatePersonality, calculateStorms, interpretMode]);
+  }, [
+    generateInterpretations,
+    calculateForecast,
+    calculateTransits,
+    calculateLifeArc,
+    calculateWeeklyForecast,
+    calculatePersonality,
+    calculateStorms,
+    interpretMode,
+    mbtiType,
+  ]);
 
   // Build the read-aloud text (used by MerlinAudioPlayer) — must be before early returns
   const readAloudText = React.useMemo(() => {
