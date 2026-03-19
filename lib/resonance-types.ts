@@ -83,6 +83,9 @@ export interface FeedbackData {
   resonated: boolean
   accuracyScore: number
   notes?: string
+  scoreBefore?: number
+  scoreAfter?: number
+  userRating?: number
 }
 
 export interface TransitWithResonance {
