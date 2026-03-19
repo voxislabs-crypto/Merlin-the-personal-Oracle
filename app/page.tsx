@@ -34,10 +34,10 @@ export default function Home() {
             </filter>
           </defs>
           <circle cx="500" cy="500" r="400" fill="none" stroke="url(#grad1)" strokeWidth="2" opacity="0.3" filter="url(#glow)">
-            <animateTransform attributeName="r" values="400;450;400" dur="8s" repeatCount="indefinite"/>
+            <animate attributeName="r" values="400;450;400" dur="8s" repeatCount="indefinite"/>
           </circle>
           <circle cx="500" cy="500" r="300" fill="none" stroke="url(#grad2)" strokeWidth="1.5" opacity="0.2" filter="url(#glow)">
-            <animateTransform attributeName="r" values="300;350;300" dur="10s" repeatCount="indefinite"/>
+            <animate attributeName="r" values="300;350;300" dur="10s" repeatCount="indefinite"/>
           </circle>
           <defs>
             <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -53,7 +53,7 @@ export default function Home() {
         
         {/* Twinkling stars */}
         <div className="absolute top-20 left-20 w-1 h-1 bg-purple-300 rounded-full animate-pulse"></div>
-        <div className="absolute top-32 right-32 w-1.5 h-1.5 bg-pink-300 rounded-full animate-ping"></div>
+        <div className="absolute top-32 right-32 w-1.5 h-1.5 bg-pink-300 rounded-full animate-pulse"></div>
         <div className="absolute bottom-32 left-1/3 w-1 h-1 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
         <div className="absolute bottom-20 right-1/4 w-1 h-1 bg-pink-300 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
       </div>

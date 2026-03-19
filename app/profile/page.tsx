@@ -50,7 +50,7 @@ export default function ProfilePage() {
       {/* Animated background */}
       <div className="absolute inset-0">
         <div className="absolute top-10 left-10 w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-1 h-1 bg-amber-300 rounded-full animate-ping"></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-amber-300 rounded-full animate-pulse"></div>
         <div className="absolute bottom-20 left-20 w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
       </div>
 

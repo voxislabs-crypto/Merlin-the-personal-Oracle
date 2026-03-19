@@ -622,37 +622,14 @@ export default function UnifiedDashboard() {
                       <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
                         Daily Transit Forecast
                       </h2>
-                      <motion.div
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-600/30 to-emerald-600/30 border-2 border-green-400/60"
-                        animate={{
-                          borderColor: ['rgba(74, 222, 128, 0.6)', 'rgba(74, 222, 128, 1)', 'rgba(74, 222, 128, 0.6)'],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                      >
-                        <motion.div
-                          className="w-3 h-3 rounded-full bg-green-400"
-                          animate={{
-                            scale: [1, 1.4, 1],
-                            boxShadow: [
-                              '0 0 0px rgba(74, 222, 128, 0)',
-                              '0 0 15px rgba(74, 222, 128, 1)',
-                              '0 0 0px rgba(74, 222, 128, 0)'
-                            ]
-                          }}
-                          transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-600/30 to-emerald-600/30 border-2 border-green-400/60">
+                        <div
+                          className="w-3 h-3 rounded-full bg-green-400 animate-pulse"
                         />
                         <span className="text-sm font-bold text-green-300 uppercase tracking-wider">
                           ACTIVE NOW
                         </span>
-                      </motion.div>
+                      </div>
                     </div>
                     
                     <div className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm">
