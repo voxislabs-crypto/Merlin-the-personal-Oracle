@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { LifeTimeline } from '@/lib/astrology/life-timeline-engine';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 
@@ -7,7 +7,7 @@ export function useLifeArc() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const calculateLifeArc = async (birthData: BirthData, chartData: BirthChartData) => {
+  const calculateLifeArc = useCallback(async (birthData: BirthData, chartData: BirthChartData) => {
     setLoading(true);
     setError(null);
 
@@ -44,7 +44,7 @@ export function useLifeArc() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
     lifeArc,

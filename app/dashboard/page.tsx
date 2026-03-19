@@ -70,17 +70,7 @@ export default function UnifiedDashboard() {
     // Load clarity mode setting
     const savedClarity = localStorage.getItem('merlin_clarity_mode');
     if (savedClarity !== null) setClarityMode(savedClarity !== 'false');
-  }, [
-    calculateForecast,
-    calculateLifeArc,
-    calculatePersonality,
-    calculateStorms,
-    calculateTransits,
-    calculateWeeklyForecast,
-    generateInterpretations,
-    interpretMode,
-    mbtiType,
-  ]);
+  }, []);
 
   const toggleClarityMode = () => {
     const next = !clarityMode;
@@ -177,17 +167,7 @@ export default function UnifiedDashboard() {
     } catch (error) {
       console.error('Error loading persisted data:', error);
     }
-  }, [
-    calculateForecast,
-    calculateLifeArc,
-    calculatePersonality,
-    calculateStorms,
-    calculateTransits,
-    calculateWeeklyForecast,
-    generateInterpretations,
-    interpretMode,
-    mbtiType,
-  ]);
+  }, []);
 
   const handleChartCalculated = useCallback((data: BirthChartData) => {
     // Derive birth data
