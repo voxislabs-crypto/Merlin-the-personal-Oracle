@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, CheckCircle } from "lucide-react"
-import { resonanceDB } from "@/lib/resonance-database"
 import type { FeedbackData } from "@/lib/resonance-types"
 
 interface FeedbackCollectorProps {
@@ -15,8 +14,10 @@ interface FeedbackCollectorProps {
   theme: string
   userId: string
   transitDescription: string
+  mbtiType?: string
   onFeedbackSubmitted?: () => void
   compact?: boolean
+  promptText?: string
 }
 
 export function FeedbackCollector({
@@ -24,8 +25,10 @@ export function FeedbackCollector({
   theme,
   userId,
   transitDescription,
+  mbtiType,
   onFeedbackSubmitted,
   compact = false,
+  promptText = "Did this forecast resonate with your experience?",
 }: FeedbackCollectorProps) {
   const [feedbackMode, setFeedbackMode] = useState<"simple" | "detailed" | "submitted">("simple")
   const [resonated, setResonated] = useState<boolean | null>(null)
@@ -52,7 +55,22 @@ export function FeedbackCollector({
     setIsSubmitting(true)
 
     try {
-      await resonanceDB.processFeedback(userId, aspectId, theme, feedback)
+      const response = await fetch('/api/resonance-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          aspectId,
+          theme,
+          mbtiType,
+          feedback,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback')
+      }
+
       setFeedbackMode("submitted")
       onFeedbackSubmitted?.()
     } catch (error) {
@@ -86,7 +104,7 @@ export function FeedbackCollector({
   if (compact) {
     return (
       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border/50">
-        <span className="text-sm text-muted-foreground">Did this resonate?</span>
+        <span className="text-sm text-muted-foreground">{promptText}</span>
         <div className="flex items-center space-x-2">
           <Button
             variant="ghost"
@@ -125,7 +143,7 @@ export function FeedbackCollector({
           <div className="space-y-4">
             <div className="text-center">
               <p className="text-sm font-medium text-foreground mb-3">
-                Did this forecast resonate with your experience?
+                {promptText}
               </p>
               <div className="flex items-center justify-center space-x-4">
                 <Button

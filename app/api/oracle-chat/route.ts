@@ -15,6 +15,7 @@ import { getCurrentTransits } from '@/lib/astrology/transits';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { detectWeeklyStorms } from '@/lib/astrology/storms';
 import { getMBTIDual } from '@/lib/personality/fusion';
+import { getUserContextSnapshot } from '@/lib/user-context';
 import { BirthChartData } from '@/types/astrology';
 
 interface OracleChatRequest {
@@ -99,12 +100,17 @@ export async function POST(request: NextRequest) {
       (birthChart as any)?.mbti?.type ||
       stormsReport?.mbtiType;
 
+    const userContext = userId && userId !== 'anonymous'
+      ? await getUserContextSnapshot(userId)
+      : null;
+
     // Build context
     const context: OracleContext = {
       birthChart,
       progressedChart,
       transits,
       dailyForecast,
+      userContext,
       stormsReport,
       conversationHistory: history,
       userId,

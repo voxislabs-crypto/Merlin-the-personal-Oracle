@@ -3,6 +3,99 @@ import { PlanetPosition } from '@/types/astrology';
 
 const normalizeAngle = (deg: number): number => ((deg % 360) + 360) % 360;
 
+const PLANET_THEMES: Record<string, string> = {
+  Sun: 'identity, vitality, and confidence',
+  Moon: 'emotions, safety needs, and daily rhythms',
+  Mercury: 'thinking, communication, and decisions',
+  Venus: 'relationships, values, and attraction',
+  Mars: 'drive, conflict style, and initiative',
+  Jupiter: 'growth, faith, and expansion',
+  Saturn: 'discipline, boundaries, and responsibility',
+  Uranus: 'freedom, disruption, and breakthroughs',
+  Neptune: 'intuition, imagination, and surrender',
+  Pluto: 'power, transformation, and deep renewal',
+};
+
+const ASPECT_MEANINGS: Record<string, string> = {
+  Conjunction: 'This combines both energies into one concentrated force that demands expression.',
+  Sextile: 'This opens opportunities through conscious effort, collaboration, and practical action.',
+  Square: 'This creates productive tension that pushes change, course-correction, and growth.',
+  Trine: 'This supports a natural flow, making integration and progress easier than usual.',
+  Opposition: 'This highlights polarity and balance, asking for awareness and integration of extremes.',
+};
+
+const SIGN_THEMES: Record<string, string> = {
+  Aries: 'bold action, urgency, and leadership',
+  Taurus: 'stability, resources, and embodiment',
+  Gemini: 'information flow, dialogue, and adaptability',
+  Cancer: 'home, emotional security, and care',
+  Leo: 'creative self-expression and heart-centered visibility',
+  Virgo: 'refinement, health routines, and practical service',
+  Libra: 'relationship balance, fairness, and diplomacy',
+  Scorpio: 'intensity, trust dynamics, and deep change',
+  Sagittarius: 'beliefs, exploration, and long-range vision',
+  Capricorn: 'structure, responsibility, and long-term outcomes',
+  Aquarius: 'innovation, systems change, and collective perspective',
+  Pisces: 'sensitivity, spiritual integration, and release',
+};
+
+function getTransitIntensity(orb: number): string {
+  if (orb < 0.5) return 'very exact and strongly felt now';
+  if (orb < 1.5) return 'strong and active';
+  if (orb < 3) return 'building and increasingly noticeable';
+  return 'present in the background';
+}
+
+function buildTransitDescription(params: {
+  transitingPlanet: string;
+  natalPlanet: string;
+  aspect: string;
+  orb: number;
+  transitingSign: string;
+}): string {
+  const { transitingPlanet, natalPlanet, aspect, orb, transitingSign } = params;
+  const transitingTheme = PLANET_THEMES[transitingPlanet] || transitingPlanet.toLowerCase();
+  const natalTheme = PLANET_THEMES[natalPlanet] || natalPlanet.toLowerCase();
+  const aspectMeaning = ASPECT_MEANINGS[aspect] || 'This aspect marks an important interaction between these two planetary themes.';
+  const signTheme = SIGN_THEMES[transitingSign] || 'the current sign backdrop shapes how this plays out.';
+  const intensity = getTransitIntensity(orb);
+
+  return `${transitingPlanet} ${aspect.toLowerCase()} natal ${natalPlanet} connects ${transitingTheme} with your ${natalTheme}. ${aspectMeaning} Because ${transitingPlanet} is in ${transitingSign}, themes of ${signTheme} are emphasized. With an orb of ${orb.toFixed(1)}°, this transit is ${intensity}.`;
+}
+
+function buildTransitShortDescription(params: {
+  transitingPlanet: string;
+  natalPlanet: string;
+  aspect: string;
+  orb: number;
+}): string {
+  const { transitingPlanet, natalPlanet, aspect, orb } = params;
+  const intensity = getTransitIntensity(orb);
+  const actionMap: Record<string, string> = {
+    Conjunction: 'amplify and focus this area',
+    Sextile: 'use this opening through intentional action',
+    Square: 'work through friction and make adjustments',
+    Trine: 'lean into what is flowing naturally',
+    Opposition: 'balance competing pulls with awareness',
+  };
+  const action = actionMap[aspect] || 'pay close attention to this pattern';
+
+  return `${transitingPlanet} ${aspect.toLowerCase()} natal ${natalPlanet}: ${action}; this energy is ${intensity}.`;
+}
+
+export interface TransitMatch {
+  transitingPlanet: string;
+  transitingSign: string;
+  natalPlanet: string;
+  natalSign?: string;
+  aspect: string;
+  orb: number;
+  exact: boolean;
+  shortDescription: string;
+  description: string;
+  tags?: string[];
+}
+
 // Function to safely get sweph at runtime
 function getSweph() {
   try {
@@ -15,8 +108,8 @@ function getSweph() {
   }
 }
 
-// Calculate current planetary positions using sweph
-const calculateCurrentPlanets = (): PlanetPosition[] => {
+// Calculate planetary positions for a specific date/time using sweph
+const calculateCurrentPlanets = (asOfDate: Date = new Date()): PlanetPosition[] => {
   const sweph = getSweph();
   if (!sweph) {
     console.warn("[transits] sweph not available, cannot calculate real transits");
@@ -24,12 +117,11 @@ const calculateCurrentPlanets = (): PlanetPosition[] => {
   }
 
   try {
-    const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = now.getUTCMonth() + 1;
-    const day = now.getUTCDate();
-    const hour = now.getUTCHours();
-    const minute = now.getUTCMinutes();
+    const year = asOfDate.getUTCFullYear();
+    const month = asOfDate.getUTCMonth() + 1;
+    const day = asOfDate.getUTCDate();
+    const hour = asOfDate.getUTCHours();
+    const minute = asOfDate.getUTCMinutes();
 
     // Get Julian Day for current time
     const jdResult = sweph.utc_to_jd(
@@ -48,7 +140,7 @@ const calculateCurrentPlanets = (): PlanetPosition[] => {
     }
 
     const jd = jdResult.data[0];
-    console.log(`[transits] Calculating current positions for JD ${jd}`);
+    console.log(`[transits] Calculating positions for ${asOfDate.toISOString()} (JD ${jd})`);
 
     // Calculate current positions for all planets
     const planets = [
@@ -104,18 +196,14 @@ const calculateCurrentPlanets = (): PlanetPosition[] => {
   }
 };
 
-export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
-  transitingPlanet: string;
-  natalPlanet: string;
-  aspect: string;
-  orb: number;
-  exact: boolean;
-  tags?: string[];
-}> => {
-  console.log("[transits] Calculating current transits vs natal chart");
+export const getTransitsForDate = (
+  natalPlanets: PlanetPosition[],
+  asOfDate: Date
+): TransitMatch[] => {
+  console.log(`[transits] Calculating transits vs natal chart for ${asOfDate.toISOString()}`);
   
   // Calculate where planets are RIGHT NOW
-  const currentPositions = calculateCurrentPlanets();
+  const currentPositions = calculateCurrentPlanets(asOfDate);
   
   if (currentPositions.length === 0) {
     console.warn("[transits] No current positions calculated, cannot compute transits");
@@ -128,7 +216,7 @@ export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
     console.log(`  ${p.name}: ${p.longitude.toFixed(2)}° (${p.sign} ${p.degree}°${p.minute}')`);
   });
 
-  const aspects = [];
+  const aspects: TransitMatch[] = [];
   const major = [
     { type: 'Conjunction', angle: 0, orb: 10 },
     { type: 'Sextile', angle: 60, orb: 6 },
@@ -146,12 +234,30 @@ export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
       for (const asp of major) {
         const orbDiff = Math.abs(diff - asp.angle);
         if (orbDiff <= asp.orb) {
-          const aspect = {
+          const description = buildTransitDescription({
             transitingPlanet: trans.name,
             natalPlanet: natal.name,
             aspect: asp.type,
             orb: orbDiff,
+            transitingSign: trans.sign,
+          });
+          const shortDescription = buildTransitShortDescription({
+            transitingPlanet: trans.name,
+            natalPlanet: natal.name,
+            aspect: asp.type,
+            orb: orbDiff,
+          });
+
+          const aspect: TransitMatch = {
+            transitingPlanet: trans.name,
+            transitingSign: trans.sign,
+            natalPlanet: natal.name,
+            natalSign: natal.sign,
+            aspect: asp.type,
+            orb: orbDiff,
             exact: orbDiff < 1,
+            shortDescription,
+            description,
           };
           aspects.push(aspect);
           console.log(`[transits] Found: ${trans.name} ${asp.type} natal ${natal.name} (orb: ${orbDiff.toFixed(2)}°)`);
@@ -165,6 +271,10 @@ export const getCurrentTransits = (natalPlanets: PlanetPosition[]): Array<{
 
 
   return aspects;
+};
+
+export const getCurrentTransits = (natalPlanets: PlanetPosition[]): TransitMatch[] => {
+  return getTransitsForDate(natalPlanets, new Date());
 };
 
 // getPlanetId and constants removed (no sweph)

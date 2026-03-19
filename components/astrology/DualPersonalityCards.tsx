@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/hooks/usePersonality';
@@ -62,11 +62,63 @@ interface DualPersonalityCardsProps {
  * Mask (extrovert facade, Sun/Asc) & Core (inner truth, Moon/Mercury).
  */
 export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading = false }: DualPersonalityCardsProps) {
+  const SHADOW_INFO_STORAGE_KEY = 'merlin:shadow-info:expanded';
+  const MBTI_OVERRIDE_PANEL_STORAGE_KEY = 'merlin:mbti-override-panel:open';
   const { user } = useUser();
   const savedOverride = (user?.unsafeMetadata?.mbtiOverride as MBTIType | undefined) ?? null;
   const [showOverride, setShowOverride] = useState(false);
   const [selectedType, setSelectedType] = useState<MBTIType | ''>(savedOverride || '');
   const [savingOverride, setSavingOverride] = useState(false);
+  const [showShadowInfo, setShowShadowInfo] = useState(false);
+  const [shadowPrefLoaded, setShadowPrefLoaded] = useState(false);
+  const [overridePanelPrefLoaded, setOverridePanelPrefLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = window.localStorage.getItem(SHADOW_INFO_STORAGE_KEY);
+      if (saved === 'true') setShowShadowInfo(true);
+      if (saved === 'false') setShowShadowInfo(false);
+    } catch {
+      // no-op
+    } finally {
+      setShadowPrefLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !shadowPrefLoaded) return;
+    try {
+      window.localStorage.setItem(SHADOW_INFO_STORAGE_KEY, String(showShadowInfo));
+    } catch {
+      // no-op
+    }
+  }, [showShadowInfo, shadowPrefLoaded]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = window.localStorage.getItem(MBTI_OVERRIDE_PANEL_STORAGE_KEY);
+      if (saved === 'true') {
+        setShowOverride(true);
+        setSelectedType(savedOverride || '');
+      }
+      if (saved === 'false') setShowOverride(false);
+    } catch {
+      // no-op
+    } finally {
+      setOverridePanelPrefLoaded(true);
+    }
+  }, [savedOverride]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !overridePanelPrefLoaded) return;
+    try {
+      window.localStorage.setItem(MBTI_OVERRIDE_PANEL_STORAGE_KEY, String(showOverride));
+    } catch {
+      // no-op
+    }
+  }, [showOverride, overridePanelPrefLoaded]);
 
   const finalType: MBTIType | null = savedOverride || (dualOverlay?.finalType as MBTIType) || mbtiType;
 
@@ -314,6 +366,36 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
             </div>
           </div>
         </motion.div>
+      </motion.div>
+
+      {/* What is the shadow? (collapsed by default) */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="rounded-lg border border-slate-700/50 bg-slate-900/50"
+      >
+        <button
+          type="button"
+          onClick={() => setShowShadowInfo((prev) => !prev)}
+          className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+          aria-expanded={showShadowInfo}
+          aria-controls="shadow-info-details"
+          title={showShadowInfo ? 'Hide shadow explanation' : 'Read shadow explanation'}
+        >
+          <span className="text-sm font-semibold text-slate-300">What is the Shadow?</span>
+          <span className="text-xs text-slate-400">{showShadowInfo ? 'Hide explanation' : 'Read explanation'}</span>
+        </button>
+        {showShadowInfo && (
+          <div id="shadow-info-details" className="px-4 pb-4 text-sm text-slate-300 leading-relaxed border-t border-slate-700/40">
+            <p className="pt-3">
+              The shadow is the dark side of personality: traits, impulses, and emotional reactions you carry but don’t usually show in your everyday identity.
+            </p>
+            <p className="mt-2">
+              It often appears under stress, conflict, rejection, or exhaustion. Shadow does not mean “bad person” — it means unintegrated parts of you that need awareness, ownership, and healthier expression.
+            </p>
+          </div>
+        )}
       </motion.div>
 
       {/* Shadow Name Card — always visible */}

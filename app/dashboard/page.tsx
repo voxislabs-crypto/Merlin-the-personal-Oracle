@@ -86,6 +86,11 @@ export default function UnifiedDashboard() {
     }
   }, [interpretMode, birthData, chartData, generateInterpretations]);
 
+  const refreshTransitsWithContext = useCallback(() => {
+    if (!birthData) return;
+    calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined });
+  }, [birthData, calculateTransits, mbtiType, userId]);
+
   useEffect(() => {
     if (!isLoaded) return;
     if (!user) {
@@ -154,7 +159,7 @@ export default function UnifiedDashboard() {
         Promise.all([
           generateInterpretations(birth, interpretMode),
           calculateForecast(birth),
-          calculateTransits(birth),
+          calculateTransits(birth, { mbtiType: mbtiType || undefined }),
           calculateLifeArc(birth, chart),
           calculateWeeklyForecast(birth),
           calculatePersonality(birth).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
@@ -219,7 +224,7 @@ export default function UnifiedDashboard() {
     Promise.all([
       generateInterpretations(derived, interpretMode),
       calculateForecast(derived),
-      calculateTransits(derived),
+      calculateTransits(derived, { mbtiType: mbtiType || undefined }),
       calculateLifeArc(derived, data),
       calculateWeeklyForecast(derived),
       calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
@@ -744,8 +749,11 @@ export default function UnifiedDashboard() {
                             significant={transits?.significant || []}
                             approaching={transits?.approaching || []}
                             summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
+                            predictive={transits?.predictive}
                             loading={transitsLoading}
                             userId={userId || undefined}
+                            mbtiType={mbtiType || undefined}
+                            onContextSaved={refreshTransitsWithContext}
                           />
                         )}
 

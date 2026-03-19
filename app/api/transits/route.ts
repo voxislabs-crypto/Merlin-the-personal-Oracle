@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { getCurrentTransits } from '@/lib/astrology/transits';
+import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
+import { resonanceDB } from '@/lib/resonance-database';
+import { getUserContextSnapshot } from '@/lib/user-context';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -94,6 +97,24 @@ export async function POST(request: Request) {
     // Categorize transits by influence
     const significantTransits = transits.filter(t => t.exact || t.orb < 1.5);
     const approachingTransits = transits.filter(t => !t.exact && t.orb >= 1.5 && t.orb < 3);
+    if (userId) {
+      await resonanceDB.ensureUser({
+        userId,
+        mbtiType,
+        createdAt: new Date(),
+      });
+    }
+
+    const userContext = userId ? await getUserContextSnapshot(userId) : null;
+
+    const predictive = await buildPredictiveTransitBundle({
+      natalPlanets: natalChart.positions || [],
+      birthDate,
+      mbtiType,
+      userId,
+      userContext,
+      windowDays: 7,
+    });
 
     console.log('Successfully calculated transits:', transits.length);
     return NextResponse.json({
@@ -108,6 +129,8 @@ export async function POST(request: Request) {
           exact: significantTransits.length,
           approaching: approachingTransits.length
         },
+        predictive,
+        userContext,
         timezoneOffsetHours: appliedOffsetHours,
       }
     });

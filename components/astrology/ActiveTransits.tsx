@@ -3,13 +3,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import ThumbsFeedback from './ThumbsFeedback';
+import { FeedbackCollector } from './FeedbackCollector';
+import { UserContextCard } from './UserContextCard';
 
 interface TransitData {
   transitingPlanet: string;
+  transitingSign: string;
   natalPlanet: string;
+  natalSign?: string;
   aspect: string;
   orb: number;
   exact: boolean;
+  shortDescription: string;
+  description: string;
 }
 
 interface TransitSummary {
@@ -18,21 +24,166 @@ interface TransitSummary {
   approaching: number;
 }
 
+interface PredictiveEvent {
+  eventId: string;
+  timing: {
+    phase: 'building' | 'peaking' | 'releasing';
+    peakAt: string;
+    daysToPeak: number;
+    hoursToPeak: number;
+  };
+  scores: {
+    intensity: number;
+    confidence: number;
+    volatility: number;
+    learnedAdjustment: number;
+  };
+  explanation: {
+    aspectWeight: number;
+    transitPlanetWeight: number;
+    natalPointWeight: number;
+    orbFactor: number;
+    lifeStageBoost: number;
+    mbtiModifier: number;
+    contextMultiplier: number;
+    learnedAdjustment: number;
+    contextSignals: string[];
+  };
+  transit: {
+    transitingPlanet: string;
+    aspect: string;
+    natalPlanet: string;
+  };
+  domains: Array<{
+    name: 'love' | 'career' | 'money' | 'family' | 'health' | 'self';
+    impact: number;
+    valence: number;
+  }>;
+  narrative: {
+    whisper: string;
+    risk: string;
+    opportunity: string;
+    vibe: string;
+  };
+  mbtiLens: {
+    likelyPattern: string;
+    blindSpot: string;
+    bestMove24h: string;
+    avoidNow: string;
+  };
+  lifeStage: {
+    tag: string;
+    active: boolean;
+    note?: string;
+  };
+}
+
 interface ActiveTransitsProps {
   significant: TransitData[];
   approaching: TransitData[];
   summary: TransitSummary;
+  predictive?: {
+    generatedAt: string;
+    windowDays: number;
+    events: PredictiveEvent[];
+  };
   loading?: boolean;
   userId?: string;
+  mbtiType?: string | null;
+  onContextSaved?: () => void;
 }
 
 export function ActiveTransits({
   significant,
   approaching,
   summary,
+  predictive,
   loading = false,
-  userId
+  userId,
+  mbtiType,
+  onContextSaved
 }: ActiveTransitsProps) {
+  const STORAGE_KEY = 'merlin:transit-details:active-transits';
+  const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
+
+  const toggleExpanded = (id: string) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const transitId = (prefix: string, transit: TransitData) =>
+    `${prefix}-${transit.transitingPlanet}-${transit.natalPlanet}-${transit.aspect}-${transit.orb.toFixed(2)}`;
+
+  const allTransitIds = React.useMemo(
+    () => [
+      ...significant.map((transit) => transitId('sig', transit)),
+      ...approaching.map((transit) => transitId('app', transit)),
+    ],
+    [significant, approaching]
+  );
+
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    allTransitIds.forEach((id) => {
+      next[id] = true;
+    });
+    setExpandedItems(next);
+  };
+
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    allTransitIds.forEach((id) => {
+      next[id] = false;
+    });
+    setExpandedItems(next);
+  };
+
+  React.useEffect(() => {
+    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+    const defaults: Record<string, boolean> = {};
+
+    significant.forEach((transit) => {
+      defaults[transitId('sig', transit)] = isDesktop;
+    });
+
+    approaching.forEach((transit) => {
+      defaults[transitId('app', transit)] = isDesktop;
+    });
+
+    if (typeof window === 'undefined') {
+      setExpandedItems(defaults);
+      return;
+    }
+
+    try {
+      const savedRaw = window.localStorage.getItem(STORAGE_KEY);
+      if (!savedRaw) {
+        setExpandedItems(defaults);
+        return;
+      }
+
+      const saved = JSON.parse(savedRaw) as Record<string, boolean>;
+      const merged: Record<string, boolean> = {};
+      Object.keys(defaults).forEach((key) => {
+        merged[key] = typeof saved[key] === 'boolean' ? saved[key] : defaults[key];
+      });
+      setExpandedItems(merged);
+    } catch {
+      setExpandedItems(defaults);
+    }
+  }, [significant, approaching]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(expandedItems));
+    } catch {
+      // no-op
+    }
+  }, [expandedItems]);
+
   if (loading) {
     return (
       <div className="p-8 bg-slate-900/50 rounded-lg border border-amber-500/20">
@@ -71,6 +222,9 @@ export function ActiveTransits({
       initial="hidden"
       animate="visible"
     >
+      <motion.div variants={itemVariants}>
+        <UserContextCard userId={userId} onSaved={onContextSaved} />
+      </motion.div>
 
       {/* Summary Stats */}
       <motion.div
@@ -91,6 +245,98 @@ export function ActiveTransits({
         </div>
       </motion.div>
 
+      {allTransitIds.length > 0 && (
+        <motion.div variants={itemVariants} className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={expandAll}
+            className="text-xs text-amber-300 hover:text-amber-200 underline"
+            title="Expand all transit interpretations"
+          >
+            Expand all interpretations
+          </button>
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="text-xs text-slate-400 hover:text-slate-300 underline"
+            title="Collapse all transit interpretations"
+          >
+            Collapse all interpretations
+          </button>
+        </motion.div>
+      )}
+
+      {predictive?.events?.length ? (
+        <motion.div variants={itemVariants} className="p-4 rounded-lg border border-violet-500/30 bg-violet-950/20">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-violet-200">🔮 7-Day Clairvoyance Forecast</h3>
+            <span className="text-xs text-violet-300/80">Top {Math.min(3, predictive.events.length)} signals</span>
+          </div>
+          <div className="space-y-3">
+            {predictive.events.slice(0, 3).map((event) => (
+              <div key={event.eventId} className="rounded-md border border-violet-400/20 bg-slate-900/40 p-3">
+                <p className="text-sm font-semibold text-violet-100">
+                  {event.transit.transitingPlanet} {event.transit.aspect} {event.transit.natalPlanet}
+                </p>
+                <p className="text-xs text-violet-300/80 mt-1">
+                  {event.timing.phase.toUpperCase()} · peaks {new Date(event.timing.peakAt).toLocaleDateString()} ({event.timing.hoursToPeak}h) · intensity {event.scores.intensity}/100
+                </p>
+                {event.scores.learnedAdjustment !== 0 && (
+                  <p className="text-xs text-violet-400/80 mt-1">
+                    Learned adjustment: {event.scores.learnedAdjustment > 0 ? '+' : ''}{event.scores.learnedAdjustment.toFixed(2)}
+                  </p>
+                )}
+                <p className="text-sm text-slate-200 mt-2">{event.narrative.whisper}</p>
+                <p className="text-xs text-slate-300 mt-1">{event.narrative.vibe}</p>
+                {event.explanation.contextSignals.length > 0 && (
+                  <p className="text-xs text-cyan-300 mt-1">
+                    Context read: {event.explanation.contextSignals.join(', ')}
+                  </p>
+                )}
+                <p className="text-xs text-slate-300 mt-1">Best move (24h): {event.mbtiLens.bestMove24h}</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Risk: {event.narrative.risk}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Opportunity: {event.narrative.opportunity}
+                </p>
+                <details className="mt-2 rounded border border-violet-500/20 bg-slate-950/40 p-2">
+                  <summary className="cursor-pointer text-xs text-violet-200">Why this score changed</summary>
+                  <div className="mt-2 space-y-1 text-xs text-slate-300">
+                    <p>Aspect weight: {event.explanation.aspectWeight}</p>
+                    <p>Transit planet weight: {event.explanation.transitPlanetWeight}</p>
+                    <p>Natal point weight: {event.explanation.natalPointWeight}</p>
+                    <p>Orb factor: {event.explanation.orbFactor}</p>
+                    <p>Life-stage boost: {event.explanation.lifeStageBoost}</p>
+                    <p>MBTI modifier: {event.explanation.mbtiModifier}</p>
+                    <p>Context multiplier: {event.explanation.contextMultiplier}</p>
+                    <p>Learned adjustment: {event.explanation.learnedAdjustment > 0 ? '+' : ''}{event.explanation.learnedAdjustment}</p>
+                    <p>Blind spot: {event.mbtiLens.blindSpot}</p>
+                    <p>Avoid now: {event.mbtiLens.avoidNow}</p>
+                  </div>
+                </details>
+                {event.lifeStage.active && (
+                  <p className="text-xs text-amber-300 mt-2">Life stage active: {event.lifeStage.tag}{event.lifeStage.note ? ` — ${event.lifeStage.note}` : ''}</p>
+                )}
+                {userId && (
+                  <div className="mt-3">
+                    <FeedbackCollector
+                      aspectId={event.eventId}
+                      theme={event.domains[0]?.name || 'predictive'}
+                      userId={userId}
+                      mbtiType={mbtiType || undefined}
+                      transitDescription={event.narrative.whisper}
+                      promptText="Did this happen in your life?"
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ) : null}
+
       {/* Significant Transits */}
       {significant.length > 0 && (
         <motion.div variants={itemVariants}>
@@ -106,7 +352,7 @@ export function ActiveTransits({
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-bold text-red-200">
-                    {transit.transitingPlanet} {transit.aspect} {transit.natalPlanet}
+                    {transit.transitingPlanet} ({transit.transitingSign}) {transit.aspect} {transit.natalPlanet}
                   </span>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     transit.exact ? 'bg-red-600 text-red-100' : 'bg-orange-600 text-orange-100'
@@ -115,8 +361,23 @@ export function ActiveTransits({
                   </span>
                 </div>
                 <p className="text-red-200/70 text-sm">
-                  This is a powerful time for {describeAspect(transit.aspect)} between your {transit.natalPlanet} and {transit.transitingPlanet}.
+                  {transit.shortDescription || `This is a powerful time for ${describeAspect(transit.aspect)} between your ${transit.natalPlanet} and ${transit.transitingPlanet}.`}
                 </p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-red-300 hover:text-red-200 underline"
+                  onClick={() => toggleExpanded(transitId('sig', transit))}
+                  aria-expanded={Boolean(expandedItems[transitId('sig', transit)])}
+                  aria-controls={`${transitId('sig', transit)}-detail`}
+                  title={expandedItems[transitId('sig', transit)] ? 'Hide full interpretation' : 'Read full interpretation'}
+                >
+                  {expandedItems[transitId('sig', transit)] ? 'Hide full interpretation' : 'Read full interpretation'}
+                </button>
+                {expandedItems[transitId('sig', transit)] && (
+                  <p id={`${transitId('sig', transit)}-detail`} className="mt-2 text-red-100/80 text-sm">
+                    {transit.description || `This is a powerful time for ${describeAspect(transit.aspect)} between your ${transit.natalPlanet} and ${transit.transitingPlanet}.`}
+                  </p>
+                )}
                 <div className="mt-2">
                   <ThumbsFeedback itemId={`transit-sig-${transit.transitingPlanet}-${transit.natalPlanet}`} label="transit" userId={userId} theme="transits" />
                 </div>
@@ -141,15 +402,30 @@ export function ActiveTransits({
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-bold text-amber-200">
-                    {transit.transitingPlanet} {transit.aspect} {transit.natalPlanet}
+                    {transit.transitingPlanet} ({transit.transitingSign}) {transit.aspect} {transit.natalPlanet}
                   </span>
                   <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-600 text-amber-100">
                     {transit.orb.toFixed(1)}° orb
                   </span>
                 </div>
                 <p className="text-amber-200/70 text-sm">
-                  This transit is coming into focus. Pay attention to emerging patterns around {transit.natalPlanet}.
+                  {transit.shortDescription || `This transit is coming into focus. Pay attention to emerging patterns around ${transit.natalPlanet}.`}
                 </p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-amber-300 hover:text-amber-200 underline"
+                  onClick={() => toggleExpanded(transitId('app', transit))}
+                  aria-expanded={Boolean(expandedItems[transitId('app', transit)])}
+                  aria-controls={`${transitId('app', transit)}-detail`}
+                  title={expandedItems[transitId('app', transit)] ? 'Hide full interpretation' : 'Read full interpretation'}
+                >
+                  {expandedItems[transitId('app', transit)] ? 'Hide full interpretation' : 'Read full interpretation'}
+                </button>
+                {expandedItems[transitId('app', transit)] && (
+                  <p id={`${transitId('app', transit)}-detail`} className="mt-2 text-amber-100/80 text-sm">
+                    {transit.description || `This transit is coming into focus. Pay attention to emerging patterns around ${transit.natalPlanet}.`}
+                  </p>
+                )}
                 <div className="mt-2">
                   <ThumbsFeedback itemId={`transit-app-${transit.transitingPlanet}-${transit.natalPlanet}`} label="transit" userId={userId} theme="transits" />
                 </div>

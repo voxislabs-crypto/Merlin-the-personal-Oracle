@@ -29,7 +29,77 @@ export function ChartTabs({
   onHoverPlanet,
   onHoverAspect
 }: ChartTabsProps) {
+  const STORAGE_KEY = 'merlin:transit-details:chart-tabs';
   const [activeTab, setActiveTab] = useState('chart');
+  const [expandedTransitItems, setExpandedTransitItems] = useState<Record<string, boolean>>({});
+
+  const transitItemId = (t: any) =>
+    `${t.transitingPlanet}-${t.natalPlanet}-${t.aspect}-${t.orb?.toFixed?.(2) || '0.00'}`;
+
+  const allTransitIds = transits.map((t: any) => transitItemId(t));
+
+  React.useEffect(() => {
+    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+    const defaults: Record<string, boolean> = {};
+
+    transits.forEach((t: any) => {
+      defaults[transitItemId(t)] = isDesktop;
+    });
+
+    if (typeof window === 'undefined') {
+      setExpandedTransitItems(defaults);
+      return;
+    }
+
+    try {
+      const savedRaw = window.localStorage.getItem(STORAGE_KEY);
+      if (!savedRaw) {
+        setExpandedTransitItems(defaults);
+        return;
+      }
+
+      const saved = JSON.parse(savedRaw) as Record<string, boolean>;
+      const merged: Record<string, boolean> = {};
+      Object.keys(defaults).forEach((key) => {
+        merged[key] = typeof saved[key] === 'boolean' ? saved[key] : defaults[key];
+      });
+      setExpandedTransitItems(merged);
+    } catch {
+      setExpandedTransitItems(defaults);
+    }
+  }, [transits]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(expandedTransitItems));
+    } catch {
+      // no-op
+    }
+  }, [expandedTransitItems]);
+
+  const toggleTransitDetail = (id: string) => {
+    setExpandedTransitItems((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const expandAllTransitDetails = () => {
+    const next: Record<string, boolean> = {};
+    allTransitIds.forEach((id) => {
+      next[id] = true;
+    });
+    setExpandedTransitItems(next);
+  };
+
+  const collapseAllTransitDetails = () => {
+    const next: Record<string, boolean> = {};
+    allTransitIds.forEach((id) => {
+      next[id] = false;
+    });
+    setExpandedTransitItems(next);
+  };
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-12">
@@ -105,9 +175,29 @@ export function ChartTabs({
 
       <TabsContent value="transits">
         <ScrollArea className="h-96 rounded-lg border border-amber-500/30 bg-slate-900/50 backdrop-blur p-6">
-          <div className="text-amber-300 text-center mb-4">
+          <div className="text-amber-300 text-center mb-2">
             Current Transits — {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </div>
+          {transits.length > 0 && (
+            <div className="flex items-center justify-end gap-3 mb-3">
+              <button
+                type="button"
+                onClick={expandAllTransitDetails}
+                className="text-xs text-amber-300 hover:text-amber-200 underline"
+                title="Expand all transit interpretations"
+              >
+                Expand all interpretations
+              </button>
+              <button
+                type="button"
+                onClick={collapseAllTransitDetails}
+                className="text-xs text-slate-400 hover:text-slate-300 underline"
+                title="Collapse all transit interpretations"
+              >
+                Collapse all interpretations
+              </button>
+            </div>
+          )}
           <div className="space-y-4">
             {transits.length > 0 ? (
               transits.map((t: any, i: number) => (
@@ -118,9 +208,30 @@ export function ChartTabs({
                   onMouseLeave={() => onHoverPlanet(null)}
                 >
                   <div className="font-bold text-amber-400">
-                    {t.transitingPlanet} {t.aspect} natal {t.natalPlanet} (orb {t.orb?.toFixed?.(2) || '0.00'}°)
+                    {t.transitingPlanet} {t.transitingSign ? `(${t.transitingSign}) ` : ''}{t.aspect} natal {t.natalPlanet} (orb {t.orb?.toFixed?.(2) || '0.00'}°)
                     {t.exact && " — EXACT"}
                   </div>
+                  <div className="text-sm text-gray-300 mt-1">
+                    {t.shortDescription || 'No interpretation available for this transit yet.'}
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-2 text-xs text-amber-300 hover:text-amber-200 underline"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleTransitDetail(transitItemId(t));
+                    }}
+                    aria-expanded={Boolean(expandedTransitItems[transitItemId(t)])}
+                    aria-controls={`${transitItemId(t)}-detail`}
+                    title={expandedTransitItems[transitItemId(t)] ? 'Hide full interpretation' : 'Read full interpretation'}
+                  >
+                    {expandedTransitItems[transitItemId(t)] ? 'Hide full interpretation' : 'Read full interpretation'}
+                  </button>
+                  {expandedTransitItems[transitItemId(t)] && (
+                    <p id={`${transitItemId(t)}-detail`} className="mt-2 text-sm text-gray-300">
+                      {t.description || 'No detailed interpretation available for this transit yet.'}
+                    </p>
+                  )}
                 </div>
               ))
             ) : (

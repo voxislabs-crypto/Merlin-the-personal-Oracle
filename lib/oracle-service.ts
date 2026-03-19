@@ -5,6 +5,7 @@ import "server-only";
 import { BirthChartData } from '@/types/astrology';
 import { Timeline } from '@/lib/timeline-service';
 import { DailyForecast } from '@/lib/astrology/ephemeris';
+import type { PersistentUserContextSnapshot } from '@/lib/user-context';
 import oraclePhrases from '@/data/oracle-phrases.json';
 
 export interface OracleMessage {
@@ -16,10 +17,14 @@ export interface OracleMessage {
 export interface TransitData {
   all: Array<{
     transitingPlanet: string;
+    transitingSign?: string;
     natalPlanet: string;
+    natalSign?: string;
     aspect: string;
     orb: number;
     exact: boolean;
+    shortDescription?: string;
+    description?: string;
   }>;
   significant: Array<any>;
   approaching: Array<any>;
@@ -36,6 +41,7 @@ export interface OracleContext {
   progressedChart?: any;
   transits?: TransitData; // Current transits vs natal
   dailyForecast?: DailyForecast; // Today's ephemeris forecast
+  userContext?: PersistentUserContextSnapshot | null;
   stormsReport?: {
     storms: Array<{
       date: string;
@@ -388,6 +394,24 @@ ${navigationHints || '- Use proactive planning during calm windows'}
   `.trim();
 }
 
+function formatUserContext(userContext: OracleContext['userContext']): string {
+  if (!userContext) return '';
+
+  const goals = userContext.goals.length > 0 ? userContext.goals.join(', ') : 'none saved';
+  const situation = userContext.situation || 'not provided';
+  const mood = userContext.mood || 'not provided';
+  const lastFeedback = userContext.lastFeedbackNotes || 'none recorded';
+
+  return `
+PERSISTENT LIFE CONTEXT:
+- Current situation: ${situation}
+- Current mood: ${mood}
+- Active goals: ${goals}
+- Last feedback note: ${lastFeedback}
+- Context rule: treat this as real-world terrain, not background flavor. If the user asks about jobs, money, housing, relationships, health, or safety, weight this context heavily.
+  `.trim();
+}
+
 /**
  * Build system prompt for Merlin 2.0 - Storm-Radar Oracle Engine
  * Predicts emotional, relational, financial, and cosmic storms using:
@@ -402,6 +426,7 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
   const forecastContext = context.dailyForecast ? formatDailyForecastContext(context.dailyForecast) : '';
   const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
+  const userContextBlock = context.userContext ? formatUserContext(context.userContext) : '';
   const stormsContext = context.stormsReport ? formatStormsContext(context.stormsReport) : '';
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
   const plainEnglish = context.plainEnglish !== false; // Default ON
@@ -464,6 +489,7 @@ ${mbtiLine}
 ${transitsContext ? `\n${transitsContext}` : ''}
 ${forecastContext ? `\n${forecastContext}` : ''}
 ${timelineContext ? `\n${timelineContext}` : ''}
+${userContextBlock ? `\n${userContextBlock}` : ''}
 ${stormsContext ? `\n${stormsContext}` : ''}
 
 CONVERSATION HISTORY (last few messages):

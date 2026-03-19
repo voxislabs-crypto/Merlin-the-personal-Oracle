@@ -21,7 +21,7 @@ const STORAGE_PREFIX = 'merlin_feedback_';
 
 /**
  * Compact inline thumbs up / down feedback.
- * Persists to localStorage immediately; also fires to resonanceDB when userId is present.
+ * Persists to localStorage immediately; also sends to the server when userId is present.
  */
 export function ThumbsFeedback({ itemId, label = 'insight', userId, theme = 'general' }: ThumbsFeedbackProps) {
   const storageKey = `${STORAGE_PREFIX}${itemId}`;
@@ -46,16 +46,25 @@ export function ThumbsFeedback({ itemId, label = 'insight', userId, theme = 'gen
     // Persist locally
     try { localStorage.setItem(storageKey, v); } catch { /* no-op */ }
 
-    // Fire to resonanceDB in background when userId available
+    // Fire to the feedback API in background when userId is available
     if (userId) {
       try {
-        const { resonanceDB } = await import('@/lib/resonance-database');
-        await resonanceDB.processFeedback(userId, itemId, theme, {
-          resonated: v === 'up',
-          accuracyScore: v === 'up' ? 0.85 : 0.25,
+        await fetch('/api/resonance-feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            aspectId: itemId,
+            theme,
+            feedback: {
+              resonated: v === 'up',
+              accuracyScore: v === 'up' ? 0.85 : 0.25,
+              notes: `${label}: ${v === 'up' ? 'positive' : 'negative'} quick feedback`,
+            },
+          }),
         });
       } catch (e) {
-        console.warn('[ThumbsFeedback] resonanceDB unavailable:', e);
+        console.warn('[ThumbsFeedback] feedback API unavailable:', e);
       }
     }
   }, [vote, storageKey, userId, itemId, theme]);

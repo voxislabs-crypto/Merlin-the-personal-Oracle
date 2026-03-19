@@ -1,5 +1,4 @@
-// Resonance Database - In-memory storage for the learning system
-// Replace with real database (Prisma, MongoDB, etc.) in production
+import 'server-only';
 
 import type {
   User,
@@ -9,169 +8,263 @@ import type {
   FeedbackLog,
   ResonanceStats,
   FeedbackData,
-} from "./resonance-types"
+} from './resonance-types';
+import { prisma } from '@/lib/prisma';
 
-// In-memory storage for prototype (replace with real database later)
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function serializeBig5(big5?: User['big5']): string | null {
+  return big5 ? JSON.stringify(big5) : null;
+}
+
+function deserializeBig5(big5Json?: string | null): User['big5'] | undefined {
+  if (!big5Json) return undefined;
+  try {
+    return JSON.parse(big5Json) as User['big5'];
+  } catch {
+    return undefined;
+  }
+}
+
 class ResonanceDatabase {
-  private users: Map<string, User> = new Map()
-  private personalResonance: Map<string, PersonalResonance[]> = new Map()
-  private globalResonance: Map<string, GlobalResonance> = new Map()
-  private clusterResonance: Map<string, ClusterResonance[]> = new Map()
-  private feedbackLogs: FeedbackLog[] = []
-
-  // User Management
   async createUser(user: User): Promise<void> {
-    this.users.set(user.userId, user)
-    this.personalResonance.set(user.userId, [])
+    await prisma.resonanceUser.create({
+      data: {
+        userId: user.userId,
+        mbtiType: user.mbtiType,
+        enneagramType: user.enneagramType,
+        big5Json: serializeBig5(user.big5),
+        createdAt: user.createdAt,
+      },
+    });
   }
 
   async getUser(userId: string): Promise<User | null> {
-    return this.users.get(userId) || null
+    const user = await prisma.resonanceUser.findUnique({ where: { userId } });
+    if (!user) return null;
+
+    return {
+      userId: user.userId,
+      mbtiType: user.mbtiType || undefined,
+      enneagramType: user.enneagramType || undefined,
+      big5: deserializeBig5(user.big5Json),
+      createdAt: user.createdAt,
+    };
   }
 
   async updateUser(userId: string, updates: Partial<User>): Promise<void> {
-    const user = this.users.get(userId)
-    if (user) {
-      this.users.set(userId, { ...user, ...updates })
-    }
+    await prisma.resonanceUser.update({
+      where: { userId },
+      data: {
+        mbtiType: updates.mbtiType,
+        enneagramType: updates.enneagramType,
+        big5Json: updates.big5 ? serializeBig5(updates.big5) : undefined,
+      },
+    });
   }
 
-  // Personal Resonance
+  async ensureUser(user: User): Promise<void> {
+    await prisma.resonanceUser.upsert({
+      where: { userId: user.userId },
+      create: {
+        userId: user.userId,
+        mbtiType: user.mbtiType,
+        enneagramType: user.enneagramType,
+        big5Json: serializeBig5(user.big5),
+        createdAt: user.createdAt,
+      },
+      update: {
+        mbtiType: user.mbtiType ?? undefined,
+        enneagramType: user.enneagramType ?? undefined,
+        big5Json: user.big5 ? serializeBig5(user.big5) : undefined,
+      },
+    });
+  }
+
   async getPersonalResonance(userId: string, aspectId: string, theme: string): Promise<PersonalResonance | null> {
-    const userResonance = this.personalResonance.get(userId) || []
-    return userResonance.find((r) => r.aspectId === aspectId && r.theme === theme) || null
+    const record = await prisma.personalResonanceRecord.findUnique({
+      where: { userId_aspectId_theme: { userId, aspectId, theme } },
+    });
+    if (!record) return null;
+
+    return {
+      userId: record.userId,
+      aspectId: record.aspectId,
+      theme: record.theme,
+      personalWeight: record.personalWeight,
+      confidence: record.confidence,
+      feedbackCount: record.feedbackCount,
+    };
   }
 
-  async updatePersonalResonance(
-    userId: string,
-    aspectId: string,
-    theme: string,
-    feedback: FeedbackData,
-  ): Promise<void> {
-    const userResonance = this.personalResonance.get(userId) || []
-    const existingIndex = userResonance.findIndex((r) => r.aspectId === aspectId && r.theme === theme)
+  async updatePersonalResonance(userId: string, aspectId: string, theme: string, feedback: FeedbackData): Promise<void> {
+    const existing = await this.getPersonalResonance(userId, aspectId, theme);
+    const adjustment = feedback.resonated ? feedback.accuracyScore : -feedback.accuracyScore;
+    const learningRate = 0.1;
 
-    if (existingIndex >= 0) {
-      const existing = userResonance[existingIndex]
-      const adjustment = feedback.resonated ? feedback.accuracyScore : -feedback.accuracyScore
-      const learningRate = 0.1
+    if (existing) {
+      await prisma.personalResonanceRecord.update({
+        where: { userId_aspectId_theme: { userId, aspectId, theme } },
+        data: {
+          personalWeight: existing.personalWeight + learningRate * adjustment,
+          confidence: clamp(existing.confidence + learningRate * adjustment * 0.5, 0, 1),
+          feedbackCount: existing.feedbackCount + 1,
+        },
+      });
+      return;
+    }
 
-      userResonance[existingIndex] = {
-        ...existing,
-        personalWeight: existing.personalWeight + learningRate * adjustment,
-        confidence: Math.max(0, Math.min(1, existing.confidence + learningRate * adjustment * 0.5)),
-        feedbackCount: existing.feedbackCount + 1,
-      }
-    } else {
-      const initialWeight = feedback.resonated ? feedback.accuracyScore * 0.1 : -feedback.accuracyScore * 0.1
-      userResonance.push({
+    const initialWeight = feedback.resonated ? feedback.accuracyScore * 0.1 : -feedback.accuracyScore * 0.1;
+    await prisma.personalResonanceRecord.create({
+      data: {
         userId,
         aspectId,
         theme,
         personalWeight: initialWeight,
         confidence: feedback.accuracyScore,
         feedbackCount: 1,
-      })
-    }
-
-    this.personalResonance.set(userId, userResonance)
+      },
+    });
   }
 
-  // Global Resonance
   async getGlobalResonance(aspectId: string, theme: string): Promise<GlobalResonance | null> {
-    const key = `${aspectId}_${theme}`
-    return this.globalResonance.get(key) || null
+    const record = await prisma.globalResonanceRecord.findUnique({
+      where: { aspectId_theme: { aspectId, theme } },
+    });
+    if (!record) return null;
+
+    return {
+      aspectId: record.aspectId,
+      theme: record.theme,
+      globalWeight: record.globalWeight,
+      confidence: record.confidence,
+      feedbackCount: record.feedbackCount,
+    };
   }
 
   async updateGlobalResonance(aspectId: string, theme: string, feedback: FeedbackData): Promise<void> {
-    const key = `${aspectId}_${theme}`
-    const existing = this.globalResonance.get(key)
+    const existing = await this.getGlobalResonance(aspectId, theme);
+    const adjustment = feedback.resonated ? feedback.accuracyScore : -feedback.accuracyScore;
+    const learningRate = 0.05;
 
     if (existing) {
-      const adjustment = feedback.resonated ? feedback.accuracyScore : -feedback.accuracyScore
-      const learningRate = 0.05 // Slower learning for global
+      await prisma.globalResonanceRecord.update({
+        where: { aspectId_theme: { aspectId, theme } },
+        data: {
+          globalWeight: existing.globalWeight + learningRate * adjustment,
+          confidence: clamp(existing.confidence + learningRate * adjustment * 0.3, 0, 1),
+          feedbackCount: existing.feedbackCount + 1,
+        },
+      });
+      return;
+    }
 
-      this.globalResonance.set(key, {
-        ...existing,
-        globalWeight: existing.globalWeight + learningRate * adjustment,
-        confidence: Math.max(0, Math.min(1, existing.confidence + learningRate * adjustment * 0.3)),
-        feedbackCount: existing.feedbackCount + 1,
-      })
-    } else {
-      const initialWeight = feedback.resonated ? feedback.accuracyScore * 0.05 : -feedback.accuracyScore * 0.05
-      this.globalResonance.set(key, {
+    const initialWeight = feedback.resonated ? feedback.accuracyScore * 0.05 : -feedback.accuracyScore * 0.05;
+    await prisma.globalResonanceRecord.create({
+      data: {
         aspectId,
         theme,
         globalWeight: initialWeight,
         confidence: feedback.accuracyScore,
         feedbackCount: 1,
-      })
-    }
+      },
+    });
   }
 
-  // Cluster Resonance
   async getClusterResonance(clusterId: string, aspectId: string, theme: string): Promise<ClusterResonance | null> {
-    const clusterData = this.clusterResonance.get(clusterId) || []
-    return clusterData.find((r) => r.aspectId === aspectId && r.theme === theme) || null
+    const record = await prisma.clusterResonanceRecord.findUnique({
+      where: { clusterId_aspectId_theme: { clusterId, aspectId, theme } },
+    });
+    if (!record) return null;
+
+    return {
+      clusterId: record.clusterId,
+      aspectId: record.aspectId,
+      theme: record.theme,
+      clusterWeight: record.clusterWeight,
+      confidence: record.confidence,
+      feedbackCount: record.feedbackCount,
+    };
   }
 
-  async updateClusterResonance(
-    clusterId: string,
-    aspectId: string,
-    theme: string,
-    feedback: FeedbackData,
-  ): Promise<void> {
-    const clusterData = this.clusterResonance.get(clusterId) || []
-    const existingIndex = clusterData.findIndex((r) => r.aspectId === aspectId && r.theme === theme)
+  async updateClusterResonance(clusterId: string, aspectId: string, theme: string, feedback: FeedbackData): Promise<void> {
+    const existing = await this.getClusterResonance(clusterId, aspectId, theme);
+    const adjustment = feedback.resonated ? feedback.accuracyScore : -feedback.accuracyScore;
+    const learningRate = 0.08;
 
-    if (existingIndex >= 0) {
-      const existing = clusterData[existingIndex]
-      const adjustment = feedback.resonated ? feedback.accuracyScore : -feedback.accuracyScore
-      const learningRate = 0.08
+    if (existing) {
+      await prisma.clusterResonanceRecord.update({
+        where: { clusterId_aspectId_theme: { clusterId, aspectId, theme } },
+        data: {
+          clusterWeight: existing.clusterWeight + learningRate * adjustment,
+          confidence: clamp(existing.confidence + learningRate * adjustment * 0.4, 0, 1),
+          feedbackCount: existing.feedbackCount + 1,
+        },
+      });
+      return;
+    }
 
-      clusterData[existingIndex] = {
-        ...existing,
-        clusterWeight: existing.clusterWeight + learningRate * adjustment,
-        confidence: Math.max(0, Math.min(1, existing.confidence + learningRate * adjustment * 0.4)),
-        feedbackCount: existing.feedbackCount + 1,
-      }
-    } else {
-      const initialWeight = feedback.resonated ? feedback.accuracyScore * 0.08 : -feedback.accuracyScore * 0.08
-      clusterData.push({
+    const initialWeight = feedback.resonated ? feedback.accuracyScore * 0.08 : -feedback.accuracyScore * 0.08;
+    await prisma.clusterResonanceRecord.create({
+      data: {
         clusterId,
         aspectId,
         theme,
         clusterWeight: initialWeight,
         confidence: feedback.accuracyScore,
         feedbackCount: 1,
-      })
-    }
-
-    this.clusterResonance.set(clusterId, clusterData)
+      },
+    });
   }
 
-  // Feedback Logs
-  async logFeedback(feedbackLog: FeedbackLog): Promise<void> {
-    this.feedbackLogs.push(feedbackLog)
+  async logFeedback(feedbackLog: FeedbackLog & { scoreBefore?: number; scoreAfter?: number; userRating?: number }): Promise<void> {
+    await prisma.resonanceFeedbackRecord.create({
+      data: {
+        feedbackId: feedbackLog.feedbackId,
+        userId: feedbackLog.userId,
+        aspectId: feedbackLog.aspectId,
+        theme: feedbackLog.theme,
+        date: new Date(feedbackLog.date),
+        orb: feedbackLog.orb,
+        confidenceScore: feedbackLog.confidenceScore,
+        resonated: feedbackLog.resonated,
+        accuracyScore: feedbackLog.accuracyScore,
+        notes: feedbackLog.notes,
+        scoreBefore: feedbackLog.scoreBefore,
+        scoreAfter: feedbackLog.scoreAfter,
+        userRating: feedbackLog.userRating,
+      },
+    });
   }
 
   async getFeedbackHistory(userId: string, limit: number = 50): Promise<FeedbackLog[]> {
-    return this.feedbackLogs
-      .filter((log) => log.userId === userId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, limit)
+    const rows = await prisma.resonanceFeedbackRecord.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+      take: limit,
+    });
+
+    return rows.map((row) => ({
+      feedbackId: row.feedbackId,
+      userId: row.userId,
+      aspectId: row.aspectId,
+      theme: row.theme,
+      date: row.date.toISOString(),
+      orb: row.orb,
+      confidenceScore: row.confidenceScore,
+      resonated: row.resonated,
+      accuracyScore: row.accuracyScore,
+      notes: row.notes || undefined,
+    }));
   }
 
-  // Resonance Stats Calculation
   async getResonanceStats(userId: string, aspectId: string, theme: string): Promise<ResonanceStats> {
-    const user = await this.getUser(userId)
-    const personal = await this.getPersonalResonance(userId, aspectId, theme)
-    const global = await this.getGlobalResonance(aspectId, theme)
-
-    let cluster = null
-    if (user?.mbtiType) {
-      cluster = await this.getClusterResonance(user.mbtiType, aspectId, theme)
-    }
+    const user = await this.getUser(userId);
+    const personal = await this.getPersonalResonance(userId, aspectId, theme);
+    const global = await this.getGlobalResonance(aspectId, theme);
+    const cluster = user?.mbtiType ? await this.getClusterResonance(user.mbtiType, aspectId, theme) : null;
 
     return {
       personal: personal
@@ -199,70 +292,60 @@ class ResonanceDatabase {
             confidence: 0.5,
             feedbackCount: 0,
           },
-    }
+    };
   }
 
-  // Calculate Final Weight
   async calculateFinalWeight(userId: string, aspectId: string, theme: string, baseWeight: number): Promise<number> {
-    const stats = await this.getResonanceStats(userId, aspectId, theme)
+    const stats = await this.getResonanceStats(userId, aspectId, theme);
+    const alpha = 0.6;
+    const beta = 0.25;
+    const gamma = 0.15;
 
-    // Personalization factors
-    const alpha = 0.6 // Personal weight
-    const beta = 0.25 // Cluster weight
-    const gamma = 0.15 // Global weight
-
-    const personalWeight = stats.personal?.weight || 0
-    const clusterWeight = stats.cluster?.weight || 0
-    const globalWeight = stats.global.weight
-
-    return baseWeight + alpha * personalWeight + beta * clusterWeight + gamma * globalWeight
+    return baseWeight + alpha * (stats.personal?.weight || 0) + beta * (stats.cluster?.weight || 0) + gamma * stats.global.weight;
   }
 
-  // Process Feedback
   async processFeedback(userId: string, aspectId: string, theme: string, feedback: FeedbackData): Promise<void> {
-    const user = await this.getUser(userId)
-
-    // Log the feedback
-    const feedbackLog: FeedbackLog = {
+    const user = await this.getUser(userId);
+    const feedbackLog = {
       feedbackId: `${userId}_${aspectId}_${Date.now()}`,
       userId,
       aspectId,
       theme,
-      date: new Date().toISOString().split("T")[0],
-      orb: 0, // Would be filled from actual transit data
-      confidenceScore: 0.8, // Would be filled from engine confidence
+      date: new Date().toISOString(),
+      orb: 0,
+      confidenceScore: 0.8,
       resonated: feedback.resonated,
       accuracyScore: feedback.accuracyScore,
       notes: feedback.notes,
-    }
+      scoreBefore: feedback.scoreBefore,
+      scoreAfter: feedback.scoreAfter,
+      userRating: feedback.userRating,
+    };
 
-    await this.logFeedback(feedbackLog)
-
-    // Update all resonance levels
-    await this.updatePersonalResonance(userId, aspectId, theme, feedback)
+    await this.logFeedback(feedbackLog);
+    await this.updatePersonalResonance(userId, aspectId, theme, feedback);
 
     if (user?.mbtiType) {
-      await this.updateClusterResonance(user.mbtiType, aspectId, theme, feedback)
+      await this.updateClusterResonance(user.mbtiType, aspectId, theme, feedback);
     }
 
-    await this.updateGlobalResonance(aspectId, theme, feedback)
+    await this.updateGlobalResonance(aspectId, theme, feedback);
   }
 
-  // User Accuracy Stats
   async getUserAccuracyStats(
     userId: string,
     days: number = 30,
   ): Promise<{
-    overallAccuracy: number
-    totalFeedbacks: number
-    strongestResonances: Array<{ aspectId: string; theme: string; accuracy: number }>
-    weakestResonances: Array<{ aspectId: string; theme: string; accuracy: number }>
+    overallAccuracy: number;
+    totalFeedbacks: number;
+    strongestResonances: Array<{ aspectId: string; theme: string; accuracy: number }>;
+    weakestResonances: Array<{ aspectId: string; theme: string; accuracy: number }>;
   }> {
-    const recentFeedback = await this.getFeedbackHistory(userId, 1000)
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - days)
+    const recentFeedback = await this.getFeedbackHistory(userId, 1000);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    const relevantFeedback = recentFeedback.filter((log) => new Date(log.date) >= cutoffDate)
+    const relevantFeedback = recentFeedback.filter((log) => new Date(log.date) >= cutoffDate);
 
     if (relevantFeedback.length === 0) {
       return {
@@ -270,56 +353,49 @@ class ResonanceDatabase {
         totalFeedbacks: 0,
         strongestResonances: [],
         weakestResonances: [],
-      }
+      };
     }
 
     const overallAccuracy =
-      relevantFeedback.reduce((sum, log) => sum + (log.resonated ? log.accuracyScore : 0), 0) / relevantFeedback.length
+      relevantFeedback.reduce((sum, log) => sum + (log.resonated ? log.accuracyScore : 0), 0) / relevantFeedback.length;
 
-    // Group by aspect-theme combinations
-    const aspectThemeStats = new Map<string, { total: number; resonated: number; accuracy: number }>()
-
+    const aspectThemeStats = new Map<string, { total: number; accuracy: number }>();
     relevantFeedback.forEach((log) => {
-      const key = `${log.aspectId}_${log.theme}`
-      const existing = aspectThemeStats.get(key) || { total: 0, resonated: 0, accuracy: 0 }
-
+      const key = `${log.aspectId}_${log.theme}`;
+      const existing = aspectThemeStats.get(key) || { total: 0, accuracy: 0 };
       aspectThemeStats.set(key, {
         total: existing.total + 1,
-        resonated: existing.resonated + (log.resonated ? 1 : 0),
         accuracy: existing.accuracy + log.accuracyScore,
-      })
-    })
+      });
+    });
 
     const sortedStats = Array.from(aspectThemeStats.entries())
       .map(([key, stats]) => {
-        const [aspectId, theme] = key.split("_")
+        const [aspectId, theme] = key.split('_');
         return {
           aspectId,
           theme,
           accuracy: stats.accuracy / stats.total,
-        }
+        };
       })
-      .sort((a, b) => b.accuracy - a.accuracy)
+      .sort((a, b) => b.accuracy - a.accuracy);
 
     return {
       overallAccuracy,
       totalFeedbacks: relevantFeedback.length,
       strongestResonances: sortedStats.slice(0, 5),
       weakestResonances: sortedStats.slice(-5).reverse(),
-    }
+    };
   }
 }
 
-// Singleton instance
-export const resonanceDB = new ResonanceDatabase()
+export const resonanceDB = new ResonanceDatabase();
 
-// Initialize with some mock data for demonstration
 export async function initializeMockData() {
-  // Create a sample user
-  await resonanceDB.createUser({
-    userId: "user_1",
-    mbtiType: "INFJ",
-    enneagramType: "2",
+  await resonanceDB.ensureUser({
+    userId: 'user_1',
+    mbtiType: 'INFJ',
+    enneagramType: '2',
     big5: {
       O: 0.72,
       C: 0.65,
@@ -328,16 +404,15 @@ export async function initializeMockData() {
       N: 0.76,
     },
     createdAt: new Date(),
-  })
+  });
 
-  // Add some sample global resonance data
-  await resonanceDB.updateGlobalResonance("moon_square_saturn", "Relationships", {
+  await resonanceDB.updateGlobalResonance('moon_square_saturn', 'Relationships', {
     resonated: true,
     accuracyScore: 0.82,
-  })
+  });
 
-  await resonanceDB.updateGlobalResonance("sun_opposition_saturn", "Career", {
+  await resonanceDB.updateGlobalResonance('sun_opposition_saturn', 'Career', {
     resonated: true,
     accuracyScore: 0.75,
-  })
+  });
 }
