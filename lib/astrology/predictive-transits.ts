@@ -34,6 +34,23 @@ export interface PredictiveNarrative {
   whisper: string;
 }
 
+export interface PredictiveLunarTiming {
+  phase: string;
+  illumination: number;
+  isVoidOfCourse: boolean;
+  hoursToNextSign: number;
+  nextSignAt: string;
+  actionBias: 'initiate' | 'build' | 'review' | 'release';
+  guidance: string;
+}
+
+export interface PredictiveProgressedMoon {
+  sign: string;
+  degree: number;
+  yearsProgressed: number;
+  emphasis: Array<PredictiveDomainImpact['name']>;
+}
+
 export interface PredictiveTransitEvent {
   eventId: string;
   transit: TransitMatch & { orbNow: number; orbAtPeak: number };
@@ -59,8 +76,11 @@ export interface PredictiveTransitEvent {
     lifeStageBoost: number;
     mbtiModifier: number;
     contextMultiplier: number;
+    progressedMoonBoost: number;
+    lunarTimingModifier: number;
     learnedAdjustment: number;
     contextSignals: string[];
+    lunarSignals: string[];
   };
   domains: PredictiveDomainImpact[];
   lifeStage: {
@@ -76,6 +96,8 @@ export interface PredictiveTransitBundle {
   generatedAt: string;
   windowDays: number;
   lifeStages: LifeStageTag[];
+  lunarTiming: PredictiveLunarTiming;
+  progressedMoon: PredictiveProgressedMoon;
   events: PredictiveTransitEvent[];
 }
 
@@ -144,8 +166,46 @@ interface ContextModifiers {
   signals: string[];
 }
 
+const MOON_SIGN_DOMAIN_MAP: Record<string, Array<PredictiveDomainImpact['name']>> = {
+  Aries: ['self', 'health'],
+  Taurus: ['money', 'self'],
+  Gemini: ['career', 'self'],
+  Cancer: ['family', 'health'],
+  Leo: ['love', 'self'],
+  Virgo: ['health', 'career'],
+  Libra: ['love', 'career'],
+  Scorpio: ['family', 'self'],
+  Sagittarius: ['career', 'self'],
+  Capricorn: ['career', 'money'],
+  Aquarius: ['career', 'family'],
+  Pisces: ['health', 'love'],
+};
+
+const ZODIAC_SIGNS = [
+  'Aries',
+  'Taurus',
+  'Gemini',
+  'Cancer',
+  'Leo',
+  'Virgo',
+  'Libra',
+  'Scorpio',
+  'Sagittarius',
+  'Capricorn',
+  'Aquarius',
+  'Pisces',
+];
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeAngle(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
+function dateToJulianDay(date: Date): number {
+  return date.getTime() / 86400000 + 2440587.5;
 }
 
 function daysBetween(dateA: Date, dateB: Date): number {
@@ -214,6 +274,146 @@ function getAspectValence(aspect: string): number {
   return 0.05;
 }
 
+function calculateLunarPhaseSnapshot(date: Date): { phase: string; illumination: number } {
+  const jd = dateToJulianDay(date);
+  const knownNewMoon = 2451549.5;
+  const synodicMonth = 29.53059;
+  const daysSinceNew = ((jd - knownNewMoon) % synodicMonth + synodicMonth) % synodicMonth;
+
+  if (daysSinceNew < 1.84566) return { phase: 'New Moon', illumination: 0 };
+  if (daysSinceNew < 5.53699) {
+    return {
+      phase: 'Waxing Crescent',
+      illumination: clamp(Math.round(((daysSinceNew - 1.84566) / (5.53699 - 1.84566)) * 50), 5, 45),
+    };
+  }
+  if (daysSinceNew < 9.22831) return { phase: 'First Quarter', illumination: 50 };
+  if (daysSinceNew < 12.91963) {
+    return {
+      phase: 'Waxing Gibbous',
+      illumination: clamp(Math.round(50 + ((daysSinceNew - 9.22831) / (12.91963 - 9.22831)) * 50), 55, 95),
+    };
+  }
+  if (daysSinceNew < 16.61096) return { phase: 'Full Moon', illumination: 100 };
+  if (daysSinceNew < 20.30228) {
+    return {
+      phase: 'Waning Gibbous',
+      illumination: clamp(Math.round(100 - ((daysSinceNew - 16.61096) / (20.30228 - 16.61096)) * 45), 55, 95),
+    };
+  }
+  if (daysSinceNew < 23.99361) return { phase: 'Last Quarter', illumination: 50 };
+  return {
+    phase: 'Waning Crescent',
+    illumination: clamp(Math.round(50 - ((daysSinceNew - 23.99361) / (29.53059 - 23.99361)) * 50), 5, 45),
+  };
+}
+
+function getApproxMoonLongitude(date: Date): number {
+  const daysSinceJ2000 = dateToJulianDay(date) - 2451545.0;
+  return normalizeAngle(218.316 + 13.176396 * daysSinceJ2000);
+}
+
+function getLunarTiming(now: Date): PredictiveLunarTiming {
+  const phaseSnapshot = calculateLunarPhaseSnapshot(now);
+  const moonLongitude = getApproxMoonLongitude(now);
+  const degreeInSign = moonLongitude % 30;
+  const hoursToNextSign = Number((((30 - degreeInSign) / 13.176396) * 24).toFixed(1));
+  const isVoidOfCourse = hoursToNextSign <= 3;
+  const nextSignAt = new Date(now.getTime() + hoursToNextSign * 60 * 60 * 1000).toISOString();
+
+  let actionBias: PredictiveLunarTiming['actionBias'] = 'build';
+  let guidance = 'Momentum supports practical steps and steady follow-through.';
+
+  if (phaseSnapshot.phase === 'New Moon') {
+    actionBias = 'initiate';
+    guidance = 'Seed intentions and begin what matters; keep scope focused and clear.';
+  } else if (phaseSnapshot.phase === 'Waxing Crescent' || phaseSnapshot.phase === 'First Quarter') {
+    actionBias = 'build';
+    guidance = 'Build traction with decisive action and measurable progress.';
+  } else if (phaseSnapshot.phase === 'Full Moon' || phaseSnapshot.phase === 'Waning Gibbous') {
+    actionBias = 'review';
+    guidance = 'Review outcomes and make visible adjustments before committing further.';
+  } else if (phaseSnapshot.phase === 'Last Quarter' || phaseSnapshot.phase === 'Waning Crescent') {
+    actionBias = 'release';
+    guidance = 'Release what is not working and simplify priorities before the next cycle.';
+  }
+
+  if (isVoidOfCourse) {
+    guidance = 'Moon is near sign transition: avoid high-stakes launches for a few hours; focus on maintenance and review.';
+  }
+
+  return {
+    phase: phaseSnapshot.phase,
+    illumination: phaseSnapshot.illumination,
+    isVoidOfCourse,
+    hoursToNextSign,
+    nextSignAt,
+    actionBias,
+    guidance,
+  };
+}
+
+function getProgressedMoonProfile(
+  natalPlanets: PlanetPosition[],
+  birthDate: string,
+  now: Date
+): PredictiveProgressedMoon {
+  const natalMoon = natalPlanets.find((planet) => planet.name === 'Moon');
+  const fallback: PredictiveProgressedMoon = {
+    sign: 'Cancer',
+    degree: 0,
+    yearsProgressed: 0,
+    emphasis: ['family', 'health'],
+  };
+
+  if (!natalMoon) return fallback;
+
+  const [year, month, day] = birthDate.split('-').map(Number);
+  const birth = new Date(Date.UTC(year, month - 1, day));
+  const yearsProgressed = clamp((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24 * 365.25), 0, 120);
+  const progressedLongitude = normalizeAngle(natalMoon.longitude + yearsProgressed * 13.2);
+  const signIndex = Math.floor(progressedLongitude / 30);
+  const sign = ZODIAC_SIGNS[signIndex] || 'Cancer';
+  const degree = Number((progressedLongitude % 30).toFixed(1));
+
+  return {
+    sign,
+    degree,
+    yearsProgressed: Number(yearsProgressed.toFixed(1)),
+    emphasis: MOON_SIGN_DOMAIN_MAP[sign] || ['family', 'health'],
+  };
+}
+
+function getProgressedMoonModifier(
+  event: TransitMatch,
+  progressedMoon: PredictiveProgressedMoon
+): number {
+  const domains = NATAL_DOMAIN_MAP[event.natalPlanet] || [];
+  const overlap = domains.filter((domain) => progressedMoon.emphasis.includes(domain));
+  const hasMoonTheme = event.natalPlanet === 'Moon' || event.transitingPlanet === 'Moon';
+
+  if (hasMoonTheme) return 1.12;
+  if (overlap.length >= 2) return 1.1;
+  if (overlap.length === 1) return 1.06;
+  return 1;
+}
+
+function getLunarTimingModifier(event: TransitMatch, lunarTiming: PredictiveLunarTiming): number {
+  let modifier = 1;
+  const isHardAspect = event.aspect === 'Square' || event.aspect === 'Opposition';
+  const isSoftAspect = event.aspect === 'Trine' || event.aspect === 'Sextile';
+
+  if (lunarTiming.isVoidOfCourse) {
+    modifier -= isHardAspect ? 0.12 : 0.08;
+  }
+
+  if (lunarTiming.actionBias === 'initiate' && isSoftAspect) modifier += 0.06;
+  if (lunarTiming.actionBias === 'review' && isHardAspect) modifier += 0.03;
+  if (lunarTiming.actionBias === 'release' && event.natalPlanet === 'Saturn') modifier += 0.02;
+
+  return clamp(Number(modifier.toFixed(2)), 0.82, 1.12);
+}
+
 function buildContextModifiers(context?: PersistentUserContextSnapshot | null): ContextModifiers {
   if (!context) {
     return {
@@ -279,7 +479,7 @@ function buildContextModifiers(context?: PersistentUserContextSnapshot | null): 
 function getMbtiModifier(mbtiType: string | undefined, natalPlanet: string): number {
   if (!mbtiType || mbtiType.length !== 4) return 1;
 
-  const [energy, perception, decision, lifestyle] = mbtiType.split('');
+  const [energy, , decision, lifestyle] = mbtiType.split('');
   let modifier = 1;
 
   if (natalPlanet === 'Moon' && energy === 'I') modifier += 0.08;
@@ -329,14 +529,15 @@ function buildMbtiLens(mbtiType: string | undefined, event: TransitMatch): Predi
 function buildDomainImpacts(
   event: TransitMatch,
   intensity: number,
-  contextModifiers: ContextModifiers
+  contextModifiers: ContextModifiers,
+  supplementalBoosts?: Partial<Record<PredictiveDomainImpact['name'], number>>
 ): PredictiveDomainImpact[] {
   const mapped = NATAL_DOMAIN_MAP[event.natalPlanet] || ['career'];
   const aspectValence = getAspectValence(event.aspect);
 
   return mapped.map((domainName, index) => {
     const dampener = index === 0 ? 1 : 0.85;
-    const domainBoost = contextModifiers.domainBoosts[domainName] || 0;
+    const domainBoost = (contextModifiers.domainBoosts[domainName] || 0) + (supplementalBoosts?.[domainName] || 0);
     const impact = clamp(Math.round(intensity * dampener * (1 + domainBoost)), 0, 100);
     return {
       name: domainName,
@@ -350,7 +551,8 @@ function buildNarrative(
   event: TransitMatch,
   phase: 'building' | 'peaking' | 'releasing',
   daysToPeak: number,
-  contextModifiers: ContextModifiers
+  contextModifiers: ContextModifiers,
+  lunarTiming?: PredictiveLunarTiming
 ): PredictiveNarrative {
   const contextLead = contextModifiers.signals.length
     ? `Your current context (${contextModifiers.signals.join(', ')}) makes this hit more personally. `
@@ -378,6 +580,8 @@ function buildNarrative(
       ? 'This week’s vibe: treat the next opening like a real door, not a maybe.'
       : contextModifiers.signals.includes('survival pressure')
       ? 'This week’s vibe: survival mode is loud, so choose the move that protects tomorrow.'
+      : lunarTiming?.isVoidOfCourse
+      ? 'This week’s vibe: pause high-stakes launches until the Moon changes sign, then move cleanly.'
       : phase === 'building'
       ? `This week’s vibe: prepare now so the peak doesn’t catch you ungrounded.`
       : phase === 'peaking'
@@ -409,6 +613,8 @@ export async function buildPredictiveTransitBundle(params: {
   const lifeStages = getLifeStages(birthDate, now);
   const hasActiveLifeStage = lifeStages.some((stage) => stage.active);
   const contextModifiers = buildContextModifiers(userContext);
+  const lunarTiming = getLunarTiming(now);
+  const progressedMoon = getProgressedMoonProfile(natalPlanets, birthDate, now);
 
   const samplesByEvent = new Map<string, Array<{ date: Date; transit: TransitMatch }>>();
   const totalHours = windowDays * 24;
@@ -450,11 +656,23 @@ export async function buildPredictiveTransitBundle(params: {
     const natalWeight = NATAL_POINT_WEIGHT[currentSample.transit.natalPlanet] || 0.8;
     const lifeStageBoost = hasActiveLifeStage ? 1.15 : 1;
     const mbtiModifier = getMbtiModifier(mbtiType, currentSample.transit.natalPlanet);
-    const confidence = clamp(0.75 + orbFactor * 0.25, 0.75, 1);
+    const progressedMoonBoost = getProgressedMoonModifier(currentSample.transit, progressedMoon);
+    const lunarTimingModifier = getLunarTimingModifier(currentSample.transit, lunarTiming);
+    const confidence = clamp((0.75 + orbFactor * 0.25) * (lunarTiming.isVoidOfCourse ? 0.92 : 1), 0.68, 1);
     const contextMultiplier = contextModifiers.multiplier;
 
     const intensityRaw =
-      100 * aspectWeight * transitingWeight * natalWeight * orbFactor * lifeStageBoost * mbtiModifier * confidence * contextMultiplier;
+      100 *
+      aspectWeight *
+      transitingWeight *
+      natalWeight *
+      orbFactor *
+      lifeStageBoost *
+      mbtiModifier *
+      progressedMoonBoost *
+      lunarTimingModifier *
+      confidence *
+      contextMultiplier;
     const preContextDomains = buildDomainImpacts(currentSample.transit, Math.round(intensityRaw), contextModifiers);
     const primaryTheme = [...preContextDomains].sort((a, b) => b.impact - a.impact)[0]?.name || 'career';
     const adjustedWeight = userId
@@ -471,9 +689,18 @@ export async function buildPredictiveTransitBundle(params: {
     const volatility = clamp(Number(volatilityRaw.toFixed(2)), 0, 1);
 
     const activeStage = lifeStages.find((stage) => stage.active) || lifeStages[0];
-  const domains = buildDomainImpacts(currentSample.transit, intensity, contextModifiers);
+    const moonDomainBoosts: Partial<Record<PredictiveDomainImpact['name'], number>> = {};
+    progressedMoon.emphasis.forEach((domain, index) => {
+      moonDomainBoosts[domain] = index === 0 ? 0.12 : 0.07;
+    });
+
+    const domains = buildDomainImpacts(currentSample.transit, intensity, contextModifiers, moonDomainBoosts);
     const mbtiLens = buildMbtiLens(mbtiType, currentSample.transit);
-  const narrative = buildNarrative(currentSample.transit, phase, peakDay, contextModifiers);
+    const narrative = buildNarrative(currentSample.transit, phase, peakDay, contextModifiers, lunarTiming);
+    const lunarSignals: string[] = [];
+    if (lunarTiming.isVoidOfCourse) lunarSignals.push('moon void-of-course caution');
+    lunarSignals.push(`lunar phase ${lunarTiming.phase.toLowerCase()}`);
+    lunarSignals.push(`progressed Moon in ${progressedMoon.sign}`);
 
     return {
       eventId,
@@ -504,8 +731,11 @@ export async function buildPredictiveTransitBundle(params: {
         lifeStageBoost: Number(lifeStageBoost.toFixed(2)),
         mbtiModifier: Number(mbtiModifier.toFixed(2)),
         contextMultiplier: Number(contextMultiplier.toFixed(2)),
+        progressedMoonBoost: Number(progressedMoonBoost.toFixed(2)),
+        lunarTimingModifier: Number(lunarTimingModifier.toFixed(2)),
         learnedAdjustment,
         contextSignals: contextModifiers.signals,
+        lunarSignals,
       },
       domains,
       lifeStage: {
@@ -526,6 +756,8 @@ export async function buildPredictiveTransitBundle(params: {
     generatedAt: now.toISOString(),
     windowDays,
     lifeStages,
+    lunarTiming,
+    progressedMoon,
     events: rankedEvents,
   };
 }

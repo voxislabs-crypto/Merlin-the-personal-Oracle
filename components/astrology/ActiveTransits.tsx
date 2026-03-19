@@ -46,8 +46,11 @@ interface PredictiveEvent {
     lifeStageBoost: number;
     mbtiModifier: number;
     contextMultiplier: number;
+    progressedMoonBoost: number;
+    lunarTimingModifier: number;
     learnedAdjustment: number;
     contextSignals: string[];
+    lunarSignals: string[];
   };
   transit: {
     transitingPlanet: string;
@@ -85,6 +88,21 @@ interface ActiveTransitsProps {
   predictive?: {
     generatedAt: string;
     windowDays: number;
+    lunarTiming: {
+      phase: string;
+      illumination: number;
+      isVoidOfCourse: boolean;
+      hoursToNextSign: number;
+      nextSignAt: string;
+      actionBias: 'initiate' | 'build' | 'review' | 'release';
+      guidance: string;
+    };
+    progressedMoon: {
+      sign: string;
+      degree: number;
+      yearsProgressed: number;
+      emphasis: Array<'love' | 'career' | 'money' | 'family' | 'health' | 'self'>;
+    };
     events: PredictiveEvent[];
   };
   loading?: boolean;
@@ -215,6 +233,36 @@ export function ActiveTransits({
     }
   };
 
+  const getActionSignal = (event: PredictiveEvent) => {
+    const isHardAspect = event.transit.aspect === 'Square' || event.transit.aspect === 'Opposition';
+    const hasVofCaution = event.explanation.lunarSignals?.some((signal) =>
+      signal.toLowerCase().includes('void-of-course')
+    );
+
+    const delayNow =
+      hasVofCaution ||
+      (isHardAspect && event.scores.volatility >= 0.65) ||
+      event.scores.confidence < 0.78;
+
+    if (delayNow) {
+      return {
+        label: 'Delay Now',
+        reason: hasVofCaution
+          ? 'Moon timing caution active'
+          : event.scores.confidence < 0.78
+          ? 'Signal confidence still building'
+          : 'High volatility—wait for cleaner timing',
+        className: 'bg-amber-500/20 text-amber-200 border border-amber-400/40',
+      };
+    }
+
+    return {
+      label: 'Do Now',
+      reason: event.scores.intensity >= 65 ? 'Momentum window is open' : 'Actionable with low friction',
+      className: 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40',
+    };
+  };
+
   return (
     <motion.div
       className="space-y-6 z-10 relative"
@@ -272,9 +320,34 @@ export function ActiveTransits({
             <h3 className="text-lg font-bold text-violet-200">🔮 7-Day Clairvoyance Forecast</h3>
             <span className="text-xs text-violet-300/80">Top {Math.min(3, predictive.events.length)} signals</span>
           </div>
+          <div className="mb-3 rounded-md border border-violet-400/20 bg-slate-900/40 p-3">
+            <p className="text-sm text-violet-100 font-medium">
+              Lunar Timing: {predictive.lunarTiming.phase} · {predictive.lunarTiming.illumination}% illuminated
+            </p>
+            <p className="text-xs text-violet-300/90 mt-1">
+              Bias: {predictive.lunarTiming.actionBias.toUpperCase()} · Progressed Moon: {predictive.progressedMoon.sign} {predictive.progressedMoon.degree.toFixed(1)}°
+            </p>
+            <p className="text-xs text-slate-300 mt-1">{predictive.lunarTiming.guidance}</p>
+            {predictive.lunarTiming.isVoidOfCourse && (
+              <p className="text-xs text-amber-300 mt-1">
+                Moon is near sign change ({predictive.lunarTiming.hoursToNextSign}h). Favor review/maintenance before major launches.
+              </p>
+            )}
+          </div>
           <div className="space-y-3">
             {predictive.events.slice(0, 3).map((event) => (
               <div key={event.eventId} className="rounded-md border border-violet-400/20 bg-slate-900/40 p-3">
+                {(() => {
+                  const actionSignal = getActionSignal(event);
+                  return (
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${actionSignal.className}`}>
+                        {actionSignal.label}
+                      </span>
+                      <span className="text-[11px] text-slate-300">{actionSignal.reason}</span>
+                    </div>
+                  );
+                })()}
                 <p className="text-sm font-semibold text-violet-100">
                   {event.transit.transitingPlanet} {event.transit.aspect} {event.transit.natalPlanet}
                 </p>
@@ -291,6 +364,11 @@ export function ActiveTransits({
                 {event.explanation.contextSignals.length > 0 && (
                   <p className="text-xs text-cyan-300 mt-1">
                     Context read: {event.explanation.contextSignals.join(', ')}
+                  </p>
+                )}
+                {event.explanation.lunarSignals?.length > 0 && (
+                  <p className="text-xs text-indigo-300 mt-1">
+                    Lunar read: {event.explanation.lunarSignals.join(', ')}
                   </p>
                 )}
                 <p className="text-xs text-slate-300 mt-1">Best move (24h): {event.mbtiLens.bestMove24h}</p>
@@ -310,6 +388,8 @@ export function ActiveTransits({
                     <p>Life-stage boost: {event.explanation.lifeStageBoost}</p>
                     <p>MBTI modifier: {event.explanation.mbtiModifier}</p>
                     <p>Context multiplier: {event.explanation.contextMultiplier}</p>
+                    <p>Progressed Moon boost: {event.explanation.progressedMoonBoost}</p>
+                    <p>Lunar timing modifier: {event.explanation.lunarTimingModifier}</p>
                     <p>Learned adjustment: {event.explanation.learnedAdjustment > 0 ? '+' : ''}{event.explanation.learnedAdjustment}</p>
                     <p>Blind spot: {event.mbtiLens.blindSpot}</p>
                     <p>Avoid now: {event.mbtiLens.avoidNow}</p>

@@ -19,6 +19,9 @@ Merlin combines Swiss Ephemeris precision with MBTI personality insights to deli
 - ✅ **Complete Birth Charts** - Planets, houses, aspects, angles
 - ✅ **Daily Forecasts** - Personalized cosmic guidance
 - ✅ **Transit Tracking** - Real-time planetary movements
+- ✅ **7-Day Predictive Transit Intelligence** - 6-hour sampling with intensity/confidence/volatility scoring
+- ✅ **Lunar Timing Engine** - phase-aware action bias with void-of-course caution windows
+- ✅ **Progressed Moon Overlay** - domain emphasis boosts integrated into predictive scoring
 - ✅ **MBTI Integration** - Personality type overlays
 - ✅ **Life Timeline** - Major life events and timing
 - ✅ **Weekly Whispers** - 7-day forecasts
@@ -72,6 +75,14 @@ Merlin combines Swiss Ephemeris precision with MBTI personality insights to deli
 - Environment setup instructions
 - Deployment checklist
 - Growth strategies
+
+### 6. **Forecast Intelligence Layer**
+- Persistent resonance learning via API feedback (user context + thumbs/collector inputs)
+- Deterministic predictive transit bundle exposed from `/api/transits`
+- Dashboard surfaces include:
+  - **Daily Transit Forecast** snapshot card (lunar timing, progressed Moon, top signal)
+  - **Active Transits** clairvoyance panel (context read, lunar read, score explainability)
+  - **Action Signal** badges (`DO NOW` / `DELAY NOW`) for top predictive events
 
 ---
 

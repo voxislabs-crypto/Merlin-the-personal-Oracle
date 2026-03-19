@@ -47,8 +47,11 @@ interface PredictiveEvent {
     lifeStageBoost: number;
     mbtiModifier: number;
     contextMultiplier: number;
+    progressedMoonBoost: number;
+    lunarTimingModifier: number;
     learnedAdjustment: number;
     contextSignals: string[];
+    lunarSignals: string[];
   };
   domains: Array<{
     name: 'love' | 'career' | 'money' | 'family' | 'health' | 'self';
@@ -117,6 +120,21 @@ export interface TransitData {
     generatedAt: string;
     windowDays: number;
     lifeStages: PredictiveLifeStage[];
+    lunarTiming: {
+      phase: string;
+      illumination: number;
+      isVoidOfCourse: boolean;
+      hoursToNextSign: number;
+      nextSignAt: string;
+      actionBias: 'initiate' | 'build' | 'review' | 'release';
+      guidance: string;
+    };
+    progressedMoon: {
+      sign: string;
+      degree: number;
+      yearsProgressed: number;
+      emphasis: Array<'love' | 'career' | 'money' | 'family' | 'health' | 'self'>;
+    };
     events: PredictiveEvent[];
   };
   userContext?: {

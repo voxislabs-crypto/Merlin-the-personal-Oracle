@@ -279,6 +279,32 @@ export default function UnifiedDashboard() {
         .join(', ')}. The pattern here is pressure turning into purpose.`
     : 'Your Life Arc narrative will appear once timeline events are calculated.';
 
+  const predictiveTopEvent = transits?.predictive?.events?.[0];
+  const predictiveActionHint = predictiveTopEvent
+    ? (() => {
+        const hardAspect =
+          predictiveTopEvent.transit.aspect === 'Square' ||
+          predictiveTopEvent.transit.aspect === 'Opposition';
+        const hasLunarCaution = predictiveTopEvent.explanation?.lunarSignals?.some((signal) =>
+          signal.toLowerCase().includes('void-of-course')
+        );
+
+        if (hasLunarCaution || (hardAspect && predictiveTopEvent.scores.volatility >= 0.65)) {
+          return {
+            label: 'Delay now',
+            reason: hasLunarCaution ? 'Moon timing caution in effect' : 'Volatility high on top signal',
+            className: 'text-amber-200 border-amber-500/40 bg-amber-500/10',
+          };
+        }
+
+        return {
+          label: 'Do now',
+          reason: 'Top signal is actionable',
+          className: 'text-emerald-200 border-emerald-500/40 bg-emerald-500/10',
+        };
+      })()
+    : null;
+
   type WhisperMode = 'plain' | 'warm' | 'bullshit' | 'oracle';
 
   const activateWhisperMode = (mode: WhisperMode) => {
@@ -601,6 +627,44 @@ export default function UnifiedDashboard() {
                     </div>
                     
                     <div className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm">
+                      {transits?.predictive?.lunarTiming && transits?.predictive?.progressedMoon && (
+                        <div className="mb-5 rounded-lg border border-violet-500/25 bg-violet-950/20 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-violet-200">
+                              🔮 Predictive Intelligence Snapshot
+                            </p>
+                            {predictiveActionHint && (
+                              <span className={`text-xs px-2.5 py-1 rounded border ${predictiveActionHint.className}`}>
+                                {predictiveActionHint.label.toUpperCase()} · {predictiveActionHint.reason}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <div className="rounded border border-violet-400/20 bg-slate-900/40 p-2.5">
+                              <p className="text-violet-200/90">Lunar timing</p>
+                              <p className="text-slate-200 mt-1">
+                                {transits.predictive.lunarTiming.phase} · {transits.predictive.lunarTiming.actionBias.toUpperCase()}
+                              </p>
+                            </div>
+                            <div className="rounded border border-violet-400/20 bg-slate-900/40 p-2.5">
+                              <p className="text-violet-200/90">Progressed Moon</p>
+                              <p className="text-slate-200 mt-1">
+                                {transits.predictive.progressedMoon.sign} {transits.predictive.progressedMoon.degree.toFixed(1)}°
+                              </p>
+                            </div>
+                            <div className="rounded border border-violet-400/20 bg-slate-900/40 p-2.5">
+                              <p className="text-violet-200/90">Top predictive signal</p>
+                              <p className="text-slate-200 mt-1">
+                                {predictiveTopEvent
+                                  ? `${predictiveTopEvent.transit.transitingPlanet} ${predictiveTopEvent.transit.aspect} ${predictiveTopEvent.transit.natalPlanet}`
+                                  : 'Building…'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <DailyForecast
                         date={forecast?.date || new Date().toISOString()}
                         summary={forecast?.summary || 'Loading forecast...'}
