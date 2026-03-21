@@ -28,7 +28,7 @@ import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { useUser } from '@clerk/nextjs';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
@@ -39,7 +39,6 @@ const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
@@ -84,13 +83,15 @@ export default function UnifiedDashboard() {
   }, []);
 
   useEffect(() => {
-    const section = searchParams.get('section');
+    if (typeof window === 'undefined') return;
+
+    const section = new URLSearchParams(window.location.search).get('section');
     const validSections = new Set(['interpretation', 'transits', 'lifearc', 'personality', 'stormradar', 'wheel']);
 
     if (section && validSections.has(section)) {
       setActiveSection(section as typeof activeSection);
     }
-  }, [searchParams]);
+  }, []);
 
   const toggleClarityMode = () => {
     const next = !clarityMode;
