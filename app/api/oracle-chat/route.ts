@@ -125,9 +125,15 @@ export async function POST(request: NextRequest) {
       (birthChart as any)?.mbti?.type ||
       stormsReport?.mbtiType;
 
-    const userContext = userId && userId !== 'anonymous'
-      ? await getUserContextSnapshot(userId)
-      : null;
+    let userContext = null;
+    if (userId && userId !== 'anonymous') {
+      try {
+        userContext = await getUserContextSnapshot(userId);
+      } catch (error) {
+        console.warn('[Oracle Chat] Could not load user context from database:', error instanceof Error ? error.message : 'Unknown error');
+        // Continue without user context - oracle will still work
+      }
+    }
 
     // Build context
     const context: OracleContext = {
