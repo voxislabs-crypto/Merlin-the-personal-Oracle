@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { BirthChart } from '@/components/astrology/BirthChart';
 import { WheelVisualization } from '@/components/astrology/WheelVisualization';
 import { ChartInterpretation } from '@/components/astrology/ChartInterpretation';
@@ -27,7 +28,7 @@ import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
@@ -38,6 +39,7 @@ const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
@@ -51,6 +53,15 @@ export default function UnifiedDashboard() {
   const [userId, setUserId] = useState('');
   const [questLogEnabled, setQuestLogEnabled] = useState(true); // ON by default
   const [clarityMode, setClarityMode] = useState(true); // Plain English mode — ON by default
+  const focusPanelRef = useRef<HTMLDivElement | null>(null);
+  const chartSectionRef = useRef<HTMLDivElement | null>(null);
+  const weeklySectionRef = useRef<HTMLDivElement | null>(null);
+  const personalitySectionRef = useRef<HTMLDivElement | null>(null);
+  const forecastSectionRef = useRef<HTMLDivElement | null>(null);
+  const [compactMode, setCompactMode] = useState(false);
+  const [showDeepDive, setShowDeepDive] = useState(false);
+  const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
+  const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -71,6 +82,15 @@ export default function UnifiedDashboard() {
     const savedClarity = localStorage.getItem('merlin_clarity_mode');
     if (savedClarity !== null) setClarityMode(savedClarity !== 'false');
   }, []);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const validSections = new Set(['interpretation', 'transits', 'lifearc', 'personality', 'stormradar', 'wheel']);
+
+    if (section && validSections.has(section)) {
+      setActiveSection(section as typeof activeSection);
+    }
+  }, [searchParams]);
 
   const toggleClarityMode = () => {
     const next = !clarityMode;
@@ -349,6 +369,17 @@ export default function UnifiedDashboard() {
     activateWhisperMode('warm');
   };
 
+  const openSection = (section: 'interpretation' | 'transits' | 'lifearc' | 'personality' | 'stormradar') => {
+    setActiveSection((prev) => (prev === section ? 'wheel' : section));
+    setTimeout(() => {
+      focusPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  };
+
+  const scrollToBlock = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -390,6 +421,72 @@ export default function UnifiedDashboard() {
               </motion.div>
             )}
 
+            {chartData && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="sticky top-4 z-40 mb-6"
+              >
+                <div className="bg-slate-950/85 backdrop-blur border border-amber-500/20 rounded-xl px-3 py-3 shadow-xl">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <p className="text-xs uppercase tracking-wider text-amber-300">Quick Jump</p>
+                    <button
+                      onClick={() => setCompactMode((prev) => !prev)}
+                      title="Toggle compact mode to hide secondary sections"
+                      className={`px-2.5 py-1 text-xs rounded border transition ${
+                        compactMode
+                          ? 'border-emerald-500/50 text-emerald-200 bg-emerald-500/10'
+                          : 'border-slate-600 text-slate-300 bg-slate-800/60'
+                      }`}
+                    >
+                      {compactMode ? 'Compact: On' : 'Compact: Off'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => openSection('interpretation')}
+                      title="Open your chart interpretation and narrative reading"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition"
+                    >
+                      Chart Reading
+                    </button>
+                    <button
+                      onClick={() => openSection('transits')}
+                      title="Open real-time active and approaching transits"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition"
+                    >
+                      Active Transits
+                    </button>
+                    <button
+                      onClick={() => openSection('lifearc')}
+                      title="Open your long-term life timeline"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition"
+                    >
+                      Life Timeline
+                    </button>
+                    <button
+                      onClick={() => openSection('personality')}
+                      title="Open dual MBTI mask/core personality view"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition"
+                    >
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}
+                    </button>
+                    <button
+                      onClick={() => openSection('stormradar')}
+                      title="Open storm radar with weekly pressure and recovery guidance"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition"
+                    >
+                      Storm Radar
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">
+                    Tip: Compact mode hides secondary panels so you can focus on one section at a time.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Main Dashboard Content */}
             {chartData && wheelData && (
               <motion.div
@@ -398,8 +495,30 @@ export default function UnifiedDashboard() {
                 transition={{ delay: 0.3 }}
                 className="space-y-8"
               >
+                <div className="hidden xl:block fixed left-5 top-40 z-30">
+                  <div className="bg-slate-950/80 border border-slate-700/70 rounded-xl p-2.5 backdrop-blur shadow-lg space-y-2 w-44">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 px-1">Navigator</p>
+                    <button onClick={() => scrollToBlock(chartSectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to chart + chat">
+                      Chart + Chat
+                    </button>
+                    <button onClick={() => scrollToBlock(forecastSectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to daily forecast">
+                      Daily Forecast
+                    </button>
+                    <button onClick={() => scrollToBlock(focusPanelRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to analysis panels">
+                      Analysis Panels
+                    </button>
+                    <button onClick={() => scrollToBlock(weeklySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to weekly forecast">
+                      Weekly Forecast
+                    </button>
+                    <button onClick={() => scrollToBlock(personalitySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to dual MBTI cards">
+                      Dual MBTI Cards
+                    </button>
+                  </div>
+                </div>
+
                 {/* TOP: Wheel with Left Sidebar */}
                 <motion.div
+                  ref={chartSectionRef}
                   className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm z-10 relative"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -462,6 +581,7 @@ export default function UnifiedDashboard() {
                     />
                     <button
                       onClick={handleDailyWhisper}
+                      title="Generate a concise daily guidance summary"
                       className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
                     >
                       🌙 Daily Whisper
@@ -469,24 +589,28 @@ export default function UnifiedDashboard() {
 
                     <button
                       onClick={() => activateWhisperMode('plain')}
+                      title="Switch interpretation to plain, no-jargon language"
                       className="px-4 py-2 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg text-emerald-200 font-semibold transition-all"
                     >
                       Plain
                     </button>
                     <button
                       onClick={() => activateWhisperMode('warm')}
+                      title="Switch interpretation to supportive and warm tone"
                       className="px-4 py-2 text-xs bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 rounded-lg text-sky-200 font-semibold transition-all"
                     >
                       Warm
                     </button>
                     <button
                       onClick={() => activateWhisperMode('bullshit')}
+                      title="Switch interpretation to direct no-BS mode"
                       className="px-4 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-200 font-semibold transition-all"
                     >
                       No-BS
                     </button>
                     <button
                       onClick={() => activateWhisperMode('oracle')}
+                      title="Switch interpretation to full Oracle mode"
                       className="px-4 py-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-lg text-violet-200 font-semibold transition-all"
                     >
                       Oracle
@@ -539,52 +663,120 @@ export default function UnifiedDashboard() {
                   </div>
                 </motion.div>
 
+                {/* Focus Views: moved near top for faster navigation */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.45 }}
+                  transition={{ delay: 0.42 }}
+                  className="bg-slate-900/40 rounded-lg p-6 border border-amber-500/20 backdrop-blur-sm"
                 >
-                  <DeepDivePanel birthData={chartData} />
+                  <h3 className="text-xl font-bold text-amber-300 mb-4">Focus Views</h3>
+                  <p className="text-sm text-slate-300 mb-4">Open a dedicated view for each module.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <Link href="/dashboard/chart-reading" className="px-4 py-2 rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition">
+                      Chart Reading
+                    </Link>
+                    <Link href="/dashboard/active-transits" className="px-4 py-2 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition">
+                      Active Transits
+                    </Link>
+                    <Link href="/dashboard/life-timeline" className="px-4 py-2 rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition">
+                      Life Timeline
+                    </Link>
+                    <Link href="/dashboard/dual-mbti" className="px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition">
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}
+                    </Link>
+                    <Link href="/dashboard/storm-radar" className="px-4 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition">
+                      Storm Radar
+                    </Link>
+                  </div>
                 </motion.div>
+
+                {!compactMode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
+                    className="bg-slate-900/35 border border-slate-700/50 rounded-lg"
+                  >
+                    <button
+                      onClick={() => setShowDeepDive((prev) => !prev)}
+                      className="w-full flex items-center justify-between px-5 py-3 text-left"
+                      title="Expand or collapse deep interpretation panel"
+                    >
+                      <span className="text-sm font-semibold text-slate-200">Deep Dive Panel</span>
+                      <span className="text-xs text-slate-400">{showDeepDive ? 'Hide' : 'Show'}</span>
+                    </button>
+                    {showDeepDive && <DeepDivePanel birthData={chartData} />}
+                  </motion.div>
+                )}
 
                 {/* Weekly Calendar - Below Birth Chart */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-8"
-                >
-                  <div className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/20 backdrop-blur-sm">
-                    <h2 className="text-2xl font-bold text-amber-300 mb-6">7-Day Cosmic Forecast</h2>
-                    <WeeklyCalendar
-                      week={weeklyForecast?.week || []}
-                      loading={weeklyLoading}
-                    />
-                  </div>
-                  {/* Quest Log — only renders when enabled */}
-                  <QuestLog
-                    enabled={questLogEnabled}
-                    chartData={chartData}
-                    transits={transits}
-                    forecast={forecast}
-                    mbtiType={mbtiType || undefined}
-                    userId={userId || undefined}
-                  />
-                </motion.div>
+                {!compactMode && (
+                  <motion.div
+                    ref={weeklySectionRef}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-8 bg-slate-900/35 border border-slate-700/50 rounded-lg"
+                  >
+                    <button
+                      onClick={() => setShowWeeklyForecastPanel((prev) => !prev)}
+                      className="w-full flex items-center justify-between px-5 py-3 text-left"
+                      title="Expand or collapse weekly forecast and quest panels"
+                    >
+                      <span className="text-sm font-semibold text-slate-200">Weekly Forecast + Quests</span>
+                      <span className="text-xs text-slate-400">{showWeeklyForecastPanel ? 'Hide' : 'Show'}</span>
+                    </button>
+                    {showWeeklyForecastPanel && (
+                      <div className="px-0 pb-4">
+                        <div className="bg-slate-900/40 rounded-lg p-8 border-t border-amber-500/20 backdrop-blur-sm">
+                          <h2 className="text-2xl font-bold text-amber-300 mb-6">7-Day Cosmic Forecast</h2>
+                          <WeeklyCalendar
+                            week={weeklyForecast?.week || []}
+                            loading={weeklyLoading}
+                          />
+                        </div>
+                        <QuestLog
+                          enabled={questLogEnabled}
+                          chartData={chartData}
+                          transits={transits}
+                          forecast={forecast}
+                          mbtiType={mbtiType || undefined}
+                          userId={userId || undefined}
+                        />
+                      </div>
+                    )}
+                  </motion.div>
+                )}
 
                 {/* MIDDLE: Dual MBTI Cards */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                >
-                  {mbtiType && (
-                    <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} transits={transits} loading={personalityLoading} />
-                  )}
-                </motion.div>
+                {!compactMode && (
+                  <motion.div
+                    ref={personalitySectionRef}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="bg-slate-900/35 border border-slate-700/50 rounded-lg"
+                  >
+                    <button
+                      onClick={() => setShowPersonalityCardsPanel((prev) => !prev)}
+                      className="w-full flex items-center justify-between px-5 py-3 text-left"
+                      title="Expand or collapse dual MBTI cards"
+                    >
+                      <span className="text-sm font-semibold text-slate-200">Dual MBTI Cards</span>
+                      <span className="text-xs text-slate-400">{showPersonalityCardsPanel ? 'Hide' : 'Show'}</span>
+                    </button>
+                    {showPersonalityCardsPanel && mbtiType && (
+                      <div className="px-4 pb-4">
+                        <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} transits={transits} loading={personalityLoading} />
+                      </div>
+                    )}
+                  </motion.div>
+                )}
 
                 {/* BOTTOM: Today's Forecast + Tabbed Analysis */}
                 <motion.div
+                  ref={forecastSectionRef}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 }}
@@ -670,6 +862,8 @@ export default function UnifiedDashboard() {
 
                   {/* Analysis Tabs */}
                   <motion.div
+                    id="focus-panel"
+                    ref={focusPanelRef}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.8 }}
@@ -678,7 +872,8 @@ export default function UnifiedDashboard() {
                     {/* Tab Buttons - Horizontal */}
                     <div className="flex flex-wrap gap-3">
                       <button
-                        onClick={() => setActiveSection(activeSection === 'interpretation' ? 'wheel' : 'interpretation')}
+                        onClick={() => openSection('interpretation')}
+                        title="Show full chart reading and narrative"
                         className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'interpretation'
                             ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
@@ -691,7 +886,8 @@ export default function UnifiedDashboard() {
                       </button>
 
                       <button
-                        onClick={() => setActiveSection(activeSection === 'transits' ? 'wheel' : 'transits')}
+                        onClick={() => openSection('transits')}
+                        title="Show active and approaching transit impacts"
                         className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'transits'
                             ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
@@ -704,7 +900,8 @@ export default function UnifiedDashboard() {
                       </button>
 
                       <button
-                        onClick={() => setActiveSection(activeSection === 'lifearc' ? 'wheel' : 'lifearc')}
+                        onClick={() => openSection('lifearc')}
+                        title="Show your long-range life timeline"
                         className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'lifearc'
                             ? 'bg-green-500/20 border-green-500/50 text-green-300'
@@ -718,7 +915,8 @@ export default function UnifiedDashboard() {
 
                       {/* Dual MBTI tab — shows when personality data is available */}
                       <button
-                        onClick={() => setActiveSection(activeSection === 'personality' ? 'wheel' : 'personality')}
+                        onClick={() => openSection('personality')}
+                        title="Show dual MBTI mask/core personality mapping"
                         className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'personality'
                             ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
@@ -732,7 +930,8 @@ export default function UnifiedDashboard() {
                       </button>
 
                       <button
-                        onClick={() => setActiveSection(activeSection === 'stormradar' ? 'wheel' : 'stormradar')}
+                        onClick={() => openSection('stormradar')}
+                        title="Show storm radar and navigation guidance"
                         className={`px-6 py-3 rounded-lg border transition-all font-semibold flex items-center gap-2 ${
                           activeSection === 'stormradar'
                             ? 'bg-red-500/20 border-red-500/50 text-red-300'
