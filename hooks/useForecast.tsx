@@ -26,6 +26,20 @@ export interface DailyForecast {
     reasoning: string;
     cosmicTendencies: string[];
   };
+  timingWindows?: {
+    next24Hours: string;
+    next72Hours: string;
+    weekAhead: string;
+  };
+  futureSignals?: Array<{
+    domain: 'Love' | 'Career' | 'Mind' | 'Mood';
+    signal: string;
+    probability: number;
+    timeframe: '24h' | '72h' | '7d';
+    action: string;
+    intensity: 'low' | 'medium' | 'high';
+  }>;
+  conversationalPrompts?: string[];
 }
 
 export function useForecast() {

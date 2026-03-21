@@ -59,6 +59,7 @@ export interface OracleContext {
   currentDate?: Date;
   plainEnglish?: boolean; // "Clarity Mode" - strip astro jargon
   mbtiType?: string; // MBTI personality type for storm cross-reference
+  tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
 }
 
 export interface OracleResponse {
@@ -328,6 +329,13 @@ function formatDailyForecastContext(forecast: DailyForecast | undefined): string
   if (!forecast) return '';
 
   const highlights = forecast.planetaryHighlights.slice(0, 4).join('\n  ');
+  const futureSignals = (forecast.futureSignals || [])
+    .slice(0, 4)
+    .map((s) => `- ${s.domain}: ${s.signal} (${s.probability}% in ${s.timeframe}) | Move: ${s.action}`)
+    .join('\n');
+  const timingWindows = forecast.timingWindows
+    ? `\n- Next 24h: ${forecast.timingWindows.next24Hours}\n- Next 72h: ${forecast.timingWindows.next72Hours}\n- Week Ahead: ${forecast.timingWindows.weekAhead}`
+    : '';
   const focusAreas = forecast.focusAreas
     ? `\n- Love: ${forecast.focusAreas.love}\n- Career: ${forecast.focusAreas.career}\n- Mind: ${forecast.focusAreas.mind}\n- Mood: ${forecast.focusAreas.mood}`
     : '';
@@ -339,7 +347,10 @@ TODAY'S COSMIC WEATHER (${forecast.date}):
 - Energy Summary: ${forecast.summary}
 
 Key Planetary Movements:
-  ${highlights}${focusAreas}
+  ${highlights}${focusAreas}${timingWindows}
+
+Future Signals:
+${futureSignals || '- No strong signal clusters detected'}
   `.trim();
 }
 
@@ -408,6 +419,12 @@ PERSISTENT LIFE CONTEXT:
 - Current mood: ${mood}
 - Active goals: ${goals}
 - Last feedback note: ${lastFeedback}
+- Archetype Name: ${userContext.archetypeName || 'not set'}
+- Pattern Signature: ${userContext.patternSignature || 'not set'}
+- Core Contradiction: ${userContext.coreContradiction || 'not set'}
+- Arc Path: ${userContext.arcPath || 'not set'}
+- Arc Level: ${userContext.arcLevel || 1} (XP: ${userContext.arcXp || 0})
+- Interaction Count: ${userContext.interactionCount || 0}
 - Context rule: treat this as real-world terrain, not background flavor. If the user asks about jobs, money, housing, relationships, health, or safety, weight this context heavily.
   `.trim();
 }
@@ -430,6 +447,7 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const stormsContext = context.stormsReport ? formatStormsContext(context.stormsReport) : '';
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
   const plainEnglish = context.plainEnglish !== false; // Default ON
+  const tonePreset = context.tonePreset || 'warm';
   const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
   const effectiveMbti = context.mbtiType || chartMbti;
   const mbtiLine = effectiveMbti ? `\nUSER MBTI ARCHETYPE: ${effectiveMbti}` : '';
@@ -447,6 +465,21 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
 - Show your work: explain WHY each transit maps to a predicted storm type AND what physical/material domain it hits.
 - Always reference both the psychological AND the physical/material expression of each active transit.`;
 
+  const toneRules: Record<string, string> = {
+    warm: `TONE PRESET: WARM
+- Be compassionate, encouraging, and grounded.
+- Keep candor, but sound supportive and relational.`,
+    direct: `TONE PRESET: DIRECT
+- Be concise, blunt, and tactical.
+- Lead with what matters most; remove fluff.`,
+    strategic: `TONE PRESET: STRATEGIC
+- Sound like a high-level advisor.
+- Emphasize sequencing, trade-offs, and leverage points.`,
+    mystic: `TONE PRESET: MYSTIC
+- Keep clarity, but add poetic cadence and symbolic resonance.
+- Avoid vagueness; still provide concrete action steps.`,
+  };
+
   return `You are Merlin 2.0 — an Oracle engine powered by real-time astrology, MBTI archetype data, and live planetary transits. Your job: predict incoming storms AND opportunities — emotional, relational, financial, physical, and material — before they hit. You read the full spectrum: inner experience AND outer circumstances.
 
 MISSION:
@@ -460,11 +493,14 @@ MISSION:
 
 RESPONSE FORMAT (non-negotiable):
 - ALWAYS start with: "Storm + Terrain check:"
-- Cover ALL relevant domains that have active signals: body/physical, energy, money/material, emotional, relational, mental. Skip only domains with zero active transits.
-- For each active domain, give: what's happening, probability odds, and ONE specific action.
-- Format each domain as: "[DOMAIN]: [what's at stake]. [X]% probability. Move: [action]."
-- End with one short line that summarizes the single highest-leverage move for the next 24-72h.
-- Maximum 350 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
+- Then write 3 short sections in this order:
+  1) "Now (0-24h):" 2-4 lines
+  2) "Near Future (24-72h):" 2-4 lines
+  3) "Week Ahead (4-7d):" 2-4 lines
+- Keep it conversational and human, not robotic. You may use short paragraphs, but each prediction line must include: what is happening, probability %, and one concrete move.
+- Cover active domains naturally across those sections: body/physical, energy, money/material, emotional, relational, mental.
+- End with "Best move:" followed by one single highest-leverage action for the next 24-72h.
+- Maximum 380 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
 
 EXAMPLE RESPONSE STRUCTURE:
 Storm + Terrain check:
@@ -475,6 +511,14 @@ Storm + Terrain check:
 Leverage point: Protect sleep tonight and delay non-essential decisions until tomorrow afternoon.
 
 ${languageRule}
+${toneRules[tonePreset] || toneRules.warm}
+
+CONVERSATIONAL FLUENCY RULES:
+- Sound like Merlin speaking directly to one person, not a report template.
+- Vary sentence rhythm and openings. Avoid repeating the same phrase structure.
+- Translate symbols into lived experience quickly (what they will feel, notice, or face).
+- Use confidence language naturally: "about 70% likely" instead of rigid labels.
+- Keep tone grounded and practical. Mystical flavor is welcome, but clarity wins.
 
 TONE:
 - Direct. Clinical but warm. Like a brilliant doctor-astrologer hybrid speaking to a friend.

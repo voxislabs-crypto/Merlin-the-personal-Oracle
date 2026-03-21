@@ -21,6 +21,20 @@ interface DailyForecastProps {
     mind: string;
     mood: string;
   };
+  timingWindows?: {
+    next24Hours: string;
+    next72Hours: string;
+    weekAhead: string;
+  };
+  futureSignals?: Array<{
+    domain: 'Love' | 'Career' | 'Mind' | 'Mood';
+    signal: string;
+    probability: number;
+    timeframe: '24h' | '72h' | '7d';
+    action: string;
+    intensity: 'low' | 'medium' | 'high';
+  }>;
+  conversationalPrompts?: string[];
   loading?: boolean;
   userId?: string;
 }
@@ -36,6 +50,9 @@ export function DailyForecast({
   advice,
   day_rating = 'Neutral',
   focusAreas,
+  timingWindows,
+  futureSignals = [],
+  conversationalPrompts = [],
   loading = false,
   userId
 }: DailyForecastProps) {
@@ -242,6 +259,58 @@ export function DailyForecast({
         </motion.div>
       )}
 
+      {/* ── Future Timeline ───────────────────────────────────────────────── */}
+      {timingWindows && (
+        <motion.div
+          className="p-6 bg-slate-900/60 rounded-lg border border-cyan-500/25"
+          variants={itemVariants}
+        >
+          <h4 className="text-lg font-bold text-cyan-300 mb-3">Future Weather Timeline</h4>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-cyan-300/80 mb-1">Next 24 Hours</p>
+              <p className="text-sm text-white/95">{timingWindows.next24Hours}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-cyan-300/80 mb-1">Next 72 Hours</p>
+              <p className="text-sm text-white/95">{timingWindows.next72Hours}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-cyan-300/80 mb-1">Week Ahead</p>
+              <p className="text-sm text-white/95">{timingWindows.weekAhead}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Probability Signals ────────────────────────────────────────────── */}
+      {futureSignals.length > 0 && (
+        <motion.div
+          className="p-6 bg-gradient-to-br from-indigo-900/30 to-slate-900/60 rounded-lg border border-indigo-400/30"
+          variants={itemVariants}
+        >
+          <h4 className="text-lg font-bold text-indigo-300 mb-3">What Merlin Sees Next</h4>
+          <div className="space-y-3">
+            {futureSignals.slice(0, 4).map((signal, idx) => (
+              <div key={`${signal.domain}-${idx}`} className="p-3 rounded border border-indigo-400/20 bg-indigo-500/10">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <p className="text-sm font-semibold text-indigo-200">{signal.domain}</p>
+                  <p className="text-xs text-indigo-200/80">{signal.probability}% • {signal.timeframe}</p>
+                </div>
+                <div className="h-1.5 rounded-full bg-indigo-950/70 overflow-hidden mb-2">
+                  <div
+                    className={`h-full rounded-full ${getConfidenceMeterColor(signal.probability)}`}
+                    style={{ width: `${signal.probability}%` }}
+                  />
+                </div>
+                <p className="text-sm text-white/95">{signal.signal}</p>
+                <p className="text-xs text-indigo-100/85 mt-1">Move: {signal.action}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Active Transits ───────────────────────────────────────────────── */}
       {transits && transits.length > 0 && (
         <motion.div
@@ -319,6 +388,21 @@ export function DailyForecast({
         <h4 className="text-lg font-bold text-amber-200 mb-3">✨ Merlin's Word</h4>
         <p className="text-white leading-relaxed">{advice || 'The cosmos trusts your instincts today.'}</p>
       </motion.div>
+
+      {/* ── Ask Merlin Next ────────────────────────────────────────────────── */}
+      {conversationalPrompts.length > 0 && (
+        <motion.div
+          className="p-6 bg-slate-900/60 rounded-lg border border-fuchsia-500/30"
+          variants={itemVariants}
+        >
+          <h4 className="text-lg font-bold text-fuchsia-300 mb-3">Ask Merlin Next</h4>
+          <div className="space-y-2">
+            {conversationalPrompts.slice(0, 3).map((prompt, idx) => (
+              <p key={idx} className="text-sm text-fuchsia-100/90">• {prompt}</p>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
@@ -400,4 +484,10 @@ function generateActionableTip(dayRating: string): string {
     'Very Challenging': '🔥 Simplify everything. What\'s essential? Focus there. This too shall pass; do less today.',
   };
   return tips[dayRating] || 'Trust your instincts. Let them guide you.';
+}
+
+function getConfidenceMeterColor(probability: number): string {
+  if (probability >= 80) return 'bg-emerald-400';
+  if (probability >= 65) return 'bg-cyan-400';
+  return 'bg-amber-400';
 }

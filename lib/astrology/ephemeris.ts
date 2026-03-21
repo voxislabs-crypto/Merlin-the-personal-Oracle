@@ -28,6 +28,20 @@ export interface DailyForecast {
     reasoning: string;
     cosmicTendencies: string[];
   };
+  timingWindows?: {
+    next24Hours: string;
+    next72Hours: string;
+    weekAhead: string;
+  };
+  futureSignals?: Array<{
+    domain: 'Love' | 'Career' | 'Mind' | 'Mood';
+    signal: string;
+    probability: number;
+    timeframe: '24h' | '72h' | '7d';
+    action: string;
+    intensity: 'low' | 'medium' | 'high';
+  }>;
+  conversationalPrompts?: string[];
 }
 
 // ─── Aspect definitions ──────────────────────────────────────────────────────
@@ -174,9 +188,20 @@ const ASPECT_MOOD_TEMPLATES: Record<string, string[]> = {
   ],
 };
 
-function pickTemplate(templates: Record<string, string[]>, nature: AspectNature | 'neutral'): string {
+function hashText(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function deterministicPick(templates: Record<string, string[]>, nature: AspectNature | 'neutral', seed: string): string {
   const pool = templates[nature] || templates['neutral'];
-  return pool[Math.floor(Math.random() * pool.length)];
+  if (pool.length === 0) {
+    return '';
+  }
+  return pool[hashText(seed) % pool.length];
 }
 
 // ─── Day rating ───────────────────────────────────────────────────────────────
@@ -393,7 +418,12 @@ export function getTodaysForecast(birthChart: BirthChartData, targetDate?: strin
   const summary = buildSummary(natalSunSign, transitMoon, activeTransits, moonPhase, day_rating);
 
   // ── Focus areas ───────────────────────────────────────────────────────────
-  const focusAreas = buildFocusAreas(activeTransits, day_rating);
+  const focusAreas = buildFocusAreas(activeTransits, day_rating, dateString);
+
+  // ── Future-facing layers ──────────────────────────────────────────────────
+  const timingWindows = buildTimingWindows(day_rating, moonPhase, activeTransits);
+  const futureSignals = buildFutureSignals(activeTransits, day_rating);
+  const conversationalPrompts = buildConversationPrompts(natalSunSign, futureSignals);
 
   // ── Advice ────────────────────────────────────────────────────────────────
   const advice = generateDailyAdvice(natalSunSign, moonPhase, day_rating);
@@ -409,13 +439,17 @@ export function getTodaysForecast(birthChart: BirthChartData, targetDate?: strin
     advice,
     day_rating,
     focusAreas,
+    timingWindows,
+    futureSignals,
+    conversationalPrompts,
   };
 }
 
 // ─── Focus area builder ───────────────────────────────────────────────────────
 function buildFocusAreas(
   transits: ActiveTransit[],
-  day_rating: DailyForecast['day_rating']
+  day_rating: DailyForecast['day_rating'],
+  dateString: string
 ): DailyForecast['focusAreas'] {
   // Determine dominant nature per area from transits touching that area's planets
   function dominantNature(area: string): AspectNature | 'neutral' {
@@ -435,11 +469,126 @@ function buildFocusAreas(
   }
 
   return {
-    love:   pickTemplate(ASPECT_LOVE_TEMPLATES,   dominantNature('love')),
-    career: pickTemplate(ASPECT_CAREER_TEMPLATES, dominantNature('career')),
-    mind:   pickTemplate(ASPECT_MIND_TEMPLATES,   dominantNature('mind')),
-    mood:   pickTemplate(ASPECT_MOOD_TEMPLATES,   dominantNature('mood')),
+    love: deterministicPick(ASPECT_LOVE_TEMPLATES, dominantNature('love'), `${dateString}-love-${day_rating || 'neutral'}`),
+    career: deterministicPick(ASPECT_CAREER_TEMPLATES, dominantNature('career'), `${dateString}-career-${day_rating || 'neutral'}`),
+    mind: deterministicPick(ASPECT_MIND_TEMPLATES, dominantNature('mind'), `${dateString}-mind-${day_rating || 'neutral'}`),
+    mood: deterministicPick(ASPECT_MOOD_TEMPLATES, dominantNature('mood'), `${dateString}-mood-${day_rating || 'neutral'}`),
   };
+}
+
+function buildTimingWindows(
+  day_rating: DailyForecast['day_rating'],
+  moonPhase: string,
+  transits: ActiveTransit[]
+): DailyForecast['timingWindows'] {
+  const exactCount = transits.filter(t => t.orb < 1).length;
+  const positiveCount = transits.filter(t => t.nature === 'positive').length;
+  const challengingCount = transits.filter(t => t.nature === 'challenging').length;
+
+  const shortTermByRating: Record<string, string> = {
+    'Very Positive': 'Momentum is strongest in the next 24 hours. Front-load important conversations and launches now.',
+    'Positive': 'A supportive tide builds through the next day. Take one strategic action while clarity is high.',
+    'Neutral': 'The next 24 hours are steady. Use this as setup time before bigger movement later this week.',
+    'Challenging': 'The next 24 hours are sensitive. Move slowly, simplify commitments, and avoid rushed decisions.',
+    'Very Challenging': 'The next 24 hours call for recovery mode. Protect bandwidth and prioritize sleep, food, and boundaries.',
+  };
+
+  const next72 = challengingCount > positiveCount
+    ? 'The next 72 hours bring pressure-testing. Expect delays or emotional spikes; choose patience over force.'
+    : 'The next 72 hours bring constructive openings. Follow through on practical plans and relationship repair.';
+
+  const moonLayer = moonPhase === 'Full Moon'
+    ? 'By week end, clarity arrives through completion and release.'
+    : moonPhase === 'New Moon'
+      ? 'By week end, seeds planted now begin showing early signs of traction.'
+      : 'By week end, consistent small moves outperform dramatic leaps.';
+
+  const precisionLine = exactCount > 0
+    ? ` ${exactCount} exact transit${exactCount > 1 ? 's are' : ' is'} active, so timing choices matter more than usual.`
+    : '';
+
+  return {
+    next24Hours: (shortTermByRating[day_rating || 'Neutral'] || shortTermByRating.Neutral) + precisionLine,
+    next72Hours: next72,
+    weekAhead: moonLayer,
+  };
+}
+
+function buildFutureSignals(
+  transits: ActiveTransit[],
+  day_rating: DailyForecast['day_rating']
+): DailyForecast['futureSignals'] {
+  const top = transits.slice(0, 4);
+  const fallbackSignals: DailyForecast['futureSignals'] = [
+    {
+      domain: 'Mind',
+      signal: 'A quieter processing phase supports planning over reacting.',
+      probability: 64,
+      timeframe: '24h',
+      action: 'Write down your top 3 priorities and defer lower-stakes choices.',
+      intensity: 'low',
+    },
+    {
+      domain: 'Mood',
+      signal: 'Emotional weather is stable enough for reset and reflection.',
+      probability: 61,
+      timeframe: '72h',
+      action: 'Protect one uninterrupted recovery block each day.',
+      intensity: 'low',
+    },
+  ];
+
+  if (top.length === 0) {
+    return fallbackSignals;
+  }
+
+  const toDomain = (planet: string): 'Love' | 'Career' | 'Mind' | 'Mood' => {
+    const area = PLANET_AREAS[planet]?.[0];
+    if (area === 'love') return 'Love';
+    if (area === 'career') return 'Career';
+    if (area === 'mind') return 'Mind';
+    return 'Mood';
+  };
+
+  const ratingBias =
+    day_rating === 'Very Positive' ? 10
+    : day_rating === 'Positive' ? 6
+    : day_rating === 'Neutral' ? 0
+    : day_rating === 'Challenging' ? -6
+    : -10;
+
+  return top.map((t, idx) => {
+    const domain = toDomain(t.natalPlanet);
+    const base = t.nature === 'positive' ? 72 : t.nature === 'challenging' ? 68 : 63;
+    const precisionBonus = Math.max(0, 8 - Math.floor(t.orb));
+    const probability = Math.max(55, Math.min(92, base + precisionBonus + ratingBias));
+    const timeframe: '24h' | '72h' | '7d' = idx === 0 ? '24h' : idx < 3 ? '72h' : '7d';
+    const intensity: 'low' | 'medium' | 'high' = t.orb < 1.5 ? 'high' : t.orb < 3 ? 'medium' : 'low';
+
+    return {
+      domain,
+      signal: `${t.transitPlanet} ${t.aspect} natal ${t.natalPlanet} suggests ${domain.toLowerCase()} dynamics are shifting.`,
+      probability,
+      timeframe,
+      action: t.nature === 'challenging'
+        ? 'Reduce reactivity: pause, verify facts, and take one grounded next step.'
+        : 'Use the opening: make one concrete move while timing is supportive.',
+      intensity,
+    };
+  });
+}
+
+function buildConversationPrompts(
+  sunSign: string,
+  futureSignals: DailyForecast['futureSignals']
+): string[] {
+  const topSignal = futureSignals?.[0];
+  const domain = topSignal?.domain?.toLowerCase() || 'energy';
+  return [
+    `Ask Merlin: "What should I prioritize in ${domain} over the next 72 hours?"`,
+    `Ask Merlin: "If I avoid one mistake this week as a ${sunSign}, what should it be?"`,
+    'Ask Merlin: "Give me a 3-step action plan for today, tomorrow, and this weekend."',
+  ];
 }
 
 function generateDailyAdvice(

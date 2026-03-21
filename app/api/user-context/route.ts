@@ -21,7 +21,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, situation, mood, goals, lastFeedbackNotes } = body || {};
+    const {
+      userId,
+      situation,
+      mood,
+      goals,
+      lastFeedbackNotes,
+      oracleTonePreset,
+      archetypeName,
+      patternSignature,
+      coreContradiction,
+      arcPath,
+      arcLevel,
+      arcXp,
+      interactionCount,
+      lastInteractionAt,
+    } = body || {};
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 });
@@ -33,6 +48,15 @@ export async function POST(request: Request) {
       mood,
       goals,
       lastFeedbackNotes,
+      oracleTonePreset,
+      archetypeName,
+      patternSignature,
+      coreContradiction,
+      arcPath,
+      arcLevel,
+      arcXp,
+      interactionCount,
+      lastInteractionAt,
     });
 
     return NextResponse.json({ success: true, data: context });

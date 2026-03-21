@@ -17,6 +17,9 @@ import { InterpretationModeToggle } from '@/components/astrology/InterpretationM
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
 import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
+import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
+import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
+import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import QuestLog from '@/components/astrology/QuestLog';
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
@@ -61,6 +64,10 @@ export default function UnifiedDashboard() {
   const [showDeepDive, setShowDeepDive] = useState(false);
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
+  const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
+  const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
+  const [dailyOracle, setDailyOracle] = useState<{ message?: string; dayRating?: string } | null>(null);
+  const [dailyOracleLoading, setDailyOracleLoading] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -125,6 +132,89 @@ export default function UnifiedDashboard() {
       setUserId(user.id || `user-${Date.now()}`);
     }
   }, [isLoaded, user, router, toast]);
+
+  useEffect(() => {
+    const loadIdentityFromContext = async () => {
+      if (!userId) return;
+      try {
+        const res = await fetch(`/api/user-context?userId=${encodeURIComponent(userId)}`);
+        if (!res.ok) return;
+        const result = await res.json();
+        if (!result?.success || !result?.data) return;
+        if (result.data.archetypeName || result.data.patternSignature || result.data.coreContradiction) {
+          setIdentityPack({
+            archetypeName: result.data.archetypeName,
+            patternSignature: result.data.patternSignature,
+            coreContradiction: result.data.coreContradiction,
+          });
+        }
+        if (result.data.arcPath || result.data.arcLevel || result.data.arcXp) {
+          setProgression({
+            arcPath: result.data.arcPath,
+            arcLevel: result.data.arcLevel,
+            arcXp: result.data.arcXp,
+            interactionCount: result.data.interactionCount,
+          });
+        }
+      } catch {
+        // Best effort only.
+      }
+    };
+
+    loadIdentityFromContext();
+  }, [userId]);
+
+  useEffect(() => {
+    const ensureIdentityPack = async () => {
+      if (!userId || !chartData) return;
+      try {
+        const response = await fetch('/api/identity-pack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, birthChart: chartData, mbtiType: mbtiType || undefined }),
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (result?.success && result?.data) {
+          setIdentityPack(result.data);
+        }
+      } catch {
+        // Identity pack generation should never block dashboard render.
+      }
+    };
+
+    ensureIdentityPack();
+  }, [userId, chartData, mbtiType]);
+
+  const fetchDailyOracle = useCallback(async (truthBomb = false) => {
+    if (!chartData) return;
+    setDailyOracleLoading(true);
+    try {
+      const response = await fetch('/api/daily-oracle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          birthChart: chartData,
+          truthBomb,
+        }),
+      });
+      if (!response.ok) return;
+      const result = await response.json();
+      if (result?.success && result?.data) {
+        setDailyOracle({ message: result.data.message, dayRating: result.data.dayRating });
+      }
+    } catch {
+      // Daily oracle is a non-blocking enhancement.
+    } finally {
+      setDailyOracleLoading(false);
+    }
+  }, [chartData, userId]);
+
+  useEffect(() => {
+    if (!chartData) return;
+    fetchDailyOracle(false);
+  }, [chartData, fetchDailyOracle]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -404,6 +494,48 @@ export default function UnifiedDashboard() {
                 )}
               </div>
               <p className="text-gray-300 text-lg">One place. Your whole story.</p>
+            </motion.div>
+
+            {identityPack && (identityPack.archetypeName || identityPack.patternSignature || identityPack.coreContradiction) && (
+              <motion.div
+                className="mb-8 max-w-3xl mx-auto"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <IdentityPatternCard
+                  archetypeName={identityPack.archetypeName}
+                  patternSignature={identityPack.patternSignature}
+                  coreContradiction={identityPack.coreContradiction}
+                />
+              </motion.div>
+            )}
+
+            {progression && (progression.arcPath || progression.arcLevel || progression.arcXp) && (
+              <motion.div
+                className="mb-8 max-w-3xl mx-auto"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <ProgressPathCard
+                  arcPath={progression.arcPath}
+                  arcLevel={progression.arcLevel}
+                  arcXp={progression.arcXp}
+                  interactionCount={progression.interactionCount}
+                />
+              </motion.div>
+            )}
+
+            <motion.div
+              className="mb-8 max-w-3xl mx-auto"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <DailyOraclePulse
+                message={dailyOracle?.message}
+                dayRating={dailyOracle?.dayRating}
+                loading={dailyOracleLoading}
+                onTruthBomb={() => fetchDailyOracle(true)}
+              />
             </motion.div>
 
             {/* Birth Chart Calculator */}

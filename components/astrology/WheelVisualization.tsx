@@ -118,6 +118,11 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
     y: centerY - r * Math.cos((deg * Math.PI) / 180),
   });
 
+  const getOrbitScale = (planetName: string): number => {
+    const sum = planetName.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return 0.5 + (sum % 30) / 100;
+  };
+
   if (!chartData) return null;
 
   const planets = chartData.planets || [];
@@ -171,19 +176,25 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
         <rect width={width} height={height} fill="url(#bookBg)" />
         <rect width={width} height={height} fill="url(#stars)" opacity="0.25" />
 
-        {/* 6 golden orbital rings */}
-        {[1, 0.92, 0.84, 0.76, 0.68, 0.6].map((scale, i) => (
-          <circle
-            key={i}
-            cx={centerX}
-            cy={centerY}
-            r={radius * scale}
-            fill="none"
-            stroke="#fcd34d"
-            strokeWidth={i === 0 ? 3 : 1}
-            opacity={i === 0 ? 1 : 0.5}
-          />
-        ))}
+        {/* 6 golden orbital rings with gentle motion */}
+        <motion.g
+          animate={{ rotate: 360 }}
+          transition={{ duration: 240, repeat: Infinity, ease: 'linear' }}
+          style={{ transformOrigin: `${centerX}px ${centerY}px` }}
+        >
+          {[1, 0.92, 0.84, 0.76, 0.68, 0.6].map((scale, i) => (
+            <circle
+              key={i}
+              cx={centerX}
+              cy={centerY}
+              r={radius * scale}
+              fill="none"
+              stroke="#fcd34d"
+              strokeWidth={i === 0 ? 3 : 1}
+              opacity={i === 0 ? 1 : 0.5}
+            />
+          ))}
+        </motion.g>
 
         {/* Central radiant sunburst */}
         <g>
@@ -212,29 +223,35 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
           );
         })}
 
-        {/* Zodiac glyphs */}
-        {['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'].map((glyph, i) => {
-          const angle = i * 30 + 15;
-          const { x, y } = getXY(angle, radius * 1.08);
-          return (
-            <text
-              key={i}
-              x={x}
-              y={y}
-              fill="#fcd34d"
-              fontSize="42"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              opacity="0.9"
-            >
-              {glyph}
-            </text>
-          );
-        })}
+        {/* Zodiac glyphs with subtle counter-rotation */}
+        <motion.g
+          animate={{ rotate: -360 }}
+          transition={{ duration: 420, repeat: Infinity, ease: 'linear' }}
+          style={{ transformOrigin: `${centerX}px ${centerY}px` }}
+        >
+          {['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'].map((glyph, i) => {
+            const angle = i * 30 + 15;
+            const { x, y } = getXY(angle, radius * 1.08);
+            return (
+              <text
+                key={i}
+                x={x}
+                y={y}
+                fill="#fcd34d"
+                fontSize="42"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                opacity="0.9"
+              >
+                {glyph}
+              </text>
+            );
+          })}
+        </motion.g>
 
         {/* Planets */}
         {planets.map((p: any) => {
-          const orbitScale = 0.5 + Math.random() * 0.3;
+          const orbitScale = getOrbitScale(p.name || 'planet');
           const orbitRadius = radius * orbitScale;
           const { x, y } = getXY(p.angle || p.longitude || 0, orbitRadius);
           const isHovered = hoveredPlanet === p.name;
@@ -297,7 +314,7 @@ export function WheelVisualization({ chartData, hoveredPlanet, setHoveredPlanet 
 
         {/* Transit Planets Overlay */}
         {showTransits && transitData && transitData.planets.map((p: any) => {
-          const orbitScale = 0.5 + Math.random() * 0.3;
+          const orbitScale = getOrbitScale(p.name || 'planet');
           const orbitRadius = radius * orbitScale;
           const { x, y } = getXY(p.angle || p.longitude || 0, orbitRadius);
           const glyph = PLANET_GLYPHS[p.name] || '●';

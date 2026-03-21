@@ -5,7 +5,10 @@ import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles } from '
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
+import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
+import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import type { BirthChartData } from '@/types/astrology';
+import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 
 interface Message {
   id: string;
@@ -15,6 +18,7 @@ interface Message {
   tactics?: string[];
   forecast?: { timeframe: string; themes: string[] };
   level?: { current: string; challenge: string; reward: string };
+  progression?: { arcPath: string; arcLevel: number; arcXp: number; interactionCount: number; xpGained?: number };
 }
 
 interface OracleChatProps {
@@ -40,6 +44,9 @@ export function OracleChat({
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [plainEnglish, setPlainEnglish] = useState(true); // Clarity Mode
+  const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
+  const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
+  const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,12 +152,69 @@ export function OracleChat({
   useEffect(() => {
     const saved = localStorage.getItem('merlin_clarity_mode');
     if (saved !== null) setPlainEnglish(saved !== 'false');
+    const savedTone = localStorage.getItem('merlin_oracle_tone') as OracleTonePreset | null;
+    if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
+      setTonePreset(savedTone);
+    }
   }, []);
+
+  useEffect(() => {
+    const loadServerTone = async () => {
+      if (!userId || userId === 'anonymous') return;
+      try {
+        const response = await fetch(`/api/user-context?userId=${encodeURIComponent(userId)}`);
+        if (!response.ok) return;
+        const result = await response.json();
+        const tone = result?.data?.oracleTonePreset as OracleTonePreset | undefined;
+        if (tone && ['warm', 'direct', 'mystic', 'strategic'].includes(tone)) {
+          setTonePreset(tone);
+          localStorage.setItem('merlin_oracle_tone', tone);
+        }
+        if (result?.data?.archetypeName || result?.data?.patternSignature || result?.data?.coreContradiction) {
+          setIdentityPack({
+            archetypeName: result.data.archetypeName,
+            patternSignature: result.data.patternSignature,
+            coreContradiction: result.data.coreContradiction,
+          });
+        }
+        if (result?.data?.arcPath || result?.data?.arcLevel || result?.data?.arcXp) {
+          setProgression({
+            arcPath: result.data.arcPath,
+            arcLevel: result.data.arcLevel,
+            arcXp: result.data.arcXp,
+            interactionCount: result.data.interactionCount,
+          });
+        }
+      } catch {
+        // Keep local fallback if server context is unavailable.
+      }
+    };
+
+    loadServerTone();
+  }, [userId]);
 
   const toggleClarityMode = () => {
     const next = !plainEnglish;
     setPlainEnglish(next);
     localStorage.setItem('merlin_clarity_mode', String(next));
+  };
+
+  const cycleTonePreset = () => {
+    const order: OracleTonePreset[] = ['warm', 'direct', 'strategic', 'mystic'];
+    const currentIdx = order.indexOf(tonePreset);
+    const nextTone = order[(currentIdx + 1) % order.length];
+    setTonePreset(nextTone);
+    localStorage.setItem('merlin_oracle_tone', nextTone);
+
+    if (userId && userId !== 'anonymous') {
+      fetch('/api/user-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, oracleTonePreset: nextTone }),
+      }).catch(() => {
+        // Best-effort persistence only; UI should remain responsive.
+      });
+    }
   };
 
   // Fetch conversation history on mount
@@ -212,6 +276,7 @@ export function OracleChat({
           userId,
           plainEnglish,
           mbtiType: inferredMbtiType,
+          tonePreset,
         }),
       });
 
@@ -226,6 +291,7 @@ export function OracleChat({
       let tactics: string[] = [];
       let forecast: any = null;
       let level: any = null;
+      let progressionData: any = null;
       let streamError: string | null = null;
 
       while (true) {
@@ -250,6 +316,8 @@ export function OracleChat({
                 forecast = parsed.data;
               } else if (parsed.type === 'level' && parsed.data) {
                 level = parsed.data;
+              } else if (parsed.type === 'progression' && parsed.data) {
+                progressionData = parsed.data;
               } else if (parsed.type === 'error') {
                 console.error('Oracle error:', parsed.error);
                 streamError = parsed.error || 'Oracle stream failed';
@@ -273,6 +341,8 @@ export function OracleChat({
             forecast = parsed.data;
           } else if (parsed.type === 'level' && parsed.data) {
             level = parsed.data;
+          } else if (parsed.type === 'progression' && parsed.data) {
+            progressionData = parsed.data;
           } else if (parsed.type === 'error') {
             streamError = parsed.error || 'Oracle stream failed';
           }
@@ -289,15 +359,27 @@ export function OracleChat({
         throw new Error('Empty response from Oracle');
       }
 
+      const polishedContent = polishOracleOutput(fullContent);
+
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: fullContent,
+        content: polishedContent,
         timestamp: new Date(),
         tactics: tactics.length > 0 ? tactics : undefined,
         forecast: forecast || undefined,
         level: level || undefined,
+        progression: progressionData || undefined,
       };
+
+      if (progressionData) {
+        setProgression({
+          arcPath: progressionData.arcPath,
+          arcLevel: progressionData.arcLevel,
+          arcXp: progressionData.arcXp,
+          interactionCount: progressionData.interactionCount,
+        });
+      }
 
       setMessages((prev: Message[]) => [...prev, assistantMessage]);
       setStreamingContent('');
@@ -335,6 +417,27 @@ export function OracleChat({
         <div>
           <h2 className="text-lg font-semibold text-purple-200">🔮 Oracle Chat</h2>
           <p className="text-xs text-purple-400">Ask Merlin anything about your chart</p>
+          {identityPack && (
+            <div className="mt-2 max-w-md">
+              <IdentityPatternCard
+                archetypeName={identityPack.archetypeName}
+                patternSignature={identityPack.patternSignature}
+                coreContradiction={identityPack.coreContradiction}
+                compact
+              />
+            </div>
+          )}
+          {progression && (
+            <div className="mt-2 max-w-md">
+              <ProgressPathCard
+                arcPath={progression.arcPath}
+                arcLevel={progression.arcLevel}
+                arcXp={progression.arcXp}
+                interactionCount={progression.interactionCount}
+                compact
+              />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Clarity Mode toggle */}
@@ -349,6 +452,14 @@ export function OracleChat({
           >
             {plainEnglish ? <Eye size={12} /> : <Sparkles size={12} />}
             <span>{plainEnglish ? 'Clarity' : 'Oracle Full'}</span>
+          </button>
+          <button
+            onClick={cycleTonePreset}
+            title={`Tone preset: ${tonePreset}`}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30"
+          >
+            <span>Tone</span>
+            <span className="uppercase">{tonePreset}</span>
           </button>
           <button
             onClick={onClose}

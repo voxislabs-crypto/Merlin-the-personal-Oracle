@@ -14,6 +14,15 @@ model UserContextSnapshot {
   mood              String?
   goalsJson         String?
   lastFeedbackNotes String?
+  oracleTonePreset  String?
+  archetypeName     String?
+  patternSignature  String?
+  coreContradiction String?
+  arcPath           String?
+  arcLevel          Int?
+  arcXp             Int?
+  interactionCount  Int?
+  lastInteractionAt DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

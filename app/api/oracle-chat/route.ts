@@ -15,8 +15,10 @@ import { getCurrentTransits } from '@/lib/astrology/transits';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { detectWeeklyStorms } from '@/lib/astrology/storms';
 import { getMBTIDual } from '@/lib/personality/fusion';
-import { getUserContextSnapshot } from '@/lib/user-context';
+import { getUserContextSnapshot, upsertUserContextSnapshot } from '@/lib/user-context';
 import { BirthChartData } from '@/types/astrology';
+import { generateIdentityPack } from '@/lib/identity-pack';
+import { advanceArcProgression } from '@/lib/progression';
 
 interface OracleChatRequest {
   question: string;
@@ -25,6 +27,7 @@ interface OracleChatRequest {
   userId?: string;
   plainEnglish?: boolean; // Clarity Mode - strips astro jargon
   mbtiType?: string; // MBTI archetype for storm cross-reference
+  tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
 }
 
 type LlmProvider = 'xai' | 'groq';
@@ -59,7 +62,15 @@ function getOracleLlmConfig() {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as OracleChatRequest;
-    const { question, birthChart, progressedChart, userId = 'anonymous', plainEnglish = true, mbtiType } = body;
+    const {
+      question,
+      birthChart,
+      progressedChart,
+      userId = 'anonymous',
+      plainEnglish = true,
+      mbtiType,
+      tonePreset = 'warm',
+    } = body;
 
     if (!question || question.trim().length === 0) {
       return NextResponse.json(
@@ -126,9 +137,44 @@ export async function POST(request: NextRequest) {
       stormsReport?.mbtiType;
 
     let userContext = null;
+    let progression: {
+      arcPath: string;
+      arcLevel: number;
+      arcXp: number;
+      interactionCount: number;
+      lastInteractionAt: string;
+      xpGained: number;
+    } | null = null;
     if (userId && userId !== 'anonymous') {
       try {
         userContext = await getUserContextSnapshot(userId);
+
+        // Seed identity pack once we have chart + mbti context.
+        if (birthChart && (!userContext?.archetypeName || !userContext?.patternSignature || !userContext?.coreContradiction)) {
+          const identity = generateIdentityPack(birthChart as BirthChartData, derivedMbtiType);
+          userContext = await upsertUserContextSnapshot({
+            userId,
+            archetypeName: identity.archetypeName,
+            patternSignature: identity.patternSignature,
+            coreContradiction: identity.coreContradiction,
+          });
+        }
+
+        progression = advanceArcProgression({
+          existing: userContext,
+          question,
+          chart: birthChart as BirthChartData,
+          mbtiType: derivedMbtiType,
+        });
+
+        userContext = await upsertUserContextSnapshot({
+          userId,
+          arcPath: progression.arcPath,
+          arcLevel: progression.arcLevel,
+          arcXp: progression.arcXp,
+          interactionCount: progression.interactionCount,
+          lastInteractionAt: progression.lastInteractionAt,
+        });
       } catch (error) {
         console.warn('[Oracle Chat] Could not load user context from database:', error instanceof Error ? error.message : 'Unknown error');
         // Continue without user context - oracle will still work
@@ -148,6 +194,7 @@ export async function POST(request: NextRequest) {
       currentDate: new Date(),
       plainEnglish,
       mbtiType: derivedMbtiType,
+      tonePreset,
     };
 
     // Add user message to history
@@ -361,6 +408,17 @@ export async function POST(request: NextRequest) {
               }) + '\n'
             )
           );
+
+          if (progression) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'progression',
+                  data: progression,
+                }) + '\n'
+              )
+            );
+          }
 
           // Store assistant message
           const assistantMessage: OracleMessage = {

@@ -5,9 +5,12 @@ import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, VolumeX, Trash2, 
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
+import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
+import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import { getCachedAudio, cacheAudio, generateCacheKey, clearAllAudioCache } from '@/lib/audio-cache';
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
+import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 
 interface Message {
   id: string;
@@ -17,6 +20,7 @@ interface Message {
   tactics?: string[];
   forecast?: { timeframe: string; themes: string[] };
   level?: { current: string; challenge: string; reward: string };
+  progression?: { arcPath: string; arcLevel: number; arcXp: number; interactionCount: number; xpGained?: number };
 }
 
 interface CollapsibleChatPanelProps {
@@ -54,6 +58,9 @@ export function CollapsibleChatPanel({
   const [ttsError, setTtsError] = useState<string | null>(null); // Track TTS errors
   const [autoScroll, setAutoScroll] = useState(true); // Track if user has scrolled up
   const [plainEnglishInternal, setPlainEnglishInternal] = useState(true); // Clarity Mode fallback
+  const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
+  const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
+  const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   // Use parent-controlled value if provided, else internal state
   const plainEnglish = clarityModeProp !== undefined ? clarityModeProp : plainEnglishInternal;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -297,7 +304,46 @@ export function CollapsibleChatPanel({
   useEffect(() => {
     const saved = localStorage.getItem('merlin_clarity_mode');
     if (saved !== null) setPlainEnglishInternal(saved !== 'false');
+    const savedTone = localStorage.getItem('merlin_oracle_tone') as OracleTonePreset | null;
+    if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
+      setTonePreset(savedTone);
+    }
   }, []);
+
+  useEffect(() => {
+    const loadServerTone = async () => {
+      if (!userId || userId === 'anonymous') return;
+      try {
+        const response = await fetch(`/api/user-context?userId=${encodeURIComponent(userId)}`);
+        if (!response.ok) return;
+        const result = await response.json();
+        const tone = result?.data?.oracleTonePreset as OracleTonePreset | undefined;
+        if (tone && ['warm', 'direct', 'mystic', 'strategic'].includes(tone)) {
+          setTonePreset(tone);
+          localStorage.setItem('merlin_oracle_tone', tone);
+        }
+        if (result?.data?.archetypeName || result?.data?.patternSignature || result?.data?.coreContradiction) {
+          setIdentityPack({
+            archetypeName: result.data.archetypeName,
+            patternSignature: result.data.patternSignature,
+            coreContradiction: result.data.coreContradiction,
+          });
+        }
+        if (result?.data?.arcPath || result?.data?.arcLevel || result?.data?.arcXp) {
+          setProgression({
+            arcPath: result.data.arcPath,
+            arcLevel: result.data.arcLevel,
+            arcXp: result.data.arcXp,
+            interactionCount: result.data.interactionCount,
+          });
+        }
+      } catch {
+        // Keep local fallback if server context is unavailable.
+      }
+    };
+
+    loadServerTone();
+  }, [userId]);
 
   const toggleClarityMode = () => {
     if (onClarityChange) {
@@ -307,6 +353,24 @@ export function CollapsibleChatPanel({
       const next = !plainEnglishInternal;
       setPlainEnglishInternal(next);
       localStorage.setItem('merlin_clarity_mode', String(next));
+    }
+  };
+
+  const cycleTonePreset = () => {
+    const order: OracleTonePreset[] = ['warm', 'direct', 'strategic', 'mystic'];
+    const currentIdx = order.indexOf(tonePreset);
+    const nextTone = order[(currentIdx + 1) % order.length];
+    setTonePreset(nextTone);
+    localStorage.setItem('merlin_oracle_tone', nextTone);
+
+    if (userId && userId !== 'anonymous') {
+      fetch('/api/user-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, oracleTonePreset: nextTone }),
+      }).catch(() => {
+        // Best-effort persistence only; UI should remain responsive.
+      });
     }
   };
 
@@ -404,6 +468,7 @@ export function CollapsibleChatPanel({
           userId,
           plainEnglish,
           mbtiType,
+          tonePreset,
         }),
       });
 
@@ -418,6 +483,7 @@ export function CollapsibleChatPanel({
       let tactics: string[] = [];
       let forecast: any = null;
       let level: any = null;
+      let progressionData: any = null;
       let streamError: string | null = null;
 
       while (true) {
@@ -444,6 +510,8 @@ export function CollapsibleChatPanel({
               forecast = parsed.data;
             } else if (parsed.type === 'level') {
               level = parsed.data;
+            } else if (parsed.type === 'progression') {
+              progressionData = parsed.data;
             } else if (parsed.type === 'done') {
               // Message complete
             } else if (parsed.type === 'error') {
@@ -468,6 +536,8 @@ export function CollapsibleChatPanel({
             forecast = parsed.data;
           } else if (parsed.type === 'level') {
             level = parsed.data;
+          } else if (parsed.type === 'progression') {
+            progressionData = parsed.data;
           } else if (parsed.type === 'error') {
             streamError = parsed.error || 'Oracle stream failed';
           }
@@ -484,23 +554,35 @@ export function CollapsibleChatPanel({
         throw new Error('Empty response from Oracle');
       }
 
+      const polishedContent = polishOracleOutput(fullContent);
+
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: fullContent,
+        content: polishedContent,
         timestamp: new Date(),
         tactics: tactics.length > 0 ? tactics : undefined,
         forecast: forecast || undefined,
         level: level || undefined,
+        progression: progressionData || undefined,
       };
+
+      if (progressionData) {
+        setProgression({
+          arcPath: progressionData.arcPath,
+          arcLevel: progressionData.arcLevel,
+          arcXp: progressionData.arcXp,
+          interactionCount: progressionData.interactionCount,
+        });
+      }
 
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
       
       // Auto-read the message aloud after a brief delay
       setTimeout(() => {
-        if (fullContent.trim()) {
-          readMessageAloud(assistantMessage.id, fullContent);
+        if (polishedContent.trim()) {
+          readMessageAloud(assistantMessage.id, polishedContent);
         }
       }, 500);
     } catch (error) {
@@ -549,6 +631,27 @@ export function CollapsibleChatPanel({
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-purple-200">🔮 Oracle Chat</h3>
           <p className="text-xs text-purple-400">Ask about your chart</p>
+          {identityPack && (
+            <div className="mt-2 max-w-sm">
+              <IdentityPatternCard
+                archetypeName={identityPack.archetypeName}
+                patternSignature={identityPack.patternSignature}
+                coreContradiction={identityPack.coreContradiction}
+                compact
+              />
+            </div>
+          )}
+          {progression && (
+            <div className="mt-2 max-w-sm">
+              <ProgressPathCard
+                arcPath={progression.arcPath}
+                arcLevel={progression.arcLevel}
+                arcXp={progression.arcXp}
+                interactionCount={progression.interactionCount}
+                compact
+              />
+            </div>
+          )}
           {ttsError && (
             <p className="text-xs text-orange-400 mt-1">⚠️ {ttsError}</p>
           )}
@@ -566,6 +669,14 @@ export function CollapsibleChatPanel({
           >
             {plainEnglish ? <Eye size={11} /> : <Sparkles size={11} />}
             <span>{plainEnglish ? 'Clear' : 'Full'}</span>
+          </button>
+          <button
+            onClick={cycleTonePreset}
+            title={`Tone preset: ${tonePreset}`}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30"
+          >
+            <span>Tone</span>
+            <span className="uppercase">{tonePreset}</span>
           </button>
           <button
             onClick={clearHistory}
