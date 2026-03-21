@@ -27,6 +27,31 @@ interface OracleChatRequest {
   mbtiType?: string; // MBTI archetype for storm cross-reference
 }
 
+type LlmProvider = 'xai' | 'groq';
+
+function getOracleLlmConfig() {
+  const rawProvider = (process.env.LLM_PROVIDER || 'xai').toLowerCase();
+  const provider: LlmProvider = rawProvider === 'groq' ? 'groq' : 'xai';
+
+  if (provider === 'groq') {
+    return {
+      provider,
+      apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
+      apiKey: process.env.GROQ_API_KEY,
+      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      envKeyName: 'GROQ_API_KEY',
+    };
+  }
+
+  return {
+    provider,
+    apiUrl: process.env.XAI_API_URL || 'https://api.x.ai/v1/chat/completions',
+    apiKey: process.env.XAI_API_KEY,
+    model: process.env.XAI_MODEL || 'grok-3-fast',
+    envKeyName: 'XAI_API_KEY',
+  };
+}
+
 /**
  * POST /api/oracle-chat
  * Streaming oracle chat endpoint with chart context awareness
@@ -130,7 +155,7 @@ export async function POST(request: NextRequest) {
     // Build system prompt with chart context
     const systemPrompt = buildOracleSystemPrompt(context);
 
-    // Convert conversation history to format Grok expects
+    // Convert conversation history to OpenAI-compatible chat format
     const messages = [
       ...history.map(msg => ({
         role: msg.role as 'user' | 'assistant',
@@ -147,14 +172,15 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Verify Grok API key is configured
-          if (!process.env.XAI_API_KEY) {
-            console.error('[Oracle] XAI_API_KEY is not configured');
+          const llmConfig = getOracleLlmConfig();
+
+          if (!llmConfig.apiKey) {
+            console.error(`[Oracle] ${llmConfig.envKeyName} is not configured`);
             controller.enqueue(
               encoder.encode(
                 JSON.stringify({
                   type: 'error',
-                  error: 'Grok API key not configured. Please set XAI_API_KEY in your environment.',
+                  error: `Oracle API key not configured. Please set ${llmConfig.envKeyName} in your environment.`,
                 }) + '\n'
               )
             );
@@ -162,43 +188,41 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          console.log(`[Oracle Chat] Starting stream for user: ${userId}, question: "${question.substring(0, 50)}..."`);
-
-          // Call Grok API with streaming
-          const grokResponse = await fetch(
-            'https://api.x.ai/v1/chat/completions',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-              },
-              body: JSON.stringify({
-                model: 'grok-3-fast',
-                messages: [
-                  {
-                    role: 'system',
-                    content: systemPrompt,
-                  },
-                  ...messages.map(m => ({
-                    role: m.role,
-                    content: m.content,
-                  })),
-                ],
-                temperature: 0.8,
-                max_tokens: 2000,
-                stream: true,
-              }),
-            }
+          console.log(
+            `[Oracle Chat] Starting ${llmConfig.provider} stream for user: ${userId}, question: "${question.substring(0, 50)}..."`
           );
 
-          if (!grokResponse.ok) {
-            const error = await grokResponse.text();
-            console.error('[Oracle] Grok API error:', grokResponse.status, error);
+          const llmResponse = await fetch(llmConfig.apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${llmConfig.apiKey}`,
+            },
+            body: JSON.stringify({
+              model: llmConfig.model,
+              messages: [
+                {
+                  role: 'system',
+                  content: systemPrompt,
+                },
+                ...messages.map(m => ({
+                  role: m.role,
+                  content: m.content,
+                })),
+              ],
+              temperature: 0.8,
+              max_tokens: 2000,
+              stream: true,
+            }),
+          });
+
+          if (!llmResponse.ok) {
+            const error = await llmResponse.text();
+            console.error(`[Oracle] ${llmConfig.provider} API error:`, llmResponse.status, error);
             controller.enqueue(
               encoder.encode(
                 JSON.stringify({
-                  error: `Grok API failed with status ${grokResponse.status}`,
+                  error: `${llmConfig.provider.toUpperCase()} API failed with status ${llmResponse.status}`,
                   type: 'error',
                 }) + '\n'
               )
@@ -207,7 +231,7 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          const reader = grokResponse.body?.getReader();
+          const reader = llmResponse.body?.getReader();
           if (!reader) {
             controller.enqueue(
               encoder.encode(
