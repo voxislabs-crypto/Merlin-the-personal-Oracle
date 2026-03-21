@@ -137,7 +137,9 @@ export async function getPatternMirror(userId: string) {
     return 'stable';
   };
 
-  const trends = Array.from(new Set([...trendCounts.keys(), ...previousTrendCounts.keys()]))
+  const trendKeys = Array.from(trendCounts.keys());
+  const previousTrendKeys = Array.from(previousTrendCounts.keys());
+  const trends = Array.from(new Set([...trendKeys, ...previousTrendKeys]))
     .map((key) => {
       const count = trendCounts.get(key) || 0;
       const previousCount = previousTrendCounts.get(key) || 0;
