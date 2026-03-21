@@ -16,6 +16,8 @@ export interface DetectedPattern {
   confidence: number;
 }
 
+export type PatternTrendStatus = 'rising' | 'stable' | 'fading' | 'new';
+
 const PATTERN_LABELS: Record<PatternKey, string> = {
   avoidance_loop: 'Avoidance Loop',
   overthinking_loop: 'Overthinking Spike',
@@ -92,13 +94,6 @@ export async function getPatternMirror(userId: string) {
     }))
     .sort((a, b) => b.count - a.count);
 
-  const dominant = frequency[0]
-    ? {
-        ...frequency[0],
-        summary: `This pattern has repeated ${frequency[0].count} times in your recent behavior. Merlin should treat it as active, not historical.`,
-      }
-    : null;
-
   const recentTimeline = patternEvents.slice(0, 8).map((event) => ({
     id: event.id,
     type: event.type,
@@ -109,16 +104,59 @@ export async function getPatternMirror(userId: string) {
     feedbackSignal: event.feedbackSignal,
   }));
 
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const trendWindow = patternEvents.filter((event) => event.createdAt.getTime() >= sevenDaysAgo);
+  const now = Date.now();
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const fourteenDaysAgo = now - 14 * 24 * 60 * 60 * 1000;
+  const currentWindow = patternEvents.filter((event) => event.createdAt.getTime() >= sevenDaysAgo);
+  const previousWindow = patternEvents.filter(
+    (event) => event.createdAt.getTime() < sevenDaysAgo && event.createdAt.getTime() >= fourteenDaysAgo
+  );
   const trendCounts = new Map<string, number>();
-  for (const event of trendWindow) {
+  const previousTrendCounts = new Map<string, number>();
+  for (const event of currentWindow) {
     const key = event.detectedPattern as string;
     trendCounts.set(key, (trendCounts.get(key) || 0) + 1);
   }
-  const trends = Array.from(trendCounts.entries())
-    .map(([key, count]) => ({ pattern: key, label: PATTERN_LABELS[key as PatternKey] || key, count }))
+  for (const event of previousWindow) {
+    const key = event.detectedPattern as string;
+    previousTrendCounts.set(key, (previousTrendCounts.get(key) || 0) + 1);
+  }
+
+  const resolveTrendStatus = (currentCount: number, previousCount: number): PatternTrendStatus => {
+    if (currentCount > 0 && previousCount === 0) return 'new';
+    if (currentCount > previousCount) return 'rising';
+    if (currentCount < previousCount) return 'fading';
+    return 'stable';
+  };
+
+  const trends = Array.from(new Set([...trendCounts.keys(), ...previousTrendCounts.keys()]))
+    .map((key) => {
+      const count = trendCounts.get(key) || 0;
+      const previousCount = previousTrendCounts.get(key) || 0;
+      return {
+        pattern: key,
+        label: PATTERN_LABELS[key as PatternKey] || key,
+        count,
+        previousCount,
+        delta: count - previousCount,
+        status: resolveTrendStatus(count, previousCount),
+      };
+    })
+    .filter((trend) => trend.count > 0 || trend.previousCount > 0)
     .sort((a, b) => b.count - a.count);
+
+  const dominantTrend = frequency[0]
+    ? trends.find((trend) => trend.pattern === frequency[0].pattern)
+    : null;
+
+  const dominant = frequency[0]
+    ? {
+        ...frequency[0],
+        trendStatus: dominantTrend?.status || 'stable',
+        delta: dominantTrend?.delta || 0,
+        summary: `This pattern has repeated ${frequency[0].count} times in your recent behavior and is ${dominantTrend?.status || 'stable'} right now. Merlin should treat it as active, not historical.`,
+      }
+    : null;
 
   return {
     dominant,

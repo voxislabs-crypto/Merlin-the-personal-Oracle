@@ -67,7 +67,14 @@ export default function UnifiedDashboard() {
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
-  const [dailyOracle, setDailyOracle] = useState<{ message?: string; dayRating?: string } | null>(null);
+  const [dailyOracle, setDailyOracle] = useState<{
+    message?: string;
+    dayRating?: string;
+    dominantPattern?: {
+      label?: string;
+      trendStatus?: 'rising' | 'stable' | 'fading' | 'new';
+    } | null;
+  } | null>(null);
   const [dailyOracleLoading, setDailyOracleLoading] = useState(false);
   const [patternMirror, setPatternMirror] = useState<any | null>(null);
   const [patternMirrorLoading, setPatternMirrorLoading] = useState(false);
@@ -222,7 +229,16 @@ export default function UnifiedDashboard() {
       if (!response.ok) return;
       const result = await response.json();
       if (result?.success && result?.data) {
-        setDailyOracle({ message: result.data.message, dayRating: result.data.dayRating });
+        setDailyOracle({
+          message: result.data.message,
+          dayRating: result.data.dayRating,
+          dominantPattern: result.data.dominantPattern
+            ? {
+                label: result.data.dominantPattern.label,
+                trendStatus: result.data.dominantPattern.trendStatus,
+              }
+            : null,
+        });
         fetchPatternMirror();
       }
     } catch {
@@ -554,6 +570,23 @@ export default function UnifiedDashboard() {
                     <h2 className="mt-2 text-2xl md:text-3xl font-semibold text-slate-50">Merlin is reading your pattern, your pressure, and your next move together.</h2>
                   </div>
                   <p className="max-w-xl text-sm md:text-[15px] text-slate-300/85 leading-relaxed">Identity gives the frame, the Oracle gives the live signal, and the Pattern Mirror keeps the conversation honest.</p>
+                </div>
+                <div className="relative mb-5 flex flex-wrap gap-2.5">
+                  {progression?.arcPath ? (
+                    <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-xs text-cyan-100">
+                      {progression.arcPath} • Level {progression.arcLevel || 1}
+                    </span>
+                  ) : null}
+                  {dailyOracle?.dayRating ? (
+                    <span className="rounded-full border border-rose-300/25 bg-rose-400/10 px-3 py-1.5 text-xs text-rose-100">
+                      Terrain: {dailyOracle.dayRating}
+                    </span>
+                  ) : null}
+                  {dailyOracle?.dominantPattern?.label ? (
+                    <span className="rounded-full border border-indigo-300/25 bg-indigo-300/10 px-3 py-1.5 text-xs text-indigo-100">
+                      Loop: {dailyOracle.dominantPattern.label}{dailyOracle.dominantPattern.trendStatus ? ` • ${dailyOracle.dominantPattern.trendStatus}` : ''}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="relative grid grid-cols-1 xl:grid-cols-[0.95fr_1.35fr_0.95fr] gap-4 md:gap-5 items-start">
                   <div className="space-y-4">

@@ -66,11 +66,16 @@ export interface OracleContext {
       label: string;
       count: number;
       summary: string;
+      trendStatus?: 'rising' | 'stable' | 'fading' | 'new';
+      delta?: number;
     } | null;
     trends?: Array<{
       pattern: string;
       label: string;
       count: number;
+      previousCount?: number;
+      delta?: number;
+      status?: 'rising' | 'stable' | 'fading' | 'new';
     }>;
     totalEvents?: number;
   } | null;
@@ -447,18 +452,55 @@ function formatPatternMirrorContext(patternMirror: OracleContext['patternMirror'
   if (!patternMirror?.dominant) return '';
 
   const dominant = patternMirror.dominant;
+  const trendLanguage = dominant.trendStatus ? ` (${dominant.trendStatus})` : '';
   const trendLines = (patternMirror.trends || [])
     .slice(0, 3)
-    .map((trend) => `- ${trend.label}: ${trend.count} recent hits`)
+    .map((trend) => `- ${trend.label}: ${trend.count} recent hits vs ${trend.previousCount || 0} prior (${trend.status || 'stable'})`)
     .join('\n');
+
+  const phraseBank = {
+    avoidance_loop: [
+      'This is your avoidance loop wearing smarter clothes.',
+      'The same delay pattern is back, just with a cleaner excuse.',
+      'You are close to calling stalling strategy again.',
+    ],
+    overthinking_loop: [
+      'This is the part where thinking keeps trying to replace movement.',
+      'Your mind is trying to turn uncertainty into a full-time job.',
+      'This loop usually shows up when analysis starts crowding out action.',
+    ],
+    inconsistency: [
+      'This is the familiar drop-off point, not a brand new crisis.',
+      'The pattern here is not starting. It is staying with the thing.',
+      'You are approaching one of your old exit ramps.',
+    ],
+    validation_seeking: [
+      'This is the moment your conviction tries to borrow someone else’s voice.',
+      'You may be tempted to ask for permission instead of making a call.',
+      'This loop usually appears when your own read suddenly feels insufficient.',
+    ],
+    control_friction: [
+      'This is the grip-tightening pattern, not just a tough week.',
+      'The loop here is trying to over-manage what timing needs to breathe through.',
+      'You may mistake control for safety if you are not careful.',
+    ],
+    self_trust_gap: [
+      'This is the part where your clear knowing gets negotiated downward.',
+      'The repeat pattern is doubting yourself after the signal already arrived.',
+      'You are near one of those moments where self-trust gets quietly traded away.',
+    ],
+  } as const;
+
+  const dominantPhrases = phraseBank[dominant.pattern as keyof typeof phraseBank] || phraseBank.self_trust_gap;
 
   return `
 PATTERN MIRROR EVIDENCE:
-- Dominant loop: ${dominant.label}
+- Dominant loop: ${dominant.label}${trendLanguage}
 - Repeat count: ${dominant.count}
 - Meaning: ${dominant.summary}
 ${trendLines ? `- Recent trend stack:\n${trendLines}` : ''}
-- Use rule: if the current question touches this loop, name it plainly once and explain how it is showing up now. Do not sound like a surveillance system; sound like a wise pattern witness.
+- Reference styles you may rotate through if relevant:\n  - ${dominantPhrases[0]}\n  - ${dominantPhrases[1]}\n  - ${dominantPhrases[2]}
+- Use rule: if the current question touches this loop, name it plainly once and explain how it is showing up now. Rotate your phrasing. Do not sound like a surveillance system; sound like a wise pattern witness.
   `.trim();
 }
 
@@ -534,6 +576,7 @@ RESPONSE FORMAT (non-negotiable):
 - Keep it conversational and human, not robotic. You may use short paragraphs, but each prediction line must include: what is happening, probability %, and one concrete move.
 - Cover active domains naturally across those sections: body/physical, energy, money/material, emotional, relational, mental.
 - If Pattern Mirror evidence exists and is relevant, name the loop in plain English once. Example: "This looks like your avoidance loop wearing a more polished outfit."
+- If you reference a known loop, vary the wording naturally. Do not repeat the same framing from prior replies unless the evidence is unusually exact.
 - End with "Best move:" followed by one single highest-leverage action for the next 24-72h.
 - Maximum 380 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
 
