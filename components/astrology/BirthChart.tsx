@@ -145,7 +145,6 @@ export function BirthChart({
         .then((result) => {
           if (result) {
             setSelectedLocation(result);
-            setLocationQuery(result.displayName);
           }
         })
         .catch((err) => {
@@ -236,6 +235,9 @@ export function BirthChart({
     return grouped;
   }, [chartData]);
 
+  const locationPlaceholder =
+    selectedLocation?.displayName || 'e.g., New York, NY or London, UK';
+
   return (
     <div className={`space-y-6 ${className}`}>
       {showControls && (
@@ -285,7 +287,7 @@ export function BirthChart({
                   id="location"
                   name="location"
                   type="text"
-                  placeholder="e.g., New York, NY or London, UK"
+                  placeholder={locationPlaceholder}
                   value={locationQuery}
                   onChange={(e) => handleLocationSearch(e.target.value)}
                   onFocus={() => locationResults.length > 0 && setShowLocationResults(true)}
