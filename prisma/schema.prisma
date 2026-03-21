@@ -91,3 +91,18 @@ model ResonanceFeedbackRecord {
   scoreAfter      Float?
   userRating      Int?
 }
+
+model UserInteractionEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String
+  content        String?
+  detectedPattern String?
+  confidence     Float?
+  feedbackSignal String?
+  metadataJson   String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, detectedPattern])
+}

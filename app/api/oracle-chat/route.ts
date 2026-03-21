@@ -19,6 +19,7 @@ import { getUserContextSnapshot, upsertUserContextSnapshot } from '@/lib/user-co
 import { BirthChartData } from '@/types/astrology';
 import { generateIdentityPack } from '@/lib/identity-pack';
 import { advanceArcProgression } from '@/lib/progression';
+import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/lib/pattern-mirror';
 
 interface OracleChatRequest {
   question: string;
@@ -137,6 +138,7 @@ export async function POST(request: NextRequest) {
       stormsReport?.mbtiType;
 
     let userContext = null;
+    let detectedPattern = null as { key: string; label: string; confidence: number } | null;
     let progression: {
       arcPath: string;
       arcLevel: number;
@@ -145,8 +147,10 @@ export async function POST(request: NextRequest) {
       lastInteractionAt: string;
       xpGained: number;
     } | null = null;
+    let patternMirror = null;
     if (userId && userId !== 'anonymous') {
       try {
+        detectedPattern = detectPatternFromText(question);
         userContext = await getUserContextSnapshot(userId);
 
         // Seed identity pack once we have chart + mbti context.
@@ -175,6 +179,21 @@ export async function POST(request: NextRequest) {
           interactionCount: progression.interactionCount,
           lastInteractionAt: progression.lastInteractionAt,
         });
+
+        await logInteractionEvent({
+          userId,
+          type: 'question',
+          content: question,
+          detectedPattern: detectedPattern.key,
+          confidence: detectedPattern.confidence,
+          metadata: {
+            tonePreset,
+            plainEnglish,
+            xpGained: progression.xpGained,
+          },
+        });
+
+        patternMirror = await getPatternMirror(userId);
       } catch (error) {
         console.warn('[Oracle Chat] Could not load user context from database:', error instanceof Error ? error.message : 'Unknown error');
         // Continue without user context - oracle will still work
@@ -195,6 +214,7 @@ export async function POST(request: NextRequest) {
       plainEnglish,
       mbtiType: derivedMbtiType,
       tonePreset,
+      patternMirror,
     };
 
     // Add user message to history

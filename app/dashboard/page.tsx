@@ -20,6 +20,7 @@ import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
 import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
+import { PatternMirrorPanel } from '@/components/astrology/PatternMirrorPanel';
 import QuestLog from '@/components/astrology/QuestLog';
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
@@ -68,6 +69,8 @@ export default function UnifiedDashboard() {
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [dailyOracle, setDailyOracle] = useState<{ message?: string; dayRating?: string } | null>(null);
   const [dailyOracleLoading, setDailyOracleLoading] = useState(false);
+  const [patternMirror, setPatternMirror] = useState<any | null>(null);
+  const [patternMirrorLoading, setPatternMirrorLoading] = useState(false);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -186,6 +189,23 @@ export default function UnifiedDashboard() {
     ensureIdentityPack();
   }, [userId, chartData, mbtiType]);
 
+  const fetchPatternMirror = useCallback(async () => {
+    if (!userId) return;
+    setPatternMirrorLoading(true);
+    try {
+      const response = await fetch(`/api/pattern-tracker?userId=${encodeURIComponent(userId)}`);
+      if (!response.ok) return;
+      const result = await response.json();
+      if (result?.success) {
+        setPatternMirror(result.data);
+      }
+    } catch {
+      // Non-blocking dashboard enhancement.
+    } finally {
+      setPatternMirrorLoading(false);
+    }
+  }, [userId]);
+
   const fetchDailyOracle = useCallback(async (truthBomb = false) => {
     if (!chartData) return;
     setDailyOracleLoading(true);
@@ -203,18 +223,43 @@ export default function UnifiedDashboard() {
       const result = await response.json();
       if (result?.success && result?.data) {
         setDailyOracle({ message: result.data.message, dayRating: result.data.dayRating });
+        fetchPatternMirror();
       }
     } catch {
       // Daily oracle is a non-blocking enhancement.
     } finally {
       setDailyOracleLoading(false);
     }
-  }, [chartData, userId]);
+  }, [chartData, userId, fetchPatternMirror]);
+
+  const sendDailyOracleFeedback = useCallback(async (signal: 'hit' | 'missed') => {
+    if (!userId || !dailyOracle?.message) return;
+    try {
+      await fetch('/api/oracle-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          source: 'daily_oracle_feedback',
+          message: dailyOracle.message,
+          feedback: signal,
+        }),
+      });
+      fetchPatternMirror();
+    } catch {
+      // Feedback should not interrupt the experience.
+    }
+  }, [userId, dailyOracle, fetchPatternMirror]);
 
   useEffect(() => {
     if (!chartData) return;
     fetchDailyOracle(false);
   }, [chartData, fetchDailyOracle]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchPatternMirror();
+  }, [userId, fetchPatternMirror]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -496,47 +541,104 @@ export default function UnifiedDashboard() {
               <p className="text-gray-300 text-lg">One place. Your whole story.</p>
             </motion.div>
 
-            {identityPack && (identityPack.archetypeName || identityPack.patternSignature || identityPack.coreContradiction) && (
-              <motion.div
-                className="mb-8 max-w-3xl mx-auto"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <IdentityPatternCard
-                  archetypeName={identityPack.archetypeName}
-                  patternSignature={identityPack.patternSignature}
-                  coreContradiction={identityPack.coreContradiction}
-                />
-              </motion.div>
-            )}
-
-            {progression && (progression.arcPath || progression.arcLevel || progression.arcXp) && (
-              <motion.div
-                className="mb-8 max-w-3xl mx-auto"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <ProgressPathCard
-                  arcPath={progression.arcPath}
-                  arcLevel={progression.arcLevel}
-                  arcXp={progression.arcXp}
-                  interactionCount={progression.interactionCount}
-                />
-              </motion.div>
-            )}
-
-            <motion.div
-              className="mb-8 max-w-3xl mx-auto"
+            <motion.section
+              className="mb-10"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <DailyOraclePulse
-                message={dailyOracle?.message}
-                dayRating={dailyOracle?.dayRating}
-                loading={dailyOracleLoading}
-                onTruthBomb={() => fetchDailyOracle(true)}
-              />
-            </motion.div>
+              <div className="relative overflow-hidden rounded-[2rem] border border-amber-500/20 bg-gradient-to-br from-slate-950/95 via-slate-900/88 to-indigo-950/40 p-4 md:p-6 lg:p-7 shadow-2xl shadow-amber-950/10">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.14),_transparent_26%),radial-gradient(circle_at_75%_22%,_rgba(99,102,241,0.16),_transparent_24%),radial-gradient(circle_at_48%_100%,_rgba(251,113,133,0.12),_transparent_30%)]" />
+                <div className="relative mb-5 flex flex-col gap-3 border-b border-white/8 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.32em] text-amber-300/75">Relationship Space</p>
+                    <h2 className="mt-2 text-2xl md:text-3xl font-semibold text-slate-50">Merlin is reading your pattern, your pressure, and your next move together.</h2>
+                  </div>
+                  <p className="max-w-xl text-sm md:text-[15px] text-slate-300/85 leading-relaxed">Identity gives the frame, the Oracle gives the live signal, and the Pattern Mirror keeps the conversation honest.</p>
+                </div>
+                <div className="relative grid grid-cols-1 xl:grid-cols-[0.95fr_1.35fr_0.95fr] gap-4 md:gap-5 items-start">
+                  <div className="space-y-4">
+                    <div className="rounded-[1.4rem] border border-white/8 bg-white/4 p-4 backdrop-blur-sm">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80 mb-2">Identity Layer</p>
+                      <p className="text-sm text-slate-300 leading-relaxed">Merlin remembers the shape of your patterns, not just the last thing you asked.</p>
+                    </div>
+                    {identityPack && (identityPack.archetypeName || identityPack.patternSignature || identityPack.coreContradiction) && (
+                      <IdentityPatternCard
+                        archetypeName={identityPack.archetypeName}
+                        patternSignature={identityPack.patternSignature}
+                        coreContradiction={identityPack.coreContradiction}
+                      />
+                    )}
+                    {progression && (progression.arcPath || progression.arcLevel || progression.arcXp) && (
+                      <ProgressPathCard
+                        arcPath={progression.arcPath}
+                        arcLevel={progression.arcLevel}
+                        arcXp={progression.arcXp}
+                        interactionCount={progression.interactionCount}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-[1.6rem] border border-rose-400/20 bg-gradient-to-br from-rose-950/20 to-slate-950/40 p-4 md:p-5 lg:p-6">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.24em] text-rose-300/85">Relationship Space</p>
+                          <h2 className="text-2xl font-semibold text-rose-50">Today’s conversation with the future</h2>
+                        </div>
+                        <p className="text-sm text-rose-100/70 max-w-md">This center rail is the live signal: what Merlin sees now, what it means, and whether it lands.</p>
+                      </div>
+                      <DailyOraclePulse
+                        message={dailyOracle?.message}
+                        dayRating={dailyOracle?.dayRating}
+                        loading={dailyOracleLoading}
+                        onTruthBomb={() => fetchDailyOracle(true)}
+                        onFeedback={sendDailyOracleFeedback}
+                      />
+                    </div>
+
+                    <div className="rounded-[1.4rem] border border-cyan-400/15 bg-cyan-950/10 p-4 backdrop-blur-sm">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300/80">Ask Rail</p>
+                          <p className="text-sm text-slate-300">Use the Oracle when you need a read on timing, risk, relationships, money, or the loop you are in.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handleDailyWhisper}
+                            className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                          >
+                            Open warm read
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => activateWhisperMode('bullshit')}
+                            className="rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20"
+                          >
+                            No-bullshit read
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => scrollToBlock(chartSectionRef)}
+                            className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10"
+                          >
+                            Jump to wheel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-[1.4rem] border border-indigo-400/15 bg-indigo-950/12 p-4 backdrop-blur-sm">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-indigo-300/80 mb-2">Pattern Layer</p>
+                      <p className="text-sm text-slate-300 leading-relaxed">Repetition becomes visible here. When a loop keeps showing up, Merlin can stop treating it like a random mood.</p>
+                    </div>
+                    <PatternMirrorPanel data={patternMirror} loading={patternMirrorLoading} />
+                  </div>
+                </div>
+              </div>
+            </motion.section>
 
             {/* Birth Chart Calculator */}
             {!chartData && (

@@ -60,6 +60,20 @@ export interface OracleContext {
   plainEnglish?: boolean; // "Clarity Mode" - strip astro jargon
   mbtiType?: string; // MBTI personality type for storm cross-reference
   tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
+  patternMirror?: {
+    dominant?: {
+      pattern: string;
+      label: string;
+      count: number;
+      summary: string;
+    } | null;
+    trends?: Array<{
+      pattern: string;
+      label: string;
+      count: number;
+    }>;
+    totalEvents?: number;
+  } | null;
 }
 
 export interface OracleResponse {
@@ -429,6 +443,25 @@ PERSISTENT LIFE CONTEXT:
   `.trim();
 }
 
+function formatPatternMirrorContext(patternMirror: OracleContext['patternMirror']): string {
+  if (!patternMirror?.dominant) return '';
+
+  const dominant = patternMirror.dominant;
+  const trendLines = (patternMirror.trends || [])
+    .slice(0, 3)
+    .map((trend) => `- ${trend.label}: ${trend.count} recent hits`)
+    .join('\n');
+
+  return `
+PATTERN MIRROR EVIDENCE:
+- Dominant loop: ${dominant.label}
+- Repeat count: ${dominant.count}
+- Meaning: ${dominant.summary}
+${trendLines ? `- Recent trend stack:\n${trendLines}` : ''}
+- Use rule: if the current question touches this loop, name it plainly once and explain how it is showing up now. Do not sound like a surveillance system; sound like a wise pattern witness.
+  `.trim();
+}
+
 /**
  * Build system prompt for Merlin 2.0 - Storm-Radar Oracle Engine
  * Predicts emotional, relational, financial, and cosmic storms using:
@@ -444,6 +477,7 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const forecastContext = context.dailyForecast ? formatDailyForecastContext(context.dailyForecast) : '';
   const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
   const userContextBlock = context.userContext ? formatUserContext(context.userContext) : '';
+  const patternMirrorBlock = context.patternMirror ? formatPatternMirrorContext(context.patternMirror) : '';
   const stormsContext = context.stormsReport ? formatStormsContext(context.stormsReport) : '';
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
   const plainEnglish = context.plainEnglish !== false; // Default ON
@@ -499,6 +533,7 @@ RESPONSE FORMAT (non-negotiable):
   3) "Week Ahead (4-7d):" 2-4 lines
 - Keep it conversational and human, not robotic. You may use short paragraphs, but each prediction line must include: what is happening, probability %, and one concrete move.
 - Cover active domains naturally across those sections: body/physical, energy, money/material, emotional, relational, mental.
+- If Pattern Mirror evidence exists and is relevant, name the loop in plain English once. Example: "This looks like your avoidance loop wearing a more polished outfit."
 - End with "Best move:" followed by one single highest-leverage action for the next 24-72h.
 - Maximum 380 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
 
@@ -534,6 +569,7 @@ ${transitsContext ? `\n${transitsContext}` : ''}
 ${forecastContext ? `\n${forecastContext}` : ''}
 ${timelineContext ? `\n${timelineContext}` : ''}
 ${userContextBlock ? `\n${userContextBlock}` : ''}
+${patternMirrorBlock ? `\n${patternMirrorBlock}` : ''}
 ${stormsContext ? `\n${stormsContext}` : ''}
 
 CONVERSATION HISTORY (last few messages):
