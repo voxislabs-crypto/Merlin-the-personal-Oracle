@@ -418,6 +418,7 @@ export function CollapsibleChatPanel({
       let tactics: string[] = [];
       let forecast: any = null;
       let level: any = null;
+      let streamError: string | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -447,12 +448,40 @@ export function CollapsibleChatPanel({
               // Message complete
             } else if (parsed.type === 'error') {
               console.error('Oracle error:', parsed.error);
-              setStreamingContent((prev) => prev + `\n\n[Error: ${parsed.error}]`);
+              streamError = parsed.error || 'Oracle stream failed';
             }
           } catch (e) {
             // Skip parse errors
           }
         }
+      }
+
+      const finalLine = buffer.trim();
+      if (finalLine.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(finalLine);
+          if (parsed.type === 'chunk' && parsed.content) {
+            fullContent += parsed.content;
+          } else if (parsed.type === 'tactics') {
+            tactics = parsed.data || [];
+          } else if (parsed.type === 'forecast') {
+            forecast = parsed.data;
+          } else if (parsed.type === 'level') {
+            level = parsed.data;
+          } else if (parsed.type === 'error') {
+            streamError = parsed.error || 'Oracle stream failed';
+          }
+        } catch {
+          // Ignore trailing parse errors
+        }
+      }
+
+      if (!fullContent.trim() && streamError) {
+        throw new Error(streamError);
+      }
+
+      if (!fullContent.trim()) {
+        throw new Error('Empty response from Oracle');
       }
 
       const assistantMessage: Message = {
@@ -476,6 +505,14 @@ export function CollapsibleChatPanel({
       }, 500);
     } catch (error) {
       console.error('Chat error:', error);
+      const errorText = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `Merlin hit a disruption: ${errorText}. Check your API key and try again.`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
       setStreamingContent('');
     } finally {
       setIsLoading(false);

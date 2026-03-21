@@ -223,17 +223,20 @@ export async function POST(request: NextRequest) {
 
           let fullResponse = '';
           const decoder = new TextDecoder();
+          let sseBuffer = '';
 
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n').filter(line => line.trim());
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() || '';
 
             for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
+              const trimmedLine = line.trim();
+              if (trimmedLine.startsWith('data: ')) {
+                const data = trimmedLine.slice(6).trim();
                 if (data === '[DONE]') continue;
 
                 try {
@@ -257,6 +260,43 @@ export async function POST(request: NextRequest) {
                 }
               }
             }
+          }
+
+          const trailingLine = sseBuffer.trim();
+          if (trailingLine.startsWith('data: ')) {
+            const data = trailingLine.slice(6).trim();
+            if (data !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  fullResponse += content;
+                  controller.enqueue(
+                    encoder.encode(
+                      JSON.stringify({
+                        type: 'chunk',
+                        content,
+                      }) + '\n'
+                    )
+                  );
+                }
+              } catch {
+                // Ignore trailing parse errors
+              }
+            }
+          }
+
+          if (!fullResponse.trim()) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'error',
+                  error: 'Oracle returned an empty response stream.',
+                }) + '\n'
+              )
+            );
+            controller.close();
+            return;
           }
 
           // After streaming complete, generate enhancements
