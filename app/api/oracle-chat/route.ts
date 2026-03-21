@@ -200,6 +200,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const stanceMode = ((progression?.arcLevel || userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft') as 'direct' | 'soft';
+    const mirrorInsightPayload = patternMirror?.mirrorInsight
+      ? {
+          ...patternMirror.mirrorInsight,
+          trendStatus: patternMirror?.dominant?.trendStatus,
+          stanceMode,
+        }
+      : null;
+
     // Build context
     const context: OracleContext = {
       birthChart,
@@ -435,6 +444,17 @@ export async function POST(request: NextRequest) {
                 JSON.stringify({
                   type: 'progression',
                   data: progression,
+                }) + '\n'
+              )
+            );
+          }
+
+          if (mirrorInsightPayload) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'mirrorInsight',
+                  data: mirrorInsightPayload,
                 }) + '\n'
               )
             );

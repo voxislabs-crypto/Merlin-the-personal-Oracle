@@ -21,6 +21,13 @@ interface Message {
   forecast?: { timeframe: string; themes: string[] };
   level?: { current: string; challenge: string; reward: string };
   progression?: { arcPath: string; arcLevel: number; arcXp: number; interactionCount: number; xpGained?: number };
+  mirrorInsight?: {
+    message: string;
+    label?: string;
+    count?: number;
+    trendStatus?: 'rising' | 'stable' | 'fading' | 'new';
+    stanceMode?: 'direct' | 'soft';
+  };
 }
 
 interface CollapsibleChatPanelProps {
@@ -484,6 +491,7 @@ export function CollapsibleChatPanel({
       let forecast: any = null;
       let level: any = null;
       let progressionData: any = null;
+      let mirrorInsightData: any = null;
       let streamError: string | null = null;
 
       while (true) {
@@ -512,6 +520,8 @@ export function CollapsibleChatPanel({
               level = parsed.data;
             } else if (parsed.type === 'progression') {
               progressionData = parsed.data;
+            } else if (parsed.type === 'mirrorInsight') {
+              mirrorInsightData = parsed.data;
             } else if (parsed.type === 'done') {
               // Message complete
             } else if (parsed.type === 'error') {
@@ -538,6 +548,8 @@ export function CollapsibleChatPanel({
             level = parsed.data;
           } else if (parsed.type === 'progression') {
             progressionData = parsed.data;
+          } else if (parsed.type === 'mirrorInsight') {
+            mirrorInsightData = parsed.data;
           } else if (parsed.type === 'error') {
             streamError = parsed.error || 'Oracle stream failed';
           }
@@ -565,6 +577,7 @@ export function CollapsibleChatPanel({
         forecast: forecast || undefined,
         level: level || undefined,
         progression: progressionData || undefined,
+        mirrorInsight: mirrorInsightData || undefined,
       };
 
       if (progressionData) {
@@ -793,6 +806,22 @@ export function CollapsibleChatPanel({
                   </div>
                 )}
               </div>
+
+              {/* Tactics */}
+              {msg.mirrorInsight && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-2 pt-2 border-t border-rose-400/20"
+                >
+                  <div className="rounded-md border border-rose-400/25 bg-rose-950/20 px-2 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-rose-300/85 mb-1">
+                      Why Merlin pushed {msg.mirrorInsight.stanceMode === 'direct' ? '(direct)' : '(soft)'}
+                    </p>
+                    <p className="text-xs text-rose-100/90 leading-relaxed">{msg.mirrorInsight.message}</p>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Tactics */}
               {msg.tactics && msg.tactics.length > 0 && (
