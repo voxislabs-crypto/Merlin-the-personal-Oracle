@@ -77,6 +77,13 @@ export interface OracleContext {
       delta?: number;
       status?: 'rising' | 'stable' | 'fading' | 'new';
     }>;
+    mirrorInsight?: {
+      pattern: string;
+      label: string;
+      count: number;
+      lastSeen?: string;
+      message: string;
+    } | null;
     totalEvents?: number;
   } | null;
 }
@@ -457,6 +464,7 @@ function formatPatternMirrorContext(patternMirror: OracleContext['patternMirror'
     .slice(0, 3)
     .map((trend) => `- ${trend.label}: ${trend.count} recent hits vs ${trend.previousCount || 0} prior (${trend.status || 'stable'})`)
     .join('\n');
+  const mirrorInsight = patternMirror.mirrorInsight;
 
   const phraseBank = {
     avoidance_loop: [
@@ -499,7 +507,8 @@ PATTERN MIRROR EVIDENCE:
 - Repeat count: ${dominant.count}
 - Meaning: ${dominant.summary}
 ${trendLines ? `- Recent trend stack:\n${trendLines}` : ''}
-- Reference styles you may rotate through if relevant:\n  - ${dominantPhrases[0]}\n  - ${dominantPhrases[1]}\n  - ${dominantPhrases[2]}
+  - Reference styles you may rotate through if relevant:\n  - ${dominantPhrases[0]}\n  - ${dominantPhrases[1]}\n  - ${dominantPhrases[2]}
+${mirrorInsight ? `- Confrontation note: ${mirrorInsight.message}` : ''}
 - Use rule: if the current question touches this loop, name it plainly once and explain how it is showing up now. Rotate your phrasing. Do not sound like a surveillance system; sound like a wise pattern witness.
   `.trim();
 }
@@ -524,6 +533,7 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
   const plainEnglish = context.plainEnglish !== false; // Default ON
   const tonePreset = context.tonePreset || 'warm';
+  const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
   const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
   const effectiveMbti = context.mbtiType || chartMbti;
   const mbtiLine = effectiveMbti ? `\nUSER MBTI ARCHETYPE: ${effectiveMbti}` : '';
@@ -577,6 +587,7 @@ RESPONSE FORMAT (non-negotiable):
 - Cover active domains naturally across those sections: body/physical, energy, money/material, emotional, relational, mental.
 - If Pattern Mirror evidence exists and is relevant, name the loop in plain English once. Example: "This looks like your avoidance loop wearing a more polished outfit."
 - If you reference a known loop, vary the wording naturally. Do not repeat the same framing from prior replies unless the evidence is unusually exact.
+- If Pattern Mirror includes a confrontation note and the evidence is strong, you may deliver one short confrontation beat after the pattern reference.
 - End with "Best move:" followed by one single highest-leverage action for the next 24-72h.
 - Maximum 380 words. If no storms in any domain: "Clear terrain across all domains. Use this window for [strategic move]."
 
@@ -590,6 +601,11 @@ Leverage point: Protect sleep tonight and delay non-essential decisions until to
 
 ${languageRule}
 ${toneRules[tonePreset] || toneRules.warm}
+
+STANCE MODE: ${stanceMode.toUpperCase()}
+- If stance mode is SOFT: be honest, but leave room for the user to recognize themselves without feeling cornered.
+- If stance mode is DIRECT: challenge avoidance and rationalization more openly when the evidence supports it.
+- In direct mode, it is acceptable to say "You noticed this before and still did not act" if Pattern Mirror evidence clearly supports that claim.
 
 CONVERSATIONAL FLUENCY RULES:
 - Sound like Merlin speaking directly to one person, not a report template.

@@ -18,6 +18,14 @@ export interface DetectedPattern {
 
 export type PatternTrendStatus = 'rising' | 'stable' | 'fading' | 'new';
 
+export interface MirrorInsight {
+  pattern: string;
+  label: string;
+  count: number;
+  lastSeen?: string;
+  message: string;
+}
+
 const PATTERN_LABELS: Record<PatternKey, string> = {
   avoidance_loop: 'Avoidance Loop',
   overthinking_loop: 'Overthinking Spike',
@@ -158,8 +166,40 @@ export async function getPatternMirror(userId: string) {
       }
     : null;
 
+  const mirrorInsight = dominant
+    ? (() => {
+        const recentMatches = patternEvents.filter((event) => event.detectedPattern === dominant.pattern).slice(0, 10);
+        const count = recentMatches.length;
+        const lastSeen = recentMatches[1]?.createdAt?.toISOString();
+
+        let message = '';
+        if (count === 1) {
+          message = 'This pattern has appeared before. You have encountered it once already.';
+        } else if (count < 4) {
+          message = `This is becoming a pattern. You have repeated it ${count} times. Awareness is forming, but action has not fully followed.`;
+        } else {
+          message = `This is no longer random. This is a loop. You have repeated it ${count} times. You are not stuck. You are continuing.`;
+        }
+
+        if (dominant.trendStatus === 'rising') {
+          message += ' It is getting louder, which means inaction is now part of the pattern.';
+        } else if (dominant.trendStatus === 'fading') {
+          message += ' It is weakening, which means this is the right moment to break it cleanly.';
+        }
+
+        return {
+          pattern: dominant.pattern,
+          label: dominant.label,
+          count,
+          lastSeen,
+          message,
+        } satisfies MirrorInsight;
+      })()
+    : null;
+
   return {
     dominant,
+    mirrorInsight,
     frequency,
     recentTimeline,
     trends,

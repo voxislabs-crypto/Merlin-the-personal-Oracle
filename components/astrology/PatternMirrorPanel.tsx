@@ -11,6 +11,13 @@ interface PatternMirrorData {
     trendStatus?: 'rising' | 'stable' | 'fading' | 'new';
     delta?: number;
   } | null;
+  mirrorInsight?: {
+    pattern: string;
+    label: string;
+    count: number;
+    lastSeen?: string;
+    message: string;
+  } | null;
   frequency: Array<{
     pattern: string;
     label: string;
@@ -112,6 +119,16 @@ export function PatternMirrorPanel({ data, loading = false }: { data?: PatternMi
             <p className="text-sm text-slate-300">No dominant pattern yet. Merlin needs more evidence.</p>
           )}
         </div>
+
+        {data.mirrorInsight ? (
+          <div className="rounded-2xl border border-rose-400/25 bg-rose-950/20 p-4">
+            <p className="text-xs uppercase tracking-wider text-rose-300/80 mb-2">Mirror Insight</p>
+            <p className="text-sm text-rose-50/95 leading-relaxed">{data.mirrorInsight.message}</p>
+            {data.mirrorInsight.lastSeen ? (
+              <p className="mt-2 text-[11px] text-rose-200/70">Last seen: {new Date(data.mirrorInsight.lastSeen).toLocaleString()}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="rounded-2xl border border-indigo-400/20 bg-slate-950/35 p-4">
           <p className="text-xs uppercase tracking-wider text-indigo-300/75 mb-3">Pattern Frequency</p>

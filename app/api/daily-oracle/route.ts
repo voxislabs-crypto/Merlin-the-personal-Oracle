@@ -29,6 +29,8 @@ function buildDailyOracleMessage(params: {
   const path = context?.arcPath || 'Path of Truth';
   const level = context?.arcLevel || 1;
   const dominantPattern = patternMirror?.dominant;
+  const mirrorInsight = patternMirror?.mirrorInsight;
+  const stanceMode = level > 3 ? 'direct' : 'soft';
 
   const patternFraming: Record<string, { plain: string; truth: string; move: string }> = {
     avoidance_loop: {
@@ -63,39 +65,82 @@ function buildDailyOracleMessage(params: {
     },
   };
 
+  const trendFraming: Record<'rising' | 'stable' | 'fading' | 'new', {
+    patternLine: (label: string, count: number) => string;
+    pressureLine: string;
+    truthPrefix: string;
+    movePrefix: string;
+  }> = {
+    rising: {
+      patternLine: (label, count) => `Merlin sees the main loop intensifying: ${label}. It has shown up ${count} times and the pressure is climbing, not settling.`,
+      pressureLine: 'This is not background noise. The pattern is gaining momentum, so timing matters more than usual.',
+      truthPrefix: 'Because it is rising:',
+      movePrefix: 'Best interruption while it is rising:',
+    },
+    stable: {
+      patternLine: (label, count) => `Merlin sees the main loop: ${label}. It has shown up ${count} times and it is holding its shape.`,
+      pressureLine: 'This is familiar terrain. The cost today comes from repeating it on autopilot.',
+      truthPrefix: 'What stays true:',
+      movePrefix: 'Best correction on a stable loop:',
+    },
+    fading: {
+      patternLine: (label, count) => `Merlin sees the main loop cooling off: ${label}. It is still present, but it is not running the room the way it was.`,
+      pressureLine: 'The grip is loosening. Today is better for consolidation than crisis management.',
+      truthPrefix: 'While it is fading:',
+      movePrefix: 'Best move while the pattern is weaker:',
+    },
+    new: {
+      patternLine: (label, count) => `Merlin sees a newer loop taking form: ${label}. It has appeared ${count} time${count === 1 ? '' : 's'} recently, which is enough to watch closely.`,
+      pressureLine: 'This pattern is still young, which means you have more leverage than usual if you interrupt it early.',
+      truthPrefix: 'Early read:',
+      movePrefix: 'Best move before it hardens:',
+    },
+  };
+
   const patternLens = dominantPattern ? patternFraming[dominantPattern.pattern] || patternFraming.self_trust_gap : null;
+  const dominantTrend = dominantPattern?.trendStatus || 'stable';
+  const trendLens = trendFraming[dominantTrend];
 
   const opener = truthBomb
     ? `Truth Bomb: Level ${level} on ${path} means the old script is expensive now.`
     : `Daily Oracle: Level ${level} on ${path}.`;
 
-  const pressureLine = dayRating === 'Very Challenging' || dayRating === 'Challenging'
+  const basePressureLine = dayRating === 'Very Challenging' || dayRating === 'Challenging'
     ? 'Today is a pressure day. Choose precision over speed.'
     : 'Today is workable terrain. A small decisive move compounds.';
+  const pressureLine = dominantPattern ? `${basePressureLine} ${trendLens.pressureLine}` : basePressureLine;
 
   const memoryLine = lastFeedback
     ? `Last time you said: "${lastFeedback.slice(0, 120)}${lastFeedback.length > 120 ? '...' : ''}". Do not repeat that pattern today.`
     : `Current mood reads ${mood}. Use that as data, not destiny.`;
 
   const patternLine = dominantPattern
-    ? `${truthBomb ? 'Dominant loop:' : 'Merlin sees the main loop:'} ${dominantPattern.label}. It has shown up ${dominantPattern.count} times recently.`
+    ? truthBomb
+      ? `Dominant loop: ${dominantPattern.label}. Status: ${dominantTrend}. ${trendLens.patternLine(dominantPattern.label, dominantPattern.count)}`
+      : trendLens.patternLine(dominantPattern.label, dominantPattern.count)
     : truthBomb
       ? 'The pattern is still forming, so today the instruction is simple: watch what repeats under pressure.'
       : 'No dominant loop has fully hardened yet. Treat today like evidence collection.';
 
   const truthLine = patternLens
     ? truthBomb
-      ? patternLens.truth
-      : patternLens.plain
+      ? `${trendLens.truthPrefix} ${patternLens.truth}`
+      : `${trendLens.truthPrefix} ${patternLens.plain}`
     : truthBomb
       ? 'You do not have an information problem. You have a follow-through problem wearing elegant language.'
       : 'Watch for one moment where hesitation pretends to be preparation.';
 
   const moveLine = patternLens
-    ? `Best behavioral correction today: ${patternLens.move}`
+    ? `${trendLens.movePrefix} ${patternLens.move}`
     : 'Best behavioral correction today: choose one concrete move and let that become the reading.';
 
-  return `${opener} ${pressureLine} ${memoryLine} ${patternLine} ${forecastSummary} ${truthLine} ${moveLine}`.trim();
+  const confrontationLine = mirrorInsight
+    ? stanceMode === 'direct'
+      ? `Mirror: ${mirrorInsight.message} You noticed this before. If it repeats again today, that is not confusion. That is consent.`
+      : `Mirror: ${mirrorInsight.message}`
+    : '';
+
+  return `${opener} ${pressureLine} ${memoryLine} ${patternLine} ${forecastSummary} ${truthLine} ${confrontationLine} ${moveLine}`.trim();
 }
 
 export async function POST(request: Request) {
