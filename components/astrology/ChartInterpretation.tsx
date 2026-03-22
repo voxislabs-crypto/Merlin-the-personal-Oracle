@@ -6,6 +6,11 @@ import ThumbsFeedback from './ThumbsFeedback';
 
 interface ChartInterpretationProps {
   summary: string;
+  synthesis?: {
+    dominantThemes: string[];
+    timingHighlights: string[];
+    resonanceNote: string;
+  };
   planetInterpretations: Array<{
     planet: string;
     interpretation: string;
@@ -21,6 +26,7 @@ interface ChartInterpretationProps {
 
 export function ChartInterpretation({
   summary,
+  synthesis,
   planetInterpretations,
   aspectInterpretations,
   loading = false,
@@ -78,6 +84,23 @@ export function ChartInterpretation({
         )}
         <h3 className="text-xl font-bold text-amber-300 mb-3">Your Cosmic Blueprint</h3>
         <p className="text-white text-lg leading-relaxed">{summary}</p>
+        {synthesis && (
+          <div className="mt-4 space-y-2">
+            {synthesis.dominantThemes.length > 0 && (
+              <p className="text-sm text-amber-200/90">
+                Dominant themes: {synthesis.dominantThemes.join(', ')}
+              </p>
+            )}
+            {synthesis.timingHighlights.length > 0 && (
+              <p className="text-sm text-amber-200/90">
+                Timing highlights: {synthesis.timingHighlights.join(' | ')}
+              </p>
+            )}
+            {synthesis.resonanceNote && (
+              <p className="text-xs text-amber-100/80">{synthesis.resonanceNote}</p>
+            )}
+          </div>
+        )}
         <div className="mt-3">
           <ThumbsFeedback itemId="chart-summary" label="reading" userId={userId} theme="natal" />
         </div>

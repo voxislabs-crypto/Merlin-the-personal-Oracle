@@ -38,6 +38,7 @@ interface PredictiveEvent {
     confidence: number;
     volatility: number;
     learnedAdjustment: number;
+    resonanceMultiplier?: number;
   };
   explanation: {
     aspectWeight: number;
@@ -74,6 +75,73 @@ interface PredictiveEvent {
     risk: string;
     opportunity: string;
     whisper: string;
+  };
+}
+
+interface ConfluenceSignal {
+  signalId: string;
+  source: 'transit' | 'lunar' | 'progressed-moon';
+  label: string;
+  score: number;
+  phase: 'building' | 'peak' | 'integrating';
+  details?: string;
+}
+
+interface ConfluenceTheme {
+  theme: 'transformation' | 'love' | 'career' | 'inner work' | 'communication' | 'abundance';
+  title: string;
+  headline: string;
+  summary: string;
+  score: number;
+  signalCount: number;
+  dominantPhase: 'building' | 'peak' | 'integrating';
+  signals: ConfluenceSignal[];
+}
+
+interface TransitWindowPoint {
+  label: string;
+  phase: 'building' | 'peak' | 'integrating';
+  at: string;
+}
+
+interface TransitWindow {
+  eventId: string;
+  title: string;
+  subtitle: string;
+  startsAt: string;
+  exactAt: string;
+  endsAt: string;
+  currentPhase: 'building' | 'peak' | 'integrating';
+  durationHours: number;
+  intensity: number;
+  points: TransitWindowPoint[];
+}
+
+interface ResonanceTimelineEntry {
+  feedbackId: string;
+  date: string;
+  label: string;
+  theme: string;
+  resonated: boolean;
+  accuracyScore: number;
+  planets: string[];
+}
+
+interface ResonanceProfile {
+  multipliers: Record<string, number>;
+  planetBreakdown: Record<string, {
+    multiplier: number;
+    sampleSize: number;
+    averageSignal: number;
+    averageAccuracy: number;
+    wins: number;
+    misses: number;
+  }>;
+  history: ResonanceTimelineEntry[];
+  summary: {
+    feedbackCount: number;
+    strongestPlanet?: string;
+    strongestMultiplier?: number;
   };
 }
 
@@ -137,6 +205,9 @@ export interface TransitData {
     };
     events: PredictiveEvent[];
   };
+  confluence?: ConfluenceTheme[];
+  transitWindows?: TransitWindow[];
+  resonance?: ResonanceProfile;
   userContext?: {
     userId: string;
     situation: string;

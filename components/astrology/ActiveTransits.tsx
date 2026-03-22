@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import ThumbsFeedback from './ThumbsFeedback';
 import { FeedbackCollector } from './FeedbackCollector';
 import { UserContextCard } from './UserContextCard';
+import { PredictionTimeline } from './PredictionTimeline';
 
 interface TransitData {
   transitingPlanet: string;
@@ -105,6 +106,40 @@ interface ActiveTransitsProps {
     };
     events: PredictiveEvent[];
   };
+  confluence?: Array<{
+    theme: 'transformation' | 'love' | 'career' | 'inner work' | 'communication' | 'abundance';
+    title: string;
+    headline: string;
+    summary: string;
+    score: number;
+    signalCount: number;
+    dominantPhase: 'building' | 'peak' | 'integrating';
+  }>;
+  transitWindows?: Array<{
+    eventId: string;
+    title: string;
+    startsAt: string;
+    exactAt: string;
+    endsAt: string;
+    currentPhase: 'building' | 'peak' | 'integrating';
+    intensity: number;
+  }>;
+  resonance?: {
+    history: Array<{
+      feedbackId: string;
+      date: string;
+      label: string;
+      theme: string;
+      resonated: boolean;
+      accuracyScore: number;
+      planets: string[];
+    }>;
+    summary?: {
+      feedbackCount: number;
+      strongestPlanet?: string;
+      strongestMultiplier?: number;
+    };
+  };
   loading?: boolean;
   userId?: string;
   mbtiType?: string | null;
@@ -116,6 +151,9 @@ export function ActiveTransits({
   approaching,
   summary,
   predictive,
+  confluence,
+  transitWindows,
+  resonance,
   loading = false,
   userId,
   mbtiType,
@@ -313,6 +351,64 @@ export function ActiveTransits({
           </button>
         </motion.div>
       )}
+
+      {confluence?.length ? (
+        <motion.div variants={itemVariants} className="p-4 rounded-lg border border-indigo-500/30 bg-indigo-950/20">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-lg font-bold text-indigo-100">Confluence Themes</h3>
+            <span className="text-xs text-indigo-300/80">Only themes with 3+ aligned signals</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {confluence.slice(0, 4).map((theme) => (
+              <div key={theme.theme} className="rounded-md border border-indigo-400/20 bg-slate-900/50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-indigo-100">{theme.title}</p>
+                  <span className="text-xs text-indigo-300">{theme.score}/100</span>
+                </div>
+                <p className="text-xs text-indigo-300 mt-1">{theme.signalCount} aligned signals · {theme.dominantPhase}</p>
+                <p className="text-sm text-slate-200 mt-2">{theme.headline}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ) : null}
+
+      {transitWindows?.length ? (
+        <motion.div variants={itemVariants} className="p-4 rounded-lg border border-sky-500/30 bg-sky-950/20">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-lg font-bold text-sky-100">Transit Windows Timeline</h3>
+            <span className="text-xs text-sky-300/80">Building, peak, and integrating phases</span>
+          </div>
+          <div className="space-y-2">
+            {transitWindows.slice(0, 6).map((window) => (
+              <div key={window.eventId} className="rounded-md border border-sky-400/20 bg-slate-900/45 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-sky-100">{window.title}</p>
+                  <span className="text-xs text-sky-300">{window.intensity}/100</span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1">
+                  Building {new Date(window.startsAt).toLocaleDateString()} · Peak {new Date(window.exactAt).toLocaleDateString()} · Integrating {new Date(window.endsAt).toLocaleDateString()}
+                </p>
+                <p className="text-xs text-sky-300 mt-1">Current phase: {window.currentPhase}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ) : null}
+
+      <motion.div variants={itemVariants}>
+        <PredictionTimeline
+          entries={resonance?.history || []}
+          loading={loading && !resonance}
+        />
+        {resonance?.summary?.feedbackCount ? (
+          <p className="text-xs text-slate-400 mt-2">
+            Personalized from {resonance.summary.feedbackCount} feedback ratings
+            {resonance.summary.strongestPlanet ? ` · strongest signal: ${resonance.summary.strongestPlanet}` : ''}
+            {typeof resonance.summary.strongestMultiplier === 'number' ? ` (${resonance.summary.strongestMultiplier.toFixed(2)}x)` : ''}
+          </p>
+        ) : null}
+      </motion.div>
 
       {predictive?.events?.length ? (
         <motion.div variants={itemVariants} className="p-4 rounded-lg border border-violet-500/30 bg-violet-950/20">

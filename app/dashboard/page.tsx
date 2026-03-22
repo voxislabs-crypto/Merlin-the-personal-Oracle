@@ -119,9 +119,12 @@ export default function UnifiedDashboard() {
   // Re-generate interpretations when mode changes
   useEffect(() => {
     if (birthData && chartData) {
-      generateInterpretations(birthData, interpretMode);
+      generateInterpretations(birthData, interpretMode, {
+        userId: userId || undefined,
+        mbtiType: mbtiType || undefined,
+      });
     }
-  }, [interpretMode, birthData, chartData, generateInterpretations]);
+  }, [interpretMode, birthData, chartData, generateInterpretations, userId, mbtiType]);
 
   const refreshTransitsWithContext = useCallback(() => {
     if (!birthData) return;
@@ -328,9 +331,9 @@ export default function UnifiedDashboard() {
         
         // Recalculate all derived data
         Promise.all([
-          generateInterpretations(birth, interpretMode),
+          generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined }),
           calculateForecast(birth),
-          calculateTransits(birth, { mbtiType: mbtiType || undefined }),
+          calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
           calculateLifeArc(birth, chart),
           calculateWeeklyForecast(birth),
           calculatePersonality(birth).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
@@ -393,9 +396,9 @@ export default function UnifiedDashboard() {
 
     // Fire off async jobs
     Promise.all([
-      generateInterpretations(derived, interpretMode),
+      generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined }),
       calculateForecast(derived),
-      calculateTransits(derived, { mbtiType: mbtiType || undefined }),
+      calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
       calculateLifeArc(derived, data),
       calculateWeeklyForecast(derived),
       calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
@@ -410,6 +413,7 @@ export default function UnifiedDashboard() {
     calculateStorms,
     interpretMode,
     mbtiType,
+    userId,
   ]);
 
   // Build the read-aloud text (used by MerlinAudioPlayer) — must be before early returns
@@ -1238,6 +1242,7 @@ export default function UnifiedDashboard() {
                               </div>
                               <ChartInterpretation
                                 summary={interpretations?.chartSummary || ''}
+                                synthesis={interpretations?.synthesis}
                                 planetInterpretations={interpretations?.planetInterpretations || []}
                                 aspectInterpretations={interpretations?.aspectInterpretations || []}
                                 interpreter={interpretations?.interpreter}
@@ -1267,6 +1272,9 @@ export default function UnifiedDashboard() {
                             approaching={transits?.approaching || []}
                             summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
                             predictive={transits?.predictive}
+                            confluence={transits?.confluence}
+                            transitWindows={transits?.transitWindows}
+                            resonance={transits?.resonance}
                             loading={transitsLoading}
                             userId={userId || undefined}
                             mbtiType={mbtiType || undefined}

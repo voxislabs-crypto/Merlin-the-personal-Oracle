@@ -1,8 +1,36 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 
+interface SynthesisData {
+  unifiedReading: string;
+  dominantThemes: string[];
+  timingHighlights: string[];
+  resonanceNote: string;
+  natalFoundation: string;
+}
+
+interface ConfluenceTheme {
+  theme: 'transformation' | 'love' | 'career' | 'inner work' | 'communication' | 'abundance';
+  title: string;
+  headline: string;
+  summary: string;
+  score: number;
+  signalCount: number;
+  dominantPhase: 'building' | 'peak' | 'integrating';
+}
+
+interface TransitWindow {
+  eventId: string;
+  title: string;
+  exactAt: string;
+  currentPhase: 'building' | 'peak' | 'integrating';
+}
+
 export interface InterpretationData {
   chartSummary: string;
+  synthesis?: SynthesisData;
+  confluence?: ConfluenceTheme[];
+  transitWindows?: TransitWindow[];
   planetInterpretations: Array<{
     planet: string;
     interpretation: string;
@@ -26,10 +54,15 @@ export function useInterpretations() {
   const [cacheHit, setCacheHit] = useState(false);
 
   const generateInterpretations = useCallback(
-    async (birthData: BirthData, mode: 'grok' | 'traditional' = 'traditional'): Promise<InterpretationData | null> => {
+    async (
+      birthData: BirthData,
+      mode: 'grok' | 'traditional' = 'traditional',
+      options?: { userId?: string; mbtiType?: string }
+    ): Promise<InterpretationData | null> => {
       setLoading(true);
       setError(null);
       setCacheHit(false);
+      const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
 
       try {
         const response = await fetch('/api/interpret', {
@@ -40,7 +73,10 @@ export function useInterpretations() {
             birthTime: birthData.time,
             lat: birthData.latitude,
             lon: birthData.longitude,
-            mode: mode
+            mode: mode,
+            userId: options?.userId,
+            mbtiType: options?.mbtiType,
+            timezoneOffset: timezoneOffsetHours,
           })
         });
 

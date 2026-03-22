@@ -67,6 +67,7 @@ export interface PredictiveTransitEvent {
     confidence: number;
     volatility: number;
     learnedAdjustment: number;
+    resonanceMultiplier: number;
   };
   explanation: {
     aspectWeight: number;
@@ -722,6 +723,7 @@ export async function buildPredictiveTransitBundle(params: {
         confidence: Number(confidence.toFixed(2)),
         volatility,
         learnedAdjustment,
+        resonanceMultiplier: 1,
       },
       explanation: {
         aspectWeight: Number(aspectWeight.toFixed(2)),
@@ -748,9 +750,7 @@ export async function buildPredictiveTransitBundle(params: {
     };
   }));
 
-  const rankedEvents = events
-    .sort((a, b) => b.scores.intensity - a.scores.intensity)
-    .slice(0, 12);
+  const rankedEvents = events.sort((a, b) => b.scores.intensity - a.scores.intensity);
 
   return {
     generatedAt: now.toISOString(),
