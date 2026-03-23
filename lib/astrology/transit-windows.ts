@@ -35,17 +35,8 @@ function toHours(startIso: string, endIso: string): number {
 
 export function buildTransitWindows(events: PredictiveTransitEvent[]): TransitWindow[] {
   return events
-    .map((event) => ({
-      eventId: event.eventId,
-      title: `${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}`,
-      subtitle: `${event.transit.transitingPlanet} enters orb, peaks, and integrates through this window.`,
-      startsAt: event.timing.startsAt,
-      exactAt: event.timing.peakAt,
-      endsAt: event.timing.endsAt,
-      currentPhase: mapPhase(event.timing.phase),
-      durationHours: toHours(event.timing.startsAt, event.timing.endsAt),
-      intensity: event.scores.intensity,
-      points: [
+    .map((event): TransitWindow => {
+      const points: TransitWindowPoint[] = [
         {
           label: 'Entered orb',
           phase: 'building',
@@ -61,8 +52,21 @@ export function buildTransitWindows(events: PredictiveTransitEvent[]): TransitWi
           phase: 'integrating',
           at: event.timing.endsAt,
         },
-      ],
-    }))
+      ];
+
+      return {
+        eventId: event.eventId,
+        title: `${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}`,
+        subtitle: `${event.transit.transitingPlanet} enters orb, peaks, and integrates through this window.`,
+        startsAt: event.timing.startsAt,
+        exactAt: event.timing.peakAt,
+        endsAt: event.timing.endsAt,
+        currentPhase: mapPhase(event.timing.phase),
+        durationHours: toHours(event.timing.startsAt, event.timing.endsAt),
+        intensity: event.scores.intensity,
+        points,
+      };
+    })
     .sort((left, right) => {
       const leftTime = new Date(left.exactAt).getTime();
       const rightTime = new Date(right.exactAt).getTime();
