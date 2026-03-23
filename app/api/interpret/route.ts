@@ -82,8 +82,7 @@ function buildConfluenceSignals(predictive: Awaited<ReturnType<typeof buildPredi
       details: event.narrative.whisper,
     }));
 
-  return [
-    ...eventSignals,
+  const supplementalSignals: ActiveScoredSignal[] = [
     {
       signalId: `lunar-${predictive.lunarTiming.phase}`,
       source: 'lunar',
@@ -108,7 +107,9 @@ function buildConfluenceSignals(predictive: Awaited<ReturnType<typeof buildPredi
       phase: 'building',
       details: `Progressed Moon emphasis: ${predictive.progressedMoon.emphasis.join(', ')}`,
     },
-  ].filter((signal) => signal.themes.length > 0);
+  ];
+
+  return [...eventSignals, ...supplementalSignals].filter((signal) => signal.themes.length > 0);
 }
 
 function buildUnifiedReading(params: {
