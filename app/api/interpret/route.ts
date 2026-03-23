@@ -17,6 +17,7 @@ import { generateGrokInterpretation } from '@/lib/grok-service';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { getUserContextSnapshot } from '@/lib/user-context';
+import { enhanceResponse } from '@/lib/astrology/ancient-astrology';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -167,7 +168,18 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, mode = 'traditional', userId, mbtiType, timezoneOffset } = body;
+    const {
+      birthDate,
+      birthTime,
+      lat,
+      lon,
+      mode = 'traditional',
+      userId,
+      mbtiType,
+      timezoneOffset,
+      question = '',
+      ancientLayer = false,
+    } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -288,6 +300,23 @@ export async function POST(request: Request) {
     });
     chartSummary = synthesis.unifiedReading;
 
+    const simplifiedTransits = predictive.events.map((event) => ({
+      transitingPlanet: event.transit.transitingPlanet,
+      natalPlanet: event.transit.natalPlanet,
+      aspect: event.transit.aspect,
+      orb: event.transit.orb,
+    }));
+
+    const ancientEnhanced = await enhanceResponse({
+      baseResponse: chartSummary,
+      transits: simplifiedTransits,
+      natal: natalChart,
+      query: question,
+      settings: { ancientLayer },
+    });
+
+    chartSummary = ancientEnhanced.text;
+
     console.log(`Successfully generated ${usedGrok ? 'Grok' : 'traditional'} interpretations`);
     return NextResponse.json({
       success: true,
@@ -304,8 +333,14 @@ export async function POST(request: Request) {
         metadata: {
           generatedAt: new Date().toISOString(),
           birthDate,
-          birthTime
+          birthTime,
+          ancientLayerRequested: Boolean(ancientLayer),
+          ancientLayerApplied: ancientEnhanced.enabled,
         }
+      },
+      ancientLayer: {
+        enabled: ancientEnhanced.enabled,
+        text: ancientEnhanced.ancientLayer,
       }
     });
   } catch (error) {

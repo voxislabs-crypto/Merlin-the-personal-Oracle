@@ -54,6 +54,7 @@ export function OracleChat({
   const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
   const [oracleMode, setOracleMode] = useState<'auto' | 'casual' | 'detailed'>('auto'); // Adaptive mode
   const [includeLikelihood, setIncludeLikelihood] = useState(true); // Show percentages
+  const [ancientLayer, setAncientLayer] = useState(false); // Ancient source weaving toggle
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -172,6 +173,8 @@ export function OracleChat({
     }
     const savedLikelihood = localStorage.getItem('merlin_include_likelihood');
     if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
+    const savedAncient = localStorage.getItem('merlin_ancient_layer');
+    if (savedAncient !== null) setAncientLayer(savedAncient === 'true');
   }, []);
 
   useEffect(() => {
@@ -295,6 +298,7 @@ export function OracleChat({
           tonePreset,
           oracleMode,
           includeLikelihood,
+          ancientLayer,
         }),
       });
 
@@ -542,6 +546,22 @@ export function OracleChat({
               <span>{includeLikelihood ? '%' : '○'}</span>
             </button>
           )}
+
+          <button
+            onClick={() => {
+              const next = !ancientLayer;
+              setAncientLayer(next);
+              localStorage.setItem('merlin_ancient_layer', String(next));
+            }}
+            title={ancientLayer ? 'Ancient Layer ON (sources + modern weave)' : 'Ancient Layer OFF'}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
+              ancientLayer
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
+                : 'bg-slate-600/20 text-slate-300 border border-slate-600/30 hover:bg-slate-600/30'
+            }`}
+          >
+            <span>{ancientLayer ? '🏛️ Ancient' : '🏛️ Ancient Off'}</span>
+          </button>
 
           <button
             onClick={cycleTonePreset}

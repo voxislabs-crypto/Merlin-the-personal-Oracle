@@ -21,6 +21,7 @@ import { generateIdentityPack } from '@/lib/identity-pack';
 import { advanceArcProgression } from '@/lib/progression';
 import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/lib/pattern-mirror';
 import { detectQueryMode, generateCasualResponse, shouldSkipStructure } from '@/lib/chat-adapter';
+import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 
 interface OracleChatRequest {
   question: string;
@@ -32,6 +33,7 @@ interface OracleChatRequest {
   tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
   oracleMode?: 'auto' | 'casual' | 'detailed'; // Adaptive mode: auto-detect or user override
   includeLikelihood?: boolean; // Include percentages in structured responses
+  ancientLayer?: boolean; // Toggle ancient source weaving
 }
 
 type LlmProvider = 'xai' | 'groq';
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
       tonePreset = 'warm',
       oracleMode = 'auto',
       includeLikelihood = true,
+      ancientLayer = false,
     } = body;
 
     if (!question || question.trim().length === 0) {
@@ -305,7 +308,12 @@ export async function POST(request: NextRequest) {
     oracleMemory.addMessage(userId, userMessage);
 
     // Build system prompt with chart context
-    const systemPrompt = buildOracleSystemPrompt(context);
+    const baseSystemPrompt = buildOracleSystemPrompt(context);
+    const ancientEnabled = wantsAncientLayer(question, { ancientLayer });
+    const ancientPromptAddon = ancientEnabled
+      ? `\n\nANCIENT LAYER: ENABLED\n- Keep Merlin's raspy oracle voice.\n- Start with a quick read under 100 words.\n- If the user asks deeper/expand/ancient layer/old story, expand into 3-4 paragraphs.\n- Weave one ancient-source line (Babylonian omen, Ptolemy, Surya Siddhanta, or Hermetic framing) into modern transit language.\n- Add personal chart relevance when available.\n- End with one practical nudge.`
+      : '';
+    const systemPrompt = `${baseSystemPrompt}${ancientPromptAddon}`;
 
     // Convert conversation history to OpenAI-compatible chat format
     const messages = [
@@ -547,6 +555,7 @@ export async function POST(request: NextRequest) {
                 type: 'done',
                 mode: activeMode,
                 includeLikelihood,
+                ancientLayer: ancientEnabled,
                 timestamp: new Date().toISOString(),
               }) + '\n'
             )
