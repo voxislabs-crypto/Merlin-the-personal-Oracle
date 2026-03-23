@@ -54,7 +54,17 @@ const ANCIENT_PASSAGES: Record<string, AncientPassage> = {
   },
 };
 
-const ANCIENT_KEYWORDS = ['deeper', 'expand', 'ancient layer', 'ancient', 'old story', 'tell me the old story'];
+const ANCIENT_KEYWORDS = [
+  'deeper',
+  'expand',
+  'ancient layer',
+  'ancient',
+  'old story',
+  'tell me the old story',
+  'go on',
+  'say more',
+  'keep going',
+];
 
 export function wantsAncientLayer(query: string, settings: UserSettings = {}): boolean {
   const q = query.toLowerCase();

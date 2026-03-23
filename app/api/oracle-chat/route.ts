@@ -311,7 +311,7 @@ export async function POST(request: NextRequest) {
     const baseSystemPrompt = buildOracleSystemPrompt(context);
     const ancientEnabled = wantsAncientLayer(question, { ancientLayer });
     const ancientPromptAddon = ancientEnabled
-      ? `\n\nANCIENT LAYER: ENABLED\n- Keep Merlin's raspy oracle voice.\n- Start with a quick read under 100 words.\n- If the user asks deeper/expand/ancient layer/old story, expand into 3-4 paragraphs.\n- Weave one ancient-source line (Babylonian omen, Ptolemy, Surya Siddhanta, or Hermetic framing) into modern transit language.\n- Add personal chart relevance when available.\n- End with one practical nudge.`
+      ? `\n\nANCIENT LAYER: ENABLED\n- Keep Merlin's raspy oracle voice.\n- Start with a fluent direct read (no strict word cap).\n- If the user asks deeper/expand/ancient layer/old story/go on/say more/keep going, expand into richer multi-paragraph depth.\n- Weave one ancient-source line (Babylonian omen, Ptolemy, Surya Siddhanta, or Hermetic framing) into modern transit language.\n- Add personal chart relevance when available.\n- End with one practical nudge.`
       : '';
     const systemPrompt = `${baseSystemPrompt}${ancientPromptAddon}`;
 

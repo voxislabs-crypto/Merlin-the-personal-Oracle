@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles } from 'lucide-react';
+import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 
@@ -562,6 +563,23 @@ export function OracleChat({
           >
             <span>{ancientLayer ? '🏛️ Ancient' : '🏛️ Ancient Off'}</span>
           </button>
+
+          <TooltipProvider delayDuration={120}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Ancient Layer help"
+                  className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition"
+                >
+                  <Info size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs leading-relaxed">
+                Ancient Layer uses historical sources in your reading. Turn it on here, or trigger it naturally by saying: "deeper", "expand", "go on", "say more", or "keep going".
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <button
             onClick={cycleTonePreset}
