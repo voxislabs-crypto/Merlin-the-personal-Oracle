@@ -52,6 +52,8 @@ export function OracleChat({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [plainEnglish, setPlainEnglish] = useState(true); // Clarity Mode
   const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
+  const [oracleMode, setOracleMode] = useState<'auto' | 'casual' | 'detailed'>('auto'); // Adaptive mode
+  const [includeLikelihood, setIncludeLikelihood] = useState(true); // Show percentages
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -163,6 +165,13 @@ export function OracleChat({
     if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
       setTonePreset(savedTone);
     }
+    // Load adaptive mode settings
+    const savedMode = localStorage.getItem('merlin_oracle_mode') as 'auto' | 'casual' | 'detailed' | null;
+    if (savedMode && ['auto', 'casual', 'detailed'].includes(savedMode)) {
+      setOracleMode(savedMode);
+    }
+    const savedLikelihood = localStorage.getItem('merlin_include_likelihood');
+    if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
   }, []);
 
   useEffect(() => {
@@ -284,11 +293,38 @@ export function OracleChat({
           plainEnglish,
           mbtiType: inferredMbtiType,
           tonePreset,
+          oracleMode,
+          includeLikelihood,
         }),
       });
 
       if (!response.ok) throw new Error('Stream failed');
 
+      // Check if this is casual mode (non-streaming) response
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        // Non-streaming JSON response (casual mode)
+        const data = await response.json();
+        
+        if (data.success && data.mode === 'casual') {
+          const polishedContent = data.data.response;
+          
+          const assistantMessage: Message = {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: polishedContent,
+            timestamp: new Date(),
+          };
+
+          setMessages((prev: Message[]) => [...prev, assistantMessage]);
+          setStreamingContent('');
+          setIsLoading(false);
+          inputRef.current?.focus();
+          return;
+        }
+      }
+
+      // Streaming response (structured/astro mode)
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader');
 
@@ -466,6 +502,47 @@ export function OracleChat({
             {plainEnglish ? <Eye size={12} /> : <Sparkles size={12} />}
             <span>{plainEnglish ? 'Clarity' : 'Oracle Full'}</span>
           </button>
+
+          {/* Oracle Mode toggle */}
+          <button
+            onClick={() => {
+              const modes: ('auto' | 'casual' | 'detailed')[] = ['auto', 'casual', 'detailed'];
+              const currentIdx = modes.indexOf(oracleMode);
+              const nextMode = modes[(currentIdx + 1) % modes.length];
+              setOracleMode(nextMode);
+              localStorage.setItem('merlin_oracle_mode', nextMode);
+            }}
+            title={`Oracle Mode: ${oracleMode === 'auto' ? 'Auto-detect' : oracleMode === 'casual' ? 'Casual — raspy & raw' : 'Detailed — structured'}`}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
+              oracleMode === 'casual'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
+                : oracleMode === 'detailed'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
+            }`}
+          >
+            <span>{oracleMode === 'auto' ? '⚙️ Auto' : oracleMode === 'casual' ? '💬 Casual' : '📊 Detailed'}</span>
+          </button>
+
+          {/* Likelihood toggle */}
+          {oracleMode !== 'casual' && (
+            <button
+              onClick={() => {
+                const next = !includeLikelihood;
+                setIncludeLikelihood(next);
+                localStorage.setItem('merlin_include_likelihood', String(next));
+              }}
+              title={includeLikelihood ? 'Including percentages' : 'Percentages hidden'}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
+                includeLikelihood
+                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30'
+                  : 'bg-slate-600/20 text-slate-300 border border-slate-600/30 hover:bg-slate-600/30'
+              }`}
+            >
+              <span>{includeLikelihood ? '%' : '○'}</span>
+            </button>
+          )}
+
           <button
             onClick={cycleTonePreset}
             title={`Tone preset: ${tonePreset}`}

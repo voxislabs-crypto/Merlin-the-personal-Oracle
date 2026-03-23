@@ -20,6 +20,7 @@ import { BirthChartData } from '@/types/astrology';
 import { generateIdentityPack } from '@/lib/identity-pack';
 import { advanceArcProgression } from '@/lib/progression';
 import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/lib/pattern-mirror';
+import { detectQueryMode, generateCasualResponse, shouldSkipStructure } from '@/lib/chat-adapter';
 
 interface OracleChatRequest {
   question: string;
@@ -29,6 +30,8 @@ interface OracleChatRequest {
   plainEnglish?: boolean; // Clarity Mode - strips astro jargon
   mbtiType?: string; // MBTI archetype for storm cross-reference
   tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
+  oracleMode?: 'auto' | 'casual' | 'detailed'; // Adaptive mode: auto-detect or user override
+  includeLikelihood?: boolean; // Include percentages in structured responses
 }
 
 type LlmProvider = 'xai' | 'groq';
@@ -71,6 +74,8 @@ export async function POST(request: NextRequest) {
       plainEnglish = true,
       mbtiType,
       tonePreset = 'warm',
+      oracleMode = 'auto',
+      includeLikelihood = true,
     } = body;
 
     if (!question || question.trim().length === 0) {
@@ -79,6 +84,71 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ========== ADAPTIVE MODE DETECTION ==========
+    // Determine if this is an astro-specific question or casual conversation
+    let activeMode = oracleMode === 'auto' ? detectQueryMode(question) : oracleMode === 'casual' ? 'casual' : 'astro';
+    const shouldSkipPercentages = shouldSkipStructure(question) && !includeLikelihood;
+    
+    console.log(`[Oracle Chat] Mode detection: question="${question.substring(0, 40)}..." → ${activeMode} mode (skip_structure=${shouldSkipPercentages})`);
+
+    // ========== CASUAL MODE FAST PATH ==========
+    // If casual mode and not a chart-specific question, return immediate raspy response
+    if (activeMode === 'casual') {
+      console.log('[Oracle Chat] ✨ Casual mode activated - generating empathetic response');
+      
+      try {
+        // Get user context for tone if available
+        let casualContext = undefined;
+        if (userId && userId !== 'anonymous') {
+          try {
+            const userCtx = await getUserContextSnapshot(userId);
+            casualContext = {
+              birthChart,
+              transits: birthChart ? { significant: [] } : undefined,
+              stormsReport: userCtx ? { storms: [] } : undefined,
+            };
+          } catch (e) {
+            // Continue without context
+          }
+        }
+
+        const casualResponse = await generateCasualResponse(question, userId, casualContext);
+        
+        // Add to conversation memory
+        const userMessage: OracleMessage = {
+          role: 'user',
+          content: question,
+          timestamp: new Date(),
+        };
+        oracleMemory.addMessage(userId, userMessage);
+
+        const assistantMessage: OracleMessage = {
+          role: 'assistant',
+          content: casualResponse,
+          timestamp: new Date(),
+        };
+        oracleMemory.addMessage(userId, assistantMessage);
+
+        // Return as non-streaming response for casual mode
+        return NextResponse.json({
+          success: true,
+          mode: 'casual',
+          data: {
+            response: casualResponse,
+            type: 'text',
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        console.warn('[Oracle Chat] Casual mode generation failed:', error);
+        // Fall through to full oracle mode as fallback
+        activeMode = 'astro';
+      }
+    }
+
+    // ========== FULL ORACLE MODE (ASTRO QUESTIONS) ==========
+    console.log('[Oracle Chat] 🔮 Full oracle mode - structured response with chart context');
 
     // Get conversation history
     const history = oracleMemory.getHistory(userId);
@@ -470,11 +540,14 @@ export async function POST(request: NextRequest) {
 
           console.log(`[Oracle Chat] Stream completed successfully for user: ${userId} (response length: ${fullResponse.length})`);
 
-          // Signal completion
+          // Signal completion with metadata
           controller.enqueue(
             encoder.encode(
               JSON.stringify({
                 type: 'done',
+                mode: activeMode,
+                includeLikelihood,
+                timestamp: new Date().toISOString(),
               }) + '\n'
             )
           );
