@@ -39,6 +39,9 @@ interface CollapsibleChatPanelProps {
   mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
   clarityMode?: boolean; // Controlled from parent dashboard; falls back to localStorage
   onClarityChange?: () => void; // Propagate toggle back up to parent
+  draftPrompt?: string;
+  draftPromptKey?: number;
+  draftLabel?: string;
 }
 
 export function CollapsibleChatPanel({
@@ -50,6 +53,9 @@ export function CollapsibleChatPanel({
   mbtiType,
   clarityMode: clarityModeProp,
   onClarityChange,
+  draftPrompt,
+  draftPromptKey,
+  draftLabel,
 }: CollapsibleChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -68,6 +74,7 @@ export function CollapsibleChatPanel({
   const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
+  const [activeDraftLabel, setActiveDraftLabel] = useState<string | null>(null);
   // Use parent-controlled value if provided, else internal state
   const plainEnglish = clarityModeProp !== undefined ? clarityModeProp : plainEnglishInternal;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -98,6 +105,20 @@ export function CollapsibleChatPanel({
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
+
+  useEffect(() => {
+    if (!draftPromptKey || !draftPrompt?.trim()) return;
+
+    setInput(draftPrompt);
+    setActiveDraftLabel(draftLabel || 'Selected context');
+    setExpanded(true);
+    onToggleExpand?.(true);
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(draftPrompt.length, draftPrompt.length);
+    }, 0);
+  }, [draftPrompt, draftPromptKey, draftLabel, onToggleExpand]);
 
   const handleToggleExpand = () => {
     const newExpanded = !expanded;
@@ -461,6 +482,7 @@ export function CollapsibleChatPanel({
 
     setMessages((prev: Message[]) => [...prev, userMessage]);
     setInput('');
+    setActiveDraftLabel(null);
     setIsLoading(true);
     setStreamingContent('');
 
@@ -740,7 +762,7 @@ export function CollapsibleChatPanel({
           <div className="h-full flex items-center justify-center text-center">
             <div className="text-slate-500 text-sm">
               <p>Ask Merlin about your chart</p>
-              <p className="text-xs text-slate-600 mt-2">or your cosmic path ahead</p>
+              <p className="text-xs text-slate-600 mt-2">or click a pattern, placement, or signal to prefill the prompt</p>
             </div>
           </div>
         )}
@@ -943,6 +965,19 @@ export function CollapsibleChatPanel({
 
       {/* Input */}
       <div className="border-t border-purple-500/20 bg-slate-900/50 backdrop-blur p-3 space-y-2 flex-shrink-0">
+        {activeDraftLabel && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+            <span className="truncate">Context: {activeDraftLabel}</span>
+            <button
+              type="button"
+              onClick={() => setActiveDraftLabel(null)}
+              className="text-cyan-200/80 hover:text-cyan-100 transition"
+              title="Dismiss selected context"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}

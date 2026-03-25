@@ -5,6 +5,7 @@ import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { getUserContextSnapshot } from '@/lib/user-context';
 import { BirthChartData } from '@/types/astrology';
 import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/lib/pattern-mirror';
+import { applyMerlinTone } from '@/lib/tone-engine';
 
 interface DailyOracleRequest {
   userId?: string;
@@ -134,13 +135,18 @@ function buildDailyOracleMessage(params: {
     ? `${trendLens.movePrefix} ${patternLens.move}`
     : 'Best behavioral correction today: choose one concrete move and let that become the reading.';
 
+  // Mirror voice merges into the oracle — same speaker, one escalating message.
+  // The oracle sets the frame; the mirror delivers the undeniable landing.
   const confrontationLine = mirrorInsight
     ? stanceMode === 'direct'
-      ? `Mirror: ${mirrorInsight.message} You noticed this before. If it repeats again today, that is not confusion. That is consent.`
-      : `Mirror: ${mirrorInsight.message}`
+      ? `${mirrorInsight.message}\n\nIf it repeats again today, that is not confusion. That is consent.`
+      : mirrorInsight.message
     : '';
 
-  return `${opener} ${pressureLine} ${memoryLine} ${patternLine} ${forecastSummary} ${truthLine} ${confrontationLine} ${moveLine}`.trim();
+  const parts = [opener, pressureLine, memoryLine, patternLine, forecastSummary, truthLine];
+  if (confrontationLine) parts.push(confrontationLine);
+  parts.push(moveLine);
+  return parts.filter(Boolean).join('\n\n').trim();
 }
 
 export async function POST(request: Request) {
@@ -166,12 +172,22 @@ export async function POST(request: Request) {
     const patternMirror = userId ? await getPatternMirror(userId) : null;
     const forecast = getTodaysForecast(chart);
 
-    const message = buildDailyOracleMessage({
+    const baseMessage = buildDailyOracleMessage({
       forecastSummary: forecast.summary,
       dayRating: forecast.day_rating,
       context,
       patternMirror,
       truthBomb,
+    });
+
+    // Rewrite through Merlin's voice layer — escalates with arc level + pattern repetition.
+    // Falls back to baseMessage if API key is absent or call fails.
+    const message = await applyMerlinTone({
+      baseMessage,
+      arcLevel: context?.arcLevel ?? 1,
+      patternCount: patternMirror?.mirrorInsight?.count ?? 0,
+      patternLabel: patternMirror?.dominant?.label,
+      mirrorMessage: patternMirror?.mirrorInsight?.message,
     });
 
     if (userId) {

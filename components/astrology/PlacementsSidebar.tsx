@@ -12,6 +12,8 @@ import {
 interface PlacementsSidebarProps {
   planets: PlanetPosition[];
   className?: string;
+  onAskContext?: (label: string, prompt: string) => void;
+  selectedContextLabel?: string;
 }
 
 /**
@@ -19,7 +21,7 @@ interface PlacementsSidebarProps {
  * Thin column. Small text. One paragraph below.
  * That's how you survive. That's how you shine.
  */
-export function PlacementsSidebar({ planets, className = '' }: PlacementsSidebarProps) {
+export function PlacementsSidebar({ planets, className = '', onAskContext, selectedContextLabel }: PlacementsSidebarProps) {
   // Filter to personal planets (Sun through Mars)
   const personalPlanets = planets.filter(p => 
     ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars'].includes(p.name)
@@ -82,11 +84,20 @@ export function PlacementsSidebar({ planets, className = '' }: PlacementsSidebar
         {personalPlanets.map((planet, index) => (
           <HoverCard key={planet.name} openDelay={200}>
             <HoverCardTrigger asChild>
+              {(() => {
+                const contextLabel = `${planet.name} in ${planet.sign}`;
+                const isSelected = selectedContextLabel === contextLabel;
+                return (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.08, duration: 0.4 }}
-                className="flex items-baseline gap-2 text-sm cursor-pointer hover:text-amber-200 transition-colors"
+                className={`group flex items-baseline gap-2 rounded-md px-2 py-1 text-sm cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'bg-cyan-400/12 text-cyan-100 ring-1 ring-cyan-300/40'
+                    : 'hover:text-amber-200'
+                }`}
+                onClick={onAskContext ? () => onAskContext(contextLabel, `How does ${contextLabel} show up in my behavior and decisions?`) : undefined}
               >
                 <span className="text-amber-300 font-semibold min-w-[70px]">
                   {planet.name}:
@@ -94,7 +105,10 @@ export function PlacementsSidebar({ planets, className = '' }: PlacementsSidebar
                 <span className="text-slate-200">
                   {planet.sign}
                 </span>
+                {onAskContext ? <span className={`ml-auto text-[10px] uppercase tracking-wide transition ${isSelected ? 'text-cyan-200/90' : 'text-cyan-200/0 group-hover:text-cyan-200/70'}`}>{isSelected ? 'Selected' : 'Ask'}</span> : null}
               </motion.div>
+                );
+              })()}
             </HoverCardTrigger>
             <HoverCardContent 
               className="w-80 p-4 bg-gradient-to-br from-slate-950 to-slate-900 border-amber-500/30 shadow-xl shadow-amber-500/10"

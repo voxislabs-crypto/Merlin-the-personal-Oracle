@@ -32,13 +32,15 @@ interface LifeTimelineViewProps {
   loading?: boolean;
   userName?: string;
   defaultTimeFilter?: 'all' | 'past' | 'current' | 'future';
+  onAskContext?: (label: string, prompt: string) => void;
+  selectedContextLabel?: string;
 }
 
 type TimeFilter = 'all' | 'past' | 'current' | 'future';
 type IntensityFilter = 'all' | 'strike' | 'burn' | 'shift';
 type PlanetFilter = 'all' | 'saturn' | 'uranus' | 'neptune' | 'pluto' | 'chiron' | 'jupiter';
 
-export function LifeTimelineView({ timeline, loading = false, userName, defaultTimeFilter = 'all' }: LifeTimelineViewProps) {
+export function LifeTimelineView({ timeline, loading = false, userName, defaultTimeFilter = 'all', onAskContext, selectedContextLabel }: LifeTimelineViewProps) {
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [eventDetails, setEventDetails] = useState<Record<string, { text: string; interpreter: string }>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
@@ -267,6 +269,8 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
     setTimeout(() => window.print(), 100);
   };
 
+  const getEventContextLabel = (event: TimelineStrike) => `${event.year}: ${event.transitingPlanet} ${event.aspect} ${event.natalPlanet}`;
+
   const FilterButton = ({ active, onClick, children, count }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number }) => (
     <button
       onClick={onClick}
@@ -406,8 +410,15 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
                   <span className="text-xs text-amber-500">({currentYear})</span>
                 </div>
                 <div className="space-y-2">
-                  {currentEvents.map((e: TimelineStrike) => (
-                    <div key={e.id} className="flex items-start gap-3">
+                  {currentEvents.map((e: TimelineStrike) => {
+                    const contextLabel = getEventContextLabel(e);
+                    const isSelected = selectedContextLabel === contextLabel;
+                    return (
+                    <div
+                      key={e.id}
+                      className={`flex items-start gap-3 rounded-md px-2 py-1 -mx-2 ${onAskContext ? 'cursor-pointer transition hover:bg-cyan-500/5' : ''} ${isSelected ? 'bg-cyan-500/10 ring-1 ring-cyan-300/30' : ''}`}
+                      onClick={onAskContext ? () => onAskContext(contextLabel, `What does this life-timeline event mean for me: ${e.oneLiner}?`) : undefined}
+                    >
                       <span className="text-lg leading-none mt-0.5">
                         {PLANET_GLYPHS[e.transitingPlanet.toLowerCase()] || '●'}
                       </span>
@@ -416,7 +427,7 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
                         <p className="text-xs text-amber-600">{e.raw} · orb {e.orb.toFixed(1)}°</p>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             </div>
@@ -428,8 +439,15 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
               <div className="p-4 bg-blue-900/20 rounded-lg border border-blue-500/20">
                 <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider mb-3">Coming Up Next</h3>
                 <div className="space-y-2">
-                  {nextEvents.map((e: TimelineStrike, i: number) => (
-                    <div key={e.id} className={`flex items-start gap-3 ${i > 0 ? 'opacity-70' : ''}`}>
+                  {nextEvents.map((e: TimelineStrike, i: number) => {
+                    const contextLabel = getEventContextLabel(e);
+                    const isSelected = selectedContextLabel === contextLabel;
+                    return (
+                    <div
+                      key={e.id}
+                      className={`flex items-start gap-3 rounded-md px-2 py-1 -mx-2 ${i > 0 ? 'opacity-70' : ''} ${onAskContext ? 'cursor-pointer transition hover:bg-cyan-500/5' : ''} ${isSelected ? 'bg-cyan-500/10 ring-1 ring-cyan-300/30' : ''}`}
+                      onClick={onAskContext ? () => onAskContext(contextLabel, `Why is this upcoming life-timeline event important: ${e.oneLiner}?`) : undefined}
+                    >
                       <span className="text-base leading-none mt-0.5 text-blue-400">
                         {PLANET_GLYPHS[e.transitingPlanet.toLowerCase()] || '●'}
                       </span>
@@ -445,7 +463,7 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
                         {e.year - currentYear}y
                       </span>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             </div>
@@ -670,6 +688,8 @@ export function LifeTimelineView({ timeline, loading = false, userName, defaultT
                                 currentYear={currentYear}
                                 isMobile={isMobile}
                                 onEventClick={handleEventClick}
+                                onAskContext={onAskContext}
+                                selectedContextLabel={selectedContextLabel}
                                 eventDetails={eventDetails}
                                 loadingDetails={loadingDetails}
                                 setExpandedEventId={setExpandedEventId}
@@ -740,6 +760,8 @@ interface EventCardProps {
   currentYear: number;
   isMobile: boolean;
   onEventClick: (event: TimelineStrike) => void;
+  onAskContext?: (label: string, prompt: string) => void;
+  selectedContextLabel?: string;
   eventDetails: Record<string, { text: string; interpreter: string }>;
   loadingDetails: Record<string, boolean>;
   setExpandedEventId: (id: string | null) => void;
@@ -756,10 +778,15 @@ function EventCard({
   currentYear,
   isMobile,
   onEventClick,
+  onAskContext,
+  selectedContextLabel,
   eventDetails,
   loadingDetails,
   setExpandedEventId
 }: EventCardProps) {
+  const contextLabel = `${event.year}: ${event.transitingPlanet} ${event.aspect} ${event.natalPlanet}`;
+  const isSelected = selectedContextLabel === contextLabel;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -776,7 +803,10 @@ function EventCard({
           w-full p-3 rounded-md border ${style.border} ${style.bg}
           transition-all duration-200
           ${isExpanded ? 'ring-2 ring-amber-500/50' : ''}
+          ${onAskContext ? 'cursor-pointer hover:border-cyan-300/40 hover:bg-cyan-500/5' : ''}
+          ${isSelected ? 'ring-1 ring-cyan-300/40 border-cyan-300/40 bg-cyan-500/10' : ''}
         `}
+        onClick={onAskContext ? () => onAskContext(contextLabel, `Help me understand this life-timeline event: ${event.oneLiner}.`) : undefined}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -845,13 +875,18 @@ function EventCard({
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
             <button
-              onClick={() => onEventClick(event)}
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                onEventClick(event);
+              }}
               className="px-2.5 py-1 text-xs font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded hover:bg-amber-500/20 hover:border-amber-500/50 transition-all whitespace-nowrap"
             >
               {isExpanded ? 'Close' : 'View'}
             </button>
           </div>
         </div>
+
+        {onAskContext ? <p className={`mt-2 text-[11px] ${isSelected ? 'text-cyan-200/90' : 'text-cyan-200/60'}`}>{isSelected ? 'Selected for Merlin' : 'Click card to ask Merlin about this event'}</p> : null}
 
         {/* Expanded detail */}
         <AnimatePresence>

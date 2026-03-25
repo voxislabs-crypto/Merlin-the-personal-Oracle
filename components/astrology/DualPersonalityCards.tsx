@@ -55,13 +55,15 @@ interface DualPersonalityCardsProps {
   dualOverlay?: DualOverlay | null;
   transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null;
   loading?: boolean;
+  onAskContext?: (label: string, prompt: string) => void;
+  selectedContextLabel?: string;
 }
 
 /**
  * Dual Personality Cards — What the world sees vs. what's real.
  * Mask (extrovert facade, Sun/Asc) & Core (inner truth, Moon/Mercury).
  */
-export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading = false }: DualPersonalityCardsProps) {
+export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading = false, onAskContext, selectedContextLabel }: DualPersonalityCardsProps) {
   const SHADOW_INFO_STORAGE_KEY = 'merlin:shadow-info:expanded';
   const MBTI_OVERRIDE_PANEL_STORAGE_KEY = 'merlin:mbti-override-panel:open';
   const { user } = useUser();
@@ -275,9 +277,10 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
       >
         {/* LEFT: MASK (What the world sees) */}
         <motion.div
-          className={`bg-gradient-to-br ${getMaskColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-orange-500/20 relative overflow-hidden`}
+          className={`bg-gradient-to-br ${getMaskColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-orange-500/20 relative overflow-hidden ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === dualOverlay.hardware.label ? 'ring-1 ring-cyan-300/40' : ''}`}
           variants={cardVariants}
           whileHover={{ scale: 1.02, y: -5 }}
+          onClick={onAskContext ? () => onAskContext(dualOverlay.hardware.label, `Explain my ${dualOverlay.hardware.label.toLowerCase()} and how it shapes what people see first.`) : undefined}
         >
           {/* Glow effect */}
           <div className="absolute inset-0 bg-gradient-to-t from-orange-500/0 to-orange-500/5 pointer-events-none" />
@@ -316,15 +319,17 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
               <p className="text-sm italic text-orange-100">
                 {getOuterMaskPoetry(dualOverlay.hardware.mbtiType)}
               </p>
+              {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === dualOverlay.hardware.label ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === dualOverlay.hardware.label ? 'Selected for Merlin' : 'Click card to ask Merlin about this layer'}</p> : null}
             </div>
           </div>
         </motion.div>
 
         {/* RIGHT: CORE (What's real) */}
         <motion.div
-          className={`bg-gradient-to-br ${getCoreColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-purple-500/20 relative overflow-hidden`}
+          className={`bg-gradient-to-br ${getCoreColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-purple-500/20 relative overflow-hidden ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === dualOverlay.firmware.label ? 'ring-1 ring-cyan-300/40' : ''}`}
           variants={cardVariants}
           whileHover={{ scale: 1.02, y: -5 }}
+          onClick={onAskContext ? () => onAskContext(dualOverlay.firmware.label, `Explain my ${dualOverlay.firmware.label.toLowerCase()} and what it reveals about my inner pattern.`) : undefined}
         >
           {/* Glow effect */}
           <div className="absolute inset-0 bg-gradient-to-t from-purple-500/0 to-purple-500/5 pointer-events-none" />
@@ -363,6 +368,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
               <p className="text-sm italic text-purple-100">
                 {getInnerCorePoetry(dualOverlay.firmware.mbtiType)}
               </p>
+              {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === dualOverlay.firmware.label ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === dualOverlay.firmware.label ? 'Selected for Merlin' : 'Click card to ask Merlin about this layer'}</p> : null}
             </div>
           </div>
         </motion.div>
@@ -410,7 +416,8 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
               : shadowTrigger && shadowTrigger.orb < 4
               ? 'border-amber-600/50 bg-gradient-to-br from-amber-950/40 to-slate-900/80'
               : 'border-slate-700/50 bg-gradient-to-br from-slate-800/50 to-slate-900/70'
-          }`}
+          } ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === 'Shadow name' ? 'ring-1 ring-cyan-300/40' : ''}`}
+          onClick={onAskContext ? () => onAskContext('Shadow name', 'Explain my shadow archetype, why it activates, and what healthier expression looks like.') : undefined}
         >
           {/* Blood-glow overlay when active */}
           {shadowTrigger && shadowTrigger.orb < 2 && (
@@ -468,6 +475,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
             <div className="border-t border-slate-700/50 pt-3">
               <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Recovery</p>
               <p className="text-sm text-slate-400 italic">{shadowEntry.recovery}</p>
+              {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === 'Shadow name' ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === 'Shadow name' ? 'Selected for Merlin' : 'Click card to ask Merlin about your shadow'}</p> : null}
             </div>
           </div>
         </motion.div>

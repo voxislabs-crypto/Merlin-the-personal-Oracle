@@ -144,6 +144,8 @@ interface ActiveTransitsProps {
   userId?: string;
   mbtiType?: string | null;
   onContextSaved?: () => void;
+  onAskContext?: (label: string, prompt: string) => void;
+  selectedContextLabel?: string;
 }
 
 export function ActiveTransits({
@@ -157,7 +159,9 @@ export function ActiveTransits({
   loading = false,
   userId,
   mbtiType,
-  onContextSaved
+  onContextSaved,
+  onAskContext,
+  selectedContextLabel,
 }: ActiveTransitsProps) {
   const STORAGE_KEY = 'merlin:transit-details:active-transits';
   const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
@@ -301,6 +305,8 @@ export function ActiveTransits({
     };
   };
 
+  const isSelectedContext = (label: string) => selectedContextLabel === label;
+
   return (
     <motion.div
       className="space-y-6 z-10 relative"
@@ -360,7 +366,11 @@ export function ActiveTransits({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {confluence.slice(0, 4).map((theme) => (
-              <div key={theme.theme} className="rounded-md border border-indigo-400/20 bg-slate-900/50 p-3">
+              <div
+                key={theme.theme}
+                className={`rounded-md border border-indigo-400/20 bg-slate-900/50 p-3 ${onAskContext ? 'cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5' : ''} ${isSelectedContext(theme.title) ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''}`}
+                onClick={onAskContext ? () => onAskContext(theme.title, `Why are these ${theme.title.toLowerCase()} signals converging right now, and what should I do with that?`) : undefined}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-indigo-100">{theme.title}</p>
                   <span className="text-xs text-indigo-300">{theme.score}/100</span>
@@ -381,7 +391,11 @@ export function ActiveTransits({
           </div>
           <div className="space-y-2">
             {transitWindows.slice(0, 6).map((window) => (
-              <div key={window.eventId} className="rounded-md border border-sky-400/20 bg-slate-900/45 p-3">
+              <div
+                key={window.eventId}
+                className={`rounded-md border border-sky-400/20 bg-slate-900/45 p-3 ${onAskContext ? 'cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5' : ''} ${isSelectedContext(window.title) ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''}`}
+                onClick={onAskContext ? () => onAskContext(window.title, `What should I know about this transit window: ${window.title}?`) : undefined}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-sky-100">{window.title}</p>
                   <span className="text-xs text-sky-300">{window.intensity}/100</span>
@@ -432,7 +446,11 @@ export function ActiveTransits({
           </div>
           <div className="space-y-3">
             {predictive.events.slice(0, 3).map((event) => (
-              <div key={event.eventId} className="rounded-md border border-violet-400/20 bg-slate-900/40 p-3">
+              <div
+                key={event.eventId}
+                className={`rounded-md border border-violet-400/20 bg-slate-900/40 p-3 ${onAskContext ? 'cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5' : ''} ${isSelectedContext(`${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}`) ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''}`}
+                onClick={onAskContext ? () => onAskContext(`${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}`, `What is the practical meaning of ${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet} over the next few days?`) : undefined}
+              >
                 {(() => {
                   const actionSignal = getActionSignal(event);
                   return (
@@ -521,10 +539,11 @@ export function ActiveTransits({
             {significant.map((transit, idx) => (
               <motion.div
                 key={`${transit.transitingPlanet}-${transit.natalPlanet}-${transit.aspect}`}
-                className="p-4 bg-red-900/20 rounded-lg border border-red-500/40 hover:border-red-400/60 transition-colors"
+                className={`p-4 bg-red-900/20 rounded-lg border border-red-500/40 hover:border-red-400/60 transition-colors ${onAskContext ? 'cursor-pointer hover:bg-cyan-500/5 hover:border-cyan-300/40' : ''} ${isSelectedContext(`${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}`) ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10 border-cyan-300/40' : ''}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.1 }}
+                onClick={onAskContext ? () => onAskContext(`${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}`, `How should I work with this exact transit right now: ${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}?`) : undefined}
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-bold text-red-200">
@@ -571,10 +590,11 @@ export function ActiveTransits({
             {approaching.map((transit, idx) => (
               <motion.div
                 key={`${transit.transitingPlanet}-${transit.natalPlanet}-${transit.aspect}`}
-                className="p-4 bg-amber-900/20 rounded-lg border border-amber-500/40 hover:border-amber-400/60 transition-colors"
+                className={`p-4 bg-amber-900/20 rounded-lg border border-amber-500/40 hover:border-amber-400/60 transition-colors ${onAskContext ? 'cursor-pointer hover:bg-cyan-500/5 hover:border-cyan-300/40' : ''} ${isSelectedContext(`${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}`) ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10 border-cyan-300/40' : ''}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.1 }}
+                onClick={onAskContext ? () => onAskContext(`${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}`, `What should I watch for as this transit approaches: ${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}?`) : undefined}
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-bold text-amber-200">

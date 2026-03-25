@@ -34,7 +34,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning } from 'lucide-react';
+import { Sparkles, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning, MessageCircle, SlidersHorizontal } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -65,6 +65,7 @@ export default function UnifiedDashboard() {
   const [showDeepDive, setShowDeepDive] = useState(false);
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
+  const [showReadingControls, setShowReadingControls] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [dailyOracle, setDailyOracle] = useState<{
@@ -78,6 +79,9 @@ export default function UnifiedDashboard() {
   const [dailyOracleLoading, setDailyOracleLoading] = useState(false);
   const [patternMirror, setPatternMirror] = useState<any | null>(null);
   const [patternMirrorLoading, setPatternMirrorLoading] = useState(false);
+  const [askDraftPrompt, setAskDraftPrompt] = useState('');
+  const [askDraftLabel, setAskDraftLabel] = useState('');
+  const [askDraftKey, setAskDraftKey] = useState(0);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -536,6 +540,29 @@ export default function UnifiedDashboard() {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const queueAskContext = useCallback((label: string, prompt: string) => {
+    setAskDraftLabel(label);
+    setAskDraftPrompt(prompt);
+    setAskDraftKey((prev) => prev + 1);
+    setChatExpanded(true);
+    setTimeout(() => {
+      chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  }, []);
+
+  const handlePrimaryAskMerlin = useCallback(() => {
+    queueAskContext(
+      askDraftLabel || 'Current chart context',
+      askDraftPrompt || 'What should I pay attention to in my chart and current transits right now?'
+    );
+  }, [askDraftLabel, askDraftPrompt, queueAskContext]);
+
+  const clearAskContext = useCallback(() => {
+    setAskDraftLabel('');
+    setAskDraftPrompt('');
+    setAskDraftKey((prev) => prev + 1);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -638,21 +665,41 @@ export default function UnifiedDashboard() {
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300/80">Ask Rail</p>
                           <p className="text-sm text-slate-300">Use the Oracle when you need a read on timing, risk, relationships, money, or the loop you are in.</p>
+                          {askDraftLabel ? (
+                            <div className="mt-2 flex items-center gap-2 text-xs text-cyan-200/75">
+                              <span>Selected context: {askDraftLabel}</span>
+                              <button
+                                type="button"
+                                onClick={clearAskContext}
+                                className="text-cyan-100 underline-offset-2 hover:underline"
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handlePrimaryAskMerlin}
+                            className="inline-flex items-center gap-2 rounded-full border border-cyan-300/45 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/25"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            Ask Merlin
+                          </button>
                           <button
                             type="button"
                             onClick={handleDailyWhisper}
                             className="rounded-full border border-cyan-400/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
                           >
-                            Open warm read
+                            Warm read
                           </button>
                           <button
                             type="button"
                             onClick={() => activateWhisperMode('bullshit')}
                             className="rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20"
                           >
-                            No-bullshit read
+                            Direct read
                           </button>
                           <button
                             type="button"
@@ -671,7 +718,12 @@ export default function UnifiedDashboard() {
                       <p className="text-[11px] uppercase tracking-[0.24em] text-indigo-300/80 mb-2">Pattern Layer</p>
                       <p className="text-sm text-slate-300 leading-relaxed">Repetition becomes visible here. When a loop keeps showing up, Merlin can stop treating it like a random mood.</p>
                     </div>
-                    <PatternMirrorPanel data={patternMirror} loading={patternMirrorLoading} />
+                    <PatternMirrorPanel
+                      data={patternMirror}
+                      loading={patternMirrorLoading}
+                      onAskContext={queueAskContext}
+                      selectedContextLabel={askDraftLabel}
+                    />
                   </div>
                 </div>
               </div>
@@ -816,7 +868,11 @@ export default function UnifiedDashboard() {
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Left: Placements Sidebar */}
                     <div className="lg:col-span-2">
-                      <PlacementsSidebar planets={chartData?.planets || []} />
+                      <PlacementsSidebar
+                        planets={chartData?.planets || []}
+                        onAskContext={queueAskContext}
+                        selectedContextLabel={askDraftLabel}
+                      />
                     </div>
                     
                     {/* Center: Wheel */}
@@ -838,6 +894,9 @@ export default function UnifiedDashboard() {
                             mbtiType={mbtiType || undefined}
                             clarityMode={clarityMode}
                             onClarityChange={toggleClarityMode}
+                            draftPrompt={askDraftPrompt}
+                            draftPromptKey={askDraftKey}
+                            draftLabel={askDraftLabel}
                           />
                         )}
                       </div>
@@ -845,93 +904,120 @@ export default function UnifiedDashboard() {
                   </div>
 
                   {/* Action Buttons Under Wheel */}
-                  <div className="flex gap-4 mt-8 justify-center flex-wrap items-center">
-                    {/* ElevenLabs Audio Mini-Player */}
-                    <MerlinAudioPlayer
-                      text={readAloudText}
-                      label="Hear Merlin"
-                    />
-                    <button
-                      onClick={handleDailyWhisper}
-                      title="Generate a concise daily guidance summary"
-                      className="px-6 py-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-purple-200 font-semibold transition-all"
-                    >
-                      🌙 Daily Whisper
-                    </button>
+                  <div className="mt-8 space-y-3">
+                    <div className="flex gap-3 justify-center flex-wrap items-center">
+                      <button
+                        onClick={handlePrimaryAskMerlin}
+                        title="Open the chat rail and prefill a prompt for Merlin"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-400/15 hover:bg-cyan-400/25 border border-cyan-300/35 rounded-lg text-cyan-50 font-semibold transition-all"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Ask Merlin
+                      </button>
+                      <MerlinAudioPlayer
+                        text={readAloudText}
+                        label="Hear Merlin"
+                      />
+                      <button
+                        onClick={() => setShowReadingControls((prev) => !prev)}
+                        title="Show or hide reading mode controls"
+                        className="inline-flex items-center gap-2 px-4 py-3 border border-slate-600/40 rounded-lg text-slate-200 bg-slate-800/60 hover:bg-slate-700/70 transition-all"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        {showReadingControls ? 'Hide controls' : 'Reading controls'}
+                      </button>
+                    </div>
 
-                    <button
-                      onClick={() => activateWhisperMode('plain')}
-                      title="Switch interpretation to plain, no-jargon language"
-                      className="px-4 py-2 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg text-emerald-200 font-semibold transition-all"
-                    >
-                      Plain
-                    </button>
-                    <button
-                      onClick={() => activateWhisperMode('warm')}
-                      title="Switch interpretation to supportive and warm tone"
-                      className="px-4 py-2 text-xs bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 rounded-lg text-sky-200 font-semibold transition-all"
-                    >
-                      Warm
-                    </button>
-                    <button
-                      onClick={() => activateWhisperMode('bullshit')}
-                      title="Switch interpretation to direct no-BS mode"
-                      className="px-4 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-200 font-semibold transition-all"
-                    >
-                      No-BS
-                    </button>
-                    <button
-                      onClick={() => activateWhisperMode('oracle')}
-                      title="Switch interpretation to full Oracle mode"
-                      className="px-4 py-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-lg text-violet-200 font-semibold transition-all"
-                    >
-                      Oracle
-                    </button>
+                    {askDraftLabel ? (
+                      <div className="text-center flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handlePrimaryAskMerlin}
+                          className="text-xs text-cyan-200/80 hover:text-cyan-100 transition"
+                        >
+                          Selected context: {askDraftLabel}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearAskContext}
+                          className="text-xs text-slate-400 hover:text-slate-200 transition"
+                        >
+                          Clear selection
+                        </button>
+                      </div>
+                    ) : null}
 
-                    {/* Clarity Mode Toggle — Plain English vs Oracle Full */}
-                    <button
-                      onClick={toggleClarityMode}
-                      title={clarityMode ? 'Clarity Mode ON: plain English (click for Oracle Full)' : 'Oracle Full Mode: astrology jargon ON (click for plain English)'}
-                      className={`px-6 py-3 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                        clarityMode
-                          ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/30'
-                          : 'bg-purple-500/20 border-purple-500/30 text-purple-200 hover:bg-purple-500/30'
-                      }`}
-                    >
-                      {clarityMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      <span className="text-xs">
-                        {clarityMode ? 'Plain English' : 'Oracle Full'}
-                      </span>
-                    </button>
-                    
-                    {/* No-Bullshit Mode Toggle */}
-                    <button
-                      onClick={() => setNoBullshit(!noBullshit)}
-                      className={`px-6 py-3 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                        noBullshit
-                          ? 'bg-red-500/20 border-red-500/30 text-red-200 hover:bg-red-500/30'
-                          : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
-                      }`}
-                    >
-                      <span className="text-xs">
-                        {noBullshit ? '🔥 No-BS Mode' : '✨ Warm Mode'}
-                      </span>
-                    </button>
-
-                    {/* Quest Log Toggle */}
-                    <button
-                      onClick={() => setQuestLogEnabled(prev => !prev)}
-                      className={`px-6 py-3 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                        questLogEnabled
-                          ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-200 hover:bg-yellow-500/30'
-                          : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
-                      }`}
-                    >
-                      <Scroll className="w-3.5 h-3.5" />
-                      <span className="text-xs">
-                        {questLogEnabled ? 'Quests: On' : 'Quests: Off'}
-                      </span>
-                    </button>
+                    {showReadingControls && (
+                      <div className="flex gap-2 justify-center flex-wrap items-center">
+                        <button
+                          onClick={() => activateWhisperMode('plain')}
+                          title="Switch interpretation to plain, no-jargon language"
+                          className="px-4 py-2 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg text-emerald-200 font-semibold transition-all"
+                        >
+                          Plain
+                        </button>
+                        <button
+                          onClick={() => activateWhisperMode('warm')}
+                          title="Switch interpretation to supportive and warm tone"
+                          className="px-4 py-2 text-xs bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 rounded-lg text-sky-200 font-semibold transition-all"
+                        >
+                          Warm
+                        </button>
+                        <button
+                          onClick={() => activateWhisperMode('bullshit')}
+                          title="Switch interpretation to direct no-BS mode"
+                          className="px-4 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-200 font-semibold transition-all"
+                        >
+                          No-BS
+                        </button>
+                        <button
+                          onClick={() => activateWhisperMode('oracle')}
+                          title="Switch interpretation to full Oracle mode"
+                          className="px-4 py-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-lg text-violet-200 font-semibold transition-all"
+                        >
+                          Oracle
+                        </button>
+                        <button
+                          onClick={toggleClarityMode}
+                          title={clarityMode ? 'Clarity Mode ON: plain English (click for Oracle Full)' : 'Oracle Full Mode: astrology jargon ON (click for plain English)'}
+                          className={`px-4 py-2 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                            clarityMode
+                              ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/30'
+                              : 'bg-purple-500/20 border-purple-500/30 text-purple-200 hover:bg-purple-500/30'
+                          }`}
+                        >
+                          {clarityMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          <span className="text-xs">
+                            {clarityMode ? 'Plain English' : 'Oracle Full'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setNoBullshit(!noBullshit)}
+                          className={`px-4 py-2 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                            noBullshit
+                              ? 'bg-red-500/20 border-red-500/30 text-red-200 hover:bg-red-500/30'
+                              : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                          }`}
+                        >
+                          <span className="text-xs">
+                            {noBullshit ? '🔥 No-BS Mode' : '✨ Warm Mode'}
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => setQuestLogEnabled(prev => !prev)}
+                          className={`px-4 py-2 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                            questLogEnabled
+                              ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-200 hover:bg-yellow-500/30'
+                              : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
+                          }`}
+                        >
+                          <Scroll className="w-3.5 h-3.5" />
+                          <span className="text-xs">
+                            {questLogEnabled ? 'Quests: On' : 'Quests: Off'}
+                          </span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
 
@@ -1040,7 +1126,14 @@ export default function UnifiedDashboard() {
                     </button>
                     {showPersonalityCardsPanel && mbtiType && (
                       <div className="px-4 pb-4">
-                        <DualPersonalityCards mbtiType={mbtiType} dualOverlay={dualOverlay} transits={transits} loading={personalityLoading} />
+                        <DualPersonalityCards
+                          mbtiType={mbtiType}
+                          dualOverlay={dualOverlay}
+                          transits={transits}
+                          loading={personalityLoading}
+                          onAskContext={queueAskContext}
+                          selectedContextLabel={askDraftLabel}
+                        />
                       </div>
                     )}
                   </motion.div>
@@ -1128,6 +1221,8 @@ export default function UnifiedDashboard() {
                         advice={forecast?.advice || ''}
                         loading={forecastLoading}
                         userId={userId || undefined}
+                        onAskContext={queueAskContext}
+                        selectedContextLabel={askDraftLabel}
                       />
                     </div>
                   </motion.div>
@@ -1279,6 +1374,8 @@ export default function UnifiedDashboard() {
                             userId={userId || undefined}
                             mbtiType={mbtiType || undefined}
                             onContextSaved={refreshTransitsWithContext}
+                            onAskContext={queueAskContext}
+                            selectedContextLabel={askDraftLabel}
                           />
                         )}
 
@@ -1307,6 +1404,8 @@ export default function UnifiedDashboard() {
                                 loading={lifeArcLoading}
                                 userName={user?.firstName || undefined}
                                 defaultTimeFilter="current"
+                                onAskContext={queueAskContext}
+                                selectedContextLabel={askDraftLabel}
                               />
                             ) : (
                               <div className="text-sm text-slate-100 leading-relaxed">
@@ -1326,6 +1425,8 @@ export default function UnifiedDashboard() {
                               dualOverlay={dualOverlay}
                               transits={transits}
                               loading={personalityLoading}
+                              onAskContext={queueAskContext}
+                              selectedContextLabel={askDraftLabel}
                             />
                           </div>
                         )}

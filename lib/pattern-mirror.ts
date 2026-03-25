@@ -174,19 +174,49 @@ export async function getPatternMirror(userId: string) {
         const count = recentMatches.length;
         const lastSeen = recentMatches[1]?.createdAt?.toISOString();
 
+        // Short-term memory: did this pattern just fire again right now?
+        const mostRecentEvent = patternEvents[0];
+        const justRepeated = mostRecentEvent?.detectedPattern === dominant.pattern;
+
+        // Previous quote: find an older event with stored content to quote back
+        const previousWithContent = recentMatches.slice(1).find(
+          (e) => e.content && e.content.length > 40
+        );
+        const previousQuote = previousWithContent?.content
+          ? previousWithContent.content.slice(0, 130).trim()
+          : null;
+        const previousDate = previousWithContent?.createdAt
+          ? (() => {
+              const diff = Math.round((Date.now() - previousWithContent.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+              return diff <= 0 ? 'earlier today' : diff === 1 ? 'yesterday' : `${diff} days ago`;
+            })()
+          : null;
+
+        // Escalation tiers — confrontational, not analytical
         let message = '';
-        if (count === 1) {
-          message = 'This pattern has appeared before. You have encountered it once already.';
-        } else if (count < 4) {
-          message = `This is becoming a pattern. You have repeated it ${count} times. Awareness is forming, but action has not fully followed.`;
+        if (count === 2) {
+          message = `You've now repeated this twice.\n\nYou noticed it before.\nBut nothing changed.`;
+        } else if (count <= 4) {
+          message = `This is becoming a pattern.\n\n${count} repetitions.\n\nAwareness is present.\nChange is not.`;
         } else {
-          message = `This is no longer random. This is a loop. You have repeated it ${count} times. You are not stuck. You are continuing.`;
+          message = `This is a loop.\n\n${count} repetitions.\n\nYou are not stuck.\n\nYou are choosing the familiar pattern over the uncomfortable alternative.`;
         }
 
+        // Short-term memory hook — "you just did this again"
+        if (justRepeated) {
+          message += `\n\nYou just showed this pattern again.\n\nIt hasn't changed.`;
+        }
+
+        // Previous quote callback — Merlin remembering specific moments
+        if (previousQuote && previousDate) {
+          message += `\n\nYou said something similar ${previousDate}:\n\n"${previousQuote}"\n\nThis pattern hasn't shifted.`;
+        }
+
+        // Trend amplifier
         if (dominant.trendStatus === 'rising') {
-          message += ' It is getting louder, which means inaction is now part of the pattern.';
+          message += '\n\nIt is getting louder.\nInaction is now part of the pattern.';
         } else if (dominant.trendStatus === 'fading') {
-          message += ' It is weakening, which means this is the right moment to break it cleanly.';
+          message += '\n\nThe grip is loosening.\nThis is the right moment to break it cleanly.';
         }
 
         return {

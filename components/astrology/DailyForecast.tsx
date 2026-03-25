@@ -37,6 +37,8 @@ interface DailyForecastProps {
   conversationalPrompts?: string[];
   loading?: boolean;
   userId?: string;
+  onAskContext?: (label: string, prompt: string) => void;
+  selectedContextLabel?: string;
 }
 
 export function DailyForecast({
@@ -54,7 +56,9 @@ export function DailyForecast({
   futureSignals = [],
   conversationalPrompts = [],
   loading = false,
-  userId
+  userId,
+  onAskContext,
+  selectedContextLabel,
 }: DailyForecastProps) {
   if (loading) {
     return (
@@ -98,6 +102,10 @@ export function DailyForecast({
   };
 
   const hasRealData = transits.length > 0 || planetaryHighlights.length > 0;
+  const makeInteractiveClasses = (label: string) =>
+    onAskContext
+      ? `${selectedContextLabel === label ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''} cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5`
+      : '';
 
   return (
     <motion.div
@@ -211,8 +219,9 @@ export function DailyForecast({
 
       {/* ── Main Horoscope Summary ────────────────────────────────────────── */}
       <motion.div
-        className="p-6 bg-slate-900/60 rounded-lg border border-amber-500/20 backdrop-blur-sm"
+        className={`p-6 bg-slate-900/60 rounded-lg border border-amber-500/20 backdrop-blur-sm ${makeInteractiveClasses('Daily cosmic story')}`}
         variants={itemVariants}
+        onClick={onAskContext ? () => onAskContext('Daily cosmic story', 'What is the core message in today\'s cosmic story, and how should I apply it?') : undefined}
       >
         <h4 className="text-lg font-bold text-amber-300 mb-3 flex items-center gap-2">
           <Sparkles className="w-5 h-5" />
@@ -236,24 +245,32 @@ export function DailyForecast({
               label="Love & Relationships"
               color="pink"
               text={focusAreas.love}
+              onAskContext={onAskContext}
+              selected={selectedContextLabel === 'Love & Relationships'}
             />
             <FocusCard
               icon={<Briefcase className="w-4 h-4 text-blue-400" />}
               label="Career & Ambition"
               color="blue"
               text={focusAreas.career}
+              onAskContext={onAskContext}
+              selected={selectedContextLabel === 'Career & Ambition'}
             />
             <FocusCard
               icon={<MessageSquare className="w-4 h-4 text-purple-400" />}
               label="Mind & Communication"
               color="purple"
               text={focusAreas.mind}
+              onAskContext={onAskContext}
+              selected={selectedContextLabel === 'Mind & Communication'}
             />
             <FocusCard
               icon={<Waves className="w-4 h-4 text-teal-400" />}
               label="Emotional Weather"
               color="teal"
               text={focusAreas.mood}
+              onAskContext={onAskContext}
+              selected={selectedContextLabel === 'Emotional Weather'}
             />
           </div>
         </motion.div>
@@ -292,7 +309,11 @@ export function DailyForecast({
           <h4 className="text-lg font-bold text-indigo-300 mb-3">What Merlin Sees Next</h4>
           <div className="space-y-3">
             {futureSignals.slice(0, 4).map((signal, idx) => (
-              <div key={`${signal.domain}-${idx}`} className="p-3 rounded border border-indigo-400/20 bg-indigo-500/10">
+              <div
+                key={`${signal.domain}-${idx}`}
+                className={`p-3 rounded border border-indigo-400/20 bg-indigo-500/10 ${makeInteractiveClasses(`${signal.domain} signal`)}`}
+                onClick={onAskContext ? () => onAskContext(`${signal.domain} signal`, `What does this ${signal.domain.toLowerCase()} signal suggest I should prepare for over the next ${signal.timeframe}?`) : undefined}
+              >
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <p className="text-sm font-semibold text-indigo-200">{signal.domain}</p>
                   <p className="text-xs text-indigo-200/80">{signal.probability}% • {signal.timeframe}</p>
@@ -325,10 +346,11 @@ export function DailyForecast({
             {transits.slice(0, 5).map((transit, idx) => (
               <motion.div
                 key={idx}
-                className="flex items-start gap-3 p-3 bg-purple-500/10 rounded border border-purple-400/20"
+                className={`flex items-start gap-3 p-3 bg-purple-500/10 rounded border border-purple-400/20 ${makeInteractiveClasses(transit)}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
+                onClick={onAskContext ? () => onAskContext(transit, `What does this transit mean for me in practical terms today: ${transit}?`) : undefined}
               >
                 <span className="text-purple-400 mt-0.5 font-bold">→</span>
                 <span className="text-purple-100 text-sm">{transit}</span>
@@ -352,10 +374,11 @@ export function DailyForecast({
             {planetaryHighlights.map((highlight, idx) => (
               <motion.div
                 key={idx}
-                className="flex items-start gap-3"
+                className={`flex items-start gap-3 rounded-md px-2 py-1 -mx-2 ${makeInteractiveClasses(highlight)}`}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.08 }}
+                onClick={onAskContext ? () => onAskContext(highlight, `How should I work with this energy today: ${highlight}?`) : undefined}
               >
                 <span className="text-amber-400 mt-1 shrink-0">✦</span>
                 <span className="text-white text-sm">{highlight}</span>
@@ -382,8 +405,9 @@ export function DailyForecast({
 
       {/* ── Merlin's Word ─────────────────────────────────────────────────── */}
       <motion.div
-        className="p-6 bg-gradient-to-r from-amber-900/20 to-amber-900/10 rounded-lg border border-amber-500/40"
+        className={`p-6 bg-gradient-to-r from-amber-900/20 to-amber-900/10 rounded-lg border border-amber-500/40 ${makeInteractiveClasses('Merlin\'s word')}`}
         variants={itemVariants}
+        onClick={onAskContext ? () => onAskContext('Merlin\'s word', 'Break down Merlin\'s word for today into one concrete move I should make.') : undefined}
       >
         <h4 className="text-lg font-bold text-amber-200 mb-3">✨ Merlin's Word</h4>
         <p className="text-white leading-relaxed">{advice || 'The cosmos trusts your instincts today.'}</p>
@@ -398,7 +422,13 @@ export function DailyForecast({
           <h4 className="text-lg font-bold text-fuchsia-300 mb-3">Ask Merlin Next</h4>
           <div className="space-y-2">
             {conversationalPrompts.slice(0, 3).map((prompt, idx) => (
-              <p key={idx} className="text-sm text-fuchsia-100/90">• {prompt}</p>
+              <p
+                key={idx}
+                className={`text-sm text-fuchsia-100/90 rounded-md px-2 py-1 -mx-2 ${makeInteractiveClasses(prompt)}`}
+                onClick={onAskContext ? () => onAskContext(prompt, prompt) : undefined}
+              >
+                • {prompt}
+              </p>
             ))}
           </div>
         </motion.div>
@@ -409,8 +439,8 @@ export function DailyForecast({
 
 // ─── Focus area card ──────────────────────────────────────────────────────────
 function FocusCard({
-  icon, label, color, text
-}: { icon: React.ReactNode; label: string; color: string; text: string }) {
+  icon, label, color, text, onAskContext, selected
+}: { icon: React.ReactNode; label: string; color: string; text: string; onAskContext?: (label: string, prompt: string) => void; selected?: boolean }) {
   const borderMap: Record<string, string> = {
     pink:   'border-pink-500/30 bg-pink-900/15',
     blue:   'border-blue-500/30 bg-blue-900/15',
@@ -421,7 +451,10 @@ function FocusCard({
     pink: 'text-pink-300', blue: 'text-blue-300', purple: 'text-purple-300', teal: 'text-teal-300',
   };
   return (
-    <div className={`p-4 rounded-lg border ${borderMap[color] || 'border-slate-500/30 bg-slate-900/30'}`}>
+    <div
+      className={`p-4 rounded-lg border ${borderMap[color] || 'border-slate-500/30 bg-slate-900/30'} ${onAskContext ? 'cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5' : ''} ${selected ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''}`}
+      onClick={onAskContext ? () => onAskContext(label, `What does today\'s ${label.toLowerCase()} forecast mean for me, and what should I do with it?`) : undefined}
+    >
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className={`text-xs font-bold uppercase tracking-wider ${labelMap[color] || 'text-slate-300'}`}>
