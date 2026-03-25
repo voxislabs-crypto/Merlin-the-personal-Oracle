@@ -12,6 +12,8 @@ import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 
+const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -86,6 +88,11 @@ export function CollapsibleChatPanel({
   const globalAudioRef = useRef<HTMLAudioElement | null>(
     typeof window !== 'undefined' && globalAudioManager ? globalAudioManager.getAudioElement() : null
   );
+
+  useEffect(() => {
+    if (!globalAudioManager) return;
+    globalAudioRef.current = globalAudioManager.getAudioElement();
+  }, [playingMessageId, isSpeaking, isTTSLoading]);
 
   const scrollToBottom = useCallback(() => {
     if (!autoScroll) return; // Don't force scroll if user has scrolled up
@@ -736,27 +743,27 @@ export function CollapsibleChatPanel({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto space-y-3 p-4"
       >
-        {/* Avatar Display - Shows when speaking/TTS playing */}
-        <AnimatePresence>
-          {isSpeaking && (
-            <motion.div
-              key="voice-avatar"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="flex justify-center pb-4 border-b border-purple-500/20"
-            >
-              <div className="w-48 h-56">
-                <VoiceAvatar
-                  isPlaying={isSpeaking}
-                  audioRef={globalAudioRef}
-                  messageText={messages.find((m: Message) => m.id === playingMessageId)?.content}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div
+          key="voice-avatar"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          transition={{ duration: 0.3 }}
+          className="flex justify-center pb-4 border-b border-purple-500/20"
+        >
+          <div className="w-48 h-56">
+            <VoiceAvatar
+              isPlaying={isSpeaking}
+              isThinking={isLoading || !!streamingContent}
+              audioRef={globalAudioRef}
+              messageText={
+                streamingContent ||
+                messages.find((m: Message) => m.id === playingMessageId)?.content ||
+                (messages.length === 0 ? 'Merlin is ready for your question.' : '')
+              }
+              portraitImage={MERLIN_PORTRAIT_IMAGE}
+            />
+          </div>
+        </motion.div>
 
         {messages.length === 0 && !streamingContent && (
           <div className="h-full flex items-center justify-center text-center">

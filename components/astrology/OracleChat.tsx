@@ -11,6 +11,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 
+const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -609,13 +611,15 @@ export function OracleChat({
         className="border-b border-purple-500/20 bg-gradient-to-b from-purple-900/20 to-transparent p-4 flex justify-center"
       >
         <VoiceAvatar
-          isPlaying={isSpeaking || isLoading || !!streamingContent}
+          isPlaying={isSpeaking}
+          isThinking={isLoading || !!streamingContent}
           audioRef={audioRef}
           messageText={
             streamingContent || 
             messages.find((m: Message) => m.id === playingMessageId)?.content || 
             (isLoading ? 'Contemplating your question...' : '')
           }
+          portraitImage={MERLIN_PORTRAIT_IMAGE}
         />
       </motion.div>
 
