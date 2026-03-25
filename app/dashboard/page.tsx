@@ -61,6 +61,7 @@ export default function UnifiedDashboard() {
   const weeklySectionRef = useRef<HTMLDivElement | null>(null);
   const personalitySectionRef = useRef<HTMLDivElement | null>(null);
   const forecastSectionRef = useRef<HTMLDivElement | null>(null);
+  const hasRestoredPersistedDataRef = useRef(false);
   const [compactMode, setCompactMode] = useState(false);
   const [showDeepDive, setShowDeepDive] = useState(false);
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
@@ -286,6 +287,10 @@ export default function UnifiedDashboard() {
 
   // Load persisted data on mount
   useEffect(() => {
+    if (!isLoaded || (user && !userId) || hasRestoredPersistedDataRef.current) return;
+
+    hasRestoredPersistedDataRef.current = true;
+
     try {
       const savedChart = localStorage.getItem(STORAGE_KEY);
       const savedBirth = localStorage.getItem(STORAGE_BIRTH_KEY);
@@ -346,7 +351,20 @@ export default function UnifiedDashboard() {
     } catch (error) {
       console.error('Error loading persisted data:', error);
     }
-  }, []);
+  }, [
+    calculateForecast,
+    calculateLifeArc,
+    calculatePersonality,
+    calculateStorms,
+    calculateTransits,
+    calculateWeeklyForecast,
+    generateInterpretations,
+    interpretMode,
+    isLoaded,
+    mbtiType,
+    user,
+    userId,
+  ]);
 
   const handleChartCalculated = useCallback((data: BirthChartData) => {
     // Derive birth data
@@ -431,6 +449,29 @@ export default function UnifiedDashboard() {
     if (!t && forecast?.summary) t = forecast.summary;
     return t || 'No interpretation available yet.';
   }, [interpretations, forecast]);
+
+  const queueAskContext = useCallback((label: string, prompt: string) => {
+    setAskDraftLabel(label);
+    setAskDraftPrompt(prompt);
+    setAskDraftKey((prev) => prev + 1);
+    setChatExpanded(true);
+    setTimeout(() => {
+      chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  }, []);
+
+  const handlePrimaryAskMerlin = useCallback(() => {
+    queueAskContext(
+      askDraftLabel || 'Current chart context',
+      askDraftPrompt || 'What should I pay attention to in my chart and current transits right now?'
+    );
+  }, [askDraftLabel, askDraftPrompt, queueAskContext]);
+
+  const clearAskContext = useCallback(() => {
+    setAskDraftLabel('');
+    setAskDraftPrompt('');
+    setAskDraftKey((prev) => prev + 1);
+  }, []);
 
   // Conditional render: Don't render until Clerk auth is loaded
   if (!isLoaded) {
@@ -539,29 +580,6 @@ export default function UnifiedDashboard() {
   const scrollToBlock = (ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-
-  const queueAskContext = useCallback((label: string, prompt: string) => {
-    setAskDraftLabel(label);
-    setAskDraftPrompt(prompt);
-    setAskDraftKey((prev) => prev + 1);
-    setChatExpanded(true);
-    setTimeout(() => {
-      chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 120);
-  }, []);
-
-  const handlePrimaryAskMerlin = useCallback(() => {
-    queueAskContext(
-      askDraftLabel || 'Current chart context',
-      askDraftPrompt || 'What should I pay attention to in my chart and current transits right now?'
-    );
-  }, [askDraftLabel, askDraftPrompt, queueAskContext]);
-
-  const clearAskContext = useCallback(() => {
-    setAskDraftLabel('');
-    setAskDraftPrompt('');
-    setAskDraftKey((prev) => prev + 1);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">

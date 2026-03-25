@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface VoiceAvatarProps {
   isPlaying?: boolean;
@@ -313,15 +314,19 @@ export const VoiceAvatar: React.FC<VoiceAvatarProps> = ({
           >
             {portraitImage ? (
               <div className="relative h-28 w-28 overflow-hidden rounded-full border border-white/10 shadow-[0_0_30px_rgba(34,211,238,0.12)]">
-                <img
+                <Image
                   src={portraitImage}
                   alt="Merlin Avatar"
+                  fill
+                  sizes="112px"
                   className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-[center_18%] opacity-95 saturate-[0.7] contrast-[1.08] brightness-[0.62]"
                 />
-                <img
+                <Image
                   src={portraitImage}
                   alt=""
                   aria-hidden="true"
+                  fill
+                  sizes="112px"
                   className="absolute inset-0 h-full w-full scale-[1.42] object-cover object-[center_18%] opacity-30 blur-[1.5px] saturate-0 mix-blend-screen"
                   style={{ filter: 'brightness(0.9) contrast(1.15) sepia(0.25) hue-rotate(165deg)' }}
                 />

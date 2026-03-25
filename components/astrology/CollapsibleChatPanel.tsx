@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, VolumeX, Trash2, Play, Pause, Eye, Sparkles } from 'lucide-react';
+import type { Dispatch, SetStateAction } from 'react';
+import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, Trash2, Play, Pause, Eye, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
-import { getCachedAudio, cacheAudio, generateCacheKey, clearAllAudioCache } from '@/lib/audio-cache';
+import { getCachedAudio, cacheAudio, clearAllAudioCache } from '@/lib/audio-cache';
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
@@ -37,7 +38,7 @@ interface CollapsibleChatPanelProps {
   progressedChart?: any;
   userId?: string;
   isExpanded?: boolean;
-  onToggleExpand?: (expanded: boolean) => void;
+  onToggleExpand?: Dispatch<SetStateAction<boolean>>;
   mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
   clarityMode?: boolean; // Controlled from parent dashboard; falls back to localStorage
   onClarityChange?: () => void; // Propagate toggle back up to parent
@@ -217,7 +218,7 @@ export function CollapsibleChatPanel({
           setTtsError(`ElevenLabs unavailable: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`);
           setTtsFallback(true);
           setIsTTSLoading(false);
-          playWithWebSpeechAPI(text, messageId);
+          playWithWebSpeechAPI(text);
           return;
         }
       }
@@ -244,7 +245,7 @@ export function CollapsibleChatPanel({
           onError: (error) => {
             setTtsError(error);
             setTtsFallback(true);
-            playWithWebSpeechAPI(text, messageId);
+            playWithWebSpeechAPI(text);
           }
         });
 
@@ -255,13 +256,13 @@ export function CollapsibleChatPanel({
           console.error('[TTS] Global audio manager play failed:', playError);
           setTtsError('Playback failed. Falling back to Web Speech API.');
           setTtsFallback(true);
-          playWithWebSpeechAPI(text, messageId);
+          playWithWebSpeechAPI(text);
         }
         return;
       }
 
       // Fallback to Web Speech API (if ElevenLabs failed or audio playback failed)
-      playWithWebSpeechAPI(text, messageId);
+      playWithWebSpeechAPI(text);
     } catch (error) {
       console.error('[TTS] Fatal error:', error);
       setTtsError(`Error: ${error instanceof Error ? error.message : 'Unknown'}`);
@@ -272,7 +273,7 @@ export function CollapsibleChatPanel({
     }
   };
 
-  const playWithWebSpeechAPI = async (text: string, messageId: string) => {
+  const playWithWebSpeechAPI = async (text: string) => {
     if (!('speechSynthesis' in window)) {
       setTtsError('Text-to-speech not supported in this browser');
       return;
@@ -557,7 +558,7 @@ export function CollapsibleChatPanel({
               console.error('Oracle error:', parsed.error);
               streamError = parsed.error || 'Oracle stream failed';
             }
-          } catch (e) {
+          } catch {
             // Skip parse errors
           }
         }

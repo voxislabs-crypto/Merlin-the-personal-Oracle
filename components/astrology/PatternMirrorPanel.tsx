@@ -216,8 +216,8 @@ export function PatternMirrorPanel({
               <div
                 key={item.id}
                 className={`border-l border-indigo-400/30 pl-3 ${onAskContext ? 'group cursor-pointer transition hover:border-cyan-300/60' : ''} ${selectedContextLabel === item.label ? 'border-cyan-300/80 bg-cyan-500/5 rounded-r-md py-1 pr-2' : ''}`}
-                onClick={onAskContext ? () => onAskContext(item.label, `Why did Merlin flag \"${item.label}\" in my recent timeline, and what does it say about my pattern?`) : undefined}
-                onKeyDown={onAskContext ? (event) => handleAskKeyDown(event, () => onAskContext(item.label, `Why did Merlin flag \"${item.label}\" in my recent timeline, and what does it say about my pattern?`)) : undefined}
+                onClick={onAskContext ? () => onAskContext(item.label, `Why did Merlin flag "${item.label}" in my recent timeline, and what does it say about my pattern?`) : undefined}
+                onKeyDown={onAskContext ? (event) => handleAskKeyDown(event, () => onAskContext(item.label, `Why did Merlin flag "${item.label}" in my recent timeline, and what does it say about my pattern?`)) : undefined}
                 role={onAskContext ? 'button' : undefined}
                 tabIndex={onAskContext ? 0 : undefined}
               >

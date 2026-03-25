@@ -453,7 +453,7 @@ function FocusCard({
   return (
     <div
       className={`p-4 rounded-lg border ${borderMap[color] || 'border-slate-500/30 bg-slate-900/30'} ${onAskContext ? 'cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5' : ''} ${selected ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''}`}
-      onClick={onAskContext ? () => onAskContext(label, `What does today\'s ${label.toLowerCase()} forecast mean for me, and what should I do with it?`) : undefined}
+      onClick={onAskContext ? () => onAskContext(label, `What does today's ${label.toLowerCase()} forecast mean for me, and what should I do with it?`) : undefined}
     >
       <div className="flex items-center gap-2 mb-2">
         {icon}
