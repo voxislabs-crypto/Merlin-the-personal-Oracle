@@ -186,6 +186,21 @@ export default function ProfilePage() {
     void persistOraclePreferences({ ancientLayer: next });
   };
 
+  const setReadingLens = (lens: 'modern' | 'ancient') => {
+    const nextMode: OracleMode = lens === 'modern' ? 'casual' : 'detailed';
+    const nextAncient = lens === 'ancient';
+
+    setOracleMode(nextMode);
+    localStorage.setItem('merlin_oracle_mode', nextMode);
+    setAncientLayer(nextAncient);
+    localStorage.setItem('merlin_ancient_layer', String(nextAncient));
+
+    void persistOraclePreferences({
+      oracleMode: nextMode,
+      ancientLayer: nextAncient,
+    });
+  };
+
   const applyReadingPreset = (preset: ReadingPreset) => {
     if (preset === 'plain') {
       setInterpretationMode('traditional');
@@ -422,6 +437,56 @@ export default function ProfilePage() {
                     {tone.charAt(0).toUpperCase() + tone.slice(1)}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-white font-semibold mb-1">Reading lens</p>
+                <p className="text-gray-400 text-sm">
+                  Pick your vibe first. You can still fine-tune mode and ancient depth below.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setReadingLens('modern')}
+                  className={`group text-left rounded-xl border p-4 transition-all ${
+                    !ancientLayer && oracleMode === 'casual'
+                      ? 'border-cyan-300/60 bg-gradient-to-br from-cyan-500/25 via-sky-500/20 to-slate-900 shadow-[0_0_0_1px_rgba(103,232,249,0.15)]'
+                      : 'border-slate-700 bg-slate-800/40 hover:border-cyan-500/40 hover:bg-cyan-500/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-cyan-100 flex items-center gap-2">
+                      <MessageCircle size={16} className="text-cyan-300" />
+                      Modern Oracle
+                    </p>
+                    <span className="text-[10px] uppercase tracking-wider text-cyan-300/80">Today Voice</span>
+                  </div>
+                  <p className="text-xs text-cyan-100/80 mt-2 leading-relaxed">
+                    Fast, clean, no-BS reads. Quick hits, casual flow, plain guidance when you need a direct answer now.
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setReadingLens('ancient')}
+                  className={`group text-left rounded-xl border p-4 transition-all ${
+                    ancientLayer && oracleMode === 'detailed'
+                      ? 'border-amber-300/60 bg-gradient-to-br from-amber-700/30 via-amber-900/35 to-slate-900 shadow-[0_0_0_1px_rgba(251,191,36,0.18)]'
+                      : 'border-slate-700 bg-slate-800/40 hover:border-amber-500/40 hover:bg-amber-500/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-amber-100 flex items-center gap-2">
+                      <Scroll size={16} className="text-amber-300" />
+                      Ancient Oracle
+                    </p>
+                    <span className="text-[10px] uppercase tracking-wider text-amber-300/80">Babylonian Depth</span>
+                  </div>
+                  <p className="text-xs text-amber-100/80 mt-2 leading-relaxed">
+                    Slow-burn interpretation with old-world symbolism and layered lore, fused into practical modern timing.
+                  </p>
+                </button>
               </div>
             </div>
 

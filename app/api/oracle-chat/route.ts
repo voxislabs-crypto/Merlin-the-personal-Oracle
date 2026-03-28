@@ -1,6 +1,5 @@
 // API Route: Oracle Chat - Streaming Q&A with chart context
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGrokInterpretationStream } from '@/lib/grok-service';
 import {
   buildOracleSystemPrompt,
   generateTacticalSuggestions,
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
               transits: birthChart ? { significant: [] } : undefined,
               stormsReport: userCtx ? { storms: [] } : undefined,
             };
-          } catch (e) {
+          } catch {
             // Continue without context
           }
         }
@@ -133,14 +132,40 @@ export async function POST(request: NextRequest) {
         };
         oracleMemory.addMessage(userId, assistantMessage);
 
-        // Return as non-streaming response for casual mode
-        return NextResponse.json({
-          success: true,
-          mode: 'casual',
-          data: {
-            response: casualResponse,
-            type: 'text',
-            timestamp: new Date().toISOString(),
+        // Return as streaming response to keep a single wire format for all chat modes.
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'chunk',
+                  content: casualResponse,
+                }) + '\n'
+              )
+            );
+
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'done',
+                  mode: 'casual',
+                  includeLikelihood,
+                  ancientLayer,
+                  timestamp: new Date().toISOString(),
+                }) + '\n'
+              )
+            );
+
+            controller.close();
+          },
+        });
+
+        return new NextResponse(stream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
           },
         });
       } catch (error) {
@@ -438,7 +463,7 @@ export async function POST(request: NextRequest) {
                       )
                     );
                   }
-                } catch (e) {
+                } catch {
                   // Skip parse errors in stream
                   continue;
                 }

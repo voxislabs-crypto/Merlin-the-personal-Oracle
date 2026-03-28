@@ -10,6 +10,8 @@ import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard'
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
+import { useOracleChatStream } from '@/hooks/useOracleChatStream';
+import type { OracleMode } from '@/lib/oracle-chat-client';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -38,8 +40,6 @@ interface OracleChatProps {
   onClose?: () => void;
 }
 
-type OracleMode = 'auto' | 'casual' | 'detailed';
-
 export function OracleChat({
   birthChart,
   progressedChart,
@@ -66,6 +66,7 @@ export function OracleChat({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { sendOracleMessage } = useOracleChatStream();
 
   // Check if user is near the bottom of the chat
   const checkIfNearBottom = useCallback(() => {
@@ -315,10 +316,8 @@ export function OracleChat({
         (birthChart as any)?.mbti?.type ||
         undefined;
 
-      const response = await fetch('/api/oracle-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const streamResult = await sendOracleMessage(
+        {
           question: input,
           birthChart,
           progressedChart,
@@ -329,138 +328,32 @@ export function OracleChat({
           oracleMode,
           includeLikelihood,
           ancientLayer,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Stream failed');
-
-      // Check if this is casual mode (non-streaming) response
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('application/json')) {
-        // Non-streaming JSON response (casual mode)
-        const data = await response.json();
-        
-        if (data.success && data.mode === 'casual') {
-          const polishedContent = data.data.response;
-          
-          const assistantMessage: Message = {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: polishedContent,
-            timestamp: new Date(),
-          };
-
-          setMessages((prev: Message[]) => [...prev, assistantMessage]);
-          setStreamingContent('');
-          setIsLoading(false);
-          inputRef.current?.focus();
-          return;
+        },
+        (fullContent) => {
+          setStreamingContent(fullContent);
         }
-      }
+      );
 
-      // Streaming response (structured/astro mode)
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-      let tactics: string[] = [];
-      let forecast: any = null;
-      let level: any = null;
-      let progressionData: any = null;
-      let mirrorInsightData: any = null;
-      let streamError: string | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.trim().startsWith('{')) {
-            try {
-              const parsed = JSON.parse(line);
-
-              if (parsed.type === 'chunk' && parsed.content) {
-                fullContent += parsed.content;
-                setStreamingContent(fullContent);
-              } else if (parsed.type === 'tactics' && parsed.data) {
-                tactics = parsed.data;
-              } else if (parsed.type === 'forecast' && parsed.data) {
-                forecast = parsed.data;
-              } else if (parsed.type === 'level' && parsed.data) {
-                level = parsed.data;
-              } else if (parsed.type === 'progression' && parsed.data) {
-                progressionData = parsed.data;
-              } else if (parsed.type === 'mirrorInsight' && parsed.data) {
-                mirrorInsightData = parsed.data;
-              } else if (parsed.type === 'error') {
-                console.error('Oracle error:', parsed.error);
-                streamError = parsed.error || 'Oracle stream failed';
-              }
-            } catch (e) {
-              // Skip parse errors
-            }
-          }
-        }
-      }
-
-      const finalLine = buffer.trim();
-      if (finalLine.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(finalLine);
-          if (parsed.type === 'chunk' && parsed.content) {
-            fullContent += parsed.content;
-          } else if (parsed.type === 'tactics' && parsed.data) {
-            tactics = parsed.data;
-          } else if (parsed.type === 'forecast' && parsed.data) {
-            forecast = parsed.data;
-          } else if (parsed.type === 'level' && parsed.data) {
-            level = parsed.data;
-          } else if (parsed.type === 'progression' && parsed.data) {
-            progressionData = parsed.data;
-          } else if (parsed.type === 'mirrorInsight' && parsed.data) {
-            mirrorInsightData = parsed.data;
-          } else if (parsed.type === 'error') {
-            streamError = parsed.error || 'Oracle stream failed';
-          }
-        } catch {
-          // Ignore trailing parse errors
-        }
-      }
-
-      if (!fullContent.trim() && streamError) {
-        throw new Error(streamError);
-      }
-
-      if (!fullContent.trim()) {
-        throw new Error('Empty response from Oracle');
-      }
-
-      const polishedContent = polishOracleOutput(fullContent);
+      const polishedContent = polishOracleOutput(streamResult.content);
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: polishedContent,
         timestamp: new Date(),
-        tactics: tactics.length > 0 ? tactics : undefined,
-        forecast: forecast || undefined,
-        level: level || undefined,
-        progression: progressionData || undefined,
-        mirrorInsight: mirrorInsightData || undefined,
+        tactics: streamResult.tactics,
+        forecast: streamResult.forecast,
+        level: streamResult.level,
+        progression: streamResult.progression,
+        mirrorInsight: streamResult.mirrorInsight,
       };
 
-      if (progressionData) {
+      if (streamResult.progression) {
         setProgression({
-          arcPath: progressionData.arcPath,
-          arcLevel: progressionData.arcLevel,
-          arcXp: progressionData.arcXp,
-          interactionCount: progressionData.interactionCount,
+          arcPath: streamResult.progression.arcPath,
+          arcLevel: streamResult.progression.arcLevel,
+          arcXp: streamResult.progression.arcXp,
+          interactionCount: streamResult.progression.interactionCount,
         });
       }
 

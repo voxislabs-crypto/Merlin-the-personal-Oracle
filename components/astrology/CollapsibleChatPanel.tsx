@@ -13,6 +13,8 @@ import { getCachedAudio, cacheAudio, clearAllAudioCache } from '@/lib/audio-cach
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
+import { useOracleChatStream } from '@/hooks/useOracleChatStream';
+import type { OracleMode } from '@/lib/oracle-chat-client';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -76,6 +78,9 @@ export function CollapsibleChatPanel({
   const [autoScroll, setAutoScroll] = useState(true); // Track if user has scrolled up
   const [plainEnglishInternal, setPlainEnglishInternal] = useState(true); // Clarity Mode fallback
   const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
+  const [oracleMode, setOracleMode] = useState<OracleMode>('auto');
+  const [includeLikelihood, setIncludeLikelihood] = useState(true);
+  const [ancientLayer, setAncientLayer] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [activeDraftLabel, setActiveDraftLabel] = useState<string | null>(null);
@@ -85,6 +90,7 @@ export function CollapsibleChatPanel({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const { sendOracleMessage } = useOracleChatStream();
   
   // Create a ref to the global audio element for VoiceAvatar visualization
   const globalAudioRef = useRef<HTMLAudioElement | null>(
@@ -345,6 +351,14 @@ export function CollapsibleChatPanel({
     if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
       setTonePreset(savedTone);
     }
+    const savedMode = localStorage.getItem('merlin_oracle_mode') as OracleMode | null;
+    if (savedMode && ['auto', 'casual', 'detailed'].includes(savedMode)) {
+      setOracleMode(savedMode);
+    }
+    const savedLikelihood = localStorage.getItem('merlin_include_likelihood');
+    if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
+    const savedAncient = localStorage.getItem('merlin_ancient_layer');
+    if (savedAncient !== null) setAncientLayer(savedAncient === 'true');
   }, []);
 
   useEffect(() => {
@@ -394,6 +408,19 @@ export function CollapsibleChatPanel({
         if (typeof clarityMode === 'boolean') {
           setPlainEnglishInternal(clarityMode);
           localStorage.setItem('merlin_clarity_mode', String(clarityMode));
+        }
+        const mode = result?.data?.oracleMode as OracleMode | undefined;
+        if (mode && ['auto', 'casual', 'detailed'].includes(mode)) {
+          setOracleMode(mode);
+          localStorage.setItem('merlin_oracle_mode', mode);
+        }
+        if (typeof result?.data?.includeLikelihood === 'boolean') {
+          setIncludeLikelihood(result.data.includeLikelihood);
+          localStorage.setItem('merlin_include_likelihood', String(result.data.includeLikelihood));
+        }
+        if (typeof result?.data?.ancientLayer === 'boolean') {
+          setAncientLayer(result.data.ancientLayer);
+          localStorage.setItem('merlin_ancient_layer', String(result.data.ancientLayer));
         }
       } catch {
         // Local storage remains the fallback.
@@ -508,10 +535,8 @@ export function CollapsibleChatPanel({
     setStreamingContent('');
 
     try {
-      const response = await fetch('/api/oracle-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const streamResult = await sendOracleMessage(
+        {
           question: input,
           birthChart,
           progressedChart,
@@ -519,116 +544,35 @@ export function CollapsibleChatPanel({
           plainEnglish,
           mbtiType,
           tonePreset,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Stream failed');
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let fullContent = '';
-      let tactics: string[] = [];
-      let forecast: any = null;
-      let level: any = null;
-      let progressionData: any = null;
-      let mirrorInsightData: any = null;
-      let streamError: string | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines[lines.length - 1];
-
-        for (let i = 0; i < lines.length - 1; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-
-          try {
-            const parsed = JSON.parse(line);
-
-            if (parsed.type === 'chunk') {
-              fullContent += parsed.content;
-              setStreamingContent(fullContent);
-            } else if (parsed.type === 'tactics') {
-              tactics = parsed.data || [];
-            } else if (parsed.type === 'forecast') {
-              forecast = parsed.data;
-            } else if (parsed.type === 'level') {
-              level = parsed.data;
-            } else if (parsed.type === 'progression') {
-              progressionData = parsed.data;
-            } else if (parsed.type === 'mirrorInsight') {
-              mirrorInsightData = parsed.data;
-            } else if (parsed.type === 'done') {
-              // Message complete
-            } else if (parsed.type === 'error') {
-              console.error('Oracle error:', parsed.error);
-              streamError = parsed.error || 'Oracle stream failed';
-            }
-          } catch {
-            // Skip parse errors
-          }
+          oracleMode,
+          includeLikelihood,
+          ancientLayer,
+        },
+        (fullContent) => {
+          setStreamingContent(fullContent);
         }
-      }
+      );
 
-      const finalLine = buffer.trim();
-      if (finalLine.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(finalLine);
-          if (parsed.type === 'chunk' && parsed.content) {
-            fullContent += parsed.content;
-          } else if (parsed.type === 'tactics') {
-            tactics = parsed.data || [];
-          } else if (parsed.type === 'forecast') {
-            forecast = parsed.data;
-          } else if (parsed.type === 'level') {
-            level = parsed.data;
-          } else if (parsed.type === 'progression') {
-            progressionData = parsed.data;
-          } else if (parsed.type === 'mirrorInsight') {
-            mirrorInsightData = parsed.data;
-          } else if (parsed.type === 'error') {
-            streamError = parsed.error || 'Oracle stream failed';
-          }
-        } catch {
-          // Ignore trailing parse errors
-        }
-      }
-
-      if (!fullContent.trim() && streamError) {
-        throw new Error(streamError);
-      }
-
-      if (!fullContent.trim()) {
-        throw new Error('Empty response from Oracle');
-      }
-
-      const polishedContent = polishOracleOutput(fullContent);
+      const polishedContent = polishOracleOutput(streamResult.content);
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: polishedContent,
         timestamp: new Date(),
-        tactics: tactics.length > 0 ? tactics : undefined,
-        forecast: forecast || undefined,
-        level: level || undefined,
-        progression: progressionData || undefined,
-        mirrorInsight: mirrorInsightData || undefined,
+        tactics: streamResult.tactics,
+        forecast: streamResult.forecast,
+        level: streamResult.level,
+        progression: streamResult.progression,
+        mirrorInsight: streamResult.mirrorInsight,
       };
 
-      if (progressionData) {
+      if (streamResult.progression) {
         setProgression({
-          arcPath: progressionData.arcPath,
-          arcLevel: progressionData.arcLevel,
-          arcXp: progressionData.arcXp,
-          interactionCount: progressionData.interactionCount,
+          arcPath: streamResult.progression.arcPath,
+          arcLevel: streamResult.progression.arcLevel,
+          arcXp: streamResult.progression.arcXp,
+          interactionCount: streamResult.progression.interactionCount,
         });
       }
 
