@@ -1,0 +1,45 @@
+{
+  "deities": {
+    "Sun": "Shamash",
+    "Moon": "Sin",
+    "Mercury": "Nabu",
+    "Venus": "Ishtar",
+    "Mars": "Nergal",
+    "Jupiter": "Marduk",
+    "Saturn": "Ninurta"
+  },
+  "blessing": [
+    "{deity} lifts your banner through {sign}; the road of stature opens.",
+    "Under {deity}'s watch, your {planet} in {sign} calls you toward visible greatness.",
+    "The seal of {deity} rests on this season: your {planet} in {sign} is a gate, not a wall."
+  ],
+  "challenge": [
+    "Yet {shadowDeity} marks the edge: when {shadowPlanet} rules your mood, haste becomes a thief.",
+    "Still, {shadowDeity} keeps a stern tablet: ignore discipline, and the harvest thins.",
+    "But {shadowDeity} tests all vows; pride without ritual focus becomes a wandering fire."
+  ],
+  "action": [
+    "Choose one oath this week and keep it before witnesses.",
+    "Set one clear labor at dawn, and let no lesser noise purchase your attention.",
+    "Name one fear aloud, then move one step through it before sunset."
+  ],
+  "timing": [
+    "When the moon crosses your inner waters, begin quietly and build in public.",
+    "At first light of the next cycle, plant the work that future-you will thank.",
+    "In the next seven days, a narrow gate opens; prepared hands pass first."
+  ],
+  "closing": [
+    "Greatness is present in your chart; fate opens the door, but conduct keeps it open.",
+    "The omen is favorable: rise with humility, and the crown will fit.",
+    "Your path is marked for ascent. Keep your vow, and the heavens will answer."
+  ],
+  "sonnetRhymes": {
+    "A": ["light", "night", "height", "sight"],
+    "B": ["flame", "name", "frame", "claim"],
+    "C": ["tide", "guide", "stride", "wide"],
+    "D": ["stone", "throne", "known", "alone"],
+    "E": ["fire", "choir", "wire", "desire"],
+    "F": ["sea", "key", "decree", "destiny"],
+    "G": ["gold", "bold", "hold", "unfold"]
+  }
+}

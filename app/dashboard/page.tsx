@@ -29,13 +29,14 @@ import { useLifeArc } from '@/hooks/useLifeArc';
 import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
+import { useProphecy, type ProphecyStyle } from '@/hooks/useProphecy';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { GeocodingService } from '@/lib/astrology/geocoding';
 import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, Flame, MessageCircle, Sparkles } from 'lucide-react';
+import { CheckCircle2, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -103,6 +104,7 @@ export default function UnifiedDashboard() {
   const [dashboardEvents, setDashboardEvents] = useState<DashboardEvent[]>([]);
   const [showDevDiagnostics, setShowDevDiagnostics] = useState(false);
   const [showWeeklyResetPrompt, setShowWeeklyResetPrompt] = useState(false);
+  const [prophecyStyle, setProphecyStyle] = useState<ProphecyStyle>('omen');
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -122,6 +124,7 @@ export default function UnifiedDashboard() {
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
   const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
   const { mbtiType, dualOverlay, loading: personalityLoading, calculatePersonality } = usePersonality();
+  const { prophecy, loading: prophecyLoading, generateProphecy } = useProphecy();
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
@@ -356,6 +359,15 @@ export default function UnifiedDashboard() {
     if (!chartData) return;
     fetchDailyOracle(false);
   }, [chartData, fetchDailyOracle]);
+
+  useEffect(() => {
+    if (!chartData) return;
+    generateProphecy({
+      birthChart: chartData,
+      style: prophecyStyle,
+      ancientLayer: true,
+    });
+  }, [chartData, prophecyStyle, generateProphecy]);
 
   const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
     try {
@@ -1106,6 +1118,89 @@ export default function UnifiedDashboard() {
                       </div>
                     </div>
                   ) : null}
+
+                  <div className="mt-4 rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
+                        <h4 className="mt-1 text-base md:text-lg font-semibold text-violet-50">{prophecy?.title || 'Chart-anchored omen'}</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'omen' });
+                            setProphecyStyle('omen');
+                          }}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                            prophecyStyle === 'omen'
+                              ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
+                              : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
+                          }`}
+                        >
+                          Omen
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'sonnet' });
+                            setProphecyStyle('sonnet');
+                          }}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                            prophecyStyle === 'sonnet'
+                              ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
+                              : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
+                          }`}
+                        >
+                          Sonnet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!chartData) return;
+                            appendDashboardEvent('dashboard_prophecy_regenerated', { style: prophecyStyle });
+                            generateProphecy({ birthChart: chartData, style: prophecyStyle, ancientLayer: true });
+                          }}
+                          className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                        >
+                          <RefreshCcw className="h-3.5 w-3.5" />
+                          Regenerate
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 rounded-lg border border-violet-200/15 bg-slate-950/45 p-3">
+                      {prophecyLoading ? (
+                        <p className="text-sm text-violet-100/80">Reading the tablets...</p>
+                      ) : prophecy?.prophecy ? (
+                        <pre className="whitespace-pre-wrap text-sm leading-relaxed text-violet-50/95 font-sans">{prophecy.prophecy}</pre>
+                      ) : (
+                        <p className="text-sm text-violet-100/75">No prophecy available yet. Generate one from your chart.</p>
+                      )}
+                    </div>
+
+                    {prophecy?.signals ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-100">
+                          Blessing: {prophecy.signals.blessingPlanet} in {prophecy.signals.blessingSign}
+                        </span>
+                        <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-amber-100">
+                          Test: {prophecy.signals.challengePlanet} in {prophecy.signals.challengeSign}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendDashboardEvent('dashboard_prophecy_ask_context');
+                            queueAskContext('Prophecy follow-up', 'Turn this prophecy into a concrete 7-day plan with one non-negotiable action per day.');
+                          }}
+                          className="inline-flex items-center gap-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-cyan-100 hover:bg-cyan-500/20"
+                        >
+                          <ScrollText className="h-3.5 w-3.5" />
+                          Turn into plan
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
 
                   {process.env.NODE_ENV !== 'production' ? (
                     <div className="mt-4 border-t border-white/10 pt-3">
