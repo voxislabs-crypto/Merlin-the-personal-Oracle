@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { logInteractionEvent } from '@/lib/pattern-mirror';
 import { prisma } from '@/lib/prisma';
 
@@ -6,6 +7,17 @@ interface DashboardEventRequest {
   userId?: string;
   eventName?: string;
   detail?: Record<string, unknown>;
+}
+
+function isAdminUser(userId: string, metadata: Record<string, unknown> | undefined): boolean {
+  const role = metadata?.role;
+  const isAdminFlag = metadata?.isAdmin;
+  const allowList = (process.env.INTERNAL_ANALYTICS_USER_IDS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return role === 'admin' || isAdminFlag === true || allowList.includes(userId);
 }
 
 function parseEventName(content: string | null, metadataJson: string | null): string {
@@ -22,6 +34,18 @@ function parseEventName(content: string | null, metadataJson: string | null): st
 
 export async function GET(request: Request) {
   try {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const client = await clerkClient();
+    const caller = await client.users.getUser(authUserId);
+    const callerMetadata = (caller.publicMetadata as Record<string, unknown> | undefined) || undefined;
+    if (!isAdminUser(authUserId, callerMetadata)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || undefined;
     const daysRaw = Number(searchParams.get('days') || '30');
@@ -87,19 +111,25 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = (await request.json()) as DashboardEventRequest;
     const { userId, eventName, detail } = body || {};
 
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 });
+    if (userId && userId !== authUserId) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
     }
+    const targetUserId = userId || authUserId;
 
     if (!eventName || typeof eventName !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing eventName' }, { status: 400 });
     }
 
     await logInteractionEvent({
-      userId,
+      userId: targetUserId,
       type: 'dashboard_event',
       content: eventName,
       metadata: {

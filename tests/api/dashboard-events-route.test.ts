@@ -7,6 +7,11 @@ jest.mock('next/server', () => ({
   },
 }));
 
+jest.mock('@clerk/nextjs/server', () => ({
+  auth: jest.fn(),
+  clerkClient: jest.fn(),
+}));
+
 jest.mock('@/lib/pattern-mirror', () => ({
   logInteractionEvent: jest.fn(),
 }));
@@ -22,15 +27,38 @@ jest.mock('@/lib/prisma', () => ({
 import { GET, POST } from '../../app/api/dashboard-events/route';
 import { logInteractionEvent } from '../../lib/pattern-mirror';
 import { prisma } from '../../lib/prisma';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 
 describe('dashboard-events route', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (auth as jest.Mock).mockResolvedValue({ userId: 'user_1' });
+    (clerkClient as unknown as jest.Mock).mockResolvedValue({
+      users: {
+        getUser: jest.fn().mockResolvedValue({
+          publicMetadata: { role: 'admin' },
+        }),
+      },
+    });
   });
 
-  it('returns 400 for missing userId in POST', async () => {
+  it('returns 401 for anonymous POST', async () => {
+    (auth as jest.Mock).mockResolvedValueOnce({ userId: null });
+
     const request = {
       json: async () => ({ eventName: 'dashboard_first_chart_completed' }),
+    } as unknown as Request;
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(json.success).toBe(false);
+  });
+
+  it('returns 400 for missing eventName in POST', async () => {
+    const request = {
+      json: async () => ({}),
     } as unknown as Request;
 
     const response = await POST(request);
@@ -40,15 +68,18 @@ describe('dashboard-events route', () => {
     expect(json.success).toBe(false);
   });
 
-  it('returns 400 for missing eventName in POST', async () => {
+  it('returns 403 for mismatched userId in POST', async () => {
     const request = {
-      json: async () => ({ userId: 'user_1' }),
+      json: async () => ({
+        userId: 'someone_else',
+        eventName: 'dashboard_first_chart_completed',
+      }),
     } as unknown as Request;
 
     const response = await POST(request);
     const json = await response.json();
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(403);
     expect(json.success).toBe(false);
   });
 
@@ -116,5 +147,25 @@ describe('dashboard-events route', () => {
     expect(json.data.funnel.firstChart).toBe(1);
     expect(json.data.funnel.firstAsk).toBe(1);
     expect(json.data.funnel.dailyCheckins).toBe(1);
+  });
+
+  it('returns 403 for non-admin GET', async () => {
+    (clerkClient as unknown as jest.Mock).mockResolvedValueOnce({
+      users: {
+        getUser: jest.fn().mockResolvedValue({
+          publicMetadata: { role: 'member' },
+        }),
+      },
+    });
+
+    const request = {
+      url: 'http://localhost/api/dashboard-events?days=30',
+    } as Request;
+
+    const response = await GET(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(json.success).toBe(false);
   });
 });
