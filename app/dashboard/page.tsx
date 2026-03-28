@@ -1189,174 +1189,6 @@ export default function UnifiedDashboard() {
                     </div>
                   ) : null}
 
-                  <div ref={prophecySectionRef} className="mt-4 rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
-                        <h4 className="mt-1 text-base md:text-lg font-semibold text-violet-50">{prophecy?.title || 'Chart-anchored omen'}</h4>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'omen' });
-                            setProphecyStyle('omen');
-                          }}
-                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                            prophecyStyle === 'omen'
-                              ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
-                              : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
-                          }`}
-                        >
-                          Omen
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'sonnet' });
-                            setProphecyStyle('sonnet');
-                          }}
-                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                            prophecyStyle === 'sonnet'
-                              ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
-                              : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
-                          }`}
-                        >
-                          Sonnet
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!chartData) return;
-                            appendDashboardEvent('dashboard_prophecy_regenerated', {
-                              style: prophecyStyle,
-                              era: prophecyEra,
-                              strictMeter,
-                            });
-                            generateProphecy({
-                              birthChart: chartData,
-                              style: prophecyStyle,
-                              era: prophecyEra,
-                              strictMeter,
-                              saveToHistory: true,
-                              polishMode: prophecyPolishMode,
-                            }).then(() => {
-                              loadHistory();
-                            });
-                          }}
-                          className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
-                        >
-                          <RefreshCcw className="h-3.5 w-3.5" />
-                          Regenerate
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handlePrintProphecy}
-                          className="inline-flex items-center gap-1 rounded-full border border-slate-300/35 bg-slate-500/15 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-500/25"
-                        >
-                          Print
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <label className="text-xs text-violet-200/85">Era</label>
-                      <select
-                        value={prophecyEra}
-                        onChange={(event) => {
-                          const nextEra = event.target.value as ProphecyEra;
-                          appendDashboardEvent('dashboard_prophecy_era_selected', { era: nextEra });
-                          setProphecyEra(nextEra);
-                        }}
-                        className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
-                      >
-                        <option value="babylonian">Babylonian</option>
-                        <option value="hermetic">Hermetic</option>
-                        <option value="psalmic">Psalmic</option>
-                        <option value="stoic">Stoic</option>
-                      </select>
-
-                      <label className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100">
-                        <input
-                          type="checkbox"
-                          checked={strictMeter}
-                          onChange={(event) => {
-                            appendDashboardEvent('dashboard_prophecy_meter_toggled', { strictMeter: event.target.checked });
-                            setStrictMeter(event.target.checked);
-                          }}
-                        />
-                        Strict sonnet meter
-                      </label>
-                    </div>
-
-                    <div className="mt-3 rounded-lg border border-violet-200/15 bg-slate-950/45 p-3">
-                      {prophecyLoading ? (
-                        <p className="text-sm text-violet-100/80">Reading the tablets...</p>
-                      ) : prophecy?.prophecy ? (
-                        <pre className="whitespace-pre-wrap text-sm leading-relaxed text-violet-50/95 font-sans">{prophecy.prophecy}</pre>
-                      ) : (
-                        <p className="text-sm text-violet-100/75">No prophecy available yet. Generate one from your chart.</p>
-                      )}
-                    </div>
-
-                    {prophecy?.signals ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-100">
-                          Blessing: {prophecy.signals.blessingPlanet} in {prophecy.signals.blessingSign}
-                        </span>
-                        <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-amber-100">
-                          Test: {prophecy.signals.challengePlanet} in {prophecy.signals.challengeSign}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            appendDashboardEvent('dashboard_prophecy_ask_context');
-                            queueAskContext('Prophecy follow-up', 'Turn this prophecy into a concrete 7-day plan with one non-negotiable action per day.');
-                          }}
-                          className="inline-flex items-center gap-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-cyan-100 hover:bg-cyan-500/20"
-                        >
-                          <ScrollText className="h-3.5 w-3.5" />
-                          Turn into plan
-                        </button>
-                      </div>
-                    ) : null}
-
-                    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
-                      <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Prophecy Timeline</p>
-                      {prophecyHistoryLoading ? (
-                        <p className="mt-2 text-xs text-violet-100/75">Loading timeline...</p>
-                      ) : prophecyHistory.length ? (
-                        <div className="mt-2 max-h-44 space-y-2 overflow-y-auto pr-1">
-                          {prophecyHistory.slice(0, 12).map((entry) => (
-                            <div key={entry.id} className="rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs text-violet-50 font-medium">{entry.title}</p>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = !entry.fulfilled;
-                                    appendDashboardEvent('dashboard_prophecy_fulfillment_toggled', { fulfilled: next });
-                                    markHistoryFulfilled(entry.id, next);
-                                  }}
-                                  className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                                    entry.fulfilled
-                                      ? 'border-emerald-300/45 bg-emerald-500/20 text-emerald-100'
-                                      : 'border-amber-300/45 bg-amber-500/20 text-amber-100'
-                                  }`}
-                                >
-                                  {entry.fulfilled ? 'Fulfilled' : 'Mark Fulfilled'}
-                                </button>
-                              </div>
-                              <p className="mt-1 text-[11px] text-slate-300">{new Date(entry.createdAt).toLocaleString()}</p>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-2 text-xs text-violet-100/75">No saved prophecies yet. Regenerate to save one.</p>
-                      )}
-                    </div>
-                  </div>
-
                   {process.env.NODE_ENV !== 'production' ? (
                     <div className="mt-4 border-t border-white/10 pt-3">
                       <button
@@ -2229,6 +2061,180 @@ export default function UnifiedDashboard() {
                       </motion.div>
                     )}
                   </motion.div>
+                </motion.div>
+
+                <motion.div
+                  ref={prophecySectionRef}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.85 }}
+                  className="rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
+                      <h4 className="mt-1 text-base md:text-lg font-semibold text-violet-50">{prophecy?.title || 'Chart-anchored omen'}</h4>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'omen' });
+                          setProphecyStyle('omen');
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          prophecyStyle === 'omen'
+                            ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
+                            : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
+                        }`}
+                      >
+                        Omen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'sonnet' });
+                          setProphecyStyle('sonnet');
+                        }}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          prophecyStyle === 'sonnet'
+                            ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
+                            : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
+                        }`}
+                      >
+                        Sonnet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!chartData) return;
+                          appendDashboardEvent('dashboard_prophecy_regenerated', {
+                            style: prophecyStyle,
+                            era: prophecyEra,
+                            strictMeter,
+                          });
+                          generateProphecy({
+                            birthChart: chartData,
+                            style: prophecyStyle,
+                            era: prophecyEra,
+                            strictMeter,
+                            saveToHistory: true,
+                            polishMode: prophecyPolishMode,
+                          }).then(() => {
+                            loadHistory();
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" />
+                        Regenerate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePrintProphecy}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-300/35 bg-slate-500/15 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-500/25"
+                      >
+                        Print
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <label className="text-xs text-violet-200/85">Era</label>
+                    <select
+                      value={prophecyEra}
+                      onChange={(event) => {
+                        const nextEra = event.target.value as ProphecyEra;
+                        appendDashboardEvent('dashboard_prophecy_era_selected', { era: nextEra });
+                        setProphecyEra(nextEra);
+                      }}
+                      className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
+                    >
+                      <option value="babylonian">Babylonian</option>
+                      <option value="hermetic">Hermetic</option>
+                      <option value="psalmic">Psalmic</option>
+                      <option value="stoic">Stoic</option>
+                    </select>
+
+                    <label className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100">
+                      <input
+                        type="checkbox"
+                        checked={strictMeter}
+                        onChange={(event) => {
+                          appendDashboardEvent('dashboard_prophecy_meter_toggled', { strictMeter: event.target.checked });
+                          setStrictMeter(event.target.checked);
+                        }}
+                      />
+                      Strict sonnet meter
+                    </label>
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-violet-200/15 bg-slate-950/45 p-3">
+                    {prophecyLoading ? (
+                      <p className="text-sm text-violet-100/80">Reading the tablets...</p>
+                    ) : prophecy?.prophecy ? (
+                      <pre className="whitespace-pre-wrap text-sm leading-relaxed text-violet-50/95 font-sans">{prophecy.prophecy}</pre>
+                    ) : (
+                      <p className="text-sm text-violet-100/75">No prophecy available yet. Generate one from your chart.</p>
+                    )}
+                  </div>
+
+                  {prophecy?.signals ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-100">
+                        Blessing: {prophecy.signals.blessingPlanet} in {prophecy.signals.blessingSign}
+                      </span>
+                      <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-amber-100">
+                        Test: {prophecy.signals.challengePlanet} in {prophecy.signals.challengeSign}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appendDashboardEvent('dashboard_prophecy_ask_context');
+                          queueAskContext('Prophecy follow-up', 'Turn this prophecy into a concrete 7-day plan with one non-negotiable action per day.');
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-cyan-100 hover:bg-cyan-500/20"
+                      >
+                        <ScrollText className="h-3.5 w-3.5" />
+                        Turn into plan
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Prophecy Timeline</p>
+                    {prophecyHistoryLoading ? (
+                      <p className="mt-2 text-xs text-violet-100/75">Loading timeline...</p>
+                    ) : prophecyHistory.length ? (
+                      <div className="mt-2 max-h-44 space-y-2 overflow-y-auto pr-1">
+                        {prophecyHistory.slice(0, 12).map((entry) => (
+                          <div key={entry.id} className="rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs text-violet-50 font-medium">{entry.title}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = !entry.fulfilled;
+                                  appendDashboardEvent('dashboard_prophecy_fulfillment_toggled', { fulfilled: next });
+                                  markHistoryFulfilled(entry.id, next);
+                                }}
+                                className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                                  entry.fulfilled
+                                    ? 'border-emerald-300/45 bg-emerald-500/20 text-emerald-100'
+                                    : 'border-amber-300/45 bg-amber-500/20 text-amber-100'
+                                }`}
+                              >
+                                {entry.fulfilled ? 'Fulfilled' : 'Mark Fulfilled'}
+                              </button>
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-300">{new Date(entry.createdAt).toLocaleString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-violet-100/75">No saved prophecies yet. Regenerate to save one.</p>
+                    )}
+                  </div>
                 </motion.div>
               </motion.div>
             )}
