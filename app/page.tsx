@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { useAuth } from '@clerk/nextjs';
 import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
 import { FeaturesSection } from '@/components/sections/FeaturesSection';
 import { TestimonialsSection } from '@/components/sections/TestimonialsSection';
@@ -16,8 +15,6 @@ import { ArrowRight, Star, Shield } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default function Home() {
-  const { isSignedIn } = useAuth();
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
       {/* Cosmic swirl background effect */}
@@ -141,7 +138,7 @@ export default function Home() {
             transition={{ duration: 1, delay: 0.7 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <Link href={isSignedIn ? '/dashboard' : '/sign-in'}>
+            <Link href="/checkout-subscription">
               <button className="relative group px-8 py-4 font-bold text-lg rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:from-pink-500 hover:to-purple-500 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-pink-500/50">
                 Start Free Trial
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-20 blur transition-opacity"></div>
