@@ -172,6 +172,13 @@ export default function Home() {
       {/* Pricing Section */}
       <PricingSection />
 
+      {/* Lifetime Checkout Form */}
+      <section id="intake-form" className="relative z-10 px-4 py-16">
+        <div className="mx-auto max-w-3xl">
+          <BirthIntakeForm showPayment className="w-full" />
+        </div>
+      </section>
+
       {/* FAQ Section */}
       <FAQSection />
 
