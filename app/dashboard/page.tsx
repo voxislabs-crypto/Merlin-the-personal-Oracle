@@ -29,7 +29,7 @@ import { useLifeArc } from '@/hooks/useLifeArc';
 import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
-import { useProphecy, type ProphecyStyle } from '@/hooks/useProphecy';
+import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { GeocodingService } from '@/lib/astrology/geocoding';
 import type { SynastryReport } from '@/lib/astrology/synastry';
@@ -105,6 +105,8 @@ export default function UnifiedDashboard() {
   const [showDevDiagnostics, setShowDevDiagnostics] = useState(false);
   const [showWeeklyResetPrompt, setShowWeeklyResetPrompt] = useState(false);
   const [prophecyStyle, setProphecyStyle] = useState<ProphecyStyle>('omen');
+  const [prophecyEra, setProphecyEra] = useState<ProphecyEra>('babylonian');
+  const [strictMeter, setStrictMeter] = useState(false);
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -124,7 +126,15 @@ export default function UnifiedDashboard() {
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
   const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
   const { mbtiType, dualOverlay, loading: personalityLoading, calculatePersonality } = usePersonality();
-  const { prophecy, loading: prophecyLoading, generateProphecy } = useProphecy();
+  const {
+    prophecy,
+    history: prophecyHistory,
+    loading: prophecyLoading,
+    historyLoading: prophecyHistoryLoading,
+    generateProphecy,
+    loadHistory,
+    markHistoryFulfilled,
+  } = useProphecy();
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
@@ -365,9 +375,50 @@ export default function UnifiedDashboard() {
     generateProphecy({
       birthChart: chartData,
       style: prophecyStyle,
-      ancientLayer: true,
+      era: prophecyEra,
+      strictMeter,
+      saveToHistory: false,
     });
-  }, [chartData, prophecyStyle, generateProphecy]);
+  }, [chartData, prophecyStyle, prophecyEra, strictMeter, generateProphecy]);
+
+  useEffect(() => {
+    if (!userId) return;
+    loadHistory();
+  }, [userId, loadHistory]);
+
+  const handlePrintProphecy = useCallback(() => {
+    if (!prophecy?.prophecy) return;
+
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+    if (!printWindow) return;
+
+    const escapedTitle = prophecy.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapedBody = prophecy.prophecy.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${escapedTitle}</title>
+          <style>
+            body { font-family: Georgia, serif; padding: 32px; color: #111827; }
+            h1 { font-size: 24px; margin-bottom: 12px; }
+            .meta { font-size: 12px; color: #4b5563; margin-bottom: 18px; }
+            .content { line-height: 1.8; white-space: normal; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapedTitle}</h1>
+          <p class="meta">Style: ${prophecy.style} | Era: ${prophecy.era}</p>
+          <div class="content">${escapedBody}</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 150);
+  }, [prophecy]);
 
   const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
     try {
@@ -1158,15 +1209,64 @@ export default function UnifiedDashboard() {
                           type="button"
                           onClick={() => {
                             if (!chartData) return;
-                            appendDashboardEvent('dashboard_prophecy_regenerated', { style: prophecyStyle });
-                            generateProphecy({ birthChart: chartData, style: prophecyStyle, ancientLayer: true });
+                            appendDashboardEvent('dashboard_prophecy_regenerated', {
+                              style: prophecyStyle,
+                              era: prophecyEra,
+                              strictMeter,
+                            });
+                            generateProphecy({
+                              birthChart: chartData,
+                              style: prophecyStyle,
+                              era: prophecyEra,
+                              strictMeter,
+                              saveToHistory: true,
+                            }).then(() => {
+                              loadHistory();
+                            });
                           }}
                           className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
                         >
                           <RefreshCcw className="h-3.5 w-3.5" />
                           Regenerate
                         </button>
+                        <button
+                          type="button"
+                          onClick={handlePrintProphecy}
+                          className="inline-flex items-center gap-1 rounded-full border border-slate-300/35 bg-slate-500/15 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-500/25"
+                        >
+                          Print
+                        </button>
                       </div>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <label className="text-xs text-violet-200/85">Era</label>
+                      <select
+                        value={prophecyEra}
+                        onChange={(event) => {
+                          const nextEra = event.target.value as ProphecyEra;
+                          appendDashboardEvent('dashboard_prophecy_era_selected', { era: nextEra });
+                          setProphecyEra(nextEra);
+                        }}
+                        className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
+                      >
+                        <option value="babylonian">Babylonian</option>
+                        <option value="hermetic">Hermetic</option>
+                        <option value="psalmic">Psalmic</option>
+                        <option value="stoic">Stoic</option>
+                      </select>
+
+                      <label className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100">
+                        <input
+                          type="checkbox"
+                          checked={strictMeter}
+                          onChange={(event) => {
+                            appendDashboardEvent('dashboard_prophecy_meter_toggled', { strictMeter: event.target.checked });
+                            setStrictMeter(event.target.checked);
+                          }}
+                        />
+                        Strict sonnet meter
+                      </label>
                     </div>
 
                     <div className="mt-3 rounded-lg border border-violet-200/15 bg-slate-950/45 p-3">
@@ -1200,6 +1300,41 @@ export default function UnifiedDashboard() {
                         </button>
                       </div>
                     ) : null}
+
+                    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                      <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Prophecy Timeline</p>
+                      {prophecyHistoryLoading ? (
+                        <p className="mt-2 text-xs text-violet-100/75">Loading timeline...</p>
+                      ) : prophecyHistory.length ? (
+                        <div className="mt-2 max-h-44 space-y-2 overflow-y-auto pr-1">
+                          {prophecyHistory.slice(0, 12).map((entry) => (
+                            <div key={entry.id} className="rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs text-violet-50 font-medium">{entry.title}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = !entry.fulfilled;
+                                    appendDashboardEvent('dashboard_prophecy_fulfillment_toggled', { fulfilled: next });
+                                    markHistoryFulfilled(entry.id, next);
+                                  }}
+                                  className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                                    entry.fulfilled
+                                      ? 'border-emerald-300/45 bg-emerald-500/20 text-emerald-100'
+                                      : 'border-amber-300/45 bg-amber-500/20 text-amber-100'
+                                  }`}
+                                >
+                                  {entry.fulfilled ? 'Fulfilled' : 'Mark Fulfilled'}
+                                </button>
+                              </div>
+                              <p className="mt-1 text-[11px] text-slate-300">{new Date(entry.createdAt).toLocaleString()}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-violet-100/75">No saved prophecies yet. Regenerate to save one.</p>
+                      )}
+                    </div>
                   </div>
 
                   {process.env.NODE_ENV !== 'production' ? (

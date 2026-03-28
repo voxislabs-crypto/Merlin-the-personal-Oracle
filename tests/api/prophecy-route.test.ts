@@ -7,9 +7,24 @@ jest.mock('next/server', () => ({
   },
 }));
 
+jest.mock('@clerk/nextjs/server', () => ({
+  auth: jest.fn(),
+}));
+
+jest.mock('../../lib/pattern-mirror', () => ({
+  logInteractionEvent: jest.fn(),
+}));
+
 import { POST } from '../../app/api/prophecy/route';
+import { auth } from '@clerk/nextjs/server';
+import { logInteractionEvent } from '../../lib/pattern-mirror';
 
 describe('prophecy route', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (auth as jest.Mock).mockResolvedValue({ userId: 'user_1' });
+  });
+
   it('returns 400 for missing chart', async () => {
     const request = {
       json: async () => ({ style: 'omen' }),
@@ -68,6 +83,7 @@ describe('prophecy route', () => {
     const request = {
       json: async () => ({
         style: 'sonnet',
+        strictMeter: true,
         birthChart: {
           jd: 2451545,
           planets: [
@@ -86,5 +102,51 @@ describe('prophecy route', () => {
     expect(json.data.style).toBe('sonnet');
     const lineCount = String(json.data.prophecy).split('\n').length;
     expect(lineCount).toBe(14);
+    expect(json.data.meter).toBeDefined();
+  });
+
+  it('returns 401 when saving to history without auth', async () => {
+    (auth as jest.Mock).mockResolvedValueOnce({ userId: null });
+
+    const request = {
+      json: async () => ({
+        style: 'omen',
+        saveToHistory: true,
+        birthChart: {
+          jd: 2451545,
+          planets: [{ name: 'Jupiter', sign: 'Leo' }],
+        },
+      }),
+    } as unknown as Request;
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(json.success).toBe(false);
+  });
+
+  it('logs history when saveToHistory is true', async () => {
+    const request = {
+      json: async () => ({
+        style: 'omen',
+        era: 'stoic',
+        saveToHistory: true,
+        birthChart: {
+          jd: 2451545,
+          planets: [
+            { name: 'Jupiter', sign: 'Leo' },
+            { name: 'Saturn', sign: 'Scorpio' },
+          ],
+        },
+      }),
+    } as unknown as Request;
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(logInteractionEvent).toHaveBeenCalledTimes(1);
   });
 });
