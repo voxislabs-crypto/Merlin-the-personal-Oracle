@@ -2,13 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles, Info } from 'lucide-react';
+import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
 import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard';
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 
@@ -39,6 +38,8 @@ interface OracleChatProps {
   onClose?: () => void;
 }
 
+type OracleMode = 'auto' | 'casual' | 'detailed';
+
 export function OracleChat({
   birthChart,
   progressedChart,
@@ -56,7 +57,7 @@ export function OracleChat({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [plainEnglish, setPlainEnglish] = useState(true); // Clarity Mode
   const [tonePreset, setTonePreset] = useState<OracleTonePreset>('warm');
-  const [oracleMode, setOracleMode] = useState<'auto' | 'casual' | 'detailed'>('auto'); // Adaptive mode
+  const [oracleMode, setOracleMode] = useState<OracleMode>('auto'); // Adaptive mode
   const [includeLikelihood, setIncludeLikelihood] = useState(true); // Show percentages
   const [ancientLayer, setAncientLayer] = useState(false); // Ancient source weaving toggle
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
@@ -171,7 +172,7 @@ export function OracleChat({
       setTonePreset(savedTone);
     }
     // Load adaptive mode settings
-    const savedMode = localStorage.getItem('merlin_oracle_mode') as 'auto' | 'casual' | 'detailed' | null;
+    const savedMode = localStorage.getItem('merlin_oracle_mode') as OracleMode | null;
     if (savedMode && ['auto', 'casual', 'detailed'].includes(savedMode)) {
       setOracleMode(savedMode);
     }
@@ -228,6 +229,19 @@ export function OracleChat({
         if (typeof clarityMode === 'boolean') {
           setPlainEnglish(clarityMode);
           localStorage.setItem('merlin_clarity_mode', String(clarityMode));
+        }
+        const mode = result?.data?.oracleMode as OracleMode | undefined;
+        if (mode && ['auto', 'casual', 'detailed'].includes(mode)) {
+          setOracleMode(mode);
+          localStorage.setItem('merlin_oracle_mode', mode);
+        }
+        if (typeof result?.data?.includeLikelihood === 'boolean') {
+          setIncludeLikelihood(result.data.includeLikelihood);
+          localStorage.setItem('merlin_include_likelihood', String(result.data.includeLikelihood));
+        }
+        if (typeof result?.data?.ancientLayer === 'boolean') {
+          setAncientLayer(result.data.ancientLayer);
+          localStorage.setItem('merlin_ancient_layer', String(result.data.ancientLayer));
         }
       } catch {
         // Local storage remains the fallback.
@@ -523,16 +537,9 @@ export function OracleChat({
             <span>{plainEnglish ? 'Clarity' : 'Oracle Full'}</span>
           </button>
 
-          {/* Oracle Mode toggle */}
-          <button
-            onClick={() => {
-              const modes: ('auto' | 'casual' | 'detailed')[] = ['auto', 'casual', 'detailed'];
-              const currentIdx = modes.indexOf(oracleMode);
-              const nextMode = modes[(currentIdx + 1) % modes.length];
-              setOracleMode(nextMode);
-              localStorage.setItem('merlin_oracle_mode', nextMode);
-            }}
-            title={`Oracle Mode: ${oracleMode === 'auto' ? 'Auto-detect' : oracleMode === 'casual' ? 'Casual — raspy & raw' : 'Detailed — structured'}`}
+          <Link
+            href="/profile"
+            title={`Response style is managed in Preferences. Current mode: ${oracleMode}`}
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
               oracleMode === 'casual'
                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
@@ -542,17 +549,12 @@ export function OracleChat({
             }`}
           >
             <span>{oracleMode === 'auto' ? '⚙️ Auto' : oracleMode === 'casual' ? '💬 Casual' : '📊 Detailed'}</span>
-          </button>
+          </Link>
 
-          {/* Likelihood toggle */}
           {oracleMode !== 'casual' && (
-            <button
-              onClick={() => {
-                const next = !includeLikelihood;
-                setIncludeLikelihood(next);
-                localStorage.setItem('merlin_include_likelihood', String(next));
-              }}
-              title={includeLikelihood ? 'Including percentages' : 'Percentages hidden'}
+            <Link
+              href="/profile"
+              title={`Likelihood display is managed in Preferences. Currently ${includeLikelihood ? 'shown' : 'hidden'}.`}
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
                 includeLikelihood
                   ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30'
@@ -560,16 +562,12 @@ export function OracleChat({
               }`}
             >
               <span>{includeLikelihood ? '%' : '○'}</span>
-            </button>
+            </Link>
           )}
 
-          <button
-            onClick={() => {
-              const next = !ancientLayer;
-              setAncientLayer(next);
-              localStorage.setItem('merlin_ancient_layer', String(next));
-            }}
-            title={ancientLayer ? 'Ancient Layer ON (sources + modern weave)' : 'Ancient Layer OFF'}
+          <Link
+            href="/profile"
+            title={`Ancient layer is managed in Preferences. Currently ${ancientLayer ? 'on' : 'off'}.`}
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
               ancientLayer
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
@@ -577,24 +575,7 @@ export function OracleChat({
             }`}
           >
             <span>{ancientLayer ? '🏛️ Ancient' : '🏛️ Ancient Off'}</span>
-          </button>
-
-          <TooltipProvider delayDuration={120}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Ancient Layer help"
-                  className="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition"
-                >
-                  <Info size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs leading-relaxed">
-                Ancient Layer uses historical sources in your reading. Turn it on here, or trigger it naturally by saying: "deeper", "expand", "go on", "say more", or "keep going".
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          </Link>
 
           <Link
             href="/profile"

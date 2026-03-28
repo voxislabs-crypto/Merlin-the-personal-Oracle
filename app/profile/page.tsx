@@ -9,6 +9,7 @@ import type { OracleTonePreset } from '@/lib/oracle-output';
 
 type ReadingPreset = 'plain' | 'warm' | 'bullshit' | 'oracle';
 type InterpretationMode = 'grok' | 'traditional';
+type OracleMode = 'auto' | 'casual' | 'detailed';
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
@@ -17,6 +18,9 @@ export default function ProfilePage() {
   const [questLogEnabled, setQuestLogEnabled] = useState(true);
   const [interpretationMode, setInterpretationMode] = useState<InterpretationMode>('grok');
   const [oracleTonePreset, setOracleTonePreset] = useState<OracleTonePreset>('warm');
+  const [oracleMode, setOracleMode] = useState<OracleMode>('auto');
+  const [includeLikelihood, setIncludeLikelihood] = useState(true);
+  const [ancientLayer, setAncientLayer] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
   useEffect(() => {
@@ -34,6 +38,14 @@ export default function ProfilePage() {
     if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
       setOracleTonePreset(savedTone);
     }
+    const savedMode = localStorage.getItem('merlin_oracle_mode') as OracleMode | null;
+    if (savedMode && ['auto', 'casual', 'detailed'].includes(savedMode)) {
+      setOracleMode(savedMode);
+    }
+    const savedLikelihood = localStorage.getItem('merlin_include_likelihood');
+    if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
+    const savedAncient = localStorage.getItem('merlin_ancient_layer');
+    if (savedAncient !== null) setAncientLayer(savedAncient === 'true');
   }, []);
 
   useEffect(() => {
@@ -72,6 +84,18 @@ export default function ProfilePage() {
           setOracleTonePreset(preferences.oracleTonePreset);
           localStorage.setItem('merlin_oracle_tone', preferences.oracleTonePreset);
         }
+        if (preferences?.oracleMode === 'auto' || preferences?.oracleMode === 'casual' || preferences?.oracleMode === 'detailed') {
+          setOracleMode(preferences.oracleMode);
+          localStorage.setItem('merlin_oracle_mode', preferences.oracleMode);
+        }
+        if (typeof preferences?.includeLikelihood === 'boolean') {
+          setIncludeLikelihood(preferences.includeLikelihood);
+          localStorage.setItem('merlin_include_likelihood', String(preferences.includeLikelihood));
+        }
+        if (typeof preferences?.ancientLayer === 'boolean') {
+          setAncientLayer(preferences.ancientLayer);
+          localStorage.setItem('merlin_ancient_layer', String(preferences.ancientLayer));
+        }
       } catch {
         // Local preferences remain the fallback if account sync is unavailable.
       }
@@ -86,6 +110,9 @@ export default function ProfilePage() {
     noBullshitMode: boolean;
     questLogEnabled: boolean;
     oracleTonePreset: OracleTonePreset;
+    oracleMode: OracleMode;
+    includeLikelihood: boolean;
+    ancientLayer: boolean;
   }>) => {
     try {
       const response = await fetch('/api/oracle-preferences', {
@@ -137,6 +164,26 @@ export default function ProfilePage() {
     setOracleTonePreset(tone);
     localStorage.setItem('merlin_oracle_tone', tone);
     void persistOraclePreferences({ oracleTonePreset: tone });
+  };
+
+  const setOracleModePreference = (mode: OracleMode) => {
+    setOracleMode(mode);
+    localStorage.setItem('merlin_oracle_mode', mode);
+    void persistOraclePreferences({ oracleMode: mode });
+  };
+
+  const toggleLikelihood = () => {
+    const next = !includeLikelihood;
+    setIncludeLikelihood(next);
+    localStorage.setItem('merlin_include_likelihood', String(next));
+    void persistOraclePreferences({ includeLikelihood: next });
+  };
+
+  const toggleAncientLayer = () => {
+    const next = !ancientLayer;
+    setAncientLayer(next);
+    localStorage.setItem('merlin_ancient_layer', String(next));
+    void persistOraclePreferences({ ancientLayer: next });
   };
 
   const applyReadingPreset = (preset: ReadingPreset) => {
@@ -376,6 +423,74 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-white font-semibold mb-1">Response style</p>
+                <p className="text-gray-400 text-sm">
+                  {oracleMode === 'auto' && 'Merlin decides the level of detail based on your question.'}
+                  {oracleMode === 'casual' && 'Shorter, looser, more conversational answers.'}
+                  {oracleMode === 'detailed' && 'Structured, explicit, and more analytical readings.'}
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {(['auto', 'casual', 'detailed'] as OracleMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setOracleModePreference(mode)}
+                    className={`px-4 py-2 text-sm rounded-lg border transition ${
+                      oracleMode === mode
+                        ? 'bg-sky-500/20 border-sky-500/30 text-sky-100'
+                        : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/70'
+                    }`}
+                  >
+                    {mode === 'auto' ? 'Auto' : mode === 'casual' ? 'Casual' : 'Detailed'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-white font-semibold mb-1">Likelihood display</p>
+                <p className="text-gray-400 text-sm">
+                  {includeLikelihood
+                    ? 'Show confidence or likelihood percentages when the reading supports them.'
+                    : 'Hide percentages for a cleaner, more prose-first reading.'}
+                </p>
+              </div>
+              <button
+                onClick={toggleLikelihood}
+                className={`px-4 py-2 border rounded-lg font-semibold transition-all ${
+                  includeLikelihood
+                    ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-100 hover:bg-indigo-500/30'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/70'
+                }`}
+              >
+                {includeLikelihood ? 'Percentages On' : 'Percentages Off'}
+              </button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-white font-semibold mb-1">Ancient layer</p>
+                <p className="text-gray-400 text-sm">
+                  {ancientLayer
+                    ? 'Blend older astrological sources into the modern reading voice.'
+                    : 'Keep readings modern unless you explicitly ask Merlin to go deeper.'}
+                </p>
+              </div>
+              <button
+                onClick={toggleAncientLayer}
+                className={`px-4 py-2 border rounded-lg font-semibold transition-all ${
+                  ancientLayer
+                    ? 'bg-amber-500/20 border-amber-500/30 text-amber-100 hover:bg-amber-500/30'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/70'
+                }`}
+              >
+                {ancientLayer ? 'Ancient On' : 'Ancient Off'}
+              </button>
             </div>
 
             <div className="flex items-start justify-between gap-6 flex-wrap">

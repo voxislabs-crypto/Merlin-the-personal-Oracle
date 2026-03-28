@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 type InterpretationMode = 'grok' | 'traditional';
 type OracleTonePreset = 'warm' | 'direct' | 'mystic' | 'strategic';
+type OracleMode = 'auto' | 'casual' | 'detailed';
 
 type OraclePreferences = {
   clarityMode?: boolean;
@@ -10,6 +11,9 @@ type OraclePreferences = {
   noBullshitMode?: boolean;
   questLogEnabled?: boolean;
   oracleTonePreset?: OracleTonePreset;
+  oracleMode?: OracleMode;
+  includeLikelihood?: boolean;
+  ancientLayer?: boolean;
   updatedAt?: number;
 };
 
@@ -40,6 +44,15 @@ function sanitizePreferences(input: unknown): OraclePreferences {
     value.oracleTonePreset === 'strategic'
   ) {
     preferences.oracleTonePreset = value.oracleTonePreset;
+  }
+  if (value.oracleMode === 'auto' || value.oracleMode === 'casual' || value.oracleMode === 'detailed') {
+    preferences.oracleMode = value.oracleMode;
+  }
+  if (typeof value.includeLikelihood === 'boolean') {
+    preferences.includeLikelihood = value.includeLikelihood;
+  }
+  if (typeof value.ancientLayer === 'boolean') {
+    preferences.ancientLayer = value.ancientLayer;
   }
   if (typeof value.updatedAt === 'number') {
     preferences.updatedAt = value.updatedAt;
