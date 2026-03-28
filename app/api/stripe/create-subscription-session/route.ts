@@ -1,11 +1,29 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
+
+const getCheckoutUrls = (request: Request) => {
+  const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_URL || '';
+  const successUrl = process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL || `${origin}/dashboard`;
+  const cancelUrl = process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL || origin;
+
+  return { origin, successUrl, cancelUrl };
+};
 
 export async function POST(request: Request) {
   try {
     console.log('=== Stripe Subscription Session Creation Started ===');
+    if (!stripe) {
+      console.error('Missing STRIPE_SECRET_KEY');
+      return NextResponse.json(
+        { error: 'Stripe is not configured on the server' },
+        { status: 500 }
+      );
+    }
+
     const { priceId, birthData, userEmail } = await request.json();
     console.log('Request data:', { priceId, birthData, userEmail });
 
@@ -17,7 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL?.split('/dashboard')[0] || process.env.NEXT_PUBLIC_URL || '';
+    const { origin, successUrl, cancelUrl } = getCheckoutUrls(request);
     console.log('Origin:', origin);
     if (!origin) {
       console.error('Missing origin/NEXT_PUBLIC_URL');
@@ -38,9 +56,19 @@ export async function POST(request: Request) {
       metadata.userEmail = userEmail;
     }
     console.log('Metadata:', metadata);
-console.log('Price ID being used:', priceId);
-console.log('Env var check:', process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY);
+    console.log('Price ID being used:', priceId);
+    console.log('Env var check:', process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY);
     console.log('Creating Stripe subscription session with 7-day trial...');
+    const successRedirectUrl = new URL(successUrl);
+    successRedirectUrl.searchParams.set('success', 'true');
+    successRedirectUrl.searchParams.set('trial', 'true');
+    successRedirectUrl.searchParams.set('date', birthData?.birthDate || '');
+    successRedirectUrl.searchParams.set('time', birthData?.birthTime || '');
+    successRedirectUrl.searchParams.set('city', birthData?.birthCity || '');
+
+    const cancelRedirectUrl = new URL(cancelUrl);
+    cancelRedirectUrl.searchParams.set('canceled', 'true');
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -57,8 +85,8 @@ console.log('Env var check:', process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY);
         },
         metadata
       },
-      success_url: `${process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL || origin}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthData?.birthDate || '')}&time=${encodeURIComponent(birthData?.birthTime || '')}&city=${encodeURIComponent(birthData?.birthCity || '')}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL || origin}?canceled=true`,
+      success_url: successRedirectUrl.toString(),
+      cancel_url: cancelRedirectUrl.toString(),
       metadata,
       allow_promotion_codes: true, // Allow promo codes
     });

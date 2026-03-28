@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { loadStripe } from '@stripe/stripe-js';
+import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +28,7 @@ export function BirthIntakeForm({
   className = '',
 }: BirthIntakeFormProps) {
   const router = useRouter();
+  const { isSignedIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     birthDate: '',
@@ -45,6 +47,11 @@ export function BirthIntakeForm({
 
     try {
       if (showPayment) {
+        if (!isSignedIn) {
+          window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname + window.location.hash);
+          return;
+        }
+
         // Process payment directly
         console.log('Starting payment flow...');
         const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID;
@@ -220,7 +227,7 @@ export function BirthIntakeForm({
                   Processing...
                 </>
               ) : showPayment ? (
-                <>Pay $50 & Reveal Your Fate</>
+                <>{isSignedIn ? 'Pay $50 & Reveal Your Fate' : 'Sign In to Buy Lifetime Access'}</>
               ) : (
                 <>Calculate My Chart</>
               )}

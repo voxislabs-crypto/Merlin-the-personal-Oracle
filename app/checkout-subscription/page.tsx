@@ -27,25 +27,14 @@ export default function CheckoutSubscriptionPage() {
   const handleSubscribe = async () => {
     // If not signed in, redirect to sign-in page first
     if (!isSignedIn) {
-      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription';
-      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(paymentLink);
+      window.location.href = '/sign-in?redirect_url=' + encodeURIComponent('/checkout-subscription');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Use direct Stripe payment link (simpler, faster, no backend required)
-      const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
-      
-      if (!paymentLink) {
-        console.error('Stripe payment link not configured');
-        alert('Subscription not configured. Please contact support.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('Redirecting to Stripe payment link...');
+      console.log('Creating Stripe subscription checkout session...');
       // Track subscription attempt
       if (typeof window !== 'undefined' && (window as any).gtag) {
         (window as any).gtag('event', 'begin_checkout', {
@@ -54,9 +43,30 @@ export default function CheckoutSubscriptionPage() {
           items: [{ item_name: 'Merlin Monthly Subscription' }]
         });
       }
-      
-      // Redirect directly to Stripe-hosted checkout
-      window.location.href = paymentLink;
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          birthDate: '',
+          birthTime: '',
+          birthCity: '',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Subscription failed. Please try again.');
+      }
+
+      if (!data.url) {
+        throw new Error('Stripe checkout URL was not returned.');
+      }
+
+      window.location.href = data.url;
     } catch (err) {
       console.error('Subscription error:', err);
       alert(err instanceof Error ? err.message : 'Subscription failed. Please try again.');

@@ -96,13 +96,13 @@ export function PricingSection() {
             </div>
 
             <a
-              href={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription'}
+              href="/checkout-subscription"
               onClick={(e) => {
                 if (typeof window !== 'undefined') {
                   // Production mode: check if user is signed in first
                   if (!isSignedIn) {
                     e.preventDefault();
-                    window.location.href = '/sign-in?redirect_url=' + encodeURIComponent(process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '/checkout-subscription');
+                    window.location.href = '/sign-in?redirect_url=' + encodeURIComponent('/checkout-subscription');
                     return;
                   }
                 }

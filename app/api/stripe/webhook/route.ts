@@ -39,6 +39,50 @@ async function decrementSpots(): Promise<void> {
   }
 }
 
+async function updateUserForCompletedCheckout(session: Stripe.Checkout.Session): Promise<void> {
+  const userId = session.metadata?.userId;
+  const tier = session.metadata?.tier;
+
+  if (!userId) {
+    console.warn('[Stripe] Checkout completed without userId metadata');
+    return;
+  }
+
+  try {
+    const client = await clerkClient();
+
+    if (tier === 'lifetime' || !session.subscription) {
+      await client.users.updateUser(userId, {
+        publicMetadata: {
+          tier: 'lifetime',
+          hasTrial: false,
+          stripeCustomerId: session.customer,
+          subscriptionId: null,
+          subscriptionStatus: 'lifetime',
+          checkoutSessionId: session.id,
+          lifetimeAccessGrantedAt: Math.floor(Date.now() / 1000),
+        },
+      });
+      console.log(`[Stripe] Granted lifetime access to user ${userId}`);
+      return;
+    }
+
+    await client.users.updateUser(userId, {
+      publicMetadata: {
+        tier: 'monthly',
+        hasTrial: true,
+        stripeCustomerId: session.customer,
+        subscriptionId: session.subscription,
+        subscriptionStatus: 'trialing',
+        checkoutSessionId: session.id,
+      },
+    });
+    console.log(`[Stripe] Updated Clerk metadata for user ${userId}`);
+  } catch (error) {
+    console.error('[Stripe] Failed to update Clerk metadata:', error);
+  }
+}
+
 export async function POST(request: Request) {
   const body = await request.text();
   const headersList = await headers();
@@ -65,33 +109,18 @@ export async function POST(request: Request) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId;
+      const tier = session.metadata?.tier;
       
       console.log(`[Stripe] Checkout completed: ${session.id}`);
       console.log(`[Stripe] Customer: ${session.customer}`);
       console.log(`[Stripe] Subscription: ${session.subscription}`);
       console.log(`[Stripe] User ID: ${userId}`);
+      console.log(`[Stripe] Tier: ${tier}`);
 
       // Decrement spots counter
       await decrementSpots();
 
-      // Update user metadata in Clerk
-      if (userId) {
-        try {
-          const client = await clerkClient();
-          await client.users.updateUser(userId, {
-            publicMetadata: {
-              hasTrial: true,
-              stripeCustomerId: session.customer,
-              subscriptionId: session.subscription,
-              subscriptionStatus: 'trialing',
-              checkoutSessionId: session.id,
-            },
-          });
-          console.log(`[Stripe] Updated Clerk metadata for user ${userId}`);
-        } catch (error) {
-          console.error('[Stripe] Failed to update Clerk metadata:', error);
-        }
-      }
+      await updateUserForCompletedCheckout(session);
       break;
     }
 

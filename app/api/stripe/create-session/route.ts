@@ -1,13 +1,33 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
+
+const getCheckoutUrls = (request: Request) => {
+  const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_URL || '';
+  const successUrl = process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL || `${origin}/dashboard`;
+  const cancelUrl = process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL || origin;
+
+  return { origin, successUrl, cancelUrl };
+};
 
 export async function POST(request: Request) {
   try {
     console.log('=== Stripe Session Creation Started ===');
+    if (!stripe) {
+      console.error('Missing STRIPE_SECRET_KEY');
+      return NextResponse.json(
+        { error: 'Stripe is not configured on the server' },
+        { status: 500 }
+      );
+    }
+
+    const { userId } = await auth();
     const { priceId, birthData } = await request.json();
-    console.log('Request data:', { priceId, birthData });
+    console.log('Request data:', { priceId, birthData, userId });
 
     if (!priceId) {
       console.error('Missing priceId in request');
@@ -17,7 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL?.split('/dashboard')[0] || process.env.NEXT_PUBLIC_URL || '';
+    const { origin, successUrl, cancelUrl } = getCheckoutUrls(request);
     console.log('Origin:', origin);
     if (!origin) {
       console.error('Missing origin/NEXT_PUBLIC_URL');
@@ -34,25 +54,32 @@ export async function POST(request: Request) {
       metadata.birthTime = birthData.birthTime || '';
       metadata.birthCity = birthData.birthCity || '';
     }
+    if (userId) {
+      metadata.userId = userId;
+    }
     console.log('Metadata:', metadata);
 
-    console.log('Creating Stripe subscription session with 7-day trial...');
+    console.log('Creating Stripe one-time payment session...');
+    const successRedirectUrl = new URL(successUrl);
+    successRedirectUrl.searchParams.set('success', 'true');
+    successRedirectUrl.searchParams.set('lifetime', 'true');
+    successRedirectUrl.searchParams.set('date', birthData?.birthDate || '');
+    successRedirectUrl.searchParams.set('time', birthData?.birthTime || '');
+    successRedirectUrl.searchParams.set('city', birthData?.birthCity || '');
+
+    const cancelRedirectUrl = new URL(cancelUrl);
+    cancelRedirectUrl.searchParams.set('canceled', 'true');
+
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
+      mode: 'payment',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      subscription_data: {
-        trial_period_days: 7,
-        trial_settings: {
-          end_behavior: {
-            missing_payment_method: 'cancel' // Auto-cancel if no payment method added
-          }
-        },
-        metadata
+      success_url: successRedirectUrl.toString(),
+      cancel_url: cancelRedirectUrl.toString(),
+      metadata: {
+        ...metadata,
+        tier: 'lifetime',
       },
-      success_url: `${process.env.NEXT_PUBLIC_STRIPE_SUCCESS_URL || origin}/dashboard?success=true&trial=true&date=${encodeURIComponent(birthData?.birthDate || '')}&time=${encodeURIComponent(birthData?.birthTime || '')}&city=${encodeURIComponent(birthData?.birthCity || '')}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_STRIPE_CANCEL_URL || origin}?canceled=true`,
-      metadata,
       allow_promotion_codes: true, // Allow promo codes
     });
 
