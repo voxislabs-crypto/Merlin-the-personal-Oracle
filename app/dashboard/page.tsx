@@ -38,6 +38,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
+import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -107,6 +108,7 @@ export default function UnifiedDashboard() {
   const [prophecyStyle, setProphecyStyle] = useState<ProphecyStyle>('omen');
   const [prophecyEra, setProphecyEra] = useState<ProphecyEra>('babylonian');
   const [strictMeter, setStrictMeter] = useState(false);
+  const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -149,6 +151,10 @@ export default function UnifiedDashboard() {
     if (savedNoBullshit !== null) setNoBullshit(savedNoBullshit === 'true');
     const savedQuestLog = localStorage.getItem('merlin_quest_log_enabled');
     if (savedQuestLog !== null) setQuestLogEnabled(savedQuestLog !== 'false');
+    const savedProphecyPolish = localStorage.getItem('merlin_prophecy_polish_mode');
+    if (savedProphecyPolish === 'engine' || savedProphecyPolish === 'groq') {
+      setProphecyPolishMode(savedProphecyPolish);
+    }
   }, []);
 
   useEffect(() => {
@@ -177,6 +183,10 @@ export default function UnifiedDashboard() {
         if (typeof preferences?.questLogEnabled === 'boolean') {
           setQuestLogEnabled(preferences.questLogEnabled);
           localStorage.setItem('merlin_quest_log_enabled', String(preferences.questLogEnabled));
+        }
+        if (preferences?.prophecyPolishMode === 'engine' || preferences?.prophecyPolishMode === 'groq') {
+          setProphecyPolishMode(preferences.prophecyPolishMode);
+          localStorage.setItem('merlin_prophecy_polish_mode', preferences.prophecyPolishMode);
         }
       } catch {
         // Local storage remains the fallback if the preference sync endpoint is unavailable.
@@ -378,8 +388,9 @@ export default function UnifiedDashboard() {
       era: prophecyEra,
       strictMeter,
       saveToHistory: false,
+      polishMode: prophecyPolishMode,
     });
-  }, [chartData, prophecyStyle, prophecyEra, strictMeter, generateProphecy]);
+  }, [chartData, prophecyStyle, prophecyEra, strictMeter, prophecyPolishMode, generateProphecy]);
 
   useEffect(() => {
     if (!userId) return;
@@ -1220,6 +1231,7 @@ export default function UnifiedDashboard() {
                               era: prophecyEra,
                               strictMeter,
                               saveToHistory: true,
+                              polishMode: prophecyPolishMode,
                             }).then(() => {
                               loadHistory();
                             });

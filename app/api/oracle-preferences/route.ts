@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 type InterpretationMode = 'grok' | 'traditional';
 type OracleTonePreset = 'warm' | 'direct' | 'mystic' | 'strategic';
 type OracleMode = 'auto' | 'casual' | 'detailed';
+type ProphecyPolishMode = 'engine' | 'groq';
 
 type OraclePreferences = {
   clarityMode?: boolean;
@@ -14,6 +15,7 @@ type OraclePreferences = {
   oracleMode?: OracleMode;
   includeLikelihood?: boolean;
   ancientLayer?: boolean;
+  prophecyPolishMode?: ProphecyPolishMode;
   updatedAt?: number;
 };
 
@@ -53,6 +55,9 @@ function sanitizePreferences(input: unknown): OraclePreferences {
   }
   if (typeof value.ancientLayer === 'boolean') {
     preferences.ancientLayer = value.ancientLayer;
+  }
+  if (value.prophecyPolishMode === 'engine' || value.prophecyPolishMode === 'groq') {
+    preferences.prophecyPolishMode = value.prophecyPolishMode;
   }
   if (typeof value.updatedAt === 'number') {
     preferences.updatedAt = value.updatedAt;

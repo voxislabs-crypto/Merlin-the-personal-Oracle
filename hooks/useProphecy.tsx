@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { BirthChartData } from '@/components/astrology/BirthChartCalculator';
+import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 
 export type ProphecyStyle = 'omen' | 'sonnet';
 export type ProphecyEra = 'babylonian' | 'hermetic' | 'psalmic' | 'stoic';
@@ -7,6 +8,7 @@ export type ProphecyEra = 'babylonian' | 'hermetic' | 'psalmic' | 'stoic';
 export interface ProphecyData {
   style: ProphecyStyle;
   era: ProphecyEra;
+  polishedBy?: 'engine' | 'groq';
   title: string;
   prophecy: string;
   meter?: {
@@ -54,6 +56,7 @@ export function useProphecy() {
     era?: ProphecyEra;
     strictMeter?: boolean;
     saveToHistory?: boolean;
+    polishMode?: ProphecyPolishMode;
   }): Promise<ProphecyData | null> => {
     setLoading(true);
     setError(null);

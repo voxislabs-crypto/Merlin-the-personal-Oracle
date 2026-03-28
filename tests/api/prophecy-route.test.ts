@@ -15,9 +15,14 @@ jest.mock('../../lib/pattern-mirror', () => ({
   logInteractionEvent: jest.fn(),
 }));
 
+jest.mock('../../lib/prophecy-polish', () => ({
+  polishProphecyWithGroq: jest.fn(),
+}));
+
 import { POST } from '../../app/api/prophecy/route';
 import { auth } from '@clerk/nextjs/server';
 import { logInteractionEvent } from '../../lib/pattern-mirror';
+import { polishProphecyWithGroq } from '../../lib/prophecy-polish';
 
 describe('prophecy route', () => {
   beforeEach(() => {
@@ -44,6 +49,25 @@ describe('prophecy route', () => {
         birthChart: {
           planets: [{ name: 'Jupiter', sign: 'Leo', longitude: 100 }],
           jd: 2451545,
+        },
+      }),
+    } as unknown as Request;
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(json.success).toBe(false);
+  });
+
+  it('returns 400 for invalid polish mode', async () => {
+    const request = {
+      json: async () => ({
+        style: 'omen',
+        polishMode: 'xai',
+        birthChart: {
+          jd: 2451545,
+          planets: [{ name: 'Jupiter', sign: 'Leo' }],
         },
       }),
     } as unknown as Request;
@@ -148,5 +172,35 @@ describe('prophecy route', () => {
     expect(response.status).toBe(200);
     expect(json.success).toBe(true);
     expect(logInteractionEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses groq polish when requested and available', async () => {
+    (polishProphecyWithGroq as jest.Mock).mockResolvedValueOnce({
+      prophecy: 'Polished prophecy from groq.',
+      model: 'llama-3.1-8b-instant',
+    });
+
+    const request = {
+      json: async () => ({
+        style: 'omen',
+        polishMode: 'groq',
+        birthChart: {
+          jd: 2451545,
+          planets: [
+            { name: 'Jupiter', sign: 'Leo' },
+            { name: 'Saturn', sign: 'Scorpio' },
+          ],
+        },
+      }),
+    } as unknown as Request;
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(polishProphecyWithGroq).toHaveBeenCalledTimes(1);
+    expect(json.data.polishedBy).toBe('groq');
+    expect(json.data.prophecy).toBe('Polished prophecy from groq.');
   });
 });

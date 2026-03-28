@@ -10,6 +10,7 @@ import type { OracleTonePreset } from '@/lib/oracle-output';
 type ReadingPreset = 'plain' | 'warm' | 'bullshit' | 'oracle';
 type InterpretationMode = 'grok' | 'traditional';
 type OracleMode = 'auto' | 'casual' | 'detailed';
+type ProphecyPolishMode = 'engine' | 'groq';
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
@@ -21,6 +22,7 @@ export default function ProfilePage() {
   const [oracleMode, setOracleMode] = useState<OracleMode>('auto');
   const [includeLikelihood, setIncludeLikelihood] = useState(true);
   const [ancientLayer, setAncientLayer] = useState(false);
+  const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
   const [syncMessage, setSyncMessage] = useState('');
 
   useEffect(() => {
@@ -46,6 +48,10 @@ export default function ProfilePage() {
     if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
     const savedAncient = localStorage.getItem('merlin_ancient_layer');
     if (savedAncient !== null) setAncientLayer(savedAncient === 'true');
+    const savedProphecyPolish = localStorage.getItem('merlin_prophecy_polish_mode');
+    if (savedProphecyPolish === 'engine' || savedProphecyPolish === 'groq') {
+      setProphecyPolishMode(savedProphecyPolish);
+    }
   }, []);
 
   useEffect(() => {
@@ -96,6 +102,10 @@ export default function ProfilePage() {
           setAncientLayer(preferences.ancientLayer);
           localStorage.setItem('merlin_ancient_layer', String(preferences.ancientLayer));
         }
+        if (preferences?.prophecyPolishMode === 'engine' || preferences?.prophecyPolishMode === 'groq') {
+          setProphecyPolishMode(preferences.prophecyPolishMode);
+          localStorage.setItem('merlin_prophecy_polish_mode', preferences.prophecyPolishMode);
+        }
       } catch {
         // Local preferences remain the fallback if account sync is unavailable.
       }
@@ -113,6 +123,7 @@ export default function ProfilePage() {
     oracleMode: OracleMode;
     includeLikelihood: boolean;
     ancientLayer: boolean;
+    prophecyPolishMode: ProphecyPolishMode;
   }>) => {
     try {
       const response = await fetch('/api/oracle-preferences', {
@@ -170,6 +181,12 @@ export default function ProfilePage() {
     setOracleMode(mode);
     localStorage.setItem('merlin_oracle_mode', mode);
     void persistOraclePreferences({ oracleMode: mode });
+  };
+
+  const setProphecyPolishModePreference = (mode: ProphecyPolishMode) => {
+    setProphecyPolishMode(mode);
+    localStorage.setItem('merlin_prophecy_polish_mode', mode);
+    void persistOraclePreferences({ prophecyPolishMode: mode });
   };
 
   const toggleLikelihood = () => {
@@ -535,6 +552,39 @@ export default function ProfilePage() {
               >
                 {includeLikelihood ? 'Percentages On' : 'Percentages Off'}
               </button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex-1 min-w-[220px]">
+                <p className="text-white font-semibold mb-1">Prophecy polish engine</p>
+                <p className="text-gray-400 text-sm">
+                  {prophecyPolishMode === 'engine'
+                    ? 'Use built-in deterministic prophecy generation only (lowest cost).'
+                    : 'Use Groq as an optional rewrite layer for poetic polish when available.'}
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setProphecyPolishModePreference('engine')}
+                  className={`px-4 py-2 text-sm rounded-lg border transition ${
+                    prophecyPolishMode === 'engine'
+                      ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-100'
+                      : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/70'
+                  }`}
+                >
+                  Engine Only
+                </button>
+                <button
+                  onClick={() => setProphecyPolishModePreference('groq')}
+                  className={`px-4 py-2 text-sm rounded-lg border transition ${
+                    prophecyPolishMode === 'groq'
+                      ? 'bg-violet-500/20 border-violet-500/30 text-violet-100'
+                      : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/70'
+                  }`}
+                >
+                  Engine + Groq
+                </button>
+              </div>
             </div>
 
             <div className="flex items-start justify-between gap-6 flex-wrap">
