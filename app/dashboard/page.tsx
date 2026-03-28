@@ -47,6 +47,7 @@ const DASHBOARD_EVENTS_KEY = 'merlin_dashboard_events_v1';
 const FIRST_CHART_KEY = 'merlin_first_chart_completed_at';
 const FIRST_ASK_KEY = 'merlin_first_ask_completed_at';
 const MAX_DASHBOARD_EVENTS = 40;
+const WEEKLY_RESET_PROMPT_KEY = 'merlin_weekly_reset_prompt_seen';
 
 type DashboardEvent = {
   eventName: string;
@@ -101,6 +102,7 @@ export default function UnifiedDashboard() {
   const [hasAskedMerlin, setHasAskedMerlin] = useState(false);
   const [dashboardEvents, setDashboardEvents] = useState<DashboardEvent[]>([]);
   const [showDevDiagnostics, setShowDevDiagnostics] = useState(false);
+  const [showWeeklyResetPrompt, setShowWeeklyResetPrompt] = useState(false);
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -424,6 +426,16 @@ export default function UnifiedDashboard() {
 
       if (lastCheckin !== todayKey) {
         appendDashboardEvent('dashboard_daily_checkin', { streak: nextCount });
+      }
+
+      if (lastCheckin && lastCheckin !== todayKey && lastCheckin !== yesterdayKey) {
+        const promptWeek = `${today.getUTCFullYear()}-${today.getUTCMonth() + 1}-${Math.ceil((today.getUTCDate() + 6) / 7)}`;
+        const seenPromptWeek = localStorage.getItem(WEEKLY_RESET_PROMPT_KEY);
+        if (seenPromptWeek !== promptWeek) {
+          setShowWeeklyResetPrompt(true);
+          localStorage.setItem(WEEKLY_RESET_PROMPT_KEY, promptWeek);
+          appendDashboardEvent('dashboard_weekly_reset_prompt_shown', { previousCheckin: lastCheckin });
+        }
       }
 
       localStorage.setItem(DAILY_STREAK_LAST_KEY, todayKey);
@@ -1064,6 +1076,36 @@ export default function UnifiedDashboard() {
                       </button>
                     </div>
                   </div>
+
+                  {showWeeklyResetPrompt ? (
+                    <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-500/10 p-3">
+                      <p className="text-xs uppercase tracking-[0.2em] text-amber-200/80">Weekly Reset</p>
+                      <p className="mt-1 text-sm text-amber-50">You missed a day, so your streak reset. Do a quick weekly reset prompt to restart momentum with intention.</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendDashboardEvent('dashboard_weekly_reset_prompt_clicked');
+                            queueAskContext('Weekly reset', 'I lost momentum this week. Give me a one-step reset plan for the next 7 days.');
+                            setShowWeeklyResetPrompt(false);
+                          }}
+                          className="rounded-full border border-amber-300/40 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-500/30"
+                        >
+                          Start weekly reset
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendDashboardEvent('dashboard_weekly_reset_prompt_dismissed');
+                            setShowWeeklyResetPrompt(false);
+                          }}
+                          className="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {process.env.NODE_ENV !== 'production' ? (
                     <div className="mt-4 border-t border-white/10 pt-3">
