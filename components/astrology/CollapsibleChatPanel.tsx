@@ -42,6 +42,7 @@ interface CollapsibleChatPanelProps {
   userId?: string;
   isExpanded?: boolean;
   onToggleExpand?: Dispatch<SetStateAction<boolean>>;
+  onUserMessageSent?: (message: string) => void;
   mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
   clarityMode?: boolean; // Controlled from parent dashboard; falls back to localStorage
   onClarityChange?: () => void; // Propagate toggle back up to parent
@@ -56,6 +57,7 @@ export function CollapsibleChatPanel({
   userId = 'anonymous',
   isExpanded = true,
   onToggleExpand,
+  onUserMessageSent,
   mbtiType,
   clarityMode: clarityModeProp,
   onClarityChange,
@@ -529,6 +531,7 @@ export function CollapsibleChatPanel({
     };
 
     setMessages((prev: Message[]) => [...prev, userMessage]);
+    onUserMessageSent?.(userMessage.content);
     setInput('');
     setActiveDraftLabel(null);
     setIsLoading(true);

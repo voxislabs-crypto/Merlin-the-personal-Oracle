@@ -35,11 +35,24 @@ import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle } from 'lucide-react';
+import { CheckCircle2, Flame, MessageCircle, Sparkles } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
+const ONBOARDING_STORAGE_KEY = 'merlin_dashboard_onboarding_complete_v1';
+const DAILY_STREAK_LAST_KEY = 'merlin_daily_checkin_last';
+const DAILY_STREAK_COUNT_KEY = 'merlin_daily_checkin_count';
+const DASHBOARD_EVENTS_KEY = 'merlin_dashboard_events_v1';
+const FIRST_CHART_KEY = 'merlin_first_chart_completed_at';
+const FIRST_ASK_KEY = 'merlin_first_ask_completed_at';
+const MAX_DASHBOARD_EVENTS = 40;
+
+type DashboardEvent = {
+  eventName: string;
+  at: string;
+  detail: Record<string, unknown>;
+};
 
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
@@ -83,6 +96,11 @@ export default function UnifiedDashboard() {
   const [askDraftPrompt, setAskDraftPrompt] = useState('');
   const [askDraftLabel, setAskDraftLabel] = useState('');
   const [askDraftKey, setAskDraftKey] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [dailyCheckinStreak, setDailyCheckinStreak] = useState(1);
+  const [hasAskedMerlin, setHasAskedMerlin] = useState(false);
+  const [dashboardEvents, setDashboardEvents] = useState<DashboardEvent[]>([]);
+  const [showDevDiagnostics, setShowDevDiagnostics] = useState(false);
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -337,6 +355,108 @@ export default function UnifiedDashboard() {
     fetchDailyOracle(false);
   }, [chartData, fetchDailyOracle]);
 
+  const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
+    try {
+      const now = new Date().toISOString();
+      const raw = localStorage.getItem(DASHBOARD_EVENTS_KEY);
+      const existing = raw ? (JSON.parse(raw) as DashboardEvent[]) : [];
+      const next = [...existing, { eventName, at: now, detail: detail || {} }].slice(-MAX_DASHBOARD_EVENTS);
+      localStorage.setItem(DASHBOARD_EVENTS_KEY, JSON.stringify(next));
+      setDashboardEvents(next);
+
+      if (userId) {
+        void fetch('/api/dashboard-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            eventName,
+            detail: detail || {},
+          }),
+        }).catch(() => {
+          // Network failures should not block UX event capture
+        });
+      }
+    } catch {
+      // ignore local telemetry write failures
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DASHBOARD_EVENTS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as DashboardEvent[];
+      if (Array.isArray(parsed)) {
+        setDashboardEvents(parsed.slice(-MAX_DASHBOARD_EVENTS));
+      }
+    } catch {
+      // ignore malformed local event history
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!chartData) return;
+
+    try {
+      const onboardingComplete = localStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true';
+      setShowOnboarding(!onboardingComplete);
+
+      const today = new Date();
+      const todayKey = today.toISOString().slice(0, 10);
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const yesterdayKey = yesterday.toISOString().slice(0, 10);
+
+      const lastCheckin = localStorage.getItem(DAILY_STREAK_LAST_KEY);
+      const storedCount = Number(localStorage.getItem(DAILY_STREAK_COUNT_KEY) || '0');
+
+      let nextCount = Math.max(storedCount, 1);
+      if (!lastCheckin) {
+        nextCount = 1;
+      } else if (lastCheckin === todayKey) {
+        nextCount = Math.max(storedCount, 1);
+      } else if (lastCheckin === yesterdayKey) {
+        nextCount = Math.max(storedCount + 1, 2);
+      } else {
+        nextCount = 1;
+      }
+
+      if (lastCheckin !== todayKey) {
+        appendDashboardEvent('dashboard_daily_checkin', { streak: nextCount });
+      }
+
+      localStorage.setItem(DAILY_STREAK_LAST_KEY, todayKey);
+      localStorage.setItem(DAILY_STREAK_COUNT_KEY, String(nextCount));
+      setDailyCheckinStreak(nextCount);
+
+      if (!localStorage.getItem(FIRST_CHART_KEY)) {
+        localStorage.setItem(FIRST_CHART_KEY, today.toISOString());
+        appendDashboardEvent('dashboard_first_chart_completed', { source: calcSource || 'unknown' });
+      }
+    } catch {
+      // localStorage failures should never block the dashboard
+    }
+  }, [chartData, calcSource, appendDashboardEvent]);
+
+  useEffect(() => {
+    if (!showOnboarding) return;
+
+    const stepsComplete = hasAskedMerlin && activeSection !== 'wheel';
+    if (!stepsComplete) return;
+
+    try {
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+    } catch {
+      // ignore persistence issues
+    }
+    appendDashboardEvent('dashboard_onboarding_completed', {
+      askedMerlin: hasAskedMerlin,
+      openedFocusView: activeSection !== 'wheel',
+    });
+    setShowOnboarding(false);
+  }, [showOnboarding, hasAskedMerlin, activeSection, appendDashboardEvent]);
+
   useEffect(() => {
     if (!userId) return;
     fetchPatternMirror();
@@ -523,6 +643,25 @@ export default function UnifiedDashboard() {
       askDraftPrompt || 'What should I pay attention to in my chart and current transits right now?'
     );
   }, [askDraftLabel, askDraftPrompt, queueAskContext]);
+
+  const handleChatUserMessageSent = useCallback((message: string) => {
+    setHasAskedMerlin(true);
+    try {
+      const isFirstAsk = !localStorage.getItem(FIRST_ASK_KEY);
+      if (isFirstAsk) {
+        localStorage.setItem(FIRST_ASK_KEY, new Date().toISOString());
+      }
+      appendDashboardEvent(isFirstAsk ? 'dashboard_first_ask_submitted' : 'dashboard_repeat_ask_submitted', {
+        section: activeSection,
+        length: message.length,
+      });
+    } catch {
+      appendDashboardEvent('dashboard_ask_submitted', {
+        section: activeSection,
+        length: message.length,
+      });
+    }
+  }, [appendDashboardEvent, activeSection]);
 
   const clearAskContext = useCallback(() => {
     setAskDraftLabel('');
@@ -777,6 +916,12 @@ export default function UnifiedDashboard() {
                 <span className={`px-3 py-1 text-xs rounded border font-medium ${calcSource === 'Swiss real' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : calcSource ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-slate-500 bg-slate-500/10 text-slate-300'}`}>
                   {calcSource ? calcSource : '⚙️ Calculating...'}
                 </span>
+                {chartData ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs rounded border border-orange-400/45 bg-orange-500/10 text-orange-200">
+                    <Flame className="h-3.5 w-3.5" />
+                    {dailyCheckinStreak}-day check-in streak
+                  </span>
+                ) : null}
                 {moonSign && (moonSign === 'Sagittarius' || moonSign === 'Capricorn') && (
                   <span className="px-2 py-1 text-xs rounded border border-red-500/40 text-red-300">
                     Moon sanity check
@@ -785,6 +930,167 @@ export default function UnifiedDashboard() {
               </div>
               <p className="text-gray-300 text-lg">One place. Your whole story.</p>
             </motion.div>
+
+            {chartData && showOnboarding ? (
+              <motion.section
+                className="mb-8"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="rounded-[1.75rem] border border-amber-300/25 bg-gradient-to-r from-slate-900/95 via-slate-900/85 to-orange-950/25 p-4 md:p-6">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-amber-300/80">First Session Guide</p>
+                      <h2 className="mt-2 text-xl md:text-2xl font-semibold text-amber-50">Lock in your first win before you leave.</h2>
+                      <p className="mt-2 text-sm text-slate-300/90">Complete these 3 moves and Merlin will remember your rhythm the next time you return.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+                        } catch {
+                          // ignore persistence issues
+                        }
+                        appendDashboardEvent('dashboard_onboarding_dismissed');
+                        setShowOnboarding(false);
+                      }}
+                      className="self-start rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/10"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-3.5">
+                      <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/90">Step 1</p>
+                      <p className="mt-1 text-sm text-emerald-50 font-medium">Chart calculated</p>
+                      <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-200/90">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Complete
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-3.5">
+                      <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/90">Step 2</p>
+                      <p className="mt-1 text-sm text-cyan-50 font-medium">Ask Merlin one direct question</p>
+                      {hasAskedMerlin ? (
+                        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-cyan-200/90">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Complete
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handlePrimaryAskMerlin}
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/25"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          Start question
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-indigo-300/20 bg-indigo-400/10 p-3.5">
+                      <p className="text-xs uppercase tracking-[0.2em] text-indigo-200/90">Step 3</p>
+                      <p className="mt-1 text-sm text-indigo-50 font-medium">Open one focus view</p>
+                      {activeSection !== 'wheel' ? (
+                        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-indigo-200/90">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Complete
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendDashboardEvent('dashboard_focus_view_opened', { view: 'forecast' });
+                            setActiveSection('forecast');
+                          }}
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-indigo-300/40 bg-indigo-500/15 px-3 py-1 text-xs font-semibold text-indigo-100 hover:bg-indigo-500/25"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Open forecast
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </motion.section>
+            ) : null}
+
+            {chartData ? (
+              <motion.section
+                className="mb-8"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="rounded-[1.4rem] border border-cyan-300/20 bg-gradient-to-r from-cyan-950/35 via-slate-900/85 to-slate-900/90 p-4 md:p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-200/75">Return Loop</p>
+                      <h3 className="mt-1 text-lg md:text-xl font-semibold text-cyan-50">Keep the signal hot tomorrow.</h3>
+                      <p className="mt-1 text-sm text-slate-300/90">Streak day {dailyCheckinStreak}. Run a fresh oracle pulse and one focused question each day for tighter timing reads.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appendDashboardEvent('dashboard_return_rail_refresh_oracle');
+                          fetchDailyOracle(true);
+                        }}
+                        className="rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/25"
+                      >
+                        Refresh oracle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appendDashboardEvent('dashboard_return_rail_open_forecast');
+                          setActiveSection('forecast');
+                        }}
+                        className="rounded-full border border-indigo-300/40 bg-indigo-500/15 px-3 py-1.5 text-xs font-semibold text-indigo-100 hover:bg-indigo-500/25"
+                      >
+                        Open forecast
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          appendDashboardEvent('dashboard_return_rail_ask_checkin');
+                          queueAskContext('Daily check-in', 'What is my highest-leverage move in the next 24 hours?');
+                        }}
+                        className="rounded-full border border-amber-300/40 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/25"
+                      >
+                        Ask daily check-in
+                      </button>
+                    </div>
+                  </div>
+
+                  {process.env.NODE_ENV !== 'production' ? (
+                    <div className="mt-4 border-t border-white/10 pt-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowDevDiagnostics((prev) => !prev)}
+                        className="text-xs text-slate-300 underline-offset-2 hover:text-white hover:underline"
+                      >
+                        {showDevDiagnostics ? 'Hide' : 'Show'} dashboard event diagnostics
+                      </button>
+                      {showDevDiagnostics ? (
+                        <div className="mt-2 max-h-44 overflow-y-auto space-y-1 rounded-lg border border-white/10 bg-slate-950/55 p-2">
+                          {dashboardEvents.length ? dashboardEvents.slice(-10).reverse().map((event, idx) => (
+                            <div key={`${event.at}-${idx}`} className="text-[11px] text-slate-200/85">
+                              <span className="text-cyan-200">{event.eventName}</span>
+                              <span className="text-slate-400"> • {new Date(event.at).toLocaleString()}</span>
+                            </div>
+                          )) : (
+                            <p className="text-[11px] text-slate-400">No events yet.</p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </motion.section>
+            ) : null}
 
             <motion.section
               className="mb-10"
@@ -1213,6 +1519,7 @@ export default function UnifiedDashboard() {
                             userId={userId}
                             isExpanded={chatExpanded}
                             onToggleExpand={setChatExpanded}
+                            onUserMessageSent={handleChatUserMessageSent}
                             mbtiType={mbtiType || undefined}
                             clarityMode={clarityMode}
                             onClarityChange={toggleClarityMode}
