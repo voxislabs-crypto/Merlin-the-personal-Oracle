@@ -546,7 +546,7 @@ export default function UnifiedDashboard() {
     }
     appendDashboardEvent('dashboard_onboarding_completed', {
       askedMerlin: hasAskedMerlin,
-      openedFocusView: activeSection !== 'wheel',
+      openedFocusView: true,
     });
     setShowOnboarding(false);
   }, [showOnboarding, hasAskedMerlin, activeSection, appendDashboardEvent]);
