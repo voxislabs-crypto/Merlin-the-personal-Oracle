@@ -25,20 +25,6 @@ async function getUserEmail(userId: string): Promise<string | null> {
   }
 }
 
-/**
- * Helper: Decrement spots counter
- */
-async function decrementSpots(): Promise<void> {
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_URL}/api/spots`, {
-      method: 'POST',
-    });
-    console.log('[Webhook] Spots decremented successfully');
-  } catch (error) {
-    console.error('[Webhook] Failed to decrement spots:', error);
-  }
-}
-
 async function updateUserForCompletedCheckout(session: Stripe.Checkout.Session): Promise<void> {
   const userId = session.metadata?.userId;
   const tier = session.metadata?.tier;
@@ -116,9 +102,6 @@ export async function POST(request: Request) {
       console.log(`[Stripe] Subscription: ${session.subscription}`);
       console.log(`[Stripe] User ID: ${userId}`);
       console.log(`[Stripe] Tier: ${tier}`);
-
-      // Decrement spots counter
-      await decrementSpots();
 
       await updateUserForCompletedCheckout(session);
       break;

@@ -82,9 +82,9 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
 };
 
 /**
- * Get user's subscription tier from Clerk metadata
- * Development default: 'trial' (allows testing all features)
- * Production: defaults to 'free' for unset users
+ * Get user's subscription tier from Clerk metadata.
+ * Signed-out users: trial in development, free in production.
+ * Signed-in users without explicit metadata: free.
  */
 export async function getUserTier(): Promise<SubscriptionTier> {
   const user = await currentUser();
@@ -113,7 +113,7 @@ export async function getUserTier(): Promise<SubscriptionTier> {
     }
   }
 
-  return tier || 'trial'; // Default to trial for development/testing
+  return tier || 'free';
 }
 
 /**

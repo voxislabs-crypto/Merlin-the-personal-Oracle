@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { Check, X, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
 const lifetimeFeatures = [
@@ -35,21 +34,6 @@ const freeNotIncluded = [
 
 export function PricingSection() {
   const { isSignedIn } = useAuth();
-  const [spotsLeft, setSpotsLeft] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/spots')
-      .then((res) => res.json())
-      .then((data) => {
-        setSpotsLeft(data.spotsLeft || 47);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setSpotsLeft(47);
-        setIsLoading(false);
-      });
-  }, []);
 
   return (
     <section className="py-20 px-4 relative">
@@ -143,9 +127,7 @@ export function PricingSection() {
                 <span className="text-gray-400 line-through text-xl">$299</span>
               </div>
               <p className="text-amber-200 text-sm mb-2">One-time payment</p>
-              <p className="text-red-300 text-sm font-semibold">
-                {!isLoading && spotsLeft && `Only ${spotsLeft} spots left`}
-              </p>
+              <p className="text-amber-300 text-sm font-semibold">Founder pricing while in beta</p>
             </div>
 
             <Link

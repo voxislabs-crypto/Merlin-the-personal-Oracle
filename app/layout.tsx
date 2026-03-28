@@ -18,10 +18,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Merlin - Professional Astrology Birth Chart Calculator | Lifetime Access',
+    default: 'Merlin - Professional Astrology Birth Chart Calculator',
     template: '%s | Merlin Oracle'
   },
-  description: 'Professional-grade astrology birth charts with Swiss Ephemeris precision. Calculate your natal chart, daily forecasts, transit tracking & MBTI personality integration. Lifetime access for one payment.',
+  description: 'Professional-grade astrology birth charts with Swiss Ephemeris precision. Calculate your natal chart, daily forecasts, transit tracking, and MBTI personality insights with monthly or lifetime access.',
   keywords: [
     'birth chart calculator',
     'astrology chart',
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: 'Merlin Oracle',
     title: 'Merlin - Professional Astrology That Doesn\'t Lie',
-    description: 'Swiss Ephemeris precision meets MBTI insights. Calculate your birth chart, track daily transits, and unlock your cosmic blueprint. Lifetime access.',
+    description: 'Swiss Ephemeris precision meets MBTI insights. Calculate your birth chart, track daily transits, and unlock your cosmic blueprint with monthly or lifetime access.',
     images: [
       {
         url: '/og-image.svg',
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Merlin - Professional Astrology Birth Chart Calculator',
-    description: 'Swiss Ephemeris precision. Daily forecasts. Transit tracking. MBTI integration. Lifetime access.',
+    description: 'Swiss Ephemeris precision. Daily forecasts. Transit tracking. MBTI integration. Monthly or lifetime access.',
     images: ['/og-image.svg'],
     creator: '@merlinoracle',
   },
@@ -119,7 +119,7 @@ export default function RootLayout({
                 operatingSystem: 'Web, iOS, Android',
                 offers: {
                   '@type': 'Offer',
-                  price: '50',
+                  price: '9.99',
                   priceCurrency: 'USD',
                   availability: 'https://schema.org/LimitedAvailability',
                 },

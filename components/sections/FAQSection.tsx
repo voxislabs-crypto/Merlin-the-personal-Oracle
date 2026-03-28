@@ -10,8 +10,8 @@ const faqs = [
     answer: 'Merlin uses the Swiss Ephemeris, the gold standard in professional astrology. The same precision used by NASA for astronomical calculations. Your chart is accurate to the second.',
   },
   {
-    question: 'Is this really a one-time payment?',
-    answer: 'Yes! Pay $50 once and get lifetime access. No subscriptions, no recurring charges, no hidden fees. Your access never expires.',
+    question: 'What pricing options do you offer?',
+    answer: 'You can start with a 7-day free trial at $9.99/month or choose $50 one-time lifetime access. Pick the path that fits your style. No hidden fees.',
   },
   {
     question: 'What makes Merlin different from free astrology apps?',

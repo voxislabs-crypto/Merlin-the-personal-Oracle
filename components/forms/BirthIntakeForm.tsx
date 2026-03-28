@@ -239,9 +239,9 @@ export function BirthIntakeForm({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="text-center text-red-400 font-semibold text-sm animate-pulse"
+              className="text-center text-amber-300 font-semibold text-sm"
             >
-              ⚡ Only 47 lifetime spots left. Gone forever.
+              Founder pricing available during beta.
             </motion.p>
           )}
         </form>

@@ -21,7 +21,7 @@ export default function Terms() {
         <section>
           <h2 className="text-2xl font-semibold text-amber-300 mb-3">2. Payment & Access</h2>
           <p>
-            Merlin is available via a one-time payment of $50 USD (lifetime personal access). Payment is processed securely via Stripe. Upon successful payment, you receive access linked to your account/email. All sales are final — no refunds, exchanges, or cancellations except as required by law.
+            Merlin currently offers two plans: a monthly subscription ($9.99/month, with a 7-day free trial) and a one-time lifetime access option ($50 USD). Payment is processed securely via Stripe. Upon successful payment, access is linked to your account/email. Cancellation and refund terms, where applicable, are shown at checkout and are governed by applicable law.
           </p>
         </section>
         
