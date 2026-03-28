@@ -13,7 +13,6 @@ import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { WeeklyCalendar } from '@/components/astrology/WeeklyCalendar';
 import { StormsAndNavigations } from '@/components/astrology/StormsAndNavigations';
 import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
-import { InterpretationModeToggle } from '@/components/astrology/InterpretationModeToggle';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import { CollapsibleChatPanel } from '@/components/astrology/CollapsibleChatPanel';
 import { MerlinAudioPlayer } from '@/components/astrology/MerlinAudioPlayer';
@@ -31,10 +30,12 @@ import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { useStorms } from '@/hooks/useStorms';
 import { usePersonality } from '@/hooks/usePersonality';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
+import { GeocodingService } from '@/lib/astrology/geocoding';
+import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Zap, BookOpen, Brain, Scroll, Eye, EyeOff, CloudLightning, MessageCircle, SlidersHorizontal } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -66,7 +67,6 @@ export default function UnifiedDashboard() {
   const [showDeepDive, setShowDeepDive] = useState(false);
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
-  const [showReadingControls, setShowReadingControls] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [dailyOracle, setDailyOracle] = useState<{
@@ -83,6 +83,16 @@ export default function UnifiedDashboard() {
   const [askDraftPrompt, setAskDraftPrompt] = useState('');
   const [askDraftLabel, setAskDraftLabel] = useState('');
   const [askDraftKey, setAskDraftKey] = useState(0);
+  const [relationshipForm, setRelationshipForm] = useState({
+    personName: '',
+    birthDate: '',
+    birthTime: '',
+    birthCity: '',
+  });
+  const [relationshipReport, setRelationshipReport] = useState<SynastryReport | null>(null);
+  const [relationshipLoading, setRelationshipLoading] = useState(false);
+  const [relationshipError, setRelationshipError] = useState('');
+  const [relationshipLocationHint, setRelationshipLocationHint] = useState('');
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -102,7 +112,46 @@ export default function UnifiedDashboard() {
     // Load clarity mode setting
     const savedClarity = localStorage.getItem('merlin_clarity_mode');
     if (savedClarity !== null) setClarityMode(savedClarity !== 'false');
+    const savedNoBullshit = localStorage.getItem('merlin_no_bullshit_mode');
+    if (savedNoBullshit !== null) setNoBullshit(savedNoBullshit === 'true');
+    const savedQuestLog = localStorage.getItem('merlin_quest_log_enabled');
+    if (savedQuestLog !== null) setQuestLogEnabled(savedQuestLog !== 'false');
   }, []);
+
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+
+    const loadOraclePreferences = async () => {
+      try {
+        const response = await fetch('/api/oracle-preferences');
+        if (!response.ok) return;
+
+        const result = await response.json();
+        const preferences = result?.data;
+
+        if (typeof preferences?.clarityMode === 'boolean') {
+          setClarityMode(preferences.clarityMode);
+          localStorage.setItem('merlin_clarity_mode', String(preferences.clarityMode));
+        }
+        if (preferences?.interpretationMode === 'grok' || preferences?.interpretationMode === 'traditional') {
+          setInterpretMode(preferences.interpretationMode);
+          localStorage.setItem('merlin_interpretation_mode', preferences.interpretationMode);
+        }
+        if (typeof preferences?.noBullshitMode === 'boolean') {
+          setNoBullshit(preferences.noBullshitMode);
+          localStorage.setItem('merlin_no_bullshit_mode', String(preferences.noBullshitMode));
+        }
+        if (typeof preferences?.questLogEnabled === 'boolean') {
+          setQuestLogEnabled(preferences.questLogEnabled);
+          localStorage.setItem('merlin_quest_log_enabled', String(preferences.questLogEnabled));
+        }
+      } catch {
+        // Local storage remains the fallback if the preference sync endpoint is unavailable.
+      }
+    };
+
+    loadOraclePreferences();
+  }, [isLoaded, user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -119,6 +168,14 @@ export default function UnifiedDashboard() {
     const next = !clarityMode;
     setClarityMode(next);
     localStorage.setItem('merlin_clarity_mode', String(next));
+
+    fetch('/api/oracle-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clarityMode: next }),
+    }).catch(() => {
+      // Keep local preference if server sync is temporarily unavailable.
+    });
   };
   
   // Re-generate interpretations when mode changes
@@ -473,6 +530,93 @@ export default function UnifiedDashboard() {
     setAskDraftKey((prev) => prev + 1);
   }, []);
 
+  const updateRelationshipField = useCallback((field: keyof typeof relationshipForm, value: string) => {
+    setRelationshipForm((prev) => ({ ...prev, [field]: value }));
+    setRelationshipError('');
+  }, []);
+
+  const handleRelationshipReading = useCallback(async () => {
+    if (!chartData) {
+      setRelationshipError('Calculate your chart first before opening Relationship Space.');
+      scrollToBlock(chartSectionRef);
+      return;
+    }
+
+    if (!relationshipForm.birthDate || !relationshipForm.birthTime || !relationshipForm.birthCity) {
+      setRelationshipError('Partner birth date, time, and city are required.');
+      return;
+    }
+
+    setRelationshipLoading(true);
+    setRelationshipError('');
+    setRelationshipLocationHint('');
+
+    try {
+      const location = await GeocodingService.validateLocation(relationshipForm.birthCity.trim());
+
+      if (!location) {
+        throw new Error('Partner birth city could not be located. Try a more specific city name.');
+      }
+
+      setRelationshipLocationHint(location.displayName);
+
+      const partnerChartResponse = await fetch('/api/calculate-birth-chart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          birthDate: relationshipForm.birthDate,
+          birthTime: relationshipForm.birthTime,
+          lat: location.latitude,
+          lon: location.longitude,
+        }),
+      });
+
+      const partnerChartResult = await partnerChartResponse.json();
+
+      if (!partnerChartResponse.ok || !partnerChartResult?.success || !partnerChartResult?.data) {
+        throw new Error(partnerChartResult?.error || 'Failed to calculate the partner chart.');
+      }
+
+      const synastryResponse = await fetch('/api/synastry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chart1: chartData,
+          chart2: partnerChartResult.data,
+          person1Name: user?.firstName || user?.fullName || 'You',
+          person2Name: relationshipForm.personName.trim() || 'Partner',
+        }),
+      });
+
+      const synastryResult = await synastryResponse.json();
+
+      if (!synastryResponse.ok || !synastryResult?.success || !synastryResult?.data) {
+        throw new Error(synastryResult?.error || 'Failed to generate the relationship reading.');
+      }
+
+      const report = synastryResult.data as SynastryReport;
+      setRelationshipReport(report);
+      queueAskContext(
+        `${report.person1Name || 'You'} + ${report.person2Name || 'Partner'} relationship space`,
+        `Read the relationship dynamic between ${report.person1Name || 'me'} and ${report.person2Name || 'my partner'}. Compatibility is ${report.overallCompatibility}%. Narrative: ${report.narrative} Strengths: ${report.strengths.join(', ') || 'none noted'}. Challenges: ${report.challenges.join(', ') || 'none noted'}. What is the clearest next move?`
+      );
+      toast({
+        title: 'Relationship Space updated',
+        description: `Compatibility reading ready for ${report.person2Name || 'your partner'}.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Relationship Space failed to load.';
+      setRelationshipError(message);
+      toast({
+        title: 'Relationship Space error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setRelationshipLoading(false);
+    }
+  }, [chartData, relationshipForm, user, queueAskContext, toast]);
+
   // Conditional render: Don't render until Clerk auth is loaded
   if (!isLoaded) {
     return (
@@ -542,28 +686,64 @@ export default function UnifiedDashboard() {
 
     if (mode === 'plain') {
       setInterpretMode('traditional');
+      localStorage.setItem('merlin_interpretation_mode', 'traditional');
       setNoBullshit(false);
+      localStorage.setItem('merlin_no_bullshit_mode', 'false');
       if (!clarityMode) toggleClarityMode();
+      fetch('/api/oracle-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interpretationMode: 'traditional', noBullshitMode: false, clarityMode: true }),
+      }).catch(() => {
+        // Keep local preference if server sync is temporarily unavailable.
+      });
       return;
     }
 
     if (mode === 'warm') {
       setInterpretMode('grok');
+      localStorage.setItem('merlin_interpretation_mode', 'grok');
       setNoBullshit(false);
+      localStorage.setItem('merlin_no_bullshit_mode', 'false');
       if (!clarityMode) toggleClarityMode();
+      fetch('/api/oracle-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interpretationMode: 'grok', noBullshitMode: false, clarityMode: true }),
+      }).catch(() => {
+        // Keep local preference if server sync is temporarily unavailable.
+      });
       return;
     }
 
     if (mode === 'bullshit') {
       setInterpretMode('grok');
+      localStorage.setItem('merlin_interpretation_mode', 'grok');
       setNoBullshit(true);
+      localStorage.setItem('merlin_no_bullshit_mode', 'true');
       if (!clarityMode) toggleClarityMode();
+      fetch('/api/oracle-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interpretationMode: 'grok', noBullshitMode: true, clarityMode: true }),
+      }).catch(() => {
+        // Keep local preference if server sync is temporarily unavailable.
+      });
       return;
     }
 
     setInterpretMode('grok');
+    localStorage.setItem('merlin_interpretation_mode', 'grok');
     setNoBullshit(false);
+    localStorage.setItem('merlin_no_bullshit_mode', 'false');
     if (clarityMode) toggleClarityMode();
+    fetch('/api/oracle-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interpretationMode: 'grok', noBullshitMode: false, clarityMode: false }),
+    }).catch(() => {
+      // Keep local preference if server sync is temporarily unavailable.
+    });
   };
 
   const handleDailyWhisper = () => {
@@ -742,6 +922,130 @@ export default function UnifiedDashboard() {
                       onAskContext={queueAskContext}
                       selectedContextLabel={askDraftLabel}
                     />
+                    <div className="rounded-[1.4rem] border border-amber-400/20 bg-amber-950/10 p-4 backdrop-blur-sm space-y-4">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80 mb-2">Synastry Portal</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">Compare your chart with someone else and turn Relationship Space into a real compatibility reading.</p>
+                      </div>
+
+                      {!chartData ? (
+                        <div className="space-y-3 rounded-xl border border-white/8 bg-white/5 p-4">
+                          <p className="text-sm text-slate-300">Your chart needs to be calculated before Merlin can compare relationship dynamics.</p>
+                          <button
+                            type="button"
+                            onClick={() => scrollToBlock(chartSectionRef)}
+                            className="rounded-full border border-amber-300/40 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-400/20"
+                          >
+                            Go to chart
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <input
+                              type="text"
+                              value={relationshipForm.personName}
+                              onChange={(e) => updateRelationshipField('personName', e.target.value)}
+                              placeholder="Partner name"
+                              className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
+                            />
+                            <input
+                              type="text"
+                              value={relationshipForm.birthCity}
+                              onChange={(e) => updateRelationshipField('birthCity', e.target.value)}
+                              placeholder="Birth city"
+                              className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-amber-400/50 focus:outline-none"
+                            />
+                            <input
+                              type="date"
+                              value={relationshipForm.birthDate}
+                              onChange={(e) => updateRelationshipField('birthDate', e.target.value)}
+                              className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 focus:border-amber-400/50 focus:outline-none"
+                            />
+                            <input
+                              type="time"
+                              value={relationshipForm.birthTime}
+                              onChange={(e) => updateRelationshipField('birthTime', e.target.value)}
+                              className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 focus:border-amber-400/50 focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={handleRelationshipReading}
+                              disabled={relationshipLoading}
+                              className="rounded-full border border-amber-300/45 bg-amber-400/15 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {relationshipLoading ? 'Reading connection...' : 'Read the connection'}
+                            </button>
+                            {relationshipLocationHint ? (
+                              <span className="text-xs text-amber-100/75">Using: {relationshipLocationHint}</span>
+                            ) : null}
+                          </div>
+
+                          {relationshipError ? (
+                            <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                              {relationshipError}
+                            </div>
+                          ) : null}
+
+                          {relationshipReport ? (
+                            <div className="space-y-4 rounded-[1.2rem] border border-amber-300/20 bg-gradient-to-br from-amber-950/20 to-slate-950/40 p-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm text-amber-100 font-semibold">
+                                    {relationshipReport.person1Name || 'You'} + {relationshipReport.person2Name || 'Partner'}
+                                  </p>
+                                  <p className="text-xs text-slate-400">Live synastry based on both birth charts</p>
+                                </div>
+                                <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-100">
+                                  {relationshipReport.overallCompatibility}% compatibility
+                                </div>
+                              </div>
+
+                              <p className="text-sm leading-relaxed text-slate-200">{relationshipReport.narrative}</p>
+
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                  <p className="mb-2 text-xs uppercase tracking-[0.2em] text-emerald-300/80">Strengths</p>
+                                  <div className="space-y-2">
+                                    {relationshipReport.strengths.length ? relationshipReport.strengths.map((strength) => (
+                                      <div key={strength} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+                                        {strength}
+                                      </div>
+                                    )) : <p className="text-sm text-slate-400">No dominant strengths detected yet.</p>}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="mb-2 text-xs uppercase tracking-[0.2em] text-rose-300/80">Challenges</p>
+                                  <div className="space-y-2">
+                                    {relationshipReport.challenges.length ? relationshipReport.challenges.map((challenge) => (
+                                      <div key={challenge} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+                                        {challenge}
+                                      </div>
+                                    )) : <p className="text-sm text-slate-400">No major friction aspects in the top layer.</p>}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-300/80">Key Aspects</p>
+                                <div className="space-y-2">
+                                  {relationshipReport.aspects.slice(0, 4).map((aspect) => (
+                                    <div key={`${aspect.person1Planet}-${aspect.person2Planet}-${aspect.aspectType}`} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
+                                      <span className="font-semibold text-white">{aspect.person1Planet} {aspect.aspectType} {aspect.person2Planet}</span>
+                                      <span className="ml-2 text-xs text-slate-400">orb {aspect.orb.toFixed(1)}{aspect.exact ? ' • exact' : ''}</span>
+                                      <p className="mt-1 text-xs leading-relaxed text-slate-300">{aspect.interpretation}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -934,16 +1238,15 @@ export default function UnifiedDashboard() {
                       </button>
                       <MerlinAudioPlayer
                         text={readAloudText}
-                        label="Hear Merlin"
+                        label="Read My Chart"
                       />
-                      <button
-                        onClick={() => setShowReadingControls((prev) => !prev)}
-                        title="Show or hide reading mode controls"
+                      <Link
+                        href="/profile"
+                        title="Adjust Oracle reading preferences in your profile"
                         className="inline-flex items-center gap-2 px-4 py-3 border border-slate-600/40 rounded-lg text-slate-200 bg-slate-800/60 hover:bg-slate-700/70 transition-all"
                       >
-                        <SlidersHorizontal className="w-4 h-4" />
-                        {showReadingControls ? 'Hide controls' : 'Reading controls'}
-                      </button>
+                        Oracle Preferences
+                      </Link>
                     </div>
 
                     {askDraftLabel ? (
@@ -965,77 +1268,6 @@ export default function UnifiedDashboard() {
                       </div>
                     ) : null}
 
-                    {showReadingControls && (
-                      <div className="flex gap-2 justify-center flex-wrap items-center">
-                        <button
-                          onClick={() => activateWhisperMode('plain')}
-                          title="Switch interpretation to plain, no-jargon language"
-                          className="px-4 py-2 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg text-emerald-200 font-semibold transition-all"
-                        >
-                          Plain
-                        </button>
-                        <button
-                          onClick={() => activateWhisperMode('warm')}
-                          title="Switch interpretation to supportive and warm tone"
-                          className="px-4 py-2 text-xs bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 rounded-lg text-sky-200 font-semibold transition-all"
-                        >
-                          Warm
-                        </button>
-                        <button
-                          onClick={() => activateWhisperMode('bullshit')}
-                          title="Switch interpretation to direct no-BS mode"
-                          className="px-4 py-2 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-200 font-semibold transition-all"
-                        >
-                          No-BS
-                        </button>
-                        <button
-                          onClick={() => activateWhisperMode('oracle')}
-                          title="Switch interpretation to full Oracle mode"
-                          className="px-4 py-2 text-xs bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-lg text-violet-200 font-semibold transition-all"
-                        >
-                          Oracle
-                        </button>
-                        <button
-                          onClick={toggleClarityMode}
-                          title={clarityMode ? 'Clarity Mode ON: plain English (click for Oracle Full)' : 'Oracle Full Mode: astrology jargon ON (click for plain English)'}
-                          className={`px-4 py-2 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                            clarityMode
-                              ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/30'
-                              : 'bg-purple-500/20 border-purple-500/30 text-purple-200 hover:bg-purple-500/30'
-                          }`}
-                        >
-                          {clarityMode ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                          <span className="text-xs">
-                            {clarityMode ? 'Plain English' : 'Oracle Full'}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => setNoBullshit(!noBullshit)}
-                          className={`px-4 py-2 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                            noBullshit
-                              ? 'bg-red-500/20 border-red-500/30 text-red-200 hover:bg-red-500/30'
-                              : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
-                          }`}
-                        >
-                          <span className="text-xs">
-                            {noBullshit ? '🔥 No-BS Mode' : '✨ Warm Mode'}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => setQuestLogEnabled(prev => !prev)}
-                          className={`px-4 py-2 border rounded-lg font-semibold transition-all flex items-center gap-2 ${
-                            questLogEnabled
-                              ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-200 hover:bg-yellow-500/30'
-                              : 'bg-slate-700/20 border-slate-600/30 text-slate-300 hover:bg-slate-600/30'
-                          }`}
-                        >
-                          <Scroll className="w-3.5 h-3.5" />
-                          <span className="text-xs">
-                            {questLogEnabled ? 'Quests: On' : 'Quests: Off'}
-                          </span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </motion.div>
 
@@ -1273,10 +1505,9 @@ export default function UnifiedDashboard() {
                                     ⚡ cached
                                   </span>
                                 )}
-                                <InterpretationModeToggle
-                                  onModeChange={(mode) => setInterpretMode(mode)}
-                                  defaultMode={interpretMode}
-                                />
+                                <Link href="/profile" className="text-xs text-slate-400 hover:text-slate-200 transition">
+                                  Interpretation engine lives in Oracle Preferences
+                                </Link>
                               </div>
                               <ChartInterpretation
                                 summary={interpretations?.chartSummary || ''}

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
+import Link from 'next/link';
 import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, Trash2, Play, Pause, Eye, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
@@ -381,6 +382,27 @@ export function CollapsibleChatPanel({
     loadServerTone();
   }, [userId]);
 
+  useEffect(() => {
+    const loadServerPreferences = async () => {
+      if (!userId || userId === 'anonymous') return;
+      try {
+        const response = await fetch('/api/oracle-preferences');
+        if (!response.ok) return;
+
+        const result = await response.json();
+        const clarityMode = result?.data?.clarityMode;
+        if (typeof clarityMode === 'boolean') {
+          setPlainEnglishInternal(clarityMode);
+          localStorage.setItem('merlin_clarity_mode', String(clarityMode));
+        }
+      } catch {
+        // Local storage remains the fallback.
+      }
+    };
+
+    loadServerPreferences();
+  }, [userId]);
+
   const toggleClarityMode = () => {
     if (onClarityChange) {
       // Delegate to parent when controlled
@@ -389,24 +411,15 @@ export function CollapsibleChatPanel({
       const next = !plainEnglishInternal;
       setPlainEnglishInternal(next);
       localStorage.setItem('merlin_clarity_mode', String(next));
-    }
-  };
-
-  const cycleTonePreset = () => {
-    const order: OracleTonePreset[] = ['warm', 'direct', 'strategic', 'mystic'];
-    const currentIdx = order.indexOf(tonePreset);
-    const nextTone = order[(currentIdx + 1) % order.length];
-    setTonePreset(nextTone);
-    localStorage.setItem('merlin_oracle_tone', nextTone);
-
-    if (userId && userId !== 'anonymous') {
-      fetch('/api/user-context', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, oracleTonePreset: nextTone }),
-      }).catch(() => {
-        // Best-effort persistence only; UI should remain responsive.
-      });
+      if (userId && userId !== 'anonymous') {
+        fetch('/api/oracle-preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clarityMode: next }),
+        }).catch(() => {
+          // Keep local preference if server sync is temporarily unavailable.
+        });
+      }
     }
   };
 
@@ -713,14 +726,14 @@ export function CollapsibleChatPanel({
             {plainEnglish ? <Eye size={11} /> : <Sparkles size={11} />}
             <span>{plainEnglish ? 'Clear' : 'Full'}</span>
           </button>
-          <button
-            onClick={cycleTonePreset}
-            title={`Tone preset: ${tonePreset}`}
+          <Link
+            href="/profile"
+            title={`Oracle tone is managed in Preferences. Current tone: ${tonePreset}`}
             className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30"
           >
             <span>Tone</span>
             <span className="uppercase">{tonePreset}</span>
-          </button>
+          </Link>
           <button
             onClick={clearHistory}
             className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-700/50 rounded transition"

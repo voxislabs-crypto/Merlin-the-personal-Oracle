@@ -106,7 +106,7 @@ function NarratorPopup({ sentences, activeSentenceIndex, chunkIndex, totalChunks
               transition={{ duration: 1.4, repeat: Infinity }}
             />
             <span className="text-xs font-semibold tracking-widest text-amber-300/80 uppercase">
-              Merlin Speaks
+              Chart Reading
             </span>
             {totalChunks > 1 && (
               <span className="text-xs text-slate-500 ml-1">
@@ -180,7 +180,7 @@ type PlayerState = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
  * then plays them sequentially so nothing gets cut off.
  * Falls back to Web Speech API when ElevenLabs is unavailable.
  */
-export function MerlinAudioPlayer({ text, label = '🔮 Hear Merlin', className = '' }: MerlinAudioPlayerProps) {
+export function MerlinAudioPlayer({ text, label = 'Read My Chart', className = '' }: MerlinAudioPlayerProps) {
   const [state, setState] = useState<PlayerState>('idle');
   const [progress, setProgress] = useState(0); // 0–1 within current chunk
   const [duration, setDuration] = useState(0);

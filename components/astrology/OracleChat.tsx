@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -215,26 +216,38 @@ export function OracleChat({
     loadServerTone();
   }, [userId]);
 
+  useEffect(() => {
+    const loadServerPreferences = async () => {
+      if (!userId || userId === 'anonymous') return;
+      try {
+        const response = await fetch('/api/oracle-preferences');
+        if (!response.ok) return;
+
+        const result = await response.json();
+        const clarityMode = result?.data?.clarityMode;
+        if (typeof clarityMode === 'boolean') {
+          setPlainEnglish(clarityMode);
+          localStorage.setItem('merlin_clarity_mode', String(clarityMode));
+        }
+      } catch {
+        // Local storage remains the fallback.
+      }
+    };
+
+    loadServerPreferences();
+  }, [userId]);
+
   const toggleClarityMode = () => {
     const next = !plainEnglish;
     setPlainEnglish(next);
     localStorage.setItem('merlin_clarity_mode', String(next));
-  };
-
-  const cycleTonePreset = () => {
-    const order: OracleTonePreset[] = ['warm', 'direct', 'strategic', 'mystic'];
-    const currentIdx = order.indexOf(tonePreset);
-    const nextTone = order[(currentIdx + 1) % order.length];
-    setTonePreset(nextTone);
-    localStorage.setItem('merlin_oracle_tone', nextTone);
-
     if (userId && userId !== 'anonymous') {
-      fetch('/api/user-context', {
+      fetch('/api/oracle-preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, oracleTonePreset: nextTone }),
+        body: JSON.stringify({ clarityMode: next }),
       }).catch(() => {
-        // Best-effort persistence only; UI should remain responsive.
+        // Keep local preference if server sync is temporarily unavailable.
       });
     }
   };
@@ -583,14 +596,14 @@ export function OracleChat({
             </Tooltip>
           </TooltipProvider>
 
-          <button
-            onClick={cycleTonePreset}
-            title={`Tone preset: ${tonePreset}`}
+          <Link
+            href="/profile"
+            title={`Oracle tone is managed in Preferences. Current tone: ${tonePreset}`}
             className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30"
           >
             <span>Tone</span>
             <span className="uppercase">{tonePreset}</span>
-          </button>
+          </Link>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition"
