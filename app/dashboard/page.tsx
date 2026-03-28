@@ -518,13 +518,20 @@ export default function UnifiedDashboard() {
       setDailyCheckinStreak(nextCount);
 
       if (!localStorage.getItem(FIRST_CHART_KEY)) {
+        const firstChartSource =
+          ((chartData as any)?.metadata?.ephemeris as string | undefined) ||
+          (((chartData as any)?.metadata?.calculationSource as string | undefined) === 'swiss-real'
+            ? 'Swiss real'
+            : ((chartData as any)?.metadata?.calculationSource as string | undefined) === 'mock-fallback'
+              ? 'Mock'
+              : 'unknown');
         localStorage.setItem(FIRST_CHART_KEY, today.toISOString());
-        appendDashboardEvent('dashboard_first_chart_completed', { source: calcSource || 'unknown' });
+        appendDashboardEvent('dashboard_first_chart_completed', { source: firstChartSource });
       }
     } catch {
       // localStorage failures should never block the dashboard
     }
-  }, [chartData, calcSource, appendDashboardEvent]);
+  }, [chartData, appendDashboardEvent]);
 
   useEffect(() => {
     if (!showOnboarding) return;
