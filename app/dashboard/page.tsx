@@ -78,6 +78,7 @@ export default function UnifiedDashboard() {
   const weeklySectionRef = useRef<HTMLDivElement | null>(null);
   const personalitySectionRef = useRef<HTMLDivElement | null>(null);
   const forecastSectionRef = useRef<HTMLDivElement | null>(null);
+  const prophecySectionRef = useRef<HTMLDivElement | null>(null);
   const hasRestoredPersistedDataRef = useRef(false);
   const [compactMode, setCompactMode] = useState(false);
   const [showDeepDive, setShowDeepDive] = useState(false);
@@ -1181,7 +1182,7 @@ export default function UnifiedDashboard() {
                     </div>
                   ) : null}
 
-                  <div className="mt-4 rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5">
+                  <div ref={prophecySectionRef} className="mt-4 rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5">
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
@@ -1715,6 +1716,13 @@ export default function UnifiedDashboard() {
                     >
                       Storm Radar
                     </button>
+                    <button
+                      onClick={() => scrollToBlock(prophecySectionRef)}
+                      title="Jump to personal prophecy"
+                      className="px-3 py-1.5 text-xs rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition"
+                    >
+                      Prophecy
+                    </button>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-2">
                     Tip: Compact mode hides secondary panels so you can focus on one section at a time.
@@ -1748,6 +1756,9 @@ export default function UnifiedDashboard() {
                     </button>
                     <button onClick={() => scrollToBlock(personalitySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to dual MBTI cards">
                       Dual MBTI Cards
+                    </button>
+                    <button onClick={() => scrollToBlock(prophecySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to personal prophecy">
+                      Prophecy
                     </button>
                   </div>
                 </div>
