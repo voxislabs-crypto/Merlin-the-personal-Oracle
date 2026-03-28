@@ -14,26 +14,36 @@ function estimateSyllables(input: string): number {
   return Math.max(1, syllables);
 }
 
-function scoreSonnetMeter(poem: string): { score: number; averageSyllables: number } {
+function scoreSonnetMeter(poem: string): {
+  score: number;
+  averageSyllables: number;
+  lineScores: Array<{ line: string; syllables: number; target: number }>;
+} {
   const lines = poem.split('\n').filter((line) => line.trim().length > 0);
   if (!lines.length) {
-    return { score: 0, averageSyllables: 0 };
+    return { score: 0, averageSyllables: 0, lineScores: [] };
   }
 
-  const syllablesByLine = lines.map((line) => {
+  const lineScores = lines.map((line) => {
     const words = line.split(/\s+/).filter(Boolean);
-    return words.reduce((sum, word) => sum + estimateSyllables(word), 0);
+    const syllables = words.reduce((sum, word) => sum + estimateSyllables(word), 0);
+    return {
+      line,
+      syllables,
+      target: 10,
+    };
   });
 
-  const average = syllablesByLine.reduce((sum, count) => sum + count, 0) / syllablesByLine.length;
-  const normalized = syllablesByLine.reduce((sum, count) => {
-    const delta = Math.abs(count - 10);
+  const average = lineScores.reduce((sum, item) => sum + item.syllables, 0) / lineScores.length;
+  const normalized = lineScores.reduce((sum, item) => {
+    const delta = Math.abs(item.syllables - item.target);
     return sum + Math.max(0, 1 - delta / 10);
-  }, 0) / syllablesByLine.length;
+  }, 0) / lineScores.length;
 
   return {
     score: Math.round(normalized * 100),
     averageSyllables: Number(average.toFixed(2)),
+    lineScores,
   };
 }
 
