@@ -74,13 +74,19 @@ export function useForecast() {
         })
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
+        const message =
+          result?.error ||
+          (response.status === 403
+            ? 'Daily forecast is currently unavailable for your plan.'
+            : `Error: ${response.statusText}`);
+        throw new Error(message);
       }
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to generate forecast');
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to generate forecast');
       }
 
       setForecast(result.data);

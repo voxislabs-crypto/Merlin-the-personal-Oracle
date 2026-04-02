@@ -123,7 +123,7 @@ export default function UnifiedDashboard() {
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
-  const { forecast, loading: forecastLoading, calculateForecast } = useForecast();
+  const { forecast, loading: forecastLoading, error: forecastError, calculateForecast } = useForecast();
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
@@ -1901,7 +1901,12 @@ export default function UnifiedDashboard() {
 
                       <DailyForecast
                         date={forecast?.date || new Date().toISOString()}
-                        summary={forecast?.summary || 'Loading forecast...'}
+                        summary={
+                          forecast?.summary ||
+                          (forecastLoading
+                            ? 'Loading forecast...'
+                            : forecastError?.message || 'The cosmic story is quiet right now. Please try again in a moment.')
+                        }
                         planetaryHighlights={forecast?.planetaryHighlights || []}
                         moonPhase={forecast?.moonPhase || 'Unknown'}
                         moonSign={forecast?.moonSign}
