@@ -11,6 +11,9 @@ import {
   saveTtsCredentialHandler,
   clearTtsCredentialHandler,
   saveVoiceDefaultsHandler,
+  getKokoroSettingsHandler,
+  saveKokoroHfTokenHandler,
+  clearKokoroHfTokenHandler,
 } from "../controllers/settingsController.js";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth.js";
 
@@ -28,5 +31,8 @@ router.get("/settings/tts", requireAuth, getTtsSettingsHandler);
 router.put("/settings/voice-defaults", requireAuth, requireAdmin, saveVoiceDefaultsHandler);
 router.put("/settings/tts/:provider", requireAuth, requireAdmin, saveTtsCredentialHandler);
 router.delete("/settings/tts/:provider", requireAuth, requireAdmin, clearTtsCredentialHandler);
+router.get("/settings/kokoro", requireAuth, getKokoroSettingsHandler);
+router.put("/settings/kokoro", requireAuth, requireAdmin, saveKokoroHfTokenHandler);
+router.delete("/settings/kokoro", requireAuth, requireAdmin, clearKokoroHfTokenHandler);
 
 export default router;

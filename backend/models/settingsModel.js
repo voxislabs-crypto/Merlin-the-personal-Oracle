@@ -4,6 +4,7 @@ const LLM_CONFIG_KEY = "llm_config";
 const LLM_SAVED_CREDENTIALS_KEY = "llm_saved_credentials";
 const TTS_CREDENTIALS_KEY = "tts_credentials";
 const VOICE_DEFAULTS_KEY = "voice_defaults";
+const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 
 function parseJsonObject(value) {
   try {
@@ -261,4 +262,36 @@ export function setVoiceDefaults({ source }) {
 
   writeAppSetting(VOICE_DEFAULTS_KEY, normalized);
   return getVoiceDefaults();
+}
+
+export function getKokoroHfToken() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(KOKORO_HF_TOKEN_KEY);
+  const parsed = parseJsonObject(row?.value || "");
+  const token = String(parsed?.token || "").trim();
+  if (!token) {
+    return null;
+  }
+
+  return {
+    token,
+    updatedAt: String(parsed?.updatedAt || "").trim(),
+  };
+}
+
+export function setKokoroHfToken({ token }) {
+  const normalizedToken = String(token || "").trim();
+  if (!normalizedToken) {
+    throw Object.assign(new Error("token is required."), { statusCode: 400 });
+  }
+
+  writeAppSetting(KOKORO_HF_TOKEN_KEY, {
+    token: normalizedToken,
+    updatedAt: new Date().toISOString(),
+  });
+
+  return getKokoroHfToken();
+}
+
+export function clearKokoroHfToken() {
+  db.prepare(`DELETE FROM app_settings WHERE key = ?`).run(KOKORO_HF_TOKEN_KEY);
 }

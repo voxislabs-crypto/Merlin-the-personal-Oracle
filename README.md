@@ -316,6 +316,7 @@ cp backend/.env.example backend/.env
 | `PIPER_SPEAKER` | Optional default numeric speaker id for multi-speaker Piper models |
 | `KOKORO_DEFAULT_VOICE` | Optional default Kokoro voice id (for example `af_heart`) |
 | `KOKORO_DTYPE` | Optional Kokoro precision (`q8` recommended for low memory) |
+| `KOKORO_HF_TOKEN` | Optional Hugging Face token for Kokoro model downloads on restricted hosts (can also be set in Voice Lab Advanced Kokoro Access) |
 | `ELEVENLABS_API_KEY` | Optional env fallback for ElevenLabs (can also be set from browser settings) |
 | `ELEVENLABS_VOICE_ID` | Optional ElevenLabs default voice id |
 | `ELEVENLABS_MODEL` | Optional ElevenLabs model id (default `eleven_multilingual_v2`) |
@@ -331,6 +332,8 @@ If you do not want to store provider secrets in `.env`, open the frontend and us
 
 - `Runtime LLM Settings` for chat/memory provider keys
 - `Runtime TTS BYOK Settings` for ElevenLabs/Cartesia keys
+
+For Kokoro specifically, Voice Lab includes an `Advanced Kokoro Access` section where admins can store an optional Hugging Face token for environments that block anonymous model downloads.
 
 YouTube transcript ingestion is best-effort — if captions cannot be retrieved, the video's metadata is kept as a lower-ranked source rather than failing the request.
 

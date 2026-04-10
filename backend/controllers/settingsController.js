@@ -11,6 +11,9 @@ import {
   clearTtsCredential,
   getVoiceDefaults,
   setVoiceDefaults,
+  getKokoroHfToken,
+  setKokoroHfToken,
+  clearKokoroHfToken,
 } from "../models/settingsModel.js";
 import {
   detectProviderByApiKey,
@@ -205,6 +208,16 @@ function toPublicTtsCredential(cred) {
   };
 }
 
+function toPublicKokoroSettings() {
+  const saved = getKokoroHfToken();
+  return {
+    provider: "kokoro",
+    connected: Boolean(saved?.token),
+    keyHint: saved?.token ? maskApiKey(saved.token) : "",
+    updatedAt: saved?.updatedAt || "",
+  };
+}
+
 export function getTtsSettingsHandler(_req, res) {
   const saved = getAllTtsCredentials();
   const result = Object.entries(TTS_PROVIDER_META).map(([id, meta]) => {
@@ -255,6 +268,33 @@ export function clearTtsCredentialHandler(req, res, next) {
     const provider = String(req.params.provider || "").trim().toLowerCase();
     clearTtsCredential(provider);
     return res.json({ provider, connected: false });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function getKokoroSettingsHandler(_req, res) {
+  return res.json(toPublicKokoroSettings());
+}
+
+export function saveKokoroHfTokenHandler(req, res, next) {
+  try {
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      return res.status(400).json({ error: "token is required." });
+    }
+
+    setKokoroHfToken({ token });
+    return res.json(toPublicKokoroSettings());
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function clearKokoroHfTokenHandler(_req, res, next) {
+  try {
+    clearKokoroHfToken();
+    return res.json(toPublicKokoroSettings());
   } catch (error) {
     return next(error);
   }

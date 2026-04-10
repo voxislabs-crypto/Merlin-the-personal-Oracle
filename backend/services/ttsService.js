@@ -13,7 +13,7 @@ import {
   applyProsodyToKokoroText,
 } from "./prosodyCompiler.js";
 import { interpretEmotionSpectrum } from "./emotionSpectrum.js";
-import { getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
+import { getKokoroHfToken, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
 
 const require = createRequire(import.meta.url);
 
@@ -768,9 +768,17 @@ async function generatePiperSpeechAudio({ text, voiceProfile }) {
 // === KOKORO TTS ===
 
 function getKokoroConfig() {
+  let dbToken = null;
+  try {
+    dbToken = getKokoroHfToken();
+  } catch {
+    // DB may not be ready during early startup.
+  }
+
   return {
     voice: process.env.KOKORO_DEFAULT_VOICE || "af_heart",
     dtype: process.env.KOKORO_DTYPE || "q8",
+    hfToken: String(dbToken?.token || process.env.KOKORO_HF_TOKEN || process.env.HF_TOKEN || "").trim(),
   };
 }
 
@@ -813,9 +821,14 @@ async function loadKokoroModule() {
 async function loadKokoroTts() {
   if (_kokoroTts) return _kokoroTts;
   if (_kokoroInitPromise) return _kokoroInitPromise;
+  const config = getKokoroConfig();
+  if (config.hfToken) {
+    process.env.HF_TOKEN = config.hfToken;
+  }
+
   _kokoroInitPromise = loadKokoroModule()
     .then(({ KokoroTTS }) => KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0", {
-      dtype: getKokoroConfig().dtype,
+      dtype: config.dtype,
     }))
     .then((tts) => {
       _kokoroTts = tts;
@@ -1188,12 +1201,16 @@ export function listKokoroVoices() {
 }
 
 export function listProviderStatus() {
+  const kokoroConfig = getKokoroConfig();
+
   return {
     kokoro: {
       available: isKokoroAvailable(),
       installed: isKokoroPackageInstalled(),
       loaded: Boolean(_kokoroTts),
       requiresSetup: Boolean(_kokoroLoadError),
+      hfTokenConfigured: Boolean(kokoroConfig.hfToken),
+      requiresEnv: "Optional: KOKORO_HF_TOKEN or Settings -> Kokoro",
       loadError: _kokoroLoadError ? String(_kokoroLoadError.message || _kokoroLoadError) : "",
       capabilities: getEngineCapabilities("kokoro"),
     },

@@ -927,6 +927,10 @@ export default function VoiceLab({
   const [ttsApiKey, setTtsApiKey] = useState("");
   const [isSavingTtsKey, setIsSavingTtsKey] = useState(false);
   const [isDisconnectingTtsKey, setIsDisconnectingTtsKey] = useState(false);
+  const [kokoroSettings, setKokoroSettings] = useState({ connected: false, keyHint: "", updatedAt: "" });
+  const [kokoroHfToken, setKokoroHfToken] = useState("");
+  const [isSavingKokoroToken, setIsSavingKokoroToken] = useState(false);
+  const [isClearingKokoroToken, setIsClearingKokoroToken] = useState(false);
   const [isSavingDefaultVoiceSource, setIsSavingDefaultVoiceSource] = useState(false);
   const [cloudModels, setCloudModels] = useState(CLOUD_MODEL_PRESETS);
   const [isLoadingCloudModels, setIsLoadingCloudModels] = useState(false);
@@ -1109,6 +1113,38 @@ export default function VoiceLab({
     }
 
     void loadTtsSettings();
+    return () => {
+      ignore = true;
+    };
+  }, [authFetch, personality?.id]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadKokoroSettings() {
+      try {
+        const response = await authFetch("/settings/kokoro");
+        const payload = await readApiResponsePayload(response);
+        if (!response.ok) {
+          throw new Error(getApiErrorMessage(response, payload, "Failed to load Kokoro access settings."));
+        }
+        if (ignore) {
+          return;
+        }
+
+        setKokoroSettings({
+          connected: Boolean(payload?.connected),
+          keyHint: String(payload?.keyHint || "").trim(),
+          updatedAt: String(payload?.updatedAt || "").trim(),
+        });
+      } catch {
+        if (!ignore) {
+          setKokoroSettings({ connected: false, keyHint: "", updatedAt: "" });
+        }
+      }
+    }
+
+    void loadKokoroSettings();
     return () => {
       ignore = true;
     };
@@ -1643,6 +1679,63 @@ export default function VoiceLab({
     }
   }
 
+  async function saveKokoroAccessToken() {
+    if (!kokoroHfToken.trim()) {
+      onStatus?.({ type: "error", message: "Hugging Face token is required before saving." });
+      return;
+    }
+
+    setIsSavingKokoroToken(true);
+    try {
+      const response = await authFetch("/settings/kokoro", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: kokoroHfToken.trim() }),
+      });
+      const payload = await readApiResponsePayload(response);
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, payload, "Failed to save Kokoro access token."));
+      }
+
+      setKokoroHfToken("");
+      setKokoroSettings({
+        connected: Boolean(payload?.connected),
+        keyHint: String(payload?.keyHint || "").trim(),
+        updatedAt: String(payload?.updatedAt || "").trim(),
+      });
+      onStatus?.({ type: "success", message: "Saved Kokoro Hugging Face token." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save Kokoro access token." });
+    } finally {
+      setIsSavingKokoroToken(false);
+    }
+  }
+
+  async function clearKokoroAccessToken() {
+    setIsClearingKokoroToken(true);
+    try {
+      const response = await authFetch("/settings/kokoro", {
+        method: "DELETE",
+      });
+      const payload = await readApiResponsePayload(response);
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, payload, "Failed to clear Kokoro access token."));
+      }
+
+      setKokoroHfToken("");
+      setKokoroSettings({
+        connected: Boolean(payload?.connected),
+        keyHint: String(payload?.keyHint || "").trim(),
+        updatedAt: String(payload?.updatedAt || "").trim(),
+      });
+      onStatus?.({ type: "success", message: "Cleared Kokoro Hugging Face token." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to clear Kokoro access token." });
+    } finally {
+      setIsClearingKokoroToken(false);
+    }
+  }
+
   async function updateDefaultVoiceSource(nextSource) {
     if (!["tts", "llm"].includes(nextSource) || nextSource === defaultVoiceSource) {
       return;
@@ -1832,11 +1925,70 @@ export default function VoiceLab({
                 <div className="vlab-callout ok">
                   <div className="vlab-callout-head">
                     <div>
-                      <p className="vlab-callout-title">✓ Free local engine — no API key required</p>
+                      <p className="vlab-callout-title">✓ Free local engine — no provider billing key required</p>
                       <p className="vlab-callout-copy">
-                        Kokoro runs the 82 M ONNX model on your server. No external calls, no API key, works regardless of which LLM provider you use.
-                        The model (~171 MB) downloads from HuggingFace on the <strong>first request</strong> and is cached for all future requests.
+                        Kokoro runs the 82 M ONNX model on your server. It does not require a paid TTS provider key and works regardless of your LLM provider.
+                        On restricted hosts, the model download from HuggingFace may require a token for first-time cache warmup.
                       </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {voiceProfile.engine === "kokoro" ? (
+                <div className="vlab-callout">
+                  <div className="vlab-callout-head">
+                    <div>
+                      <p className="vlab-callout-title">Advanced Kokoro Access (optional)</p>
+                      <p className="vlab-callout-copy">
+                        Save a Hugging Face token for environments where anonymous model download is blocked. This is optional for normal setups.
+                      </p>
+                    </div>
+                    {kokoroSettings.connected ? (
+                      <span className="vlab-key-hint">Saved token: {kokoroSettings.keyHint}</span>
+                    ) : null}
+                  </div>
+
+                  <div className="vlab-grid">
+                    <div className="vlab-field">
+                      <label htmlFor="vlab-kokoro-token">Hugging Face Token</label>
+                      <input
+                        id="vlab-kokoro-token"
+                        className="vlab-input"
+                        type="password"
+                        autoComplete="off"
+                        value={kokoroHfToken}
+                        onChange={(e) => setKokoroHfToken(e.target.value)}
+                        placeholder={kokoroSettings.connected ? "Paste a new token to replace the saved one" : "hf_..."}
+                      />
+                      <small className="vlab-small">
+                        Stored server-side for Kokoro model download auth. The raw token is never returned to the client.
+                      </small>
+                    </div>
+
+                    <div className="vlab-field">
+                      <label>Kokoro Token Actions</label>
+                      <div className="vlab-inline-actions">
+                        <button
+                          type="button"
+                          className="vlab-btn"
+                          onClick={saveKokoroAccessToken}
+                          disabled={isSavingKokoroToken || isClearingKokoroToken}
+                        >
+                          {isSavingKokoroToken ? "Saving..." : kokoroSettings.connected ? "Update Token" : "Save Token"}
+                        </button>
+                        <button
+                          type="button"
+                          className="vlab-btn sec"
+                          onClick={clearKokoroAccessToken}
+                          disabled={!kokoroSettings.connected || isSavingKokoroToken || isClearingKokoroToken}
+                        >
+                          {isClearingKokoroToken ? "Clearing..." : "Clear"}
+                        </button>
+                      </div>
+                      <small className="vlab-small">
+                        Use this only when your server cannot download the Kokoro model anonymously.
+                      </small>
                     </div>
                   </div>
                 </div>
