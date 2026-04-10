@@ -2063,7 +2063,7 @@ export default function App() {
                 className={`tab ${activeView === "settings" ? "active" : ""}`}
                 onClick={() => setActiveView("settings")}
               >
-                LLM Settings
+                Settings
               </button>
               <button
                 type="button"
@@ -2140,6 +2140,7 @@ export default function App() {
                     onSaveVoiceProfile={handleVoiceProfileChange}
                     onStatus={setStatus}
                     onJumpToBuilder={() => setActiveView("builder")}
+                    onOpenSettings={() => setActiveView("settings")}
                     onPersonalityUpdated={handlePersonalityUpdated}
                   />
                 </>
@@ -2160,10 +2161,9 @@ export default function App() {
                 </>
               ) : activeView === "settings" ? (
                 <>
-                  <h2 className="section-heading">Configure Runtime LLM</h2>
+                  <h2 className="section-heading">Runtime Settings</h2>
                   <p className="section-copy">
-                    Select your provider first, add key and optional custom base URL,
-                    then fetch and choose the active model for all chat, memory, and eval calls.
+                    Manage platform options, runtime providers, global voice routing, and voice-provider credentials in one place.
                   </p>
                   <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
                     <h3 style={{ marginTop: 0 }}>Visual Effects</h3>

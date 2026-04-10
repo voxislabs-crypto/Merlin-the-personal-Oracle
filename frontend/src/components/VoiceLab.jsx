@@ -875,6 +875,7 @@ export default function VoiceLab({
   onSaveVoiceProfile,
   onStatus,
   onJumpToBuilder,
+  onOpenSettings,
   onPersonalityUpdated,
 }) {
   const authFetch = useAuthFetch();
@@ -936,16 +937,6 @@ export default function VoiceLab({
   const [isLoadingProviderOptions, setIsLoadingProviderOptions] = useState(false);
   const [providerOptionsReloadToken, setProviderOptionsReloadToken] = useState(0);
   const [providerLastUpdatedAt, setProviderLastUpdatedAt] = useState({ elevenlabs: 0, cartesia: 0 });
-  const [ttsSettings, setTtsSettings] = useState([]);
-  const [defaultVoiceSource, setDefaultVoiceSource] = useState("tts");
-  const [ttsApiKey, setTtsApiKey] = useState("");
-  const [isSavingTtsKey, setIsSavingTtsKey] = useState(false);
-  const [isDisconnectingTtsKey, setIsDisconnectingTtsKey] = useState(false);
-  const [kokoroSettings, setKokoroSettings] = useState({ connected: false, keyHint: "", updatedAt: "" });
-  const [kokoroHfToken, setKokoroHfToken] = useState("");
-  const [isSavingKokoroToken, setIsSavingKokoroToken] = useState(false);
-  const [isClearingKokoroToken, setIsClearingKokoroToken] = useState(false);
-  const [isSavingDefaultVoiceSource, setIsSavingDefaultVoiceSource] = useState(false);
   const [cloudModels, setCloudModels] = useState(CLOUD_MODEL_PRESETS);
   const [isLoadingCloudModels, setIsLoadingCloudModels] = useState(false);
   const [cloudModelError, setCloudModelError] = useState("");
@@ -1019,9 +1010,6 @@ export default function VoiceLab({
   const activeProviderUpdatedAt = selectedProviderId ? Number(providerLastUpdatedAt[selectedProviderId] || 0) : 0;
   const showProviderUpdated = !isLoadingProviderOptions && activeProviderUpdatedAt > 0;
   const showCloudUpdated = !isLoadingCloudModels && cloudLastUpdatedAt > 0;
-  const activeTtsSetting = selectedProviderId
-    ? ttsSettings.find((entry) => entry.provider === selectedProviderId) || null
-    : null;
 
   const supportsCloudModelCatalog = !selectedProviderId;
   const selectedCloudModelOption = cloudModels.some((model) => model.id === voiceProfile.providerModel)
@@ -1121,67 +1109,6 @@ export default function VoiceLab({
     void loadPiperVoices();
     return () => { ignore = true; };
   }, [authFetch, personality?.id, voiceProfile.engine]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadTtsSettings() {
-      try {
-        const response = await authFetch("/settings/tts");
-        const payload = await readApiResponsePayload(response);
-        if (!response.ok) {
-          throw new Error(getApiErrorMessage(response, payload, "Failed to load TTS settings."));
-        }
-        if (ignore) {
-          return;
-        }
-        setTtsSettings(Array.isArray(payload?.providers) ? payload.providers : []);
-        setDefaultVoiceSource(payload?.voiceDefaults?.source === "llm" ? "llm" : "tts");
-      } catch (error) {
-        if (!ignore) {
-          setTtsSettings([]);
-          setDefaultVoiceSource("tts");
-        }
-      }
-    }
-
-    void loadTtsSettings();
-    return () => {
-      ignore = true;
-    };
-  }, [authFetch, personality?.id]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadKokoroSettings() {
-      try {
-        const response = await authFetch("/settings/kokoro");
-        const payload = await readApiResponsePayload(response);
-        if (!response.ok) {
-          throw new Error(getApiErrorMessage(response, payload, "Failed to load Kokoro access settings."));
-        }
-        if (ignore) {
-          return;
-        }
-
-        setKokoroSettings({
-          connected: Boolean(payload?.connected),
-          keyHint: String(payload?.keyHint || "").trim(),
-          updatedAt: String(payload?.updatedAt || "").trim(),
-        });
-      } catch {
-        if (!ignore) {
-          setKokoroSettings({ connected: false, keyHint: "", updatedAt: "" });
-        }
-      }
-    }
-
-    void loadKokoroSettings();
-    return () => {
-      ignore = true;
-    };
-  }, [authFetch, personality?.id]);
 
   useEffect(() => {
     if (!personality || voiceProfile.engine !== "kokoro") return;
@@ -1642,175 +1569,6 @@ export default function VoiceLab({
     }
   }
 
-  async function saveInlineTtsCredential() {
-    if (!selectedProviderId) {
-      return;
-    }
-
-    if (!ttsApiKey.trim()) {
-      onStatus?.({ type: "error", message: "API key is required before saving provider credentials." });
-      return;
-    }
-
-    setIsSavingTtsKey(true);
-    try {
-      const response = await authFetch(`/settings/tts/${selectedProviderId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey: ttsApiKey.trim(),
-          voiceId: activeVoiceValue,
-          model: activeModelValue,
-        }),
-      });
-      const payload = await readApiResponsePayload(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(response, payload, "Failed to save TTS credentials."));
-      }
-
-      setTtsApiKey("");
-
-      const settingsResponse = await authFetch("/settings/tts");
-      const settingsPayload = await readApiResponsePayload(settingsResponse);
-      if (!settingsResponse.ok) {
-        throw new Error(getApiErrorMessage(settingsResponse, settingsPayload, "Saved key, but failed to refresh TTS settings."));
-      }
-
-      setTtsSettings(Array.isArray(settingsPayload?.providers) ? settingsPayload.providers : []);
-      setProviderOptionsReloadToken((n) => n + 1);
-      onStatus?.({
-        type: "success",
-        message: `Saved ${payload?.name || selectedProviderId} API key in Voice Lab.`,
-      });
-    } catch (error) {
-      onStatus?.({ type: "error", message: error.message || "Failed to save TTS credentials." });
-    } finally {
-      setIsSavingTtsKey(false);
-    }
-  }
-
-  async function disconnectInlineTtsCredential() {
-    if (!selectedProviderId) {
-      return;
-    }
-
-    setIsDisconnectingTtsKey(true);
-    try {
-      const response = await authFetch(`/settings/tts/${selectedProviderId}`, {
-        method: "DELETE",
-      });
-      const payload = await readApiResponsePayload(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(response, payload, "Failed to disconnect TTS provider."));
-      }
-
-      const settingsResponse = await authFetch("/settings/tts");
-      const settingsPayload = await readApiResponsePayload(settingsResponse);
-      if (!settingsResponse.ok) {
-        throw new Error(getApiErrorMessage(settingsResponse, settingsPayload, "Disconnected key, but failed to refresh TTS settings."));
-      }
-
-      setTtsSettings(Array.isArray(settingsPayload?.providers) ? settingsPayload.providers : []);
-      setTtsApiKey("");
-      setProviderOptionsReloadToken((n) => n + 1);
-      onStatus?.({ type: "success", message: `Disconnected ${selectedProviderId} in Voice Lab.` });
-    } catch (error) {
-      onStatus?.({ type: "error", message: error.message || "Failed to disconnect TTS provider." });
-    } finally {
-      setIsDisconnectingTtsKey(false);
-    }
-  }
-
-  async function saveKokoroAccessToken() {
-    if (!kokoroHfToken.trim()) {
-      onStatus?.({ type: "error", message: "Hugging Face token is required before saving." });
-      return;
-    }
-
-    setIsSavingKokoroToken(true);
-    try {
-      const response = await authFetch("/settings/kokoro", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: kokoroHfToken.trim() }),
-      });
-      const payload = await readApiResponsePayload(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(response, payload, "Failed to save Kokoro access token."));
-      }
-
-      setKokoroHfToken("");
-      setKokoroSettings({
-        connected: Boolean(payload?.connected),
-        keyHint: String(payload?.keyHint || "").trim(),
-        updatedAt: String(payload?.updatedAt || "").trim(),
-      });
-      onStatus?.({ type: "success", message: "Saved Kokoro Hugging Face token." });
-    } catch (error) {
-      onStatus?.({ type: "error", message: error.message || "Failed to save Kokoro access token." });
-    } finally {
-      setIsSavingKokoroToken(false);
-    }
-  }
-
-  async function clearKokoroAccessToken() {
-    setIsClearingKokoroToken(true);
-    try {
-      const response = await authFetch("/settings/kokoro", {
-        method: "DELETE",
-      });
-      const payload = await readApiResponsePayload(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(response, payload, "Failed to clear Kokoro access token."));
-      }
-
-      setKokoroHfToken("");
-      setKokoroSettings({
-        connected: Boolean(payload?.connected),
-        keyHint: String(payload?.keyHint || "").trim(),
-        updatedAt: String(payload?.updatedAt || "").trim(),
-      });
-      onStatus?.({ type: "success", message: "Cleared Kokoro Hugging Face token." });
-    } catch (error) {
-      onStatus?.({ type: "error", message: error.message || "Failed to clear Kokoro access token." });
-    } finally {
-      setIsClearingKokoroToken(false);
-    }
-  }
-
-  async function updateDefaultVoiceSource(nextSource) {
-    if (!["tts", "llm"].includes(nextSource) || nextSource === defaultVoiceSource) {
-      return;
-    }
-
-    setIsSavingDefaultVoiceSource(true);
-    try {
-      const response = await authFetch("/settings/voice-defaults", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: nextSource }),
-      });
-      const payload = await readApiResponsePayload(response);
-      if (!response.ok) {
-        throw new Error(getApiErrorMessage(response, payload, "Failed to update default voice source."));
-      }
-
-      const normalizedSource = payload?.source === "llm" ? "llm" : "tts";
-      setDefaultVoiceSource(normalizedSource);
-      onStatus?.({
-        type: "success",
-        message:
-          normalizedSource === "tts"
-            ? "Dedicated TTS is now the default voice source. Cloud/LLM default was turned off."
-            : "Cloud/LLM is now the default voice source. Dedicated TTS default was turned off.",
-      });
-    } catch (error) {
-      onStatus?.({ type: "error", message: error.message || "Failed to update default voice source." });
-    } finally {
-      setIsSavingDefaultVoiceSource(false);
-    }
-  }
-
   async function extractProsodyTemplate() {
     if (!personality?.id || !prosodyUrl.trim()) {
       return;
@@ -1955,7 +1713,7 @@ export default function VoiceLab({
                       <p className="vlab-callout-copy">
                         <strong>{voiceProfile.engine === "elevenlabs" ? "ElevenLabs" : "Cartesia"}</strong> uses its own API key and speaks directly to the provider&apos;s audio endpoint.
                         Your LLM provider ({llmProvider || "current LLM"}) is never contacted for voice — the two services operate in separate lanes.
-                        Paste your {voiceProfile.engine === "elevenlabs" ? "ElevenLabs" : "Cartesia"} key in the <em>Runtime BYOK</em> section below.
+                        Manage your {voiceProfile.engine === "elevenlabs" ? "ElevenLabs" : "Cartesia"} key in <em>Settings</em>, not inside Voice Lab.
                       </p>
                     </div>
                   </div>
@@ -1977,165 +1735,21 @@ export default function VoiceLab({
                 </div>
               ) : null}
 
-              {voiceProfile.engine === "kokoro" ? (
-                <div className="vlab-callout">
-                  <div className="vlab-callout-head">
-                    <div>
-                      <p className="vlab-callout-title">Advanced Kokoro Access (optional)</p>
-                      <p className="vlab-callout-copy">
-                        Save a Hugging Face token for environments where anonymous model download is blocked. This is optional for normal setups.
-                      </p>
-                    </div>
-                    {kokoroSettings.connected ? (
-                      <span className="vlab-key-hint">Saved token: {kokoroSettings.keyHint}</span>
-                    ) : null}
-                  </div>
-
-                  <div className="vlab-grid">
-                    <div className="vlab-field">
-                      <label htmlFor="vlab-kokoro-token">Hugging Face Token</label>
-                      <input
-                        id="vlab-kokoro-token"
-                        className="vlab-input"
-                        type="password"
-                        autoComplete="off"
-                        value={kokoroHfToken}
-                        onChange={(e) => setKokoroHfToken(e.target.value)}
-                        placeholder={kokoroSettings.connected ? "Paste a new token to replace the saved one" : "hf_..."}
-                      />
-                      <small className="vlab-small">
-                        Stored server-side for Kokoro model download auth. The raw token is never returned to the client.
-                      </small>
-                    </div>
-
-                    <div className="vlab-field">
-                      <label>Kokoro Token Actions</label>
-                      <div className="vlab-inline-actions">
-                        <button
-                          type="button"
-                          className="vlab-btn"
-                          onClick={saveKokoroAccessToken}
-                          disabled={isSavingKokoroToken || isClearingKokoroToken}
-                        >
-                          {isSavingKokoroToken ? "Saving..." : kokoroSettings.connected ? "Update Token" : "Save Token"}
-                        </button>
-                        <button
-                          type="button"
-                          className="vlab-btn sec"
-                          onClick={clearKokoroAccessToken}
-                          disabled={!kokoroSettings.connected || isSavingKokoroToken || isClearingKokoroToken}
-                        >
-                          {isClearingKokoroToken ? "Clearing..." : "Clear"}
-                        </button>
-                      </div>
-                      <small className="vlab-small">
-                        Use this only when your server cannot download the Kokoro model anonymously.
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
               <div className="vlab-callout">
                 <div className="vlab-callout-head">
                   <div>
-                    <p className="vlab-callout-title">Default Voice Source</p>
+                    <p className="vlab-callout-title">Runtime Voice Options Moved</p>
                     <p className="vlab-callout-copy">
-                      This controls what the <strong>auto</strong> engine prefers first: dedicated TTS providers or the cloud/LLM voice path.
+                      Global routing, provider API keys, and optional Kokoro access now live under <strong>Settings</strong> so Voice Lab stays focused on per-character tuning.
                     </p>
                   </div>
-                </div>
-
-                <div className="vlab-toggle-row" style={{ marginTop: 4 }}>
-                  <label className="vlab-toggle">
-                    <input
-                      type="checkbox"
-                      checked={defaultVoiceSource === "tts"}
-                      onChange={(event) => {
-                        if (event.target.checked) {
-                          void updateDefaultVoiceSource("tts");
-                        }
-                      }}
-                      disabled={isSavingDefaultVoiceSource}
-                    />
-                    <span className="vlab-toggle-track" />
-                    <span className="vlab-toggle-label">Use TTS as default voice source</span>
-                  </label>
-                  <span className="vlab-reload-meta" style={{ color: "var(--muted)", textTransform: "none", letterSpacing: "normal" }}>
-                    {defaultVoiceSource === "tts" ? "Auto prefers dedicated TTS providers first." : "Auto currently prefers cloud/LLM voice first."}
-                  </span>
+                  {onOpenSettings ? (
+                    <button type="button" className="vlab-btn sec" onClick={onOpenSettings}>
+                      Open Settings
+                    </button>
+                  ) : null}
                 </div>
               </div>
-
-              {selectedProviderId ? (
-                <div className="vlab-callout">
-                  <div className="vlab-callout-head">
-                    <div>
-                      <p className="vlab-callout-title">Runtime BYOK</p>
-                      <p className="vlab-callout-copy">
-                        Save or replace your {activeTtsSetting?.name || selectedProviderId} API key directly in Voice Lab.
-                        {" "}
-                        {activeTtsSetting?.docsUrl ? (
-                          <a
-                            className="vlab-doc-link"
-                            href={activeTtsSetting.docsUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Provider docs
-                          </a>
-                        ) : null}
-                      </p>
-                    </div>
-                    {activeTtsSetting?.connected ? (
-                      <span className="vlab-key-hint">Saved key: {activeTtsSetting.keyHint}</span>
-                    ) : null}
-                  </div>
-
-                  <div className="vlab-grid">
-                    <div className="vlab-field">
-                      <label htmlFor="vlab-provider-api-key">API Key</label>
-                      <input
-                        id="vlab-provider-api-key"
-                        className="vlab-input"
-                        type="password"
-                        autoComplete="off"
-                        value={ttsApiKey}
-                        onChange={(e) => setTtsApiKey(e.target.value)}
-                        placeholder={activeTtsSetting?.connected ? "Paste a new key to replace the saved one" : "Paste provider API key"}
-                      />
-                      <small className="vlab-small">
-                        {activeTtsSetting?.pricingNote || "Saved in runtime settings, matching the LLM Settings BYOK flow."}
-                      </small>
-                    </div>
-
-                    <div className="vlab-field">
-                      <label>Credential Actions</label>
-                      <div className="vlab-inline-actions">
-                        <button
-                          type="button"
-                          className="vlab-btn"
-                          onClick={saveInlineTtsCredential}
-                          disabled={isSavingTtsKey || isDisconnectingTtsKey}
-                        >
-                          {isSavingTtsKey ? "Saving..." : activeTtsSetting?.connected ? "Update Key" : "Save Key"}
-                        </button>
-                        <button
-                          type="button"
-                          className="vlab-btn sec"
-                          onClick={disconnectInlineTtsCredential}
-                          disabled={!activeTtsSetting?.connected || isSavingTtsKey || isDisconnectingTtsKey}
-                        >
-                          {isDisconnectingTtsKey ? "Disconnecting..." : "Disconnect"}
-                        </button>
-                      </div>
-                      <small className="vlab-small">
-                        Saving here updates the same runtime TTS credentials used by the provider voice/model reload buttons.
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
 
               <div className="vlab-field">
                 <div className="vlab-label-row">

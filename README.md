@@ -180,6 +180,7 @@ What this demonstrates in minutes:
 - Voice Lab now labels model selection contextually and uses dropdown model selection for local engines too (`kokoro`/`piper`) so the saved cloud fallback model is explicit.
 - Voice Lab now does the same for voice selection: `cloud` uses a cloud voice dropdown, while `kokoro`/`piper` show that saved cloud voice as a fallback voice setting.
 - The LLM settings Runtime TTS BYOK panel now also uses provider-aware voice/model dropdowns with custom ID fallback instead of raw text-only fields.
+- Global voice routing, provider BYOK credentials, and optional Kokoro access now live only in Settings; Voice Lab is trimmed back to per-character tuning and preview so the two surfaces no longer overlap.
 - Precision-aware TTS guardrails now preserve technical/factual wording, hedging, and literal phrasing on deployment/config/debug style turns while leaving expressive stylization active for performance and roleplay contexts.
 - Server-side voice output supports OpenAI-compatible cloud TTS plus Piper, Kokoro, ElevenLabs (BYOK), and Cartesia (BYOK) with per-character voice settings.
 - Existing SFX markers (for example `[BURP]`) are extracted before synthesis and emitted as metadata, so voice engine changes do not break the current sound-effects chain.

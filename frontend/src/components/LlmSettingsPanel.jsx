@@ -215,6 +215,10 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isDisconnectingTts, setIsDisconnectingTts] = useState(false);
   const [defaultVoiceSource, setDefaultVoiceSource] = useState("tts");
   const [isSavingDefaultVoiceSource, setIsSavingDefaultVoiceSource] = useState(false);
+  const [kokoroSettings, setKokoroSettings] = useState({ connected: false, keyHint: "", updatedAt: "" });
+  const [kokoroHfToken, setKokoroHfToken] = useState("");
+  const [isSavingKokoroToken, setIsSavingKokoroToken] = useState(false);
+  const [isClearingKokoroToken, setIsClearingKokoroToken] = useState(false);
 
   const selectedProvider = useMemo(
     () => providers.find((candidate) => candidate.id === provider) || null,
@@ -356,15 +360,17 @@ export default function LlmSettingsPanel({ onStatus }) {
     setIsLoading(true);
 
     try {
-      const [providersResponse, settingsResponse, ttsResponse] = await Promise.all([
+      const [providersResponse, settingsResponse, ttsResponse, kokoroResponse] = await Promise.all([
         authFetch("/settings/llm/providers"),
         authFetch("/settings/llm"),
         authFetch("/settings/tts"),
+        authFetch("/settings/kokoro"),
       ]);
 
       const providersData = await providersResponse.json();
       const settingsData = await settingsResponse.json();
       const ttsData = await ttsResponse.json();
+      const kokoroData = await kokoroResponse.json();
 
       if (!providersResponse.ok) {
         throw new Error(providersData.error || "Failed to load providers.");
@@ -374,6 +380,9 @@ export default function LlmSettingsPanel({ onStatus }) {
       }
       if (!ttsResponse.ok) {
         throw new Error(ttsData.error || "Failed to load TTS settings.");
+      }
+      if (!kokoroResponse.ok) {
+        throw new Error(kokoroData.error || "Failed to load Kokoro settings.");
       }
 
       const providerList = Array.isArray(providersData.providers) && providersData.providers.length
@@ -406,6 +415,12 @@ export default function LlmSettingsPanel({ onStatus }) {
         setTtsVoiceId(connectedProvider.voiceId || connectedProvider.defaultVoiceId || "");
         setTtsModel(connectedProvider.model || connectedProvider.defaultModel || "");
       }
+
+      setKokoroSettings({
+        connected: Boolean(kokoroData?.connected),
+        keyHint: String(kokoroData?.keyHint || "").trim(),
+        updatedAt: String(kokoroData?.updatedAt || "").trim(),
+      });
     } catch (error) {
       onStatus?.({ type: "error", message: error.message || "Failed to load LLM settings." });
       setProviders(fallbackProviders());
@@ -504,6 +519,63 @@ export default function LlmSettingsPanel({ onStatus }) {
       onStatus?.({ type: "error", message: error.message || "Failed to update default voice source." });
     } finally {
       setIsSavingDefaultVoiceSource(false);
+    }
+  }
+
+  async function saveKokoroAccessToken() {
+    if (!kokoroHfToken.trim()) {
+      onStatus?.({ type: "error", message: "Hugging Face token is required before saving." });
+      return;
+    }
+
+    setIsSavingKokoroToken(true);
+    try {
+      const response = await authFetch("/settings/kokoro", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: kokoroHfToken.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save Kokoro access token.");
+      }
+
+      setKokoroHfToken("");
+      setKokoroSettings({
+        connected: Boolean(data?.connected),
+        keyHint: String(data?.keyHint || "").trim(),
+        updatedAt: String(data?.updatedAt || "").trim(),
+      });
+      onStatus?.({ type: "success", message: "Saved Kokoro Hugging Face token." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save Kokoro access token." });
+    } finally {
+      setIsSavingKokoroToken(false);
+    }
+  }
+
+  async function clearKokoroAccessToken() {
+    setIsClearingKokoroToken(true);
+    try {
+      const response = await authFetch("/settings/kokoro", {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to clear Kokoro access token.");
+      }
+
+      setKokoroHfToken("");
+      setKokoroSettings({
+        connected: Boolean(data?.connected),
+        keyHint: String(data?.keyHint || "").trim(),
+        updatedAt: String(data?.updatedAt || "").trim(),
+      });
+      onStatus?.({ type: "success", message: "Cleared Kokoro Hugging Face token." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to clear Kokoro access token." });
+    } finally {
+      setIsClearingKokoroToken(false);
     }
   }
 
@@ -654,10 +726,9 @@ export default function LlmSettingsPanel({ onStatus }) {
   return (
     <div className="llm-settings">
       <style>{settingsStyles}</style>
-      <h3>Runtime LLM Settings</h3>
+      <h3>Runtime Providers And Voice</h3>
       <p>
-        Choose a provider first, add credentials, then connect and select a model.
-        Auto-detect is optional and only helps prefill provider/model. Saved keys stay on the server for later sessions.
+        Connect your runtime LLM, set global voice routing, and manage reusable voice-provider credentials in one place.
       </p>
 
       <div className="llm-grid">
@@ -746,54 +817,31 @@ export default function LlmSettingsPanel({ onStatus }) {
         </div>
       ) : null}
 
-      <div className="llm-toggle-row">
-        <div className="llm-toggle-copy">
-          <strong>Default Voice Source</strong>
-          <span>
-            When auto voice selection is used, this decides whether Voxis prefers the cloud/LLM voice path or dedicated TTS providers first.
-          </span>
-        </div>
-        <label className="llm-toggle">
-          <input
-            type="checkbox"
-            checked={defaultVoiceSource === "llm"}
-            onChange={(event) => {
-              if (event.target.checked) {
-                void updateDefaultVoiceSource("llm");
-              }
-            }}
+      <h3>Runtime Voice Settings</h3>
+      <p>
+        Global voice routing, provider credentials, and optional Kokoro access live here. Voice Lab only handles per-character tuning and preview.
+      </p>
+
+      <div className="llm-grid">
+        <div className="llm-field">
+          <label htmlFor="voice-routing-default">Auto Voice Routing</label>
+          <select
+            id="voice-routing-default"
+            value={defaultVoiceSource}
+            onChange={(event) => void updateDefaultVoiceSource(event.target.value)}
             disabled={isSavingDefaultVoiceSource || isLoading}
-          />
-          <span>Use LLM as default voice</span>
-        </label>
+          >
+            <option value="tts">Prefer dedicated TTS first</option>
+            <option value="llm">Prefer cloud/LLM first</option>
+          </select>
+          <p>Applies only when a character uses the <strong>auto</strong> voice engine.</p>
+        </div>
       </div>
 
       <h3>Runtime TTS BYOK Settings</h3>
       <p>
-        Save ElevenLabs or Cartesia keys from the browser. These stay on the server and are used by Voice Lab.
+        Save ElevenLabs or Cartesia keys from the browser. These stay on the server and are reused by Voice Lab and chat playback.
       </p>
-
-      <div className="llm-toggle-row">
-        <div className="llm-toggle-copy">
-          <strong>Dedicated TTS Default</strong>
-          <span>
-            Turn this on in Voice Lab if you want auto voice routing to prefer ElevenLabs, Cartesia, Piper, or Kokoro before the cloud/LLM path.
-          </span>
-        </div>
-        <label className="llm-toggle">
-          <input
-            type="checkbox"
-            checked={defaultVoiceSource === "tts"}
-            onChange={(event) => {
-              if (event.target.checked) {
-                void updateDefaultVoiceSource("tts");
-              }
-            }}
-            disabled={isSavingDefaultVoiceSource || isLoading}
-          />
-          <span>Use TTS as default voice</span>
-        </label>
-      </div>
 
       <div className="llm-grid">
         <div className="llm-field">
@@ -923,6 +971,45 @@ export default function LlmSettingsPanel({ onStatus }) {
           {" | "}Pricing: {selectedTtsProvider.pricingNote}
         </div>
       ) : null}
+
+      <h3>Kokoro Access</h3>
+      <p>
+        Optional server-side Hugging Face access for restricted environments where Kokoro cannot download model files anonymously.
+      </p>
+
+      <div className="llm-grid">
+        <div className="llm-field">
+          <label htmlFor="kokoro-hf-token">Hugging Face Token</label>
+          <input
+            id="kokoro-hf-token"
+            type="password"
+            autoComplete="off"
+            value={kokoroHfToken}
+            onChange={(event) => setKokoroHfToken(event.target.value)}
+            placeholder={kokoroSettings.connected ? "Saved token on file. Enter a new one only to replace it." : "hf_..."}
+            disabled={isSavingKokoroToken || isClearingKokoroToken}
+          />
+          {kokoroSettings.connected ? <p>Saved token on file: {kokoroSettings.keyHint}</p> : null}
+        </div>
+
+        <div className="llm-field">
+          <label>Kokoro Token Actions</label>
+          <div className="llm-actions">
+            <button type="button" onClick={() => void saveKokoroAccessToken()} disabled={isSavingKokoroToken || isClearingKokoroToken}>
+              {isSavingKokoroToken ? "Saving..." : kokoroSettings.connected ? "Update Token" : "Save Token"}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void clearKokoroAccessToken()}
+              disabled={!kokoroSettings.connected || isSavingKokoroToken || isClearingKokoroToken}
+            >
+              {isClearingKokoroToken ? "Clearing..." : "Clear Token"}
+            </button>
+          </div>
+          <p>Only needed when the server cannot fetch Kokoro model files without authentication.</p>
+        </div>
+      </div>
     </div>
   );
 }
