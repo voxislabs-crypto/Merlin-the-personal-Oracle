@@ -1,6 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 
+const CUSTOM_OPTION = "__custom__";
+
+const ELEVENLABS_VOICE_PRESETS = [
+  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel (default)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Bella" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", label: "Josh" },
+  { id: "VR6AewLTigWG4xSOukaG", label: "Arnold" },
+  { id: "ErXwobaYiN019PkySvjV", label: "Antoni" },
+];
+
+const CARTESIA_VOICE_PRESETS = [
+  { id: "a0e99841-438c-4a64-b679-ae501e7d6091", label: "Sonic default" },
+  { id: "694f9389-aac1-45b6-b726-9d9369183238", label: "Warm Narrator" },
+  { id: "2ee87190-8f84-4925-97da-e52547f9462c", label: "Balanced Voice" },
+];
+
+const ELEVENLABS_MODEL_PRESETS = [
+  { id: "eleven_multilingual_v2", label: "eleven_multilingual_v2" },
+  { id: "eleven_turbo_v2_5", label: "eleven_turbo_v2_5" },
+  { id: "eleven_flash_v2_5", label: "eleven_flash_v2_5" },
+];
+
+const CARTESIA_MODEL_PRESETS = [
+  { id: "sonic-2", label: "sonic-2" },
+];
+
 const settingsStyles = `
   .llm-settings {
     border: 1px solid rgba(0, 180, 255, 0.12);
@@ -168,6 +194,23 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [ttsApiKey, setTtsApiKey] = useState("");
   const [ttsVoiceId, setTtsVoiceId] = useState("");
   const [ttsModel, setTtsModel] = useState("");
+  const [ttsProviderOptions, setTtsProviderOptions] = useState({
+    elevenlabs: {
+      voices: ELEVENLABS_VOICE_PRESETS,
+      builtinVoices: ELEVENLABS_VOICE_PRESETS,
+      customVoices: [],
+      models: ELEVENLABS_MODEL_PRESETS,
+      error: "",
+    },
+    cartesia: {
+      voices: CARTESIA_VOICE_PRESETS,
+      builtinVoices: CARTESIA_VOICE_PRESETS,
+      customVoices: [],
+      models: CARTESIA_MODEL_PRESETS,
+      error: "",
+    },
+  });
+  const [isLoadingTtsProviderOptions, setIsLoadingTtsProviderOptions] = useState(false);
   const [isSavingTts, setIsSavingTts] = useState(false);
   const [isDisconnectingTts, setIsDisconnectingTts] = useState(false);
   const [defaultVoiceSource, setDefaultVoiceSource] = useState("tts");
@@ -202,6 +245,27 @@ export default function LlmSettingsPanel({ onStatus }) {
     [ttsProvider, ttsProviders],
   );
 
+  const activeTtsProviderOptions = ttsProviderOptions[ttsProvider] || {
+    voices: [],
+    builtinVoices: [],
+    customVoices: [],
+    models: [],
+    error: "",
+  };
+
+  const activeTtsBuiltinVoices = Array.isArray(activeTtsProviderOptions.builtinVoices)
+    ? activeTtsProviderOptions.builtinVoices
+    : [];
+  const activeTtsCustomVoices = Array.isArray(activeTtsProviderOptions.customVoices)
+    ? activeTtsProviderOptions.customVoices
+    : [];
+  const selectedTtsVoiceOption = activeTtsProviderOptions.voices.some((voice) => voice.id === ttsVoiceId)
+    ? ttsVoiceId
+    : CUSTOM_OPTION;
+  const selectedTtsModelOption = activeTtsProviderOptions.models.some((entry) => entry.id === ttsModel)
+    ? ttsModel
+    : CUSTOM_OPTION;
+
   useEffect(() => {
     void initialize();
   }, []);
@@ -219,6 +283,74 @@ export default function LlmSettingsPanel({ onStatus }) {
     setTtsVoiceId(selectedTtsProvider.voiceId || selectedTtsProvider.defaultVoiceId || "");
     setTtsModel(selectedTtsProvider.model || selectedTtsProvider.defaultModel || "");
   }, [selectedTtsProvider?.provider, selectedTtsProvider?.voiceId, selectedTtsProvider?.model]);
+
+  useEffect(() => {
+    if (!["elevenlabs", "cartesia"].includes(ttsProvider)) {
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadTtsProviderOptions() {
+      setIsLoadingTtsProviderOptions(true);
+      try {
+        const response = await authFetch(`/tts/provider-options?provider=${encodeURIComponent(ttsProvider)}`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load provider options.");
+        }
+        if (ignore) {
+          return;
+        }
+
+        const fallbackVoices = ttsProvider === "elevenlabs"
+          ? ELEVENLABS_VOICE_PRESETS
+          : CARTESIA_VOICE_PRESETS;
+        const fallbackModels = ttsProvider === "elevenlabs"
+          ? ELEVENLABS_MODEL_PRESETS
+          : CARTESIA_MODEL_PRESETS;
+
+        const voices = Array.isArray(data.voices) && data.voices.length
+          ? data.voices
+          : fallbackVoices;
+        const models = Array.isArray(data.models) && data.models.length
+          ? data.models
+          : fallbackModels;
+
+        setTtsProviderOptions((current) => ({
+          ...current,
+          [ttsProvider]: {
+            voices,
+            builtinVoices: Array.isArray(data.builtinVoices) && data.builtinVoices.length
+              ? data.builtinVoices
+              : voices,
+            customVoices: Array.isArray(data.customVoices) ? data.customVoices : [],
+            models,
+            error: String(data.error || "").trim(),
+          },
+        }));
+      } catch (error) {
+        if (!ignore) {
+          setTtsProviderOptions((current) => ({
+            ...current,
+            [ttsProvider]: {
+              ...(current[ttsProvider] || { voices: [], builtinVoices: [], customVoices: [], models: [] }),
+              error: error.message || "Failed to load provider options.",
+            },
+          }));
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingTtsProviderOptions(false);
+        }
+      }
+    }
+
+    void loadTtsProviderOptions();
+    return () => {
+      ignore = true;
+    };
+  }, [authFetch, ttsProvider]);
 
   async function initialize() {
     setIsLoading(true);
@@ -698,26 +830,76 @@ export default function LlmSettingsPanel({ onStatus }) {
 
         <div className="llm-field">
           <label htmlFor="tts-voice-id">Voice ID</label>
-          <input
+          <select
             id="tts-voice-id"
-            type="text"
-            value={ttsVoiceId}
-            onChange={(event) => setTtsVoiceId(event.target.value)}
-            placeholder={selectedTtsProvider?.defaultVoiceId || "Provider default voice"}
-            disabled={isLoading || isSavingTts}
-          />
+            value={selectedTtsVoiceOption}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === CUSTOM_OPTION) {
+                setTtsVoiceId("");
+                return;
+              }
+              setTtsVoiceId(next);
+            }}
+            disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+          >
+            <option value="" disabled>
+              {isLoadingTtsProviderOptions ? "Loading provider voices..." : "Select a voice"}
+            </option>
+            {activeTtsBuiltinVoices.map((voice) => (
+              <option key={voice.id} value={voice.id}>{voice.label}</option>
+            ))}
+            {activeTtsCustomVoices.length ? <option value="__my_voices__" disabled>My Voices</option> : null}
+            {activeTtsCustomVoices.map((voice) => (
+              <option key={voice.id} value={voice.id}>{voice.label}</option>
+            ))}
+            <option value={CUSTOM_OPTION}>Custom voice id</option>
+          </select>
+          {selectedTtsVoiceOption === CUSTOM_OPTION ? (
+            <input
+              type="text"
+              value={ttsVoiceId}
+              onChange={(event) => setTtsVoiceId(event.target.value)}
+              placeholder={selectedTtsProvider?.defaultVoiceId || "Provider default voice"}
+              disabled={isLoading || isSavingTts}
+            />
+          ) : null}
+          <p>{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
         </div>
 
         <div className="llm-field">
           <label htmlFor="tts-model">Model</label>
-          <input
+          <select
             id="tts-model"
-            type="text"
-            value={ttsModel}
-            onChange={(event) => setTtsModel(event.target.value)}
-            placeholder={selectedTtsProvider?.defaultModel || "Provider default model"}
-            disabled={isLoading || isSavingTts}
-          />
+            value={selectedTtsModelOption}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === CUSTOM_OPTION) {
+                setTtsModel("");
+                return;
+              }
+              setTtsModel(next);
+            }}
+            disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+          >
+            <option value="" disabled>
+              {isLoadingTtsProviderOptions ? "Loading provider models..." : "Select a model"}
+            </option>
+            {activeTtsProviderOptions.models.map((entry) => (
+              <option key={entry.id} value={entry.id}>{entry.label}</option>
+            ))}
+            <option value={CUSTOM_OPTION}>Custom model id</option>
+          </select>
+          {selectedTtsModelOption === CUSTOM_OPTION ? (
+            <input
+              type="text"
+              value={ttsModel}
+              onChange={(event) => setTtsModel(event.target.value)}
+              placeholder={selectedTtsProvider?.defaultModel || "Provider default model"}
+              disabled={isLoading || isSavingTts}
+            />
+          ) : null}
+          <p>{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
         </div>
       </div>
 
