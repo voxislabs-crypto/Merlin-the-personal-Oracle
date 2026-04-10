@@ -2163,7 +2163,7 @@ export default function App() {
                 <>
                   <h2 className="section-heading">Runtime Settings</h2>
                   <p className="section-copy">
-                    Manage platform options, runtime providers, global voice routing, and voice-provider credentials in one place.
+                    Manage platform options, runtime providers, global voice routing, and voice provider credentials in one place.
                   </p>
                   <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
                     <h3 style={{ marginTop: 0 }}>Visual Effects</h3>

@@ -145,13 +145,13 @@ What this demonstrates in minutes:
 - When `cloud` (or `auto`) is selected, the `TTS Model` dropdown auto-populates from the active Runtime LLM provider models, with custom model fallback.
 - When `Piper` is selected in Voice Lab, Voxis scans local `.onnx` models and surfaces detected voices in a dropdown for quick selection.
 - When `Kokoro` is selected, Voice Lab loads bundled free voice presets and the backend can warm-download/cache the model on server startup.
-- For `ElevenLabs` and `Cartesia`, Voice Lab auto-loads voice and model dropdown options from provider APIs using your saved BYOK credentials, with custom ID input fallback when needed.
+- For `ElevenLabs` and `Cartesia`, Voice Lab auto-loads voice and model dropdown options from provider APIs using your saved provider credentials, with custom ID input fallback when needed.
 - ElevenLabs voice dropdowns now render built-in voices first, then a `My Voices` section with your custom voices.
 - Voice and model dropdowns now include a manual `Reload` action so newly created provider voices/models can be pulled in immediately.
 - After a successful reload, Voice Lab briefly shows `Updated just now` next to the reload control for quick confirmation.
 - The ongoing speaking-stack implementation plan and checklist are tracked in `docs/TTS_EVOLUTION_CHECKLIST.md`.
-- Runtime `BYOK` is available in the `LLM Settings` tab (`Runtime TTS BYOK Settings`) so you can save TTS provider keys from the browser without editing `.env`.
-- Voice Lab and LLM Settings now share one runtime `Default Voice Source` preference, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without the two panels fighting each other.
+- Runtime provider credentials are available in the `Settings` tab (`Voice Provider Credentials`) so you can save TTS provider keys from the browser without editing `.env`.
+- Voice routing now lives in `Settings`, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without overlapping controls.
 - Tune Big Five trait sliders, optional alignment overlay, and explicit expression style rules for personality-consistent output.
 - Enable hybrid auto-tuning (`autoTuneHybrid`) to derive VAD baseline, sensitivity, creative context, and expression defaults from Big Five + alignment.
 - Pull research into the character form from Wikipedia, blogs, and YouTube URLs. Sources are ranked, shown as editable cards, and prunable before saving.
@@ -179,8 +179,8 @@ What this demonstrates in minutes:
 - Frontend chat and Voice Lab now surface a status toast when fallback is used, including the failed engine and the engine selected for recovery.
 - Voice Lab now labels model selection contextually and uses dropdown model selection for local engines too (`kokoro`/`piper`) so the saved cloud fallback model is explicit.
 - Voice Lab now does the same for voice selection: `cloud` uses a cloud voice dropdown, while `kokoro`/`piper` show that saved cloud voice as a fallback voice setting.
-- The LLM settings Runtime TTS BYOK panel now also uses provider-aware voice/model dropdowns with custom ID fallback instead of raw text-only fields.
-- Global voice routing, provider BYOK credentials, and optional Kokoro access now live only in Settings; Voice Lab is trimmed back to per-character tuning and preview so the two surfaces no longer overlap.
+- The Settings tab voice provider credentials panel now also uses provider-aware voice/model dropdowns with custom ID fallback instead of raw text-only fields.
+- Global voice routing, provider credentials, and optional Kokoro access now live only in Settings; Voice Lab is trimmed back to per-character tuning and preview so the two surfaces no longer overlap.
 - Precision-aware TTS guardrails now preserve technical/factual wording, hedging, and literal phrasing on deployment/config/debug style turns while leaving expressive stylization active for performance and roleplay contexts.
 - Server-side voice output supports OpenAI-compatible cloud TTS plus Piper, Kokoro, ElevenLabs (BYOK), and Cartesia (BYOK) with per-character voice settings.
 - Existing SFX markers (for example `[BURP]`) are extracted before synthesis and emitted as metadata, so voice engine changes do not break the current sound-effects chain.
@@ -334,12 +334,12 @@ Voice Lab will also auto-scan common Piper model locations such as `/opt/piper/m
 
 Research scraping works without any LLM credentials. If an LLM is configured, Voxis also synthesizes scraped source notes into a structured character profile automatically.
 
-If you do not want to store provider secrets in `.env`, open the frontend and use the `LLM Settings` tab:
+If you do not want to store provider secrets in `.env`, open the frontend and use the `Settings` tab:
 
-- `Runtime LLM Settings` for chat/memory provider keys
-- `Runtime TTS BYOK Settings` for ElevenLabs/Cartesia keys
+- `Provider And Voice Settings` for chat/memory provider keys
+- `Voice Provider Credentials` for ElevenLabs/Cartesia keys
 
-For Kokoro specifically, Voice Lab includes an `Advanced Kokoro Access` section where admins can store an optional Hugging Face token for environments that block anonymous model downloads.
+For Kokoro specifically, `Settings` includes a `Kokoro Access` section where admins can store an optional Hugging Face token for environments that block anonymous model downloads.
 
 YouTube transcript ingestion is best-effort — if captions cannot be retrieved, the video's metadata is kept as a lower-ranked source rather than failing the request.
 
@@ -958,13 +958,13 @@ When auto fallback is triggered, Voxis now attempts to preserve voice identity b
 
 `Default Voice Source` behavior:
 
-- `Use TTS as default voice` makes `auto` prefer dedicated TTS providers first.
-- `Use LLM as default voice` makes `auto` prefer the cloud/LLM voice path first.
-- The setting is shared between Voice Lab and LLM Settings, and switching one side automatically flips the other on the next read/refresh.
+- `Prefer dedicated TTS first` makes `auto` prefer dedicated TTS providers first.
+- `Prefer cloud/LLM first` makes `auto` prefer the cloud/LLM voice path first.
+- The setting is managed from `Settings`.
 
 `voiceProfile` supports `engine`, `providerModel`, `providerVoice`, `pitch`, `rate`, Piper-specific `piperModelPath`/`piperSpeaker`, Kokoro `kokoroVoice`, ElevenLabs settings (`elevenLabsVoiceId`, `elevenLabsModel`, `stability`, `similarityBoost`, `style`), and Cartesia settings (`cartesiaVoiceId`, `cartesiaModel`). The audio buffer is streamed back to the frontend and played automatically if `voiceAutoplay` is enabled.
 
-BYOK behavior:
+Saved provider credential behavior:
 
 - ElevenLabs and Cartesia credentials can come from `.env` OR from browser-saved runtime settings (`/settings/tts/:provider`).
 - Browser-saved credentials are checked first, then `.env` is used as fallback.
@@ -1085,7 +1085,7 @@ Optional `Auto-detect` can infer provider from key behavior, but explicit provid
 
 ## How It Works — Frontend
 
-**`App.jsx`** owns all shared state: the personalities array, selected personality ID, chat logs keyed by personality ID, and view routing between the five tabs (`Character Request`, `Character Chat`, `Memory Journal`, `Adversarial Eval`, `LLM Settings`). When a chat reply arrives, `moodState` and `moodLabel` from the response are merged into the matching personality in state so all UI components stay in sync without a round-trip to the database.
+**`App.jsx`** owns all shared state: the personalities array, selected personality ID, chat logs keyed by personality ID, and view routing between the five tabs (`Character Request`, `Character Chat`, `Memory Journal`, `Adversarial Eval`, `Settings`). When a chat reply arrives, `moodState` and `moodLabel` from the response are merged into the matching personality in state so all UI components stay in sync without a round-trip to the database.
 
 The app shell now also includes a lightweight user profile selector (age band + mode chooser). The selected profile is sent with each chat turn, enabling server-side age policy enforcement and mode-aware behavior.
 
@@ -1117,7 +1117,7 @@ These values are persisted in the personality record and injected into the runti
 **`ChatWindow.jsx`** is the chat interface. The header shows a VAD-driven mood dot (colored by valence) next to the character name and the character's description below it. The message list renders user and assistant bubbles. The composer is a `<textarea>` that submits on Enter (Shift+Enter for newline). Chat now keeps only quick voice actions (enable/autoplay, generate latest reply audio, stop, quick save) to avoid clutter.
 It also includes a toggleable debug panel for assistant turns, rendering the backend's per-turn debug payload directly in the chat UI.
 
-**`VoiceLab.jsx`** is a dedicated TTS workspace tab. It owns full voice profile editing (voice/model/pitch/rate), sample text audio generation, latest-reply generation, and persistent voice profile saves.
+**`VoiceLab.jsx`** is the dedicated character voice workspace tab. It owns per-character voice profile editing (voice/model/pitch/rate), sample text audio generation, latest-reply generation, and persistent voice profile saves.
 
 ### Neural Core Mindscape
 
@@ -1167,7 +1167,7 @@ Feature flag:
 
 **`HarnessReport.jsx`** is the adversarial evaluation tab. It runs the backend harness for the active personality, shows scenario-level scores and judge summaries, and lets you inspect the generated transcript without touching the persisted chat log.
 
-**`LlmSettingsPanel.jsx`** is the runtime provider configuration tab. It loads provider options from the backend, supports explicit provider selection, API key entry, optional custom base URL, connect/disconnect actions, model switching, and optional auto-detect for convenience.
+**`LlmSettingsPanel.jsx`** is the runtime settings provider/voice panel. It loads provider options from the backend, supports explicit provider selection, API key entry, optional custom base URL, connect/disconnect actions, model switching, global voice routing, saved voice provider credentials, and optional Kokoro access.
 
 The settings area also includes a user policy editor for the selected profile, including default mode, safety tier, Neural Core performance tier, optional Kids narration, and supervised advanced mode for teen accounts.
 

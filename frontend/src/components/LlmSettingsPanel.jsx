@@ -726,9 +726,9 @@ export default function LlmSettingsPanel({ onStatus }) {
   return (
     <div className="llm-settings">
       <style>{settingsStyles}</style>
-      <h3>Runtime Providers And Voice</h3>
+      <h3>Provider And Voice Settings</h3>
       <p>
-        Connect your runtime LLM, set global voice routing, and manage reusable voice-provider credentials in one place.
+        Connect your runtime LLM, set global voice routing, and manage reusable voice provider credentials in one place.
       </p>
 
       <div className="llm-grid">
@@ -817,7 +817,7 @@ export default function LlmSettingsPanel({ onStatus }) {
         </div>
       ) : null}
 
-      <h3>Runtime Voice Settings</h3>
+      <h3>Voice Defaults</h3>
       <p>
         Global voice routing, provider credentials, and optional Kokoro access live here. Voice Lab only handles per-character tuning and preview.
       </p>
@@ -838,7 +838,7 @@ export default function LlmSettingsPanel({ onStatus }) {
         </div>
       </div>
 
-      <h3>Runtime TTS BYOK Settings</h3>
+      <h3>Voice Provider Credentials</h3>
       <p>
         Save ElevenLabs or Cartesia keys from the browser. These stay on the server and are reused by Voice Lab and chat playback.
       </p>

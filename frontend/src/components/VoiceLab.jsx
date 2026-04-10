@@ -1677,8 +1677,8 @@ export default function VoiceLab({
                   <option value="cloud">cloud</option>
                   <option value="piper">piper</option>
                   <option value="kokoro">kokoro (free local)</option>
-                  <option value="elevenlabs">elevenlabs (BYOK)</option>
-                  <option value="cartesia">cartesia (BYOK)</option>
+                  <option value="elevenlabs">elevenlabs (saved key)</option>
+                  <option value="cartesia">cartesia (saved key)</option>
                 </select>
               </div>
 

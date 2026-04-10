@@ -1808,7 +1808,7 @@ export default function PersonalityForm({
           <div className="field full">
             <label>Voice workflow</label>
             <div className="research-panel" style={{ marginTop: 0 }}>
-              <h3 style={{ marginTop: 0 }}>Voice Lab handoff</h3>
+              <h3 style={{ marginTop: 0 }}>Voice Lab</h3>
               <p>
                 Detailed TTS tuning now lives in the dedicated Voice Lab tab. Character Chat keeps the quick
                 playback and autoplay controls.
@@ -1821,7 +1821,7 @@ export default function PersonalityForm({
               </div>
               {isEditing && onOpenVoiceLab ? (
                 <button type="button" className="secondary-button" onClick={onOpenVoiceLab}>
-                  Open Voice Lab for TTS
+                  Open Voice Lab
                 </button>
               ) : (
                 <small>Save this character first, then open Voice Lab to test samples and tune the full voice profile.</small>
