@@ -260,9 +260,9 @@ function persistWorkingModel(config, model, models = config?.models) {
 async function requestChatCompletionOnce({ messages, temperature = 0.85, config }) {
   const { baseUrl, model, apiKey, provider } = config;
 
-  if (!apiKey && baseUrl === DEFAULT_BASE_URL) {
+  if (!apiKey) {
     const error = new Error(
-      "LLM_API_KEY is missing. Copy backend/.env.example to backend/.env and provide an API key or a custom OpenAI-compatible base URL.",
+      "LLM API key is missing. Set it via the Settings panel → Chat Provider, or add LLM_API_KEY to backend/.env.",
     );
     error.statusCode = 500;
     throw error;
@@ -388,9 +388,9 @@ async function requestChatCompletion({ messages, temperature = 0.85, includeMeta
 async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, onToken, config }) {
   const { baseUrl, model, apiKey, provider } = config;
 
-  if (!apiKey && baseUrl === DEFAULT_BASE_URL) {
+  if (!apiKey) {
     const error = new Error(
-      "LLM_API_KEY is missing. Copy backend/.env.example to backend/.env and provide an API key or a custom OpenAI-compatible base URL.",
+      "LLM API key is missing. Set it via the Settings panel → Chat Provider, or add LLM_API_KEY to backend/.env.",
     );
     error.statusCode = 500;
     throw error;
