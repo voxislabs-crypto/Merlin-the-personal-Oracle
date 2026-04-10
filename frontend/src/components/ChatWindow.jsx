@@ -1588,14 +1588,24 @@ export default function ChatWindow({
       }
 
       const ttsTelemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
+      let parsedTelemetry = null;
       if (ttsTelemetryHeader) {
         try {
-          setVoiceTelemetry(JSON.parse(decodeURIComponent(ttsTelemetryHeader)));
+          parsedTelemetry = JSON.parse(decodeURIComponent(ttsTelemetryHeader));
         } catch {
-          setVoiceTelemetry(null);
+          parsedTelemetry = null;
         }
-      } else {
-        setVoiceTelemetry(null);
+      }
+
+      setVoiceTelemetry(parsedTelemetry);
+
+      if (parsedTelemetry?.fallbackUsed) {
+        const fallbackFrom = String(parsedTelemetry.fallbackFrom || "primary engine");
+        const chosenEngine = String(parsedTelemetry.chosenEngine || "fallback engine");
+        onStatus?.({
+          type: "success",
+          message: `TTS fallback active: ${fallbackFrom} failed, switched to ${chosenEngine}.`,
+        });
       }
 
       const blob = await response.blob();

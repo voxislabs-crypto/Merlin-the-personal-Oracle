@@ -1556,6 +1556,15 @@ export default function VoiceLab({
         ttsTelemetry,
       });
 
+      if (ttsTelemetry?.fallbackUsed) {
+        const fallbackFrom = String(ttsTelemetry.fallbackFrom || "primary engine");
+        const chosenEngine = String(ttsTelemetry.chosenEngine || "fallback engine");
+        onStatus?.({
+          type: "success",
+          message: `TTS fallback active: ${fallbackFrom} failed, switched to ${chosenEngine}.`,
+        });
+      }
+
       const blob = await response.blob();
       const next = URL.createObjectURL(blob);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
