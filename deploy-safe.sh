@@ -47,7 +47,10 @@ sudo systemctl reload nginx
 
 if [[ "${STASH_CREATED}" -eq 1 ]]; then
 	echo "→ Cleaning up deploy stash..."
-	git stash list | grep -F "${STASH_NAME}" >/dev/null && git stash drop "stash^{/${STASH_NAME}}" || true
+	STASH_REF=$(git stash list | grep -F "${STASH_NAME}" | head -n1 | cut -d: -f1)
+	if [[ -n "${STASH_REF}" ]]; then
+		git stash drop "${STASH_REF}"
+	fi
 fi
 
 echo "=== Safe Voxis Deploy Completed Successfully ==="
