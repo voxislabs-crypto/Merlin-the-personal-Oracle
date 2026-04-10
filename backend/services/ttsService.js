@@ -658,9 +658,29 @@ async function generateCloudSpeechAudio({ personality, text, voiceProfile, speec
   }, { retries: 1 });
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorText = await response.text().catch(() => response.statusText || "");
+    let errorPayload = null;
+    try {
+      errorPayload = JSON.parse(errorText);
+    } catch {
+      errorPayload = null;
+    }
+
+    const providerCode = String(
+      errorPayload?.error?.code || errorPayload?.code || "",
+    ).trim().toLowerCase();
     const error = new Error(`Cloud TTS request failed with ${response.status}: ${errorText}`);
-    error.statusCode = 502;
+    error.providerStatus = response.status;
+    error.ttsProvider = "cloud";
+    error.ttsProviderCode = providerCode;
+    error.ttsProviderPayload = errorPayload;
+
+    // Surface actionable upstream statuses (auth/quota/rate limit) directly.
+    if (response.status === 401 || response.status === 403 || response.status === 429) {
+      error.statusCode = response.status;
+    } else {
+      error.statusCode = 502;
+    }
     throw error;
   }
 
