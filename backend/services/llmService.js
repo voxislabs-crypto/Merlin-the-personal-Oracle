@@ -721,12 +721,14 @@ export function selectActiveGoal(personality, queryText = "", memoryFacts = []) 
   }));
 
   scoredGoals.sort((left, right) => right.score - left.score || left.index - right.index);
+  const allScores = scoredGoals.map((g) => ({ goal: g.goal, score: g.score }));
   if (scoredGoals[0]?.score > 0) {
     return {
       goal: scoredGoals[0].goal,
       source: "relevance",
       score: scoredGoals[0].score,
       index: scoredGoals[0].index,
+      allScores,
     };
   }
 
@@ -736,6 +738,7 @@ export function selectActiveGoal(personality, queryText = "", memoryFacts = []) 
     source: "rotation",
     score: 0,
     index: rotationSeed,
+    allScores,
   };
 }
 

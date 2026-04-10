@@ -178,7 +178,7 @@ export async function getRelevantPersonalityMemory(personalityId, query, limit =
   const anchorFacts = memories
     .filter((memory) => memory.importance >= 9)
     .sort((left, right) => right.importance - left.importance || right.id - left.id)
-    .map(stripEmbedding);
+    .map((memory) => ({ ...stripEmbedding(memory), _relevanceScore: null }));
 
   let queryEmbedding = null;
   if (isEmbeddingConfigured()) {
@@ -197,7 +197,7 @@ export async function getRelevantPersonalityMemory(personalityId, query, limit =
     }))
     .sort((left, right) => right.score - left.score || right.memory.importance - left.memory.importance || right.memory.id - left.memory.id)
     .slice(0, limit)
-    .map(({ memory }) => stripEmbedding(memory));
+    .map(({ memory, score }) => ({ ...stripEmbedding(memory), _relevanceScore: score }));
 
   return [...anchorFacts, ...rankedFacts];
 }

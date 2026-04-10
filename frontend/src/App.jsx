@@ -12,6 +12,7 @@ import PersonaEditor from "./components/PersonaEditor.jsx";
 import HarnessReport from "./components/HarnessReport.jsx";
 import LlmSettingsPanel from "./components/LlmSettingsPanel.jsx";
 import ApiDiagnosticsPanel from "./components/ApiDiagnosticsPanel.jsx";
+import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
 
 const appStyles = `
@@ -1692,6 +1693,7 @@ export default function App() {
           mode: selectedMode,
           message,
           streamDebug: true,
+          streamBrain: activeView === "brain",
         }),
       });
 
@@ -1719,7 +1721,16 @@ export default function App() {
 
             const { type, payload } = parsed;
 
-            if (type === "debug") {
+            if (type === "brain") {
+              setLiveChatState((current) => ({
+                ...current,
+                [personalityId]: {
+                  ...(current[personalityId] || {}),
+                  brainEvents: [...(current[personalityId]?.brainEvents || []), payload],
+                  seq: (current[personalityId]?.seq || 0) + 1,
+                },
+              }));
+            } else if (type === "debug") {
               const toast = buildNeuralMemoryToast({
                 phase: payload.phase,
                 debug: payload.debug,
@@ -2061,6 +2072,13 @@ export default function App() {
               >
                 Adversarial Eval
               </button>
+              <button
+                type="button"
+                className={`tab ${activeView === "brain" ? "active" : ""}`}
+                onClick={() => setActiveView("brain")}
+              >
+                Brain
+              </button>
             </div>
 
             <div className="main-content">
@@ -2125,6 +2143,12 @@ export default function App() {
                     onPersonalityUpdated={handlePersonalityUpdated}
                   />
                 </>
+              ) : activeView === "brain" ? (
+                <BrainTab
+                  brainEvents={liveChatState[selectedId]?.brainEvents || []}
+                  personality={selectedPersonality}
+                  livePhase={liveChatState[selectedId]?.phase || ""}
+                />
               ) : activeView === "eval" ? (
                 <>
                   <h2 className="section-heading">Pressure-test the active character</h2>

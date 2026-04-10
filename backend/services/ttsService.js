@@ -1381,7 +1381,7 @@ async function fetchCartesiaOptions() {
   }
 
   try {
-    const modelsResponse = await fetchWithTimeoutRetry("https://api.cartesia.ai/models", { headers }, { retries: 1 });
+    const modelsResponse = await fetchWithTimeoutRetry("https://api.cartesia.ai/2024-06-10/models", { headers }, { retries: 1 });
     if (!modelsResponse.ok) {
       throw new Error(`models request failed (${modelsResponse.status})`);
     }

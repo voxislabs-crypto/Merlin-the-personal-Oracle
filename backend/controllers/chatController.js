@@ -146,6 +146,14 @@ function buildRawHistorySection(turns) {
   return `RECALLED PAST CONVERSATION MOMENTS (contextual reference only — treat as background, not current conversation):\n${lines.join("\n")}`;
 }
 
+// ---------------------------------------------------------------------------
+// Brain telemetry: minimal read-only event emitted at each pipeline stage.
+// Only emitted when the client opts in via streamBrain:true (Brain tab open).
+// ---------------------------------------------------------------------------
+function buildBrainEvent(stage, data = {}) {
+  return { timestamp: Date.now(), stage, ...data };
+}
+
 function createChatStream(res, enabled) {
   let opened = false;
   let closed = false;
@@ -402,6 +410,7 @@ async function generateReplyWithRecovery({
 
 export async function chatHandler(req, res, next) {
   const stream = createChatStream(res, req.body.streamDebug === true);
+  const streamBrain = req.body.streamBrain === true;
 
   try {
     const personalityId = Number(req.body.personalityId);
@@ -521,6 +530,21 @@ export async function chatHandler(req, res, next) {
       phase: "mood",
       debug: streamedDebugData,
     });
+    if (streamBrain) {
+      const vBefore = Number((currentMood.valence || 0).toFixed(2));
+      const vAfter = Number((newMood.valence || 0).toFixed(2));
+      stream.write("brain", buildBrainEvent("mood_update", {
+        mood: {
+          valence: Number((newMood.valence || 0).toFixed(3)),
+          arousal: Number((newMood.arousal || 0).toFixed(3)),
+          dominance: Number((newMood.dominance || 0).toFixed(3)),
+          label: moodLabel,
+        },
+        narrative: vBefore === vAfter
+          ? `Mood stable at ${moodLabel}.`
+          : `Mood shifted to ${moodLabel} (valence ${vBefore > vAfter ? "↓" : "↑"} ${vAfter}).`,
+      }));
+    }
 
     // Fetch long-term memory facts and build the dynamic, memory-enriched system prompt.
     const memoryFacts = await getRelevantPersonalityMemory(
@@ -572,6 +596,20 @@ export async function chatHandler(req, res, next) {
       phase: "memory",
       debug: streamedDebugData,
     });
+    if (streamBrain) {
+      const anchorCount = memoryFacts.filter((m) => m.importance >= 9).length;
+      stream.write("brain", buildBrainEvent("memory_retrieval", {
+        memories: memoryFacts.map((m) => ({
+          id: String(m.id),
+          content: m.content,
+          score: m._relevanceScore !== null && m._relevanceScore !== undefined
+            ? Number(m._relevanceScore.toFixed(3))
+            : null,
+          reason: m.importance >= 9 ? "anchor" : m.memoryType || "context",
+        })),
+        narrative: `Retrieved ${memoryFacts.length} memor${memoryFacts.length === 1 ? "y" : "ies"} (${anchorCount} anchor${anchorCount !== 1 ? "s" : ""}).`,
+      }));
+    }
 
     const messages = [
       { role: "system", content: systemPrompt },
@@ -627,6 +665,32 @@ export async function chatHandler(req, res, next) {
       phase: promptPackage.activeGoal?.goal ? "intent" : "prompt",
       debug: streamedDebugData,
     });
+    if (streamBrain) {
+      const activeGoal = promptPackage.activeGoal;
+      if (activeGoal) {
+        const intentScores = {};
+        for (const entry of (activeGoal.allScores || [])) {
+          intentScores[String(entry.goal).slice(0, 60)] = entry.score;
+        }
+        stream.write("brain", buildBrainEvent("intent_selection", {
+          activeIntent: activeGoal.goal,
+          intentScores,
+          narrative: activeGoal.source === "relevance"
+            ? `Selected goal via relevance (score ${activeGoal.score}).`
+            : "No relevant goal matched; using rotation fallback.",
+        }));
+      }
+      const budget = promptPackage.debug?.promptBudget || {};
+      stream.write("brain", buildBrainEvent("prompt_assembly", {
+        tokenUsage: {
+          charBudget: budget.charBudget || 0,
+          charCount: budget.charCount || 0,
+          approxTokens: budget.approxTokens || 0,
+          utilization: budget.utilization || 0,
+        },
+        narrative: `Prompt assembled at ${Math.round((budget.utilization || 0) * 100)}% of ${budget.charBudget || 0}-char budget.`,
+      }));
+    }
 
     messages.push({ role: "user", content: message });
     const inputTokenEstimate = estimateMessagesTokenCount(messages);
@@ -636,6 +700,12 @@ export async function chatHandler(req, res, next) {
       phase: "generation",
       debug: streamedDebugData,
     });
+    if (streamBrain) {
+      stream.write("brain", buildBrainEvent("response_generation", {
+        tokenUsage: { inputEstimate: inputTokenEstimate },
+        narrative: `Generating response (~${inputTokenEstimate} input tokens).`,
+      }));
+    }
 
     const generation = await generateReplyWithRecovery({
       stream,

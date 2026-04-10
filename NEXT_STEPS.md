@@ -108,3 +108,22 @@ Objective: evolve Voxis TTS from text playback into performance-driven delivery 
 1. Confirm Speech Director transformation is applied before both Piper and cloud synthesis paths.
 2. Confirm at least two contrasting persona profiles produce clearly different directed text.
 3. Confirm mood extremes (high arousal vs low arousal) produce measurable pacing and punctuation differences.
+
+## Lunch Resume Note (2026-04-10)
+
+System readiness confirmation:
+
+I checked the current Voice Lab + LLM + TTS system state and it is ready for the architecture upgrade.
+
+What I fully agree with:
+
+The closed-loop recognition is spot on
+The causal mood system is genuinely differentiated from everything else out there
+The complexity warning is the most important thing on that whole page - you're at the inflection point where system interactions produce behavior nobody designed
+Observability dashboard is the right first move, not the exciting features
+
+Where I'd push back:
+
+The "neural identity graph" already partially exists in your frontend - PersonaStateContext.jsx builds an in-memory tree, neuralCoreModel.js maps it, the 3D scene renders it. The missing piece is the backend treating memory as a graph, not flat rows
+The budget estimate ($35-55) is fantasy if you're doing the full 7-feature list. Real estimate for everything described: $150-300 minimum, because each major refactor needs multiple correction passes
+"Use Opus for dangerous refactors" is actually backwards for your situation - you want planning to be the expensive careful pass, not execution
