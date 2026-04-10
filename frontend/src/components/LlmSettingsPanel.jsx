@@ -29,24 +29,55 @@ const CARTESIA_MODEL_PRESETS = [
 
 const settingsStyles = `
   .llm-settings {
+    display: grid;
+    gap: 18px;
+  }
+
+  .settings-section {
     border: 1px solid rgba(0, 180, 255, 0.12);
     border-radius: 22px;
     background: rgba(6, 14, 28, 0.72);
     padding: 20px;
     display: grid;
-    gap: 16px;
+    gap: 14px;
   }
 
-  .llm-settings h3 {
+  .settings-section-header {
+    display: grid;
+    gap: 6px;
+  }
+
+  .settings-section-tag {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 180, 255, 0.18);
+    background: rgba(0, 180, 255, 0.06);
+    color: #8fdfff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .settings-section h3 {
     margin: 0;
     font-size: 1.05rem;
     color: var(--text);
   }
 
-  .llm-settings p {
+  .settings-section p,
+  .llm-field p {
     margin: 0;
     color: var(--muted);
     line-height: 1.6;
+  }
+
+  .settings-section-copy {
+    max-width: 72ch;
+    font-size: 0.92rem;
   }
 
   .llm-grid {
@@ -58,6 +89,10 @@ const settingsStyles = `
   .llm-field {
     display: grid;
     gap: 6px;
+  }
+
+  .llm-field-helper {
+    font-size: 0.82rem;
   }
 
   .llm-field label {
@@ -80,6 +115,10 @@ const settingsStyles = `
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+  }
+
+  .llm-actions.compact {
+    align-items: flex-start;
   }
 
   .llm-actions button {
@@ -153,6 +192,12 @@ const settingsStyles = `
     color: #7fe7b1;
     line-height: 1.6;
     font-size: 0.9rem;
+  }
+
+  .llm-connected.info {
+    border-color: rgba(0, 180, 255, 0.18);
+    background: rgba(0, 180, 255, 0.07);
+    color: #8fdfff;
   }
 
   @media (max-width: 900px) {
@@ -726,124 +771,143 @@ export default function LlmSettingsPanel({ onStatus }) {
   return (
     <div className="llm-settings">
       <style>{settingsStyles}</style>
-      <h3>Provider And Voice Settings</h3>
-      <p>
-        Connect your runtime LLM, set global voice routing, and manage reusable voice provider credentials in one place.
-      </p>
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">Runtime LLM</span>
+          <h3>Chat Provider</h3>
+          <p className="settings-section-copy">
+            Connect the provider used for chat, memory, and eval requests. If you only need per-character voice tuning, stay in Voice Lab.
+          </p>
+        </div>
 
-      <div className="llm-grid">
-        <div className="llm-field">
-          <label htmlFor="llm-provider">Provider</label>
-          <select
-            id="llm-provider"
-            value={provider}
-            onChange={(event) => setProvider(event.target.value)}
-            disabled={isLoading || isConnecting || isDetecting}
+        <div className="llm-grid">
+          <div className="llm-field">
+            <label htmlFor="llm-provider">Provider</label>
+            <select
+              id="llm-provider"
+              value={provider}
+              onChange={(event) => setProvider(event.target.value)}
+              disabled={isLoading || isConnecting || isDetecting}
+            >
+              {(providers.length ? providers : fallbackProviders()).map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="llm-field">
+            <label htmlFor="llm-api-key">API Key</label>
+            <input
+              id="llm-api-key"
+              type="password"
+              autoComplete="off"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder={selectedSavedCredential?.keyHint ? "Saved key on file. Enter a new key only to replace it." : "Paste provider key"}
+              disabled={isLoading || isConnecting}
+            />
+            {selectedSavedCredential?.keyHint ? (
+              <p className="llm-field-helper">Saved key on file: {selectedSavedCredential.keyHint}</p>
+            ) : null}
+          </div>
+
+          <div className="llm-field">
+            <label htmlFor="llm-base-url">Base URL</label>
+            <input
+              id="llm-base-url"
+              type="text"
+              value={baseUrl}
+              onChange={(event) => setBaseUrl(event.target.value)}
+              placeholder={provider === "custom" ? "https://example.com/v1" : "Provider default base URL"}
+              disabled={provider !== "custom" || isLoading || isConnecting}
+            />
+            <p className="llm-field-helper">Only needed for custom OpenAI-compatible providers.</p>
+          </div>
+
+          <div className="llm-field">
+            <label htmlFor="llm-model">Model</label>
+            <select
+              id="llm-model"
+              value={model}
+              onChange={(event) => void applyModel(event.target.value)}
+              disabled={!availableModels.length || isConnecting || isLoading}
+            >
+              <option value="">Choose model</option>
+              {availableModels.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {(candidate.name || candidate.id) + (candidate.isFree ? " (free)" : "")}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="llm-actions compact">
+          <button type="button" className="secondary" onClick={() => void detectProvider()} disabled={isDetecting || isLoading || isConnecting}>
+            {isDetecting ? "Detecting..." : "Detect Provider"}
+          </button>
+          <button type="button" onClick={() => void connectProvider()} disabled={isConnecting || isLoading}>
+            {isConnecting ? "Connecting..." : "Connect Provider"}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void disconnectProvider()}
+            disabled={!connected?.connected || isDisconnecting || isLoading}
           >
-            {(providers.length ? providers : fallbackProviders()).map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.name}
-              </option>
-            ))}
-          </select>
+            {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+          </button>
         </div>
 
-        <div className="llm-field">
-          <label htmlFor="llm-api-key">API Key</label>
-          <input
-            id="llm-api-key"
-            type="password"
-            autoComplete="off"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            placeholder={selectedSavedCredential?.keyHint ? "Saved key on file. Enter a new key only to replace it." : "Paste provider key"}
-            disabled={isLoading || isConnecting}
-          />
-          {selectedSavedCredential?.keyHint ? (
-            <p>Saved key on file: {selectedSavedCredential.keyHint}</p>
-          ) : null}
+        {connected?.connected ? (
+          <div className="llm-connected">
+            Connected provider: {connected.provider} | Active model: {connected.model || "not selected"} | Key hint: {connected.keyHint}
+          </div>
+        ) : (
+          <div className="llm-connected info">
+            No runtime LLM is connected right now. Env fallbacks can still be used server-side if configured.
+          </div>
+        )}
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">Global Voice</span>
+          <h3>Voice Defaults</h3>
+          <p className="settings-section-copy">
+            These defaults affect global runtime behavior. Character-specific engine and voice choices still live in Voice Lab.
+          </p>
         </div>
 
-        <div className="llm-field">
-          <label htmlFor="llm-base-url">Base URL</label>
-          <input
-            id="llm-base-url"
-            type="text"
-            value={baseUrl}
-            onChange={(event) => setBaseUrl(event.target.value)}
-            placeholder={provider === "custom" ? "https://example.com/v1" : "Provider default base URL"}
-            disabled={provider !== "custom" || isLoading || isConnecting}
-          />
+        <div className="llm-grid">
+          <div className="llm-field">
+            <label htmlFor="voice-routing-default">Auto Voice Routing</label>
+            <select
+              id="voice-routing-default"
+              value={defaultVoiceSource}
+              onChange={(event) => void updateDefaultVoiceSource(event.target.value)}
+              disabled={isSavingDefaultVoiceSource || isLoading}
+            >
+              <option value="tts">Prefer dedicated TTS first</option>
+              <option value="llm">Prefer cloud/LLM first</option>
+            </select>
+            <p className="llm-field-helper">Applies only when a character uses the <strong>auto</strong> voice engine.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">Voice Providers</span>
+          <h3>Voice Provider Credentials</h3>
+          <p className="settings-section-copy">
+            Save ElevenLabs or Cartesia credentials once and reuse them across Voice Lab and chat playback.
+          </p>
         </div>
 
-        <div className="llm-field">
-          <label htmlFor="llm-model">Model</label>
-          <select
-            id="llm-model"
-            value={model}
-            onChange={(event) => void applyModel(event.target.value)}
-            disabled={!availableModels.length || isConnecting || isLoading}
-          >
-            <option value="">Choose model</option>
-            {availableModels.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {(candidate.name || candidate.id) + (candidate.isFree ? " (free)" : "")}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="llm-actions">
-        <button type="button" className="secondary" onClick={() => void detectProvider()} disabled={isDetecting || isLoading || isConnecting}>
-          {isDetecting ? "Detecting..." : "Auto-detect (optional)"}
-        </button>
-        <button type="button" onClick={() => void connectProvider()} disabled={isConnecting || isLoading}>
-          {isConnecting ? "Connecting..." : "Connect Provider"}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => void disconnectProvider()}
-          disabled={!connected?.connected || isDisconnecting || isLoading}
-        >
-          {isDisconnecting ? "Disconnecting..." : "Disconnect"}
-        </button>
-      </div>
-
-      {connected?.connected ? (
-        <div className="llm-connected">
-          Connected provider: {connected.provider} | Active model: {connected.model || "not selected"} | Key hint: {connected.keyHint}
-        </div>
-      ) : null}
-
-      <h3>Voice Defaults</h3>
-      <p>
-        Global voice routing, provider credentials, and optional Kokoro access live here. Voice Lab only handles per-character tuning and preview.
-      </p>
-
-      <div className="llm-grid">
-        <div className="llm-field">
-          <label htmlFor="voice-routing-default">Auto Voice Routing</label>
-          <select
-            id="voice-routing-default"
-            value={defaultVoiceSource}
-            onChange={(event) => void updateDefaultVoiceSource(event.target.value)}
-            disabled={isSavingDefaultVoiceSource || isLoading}
-          >
-            <option value="tts">Prefer dedicated TTS first</option>
-            <option value="llm">Prefer cloud/LLM first</option>
-          </select>
-          <p>Applies only when a character uses the <strong>auto</strong> voice engine.</p>
-        </div>
-      </div>
-
-      <h3>Voice Provider Credentials</h3>
-      <p>
-        Save ElevenLabs or Cartesia keys from the browser. These stay on the server and are reused by Voice Lab and chat playback.
-      </p>
-
-      <div className="llm-grid">
+        <div className="llm-grid">
         <div className="llm-field">
           <label htmlFor="tts-provider">TTS Provider</label>
           <select
@@ -872,7 +936,7 @@ export default function LlmSettingsPanel({ onStatus }) {
             disabled={isLoading || isSavingTts}
           />
           {selectedTtsProvider?.keyHint ? (
-            <p>Saved key on file: {selectedTtsProvider.keyHint}</p>
+            <p className="llm-field-helper">Saved key on file: {selectedTtsProvider.keyHint}</p>
           ) : null}
         </div>
 
@@ -912,7 +976,7 @@ export default function LlmSettingsPanel({ onStatus }) {
               disabled={isLoading || isSavingTts}
             />
           ) : null}
-          <p>{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
+          <p className="llm-field-helper">{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
         </div>
 
         <div className="llm-field">
@@ -947,37 +1011,42 @@ export default function LlmSettingsPanel({ onStatus }) {
               disabled={isLoading || isSavingTts}
             />
           ) : null}
-          <p>{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
+          <p className="llm-field-helper">{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
         </div>
-      </div>
-
-      <div className="llm-actions">
-        <button type="button" onClick={() => void saveTtsProvider()} disabled={isSavingTts || isLoading}>
-          {isSavingTts ? "Saving..." : "Save TTS Provider"}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => void disconnectTtsProvider()}
-          disabled={!selectedTtsProvider?.connected || isDisconnectingTts || isLoading}
-        >
-          {isDisconnectingTts ? "Disconnecting..." : "Disconnect TTS Provider"}
-        </button>
-      </div>
-
-      {selectedTtsProvider ? (
-        <div className="llm-connected" style={{ borderColor: "rgba(0, 180, 255, 0.24)", background: "rgba(0, 180, 255, 0.08)", color: "#8fdfff" }}>
-          {selectedTtsProvider.name}: {selectedTtsProvider.connected ? "connected" : "not connected"}
-          {" | "}Pricing: {selectedTtsProvider.pricingNote}
         </div>
-      ) : null}
 
-      <h3>Kokoro Access</h3>
-      <p>
-        Optional server-side Hugging Face access for restricted environments where Kokoro cannot download model files anonymously.
-      </p>
+        <div className="llm-actions compact">
+          <button type="button" onClick={() => void saveTtsProvider()} disabled={isSavingTts || isLoading}>
+            {isSavingTts ? "Saving..." : "Save Credentials"}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void disconnectTtsProvider()}
+            disabled={!selectedTtsProvider?.connected || isDisconnectingTts || isLoading}
+          >
+            {isDisconnectingTts ? "Disconnecting..." : "Disconnect Provider"}
+          </button>
+        </div>
 
-      <div className="llm-grid">
+        {selectedTtsProvider ? (
+          <div className="llm-connected info">
+            {selectedTtsProvider.name}: {selectedTtsProvider.connected ? "connected" : "not connected"}
+            {" | "}Pricing: {selectedTtsProvider.pricingNote}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">Optional Kokoro</span>
+          <h3>Kokoro Access</h3>
+          <p className="settings-section-copy">
+            Only use this if the server cannot download Kokoro model files anonymously.
+          </p>
+        </div>
+
+        <div className="llm-grid">
         <div className="llm-field">
           <label htmlFor="kokoro-hf-token">Hugging Face Token</label>
           <input
@@ -989,12 +1058,12 @@ export default function LlmSettingsPanel({ onStatus }) {
             placeholder={kokoroSettings.connected ? "Saved token on file. Enter a new one only to replace it." : "hf_..."}
             disabled={isSavingKokoroToken || isClearingKokoroToken}
           />
-          {kokoroSettings.connected ? <p>Saved token on file: {kokoroSettings.keyHint}</p> : null}
+          {kokoroSettings.connected ? <p className="llm-field-helper">Saved token on file: {kokoroSettings.keyHint}</p> : null}
         </div>
 
         <div className="llm-field">
           <label>Kokoro Token Actions</label>
-          <div className="llm-actions">
+          <div className="llm-actions compact">
             <button type="button" onClick={() => void saveKokoroAccessToken()} disabled={isSavingKokoroToken || isClearingKokoroToken}>
               {isSavingKokoroToken ? "Saving..." : kokoroSettings.connected ? "Update Token" : "Save Token"}
             </button>
@@ -1007,9 +1076,10 @@ export default function LlmSettingsPanel({ onStatus }) {
               {isClearingKokoroToken ? "Clearing..." : "Clear Token"}
             </button>
           </div>
-          <p>Only needed when the server cannot fetch Kokoro model files without authentication.</p>
+          <p className="llm-field-helper">Only needed when the server cannot fetch Kokoro model files without authentication.</p>
         </div>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

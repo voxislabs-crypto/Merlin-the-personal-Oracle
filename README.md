@@ -179,10 +179,11 @@ What this demonstrates in minutes:
 - Frontend chat and Voice Lab now surface a status toast when fallback is used, including the failed engine and the engine selected for recovery.
 - Voice Lab now labels model selection contextually and uses dropdown model selection for local engines too (`kokoro`/`piper`) so the saved cloud fallback model is explicit.
 - Voice Lab now does the same for voice selection: `cloud` uses a cloud voice dropdown, while `kokoro`/`piper` show that saved cloud voice as a fallback voice setting.
+- The Settings tab now groups runtime chat provider setup, voice defaults, saved voice credentials, and optional Kokoro access into clearer sections.
 - The Settings tab voice provider credentials panel now also uses provider-aware voice/model dropdowns with custom ID fallback instead of raw text-only fields.
 - Global voice routing, provider credentials, and optional Kokoro access now live only in Settings; Voice Lab is trimmed back to per-character tuning and preview so the two surfaces no longer overlap.
 - Precision-aware TTS guardrails now preserve technical/factual wording, hedging, and literal phrasing on deployment/config/debug style turns while leaving expressive stylization active for performance and roleplay contexts.
-- Server-side voice output supports OpenAI-compatible cloud TTS plus Piper, Kokoro, ElevenLabs (BYOK), and Cartesia (BYOK) with per-character voice settings.
+- Server-side voice output supports OpenAI-compatible cloud TTS plus Piper, Kokoro, ElevenLabs, and Cartesia with per-character voice settings.
 - Existing SFX markers (for example `[BURP]`) are extracted before synthesis and emitted as metadata, so voice engine changes do not break the current sound-effects chain.
 - Neural Core now reflects alignment overlays in real time with moral tint bias and a visible alignment status badge.
 - The 3D Neural Core renderer now features a full "living brain" upgrade: lightning-crackle synaptic connections with traveling pulse dots, per-node burst flashes triggered by live LLM phases, smooth fluid floating drift, bloom post-processing (via `@react-three/postprocessing`), breathing node orbs, a glow-halo shell on every node, and an orbiting particle ring on the companion orb.
@@ -258,7 +259,7 @@ backend/
     memoryController.js      Memory fact CRUD (list / edit / delete)
     researchController.js    Research pipeline endpoint
     ttsController.js         TTS endpoint
-    settingsController.js    Runtime LLM settings handlers
+    settingsController.js    Settings and runtime provider handlers
   routes/
     chatRoutes.js
     personalityRoutes.js
