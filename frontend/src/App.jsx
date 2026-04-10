@@ -14,6 +14,7 @@ import LlmSettingsPanel from "./components/LlmSettingsPanel.jsx";
 import ApiDiagnosticsPanel from "./components/ApiDiagnosticsPanel.jsx";
 import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
+import "./styles/futuristic-ui-kit.css";
 
 const appStyles = `
   :root {
@@ -733,6 +734,115 @@ const appStyles = `
     border-radius: 12px;
     font-weight: 700;
     letter-spacing: 0.02em;
+  }
+
+  /* Full-system holographic upgrade pass */
+  .section-heading {
+    font-family: "Space Grotesk", "Manrope", system-ui, sans-serif;
+  }
+
+  .main-panel {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .main-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.14;
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 100% 3px;
+  }
+
+  .main-content :is(input, select, textarea):not([type="range"]):not([type="checkbox"]) {
+    border-radius: 12px;
+    border: 1px solid rgba(0, 245, 255, 0.26);
+    background: linear-gradient(180deg, rgba(7, 16, 30, 0.9), rgba(4, 10, 20, 0.95));
+    color: var(--text);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -10px 20px rgba(0, 0, 0, 0.26);
+    transition: border-color 200ms ease, box-shadow 220ms ease, transform 200ms ease;
+  }
+
+  .main-content :is(input, select, textarea):focus {
+    outline: none;
+    border-color: rgba(0, 245, 255, 0.62);
+    box-shadow:
+      0 0 0 3px rgba(0, 245, 255, 0.16),
+      0 0 20px rgba(0, 245, 255, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .main-content button:not(.tab):not(.sidebar-toggle):not(.debug-toggle):not(.context-meter-info):not(.popup-close-btn) {
+    border-radius: 12px;
+    border: 1px solid rgba(0, 245, 255, 0.3);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 34%),
+      linear-gradient(145deg, rgba(0, 224, 255, 0.9), rgba(110, 58, 255, 0.88));
+    color: #031019;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.42),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.16),
+      0 12px 26px rgba(0, 140, 255, 0.22);
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  }
+
+  .main-content button:not(.tab):not(.sidebar-toggle):not(.debug-toggle):not(.context-meter-info):not(.popup-close-btn):hover {
+    transform: translateY(-2px);
+    border-color: rgba(170, 245, 255, 0.68);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.48),
+      0 16px 30px rgba(0, 140, 255, 0.28),
+      0 0 20px rgba(0, 245, 255, 0.24);
+  }
+
+  .main-content button:not(.tab):not(.sidebar-toggle):not(.debug-toggle):not(.context-meter-info):not(.popup-close-btn):active {
+    transform: translateY(1px) scale(0.992);
+  }
+
+  .app-shell .chat-shell,
+  .app-shell .vlab-shell,
+  .app-shell .journal-shell,
+  .app-shell .llm-settings {
+    position: relative;
+    border-radius: 18px;
+  }
+
+  .app-shell .chat-shell::before,
+  .app-shell .vlab-shell::before,
+  .app-shell .journal-shell::before,
+  .app-shell .llm-settings::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    border: 1px solid rgba(0, 245, 255, 0.08);
+    box-shadow: inset 0 0 30px rgba(0, 245, 255, 0.05);
+  }
+
+  .app-shell .voice-btn.sec,
+  .app-shell .vlab-btn.sec,
+  .app-shell .btn-icon,
+  .app-shell .secondary-button,
+  .app-shell .preset-btn,
+  .app-shell .preset-clear,
+  .app-shell .filter-pill {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 34%),
+      linear-gradient(145deg, rgba(8, 24, 44, 0.96), rgba(6, 14, 30, 0.94));
+    color: #9ceeff;
+    border-color: rgba(0, 245, 255, 0.24);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.26),
+      inset 0 -10px 16px rgba(0, 0, 0, 0.24),
+      0 10px 20px rgba(0, 18, 42, 0.34);
   }
 
   @media (max-width: 1024px) {
