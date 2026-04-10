@@ -280,6 +280,7 @@ frontend/
 concepts/layouts/            AI-generated design references (characters, UI, logo, ambient avatar)
 docs/
   HYBRID_PERSONALITY_MAPPING.md Big Five + alignment mapping table, archetype rules, and test payloads
+  VOXIS_FUTURISTIC_UI_KIT_V1.md Futuristic UI kit tokens, components, utilities, and rollout examples
 ```
 
 ---

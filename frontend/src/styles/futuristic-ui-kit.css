@@ -1,0 +1,488 @@
+/* Voxis FuturisticUI Kit v1 -- 2045 Cognitive OS Edition */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+:root {
+	--fx-space-black: #0a0a0f;
+	--fx-electric-cyan: #00f5ff;
+	--fx-neon-magenta: #ff00aa;
+	--fx-violet: #8b00ff;
+	--fx-emerald: #00ff9d;
+	--fx-amber: #ffcc00;
+	--fx-ink: #020207;
+	--fx-text: #dcf7ff;
+	--fx-muted: #87a8b9;
+	--fx-glass: rgba(12, 18, 30, 0.54);
+	--fx-glass-strong: rgba(9, 14, 22, 0.74);
+	--fx-border: rgba(0, 245, 255, 0.22);
+	--fx-border-strong: rgba(0, 245, 255, 0.45);
+	--fx-shadow-soft: 0 16px 36px rgba(0, 0, 0, 0.42);
+	--fx-shadow-neon: 0 0 28px rgba(0, 245, 255, 0.2);
+	--fx-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.voxis-futuristic-root {
+	color: var(--fx-text);
+	font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+	background:
+		radial-gradient(circle at 20% 12%, rgba(0, 245, 255, 0.14), transparent 42%),
+		radial-gradient(circle at 80% 84%, rgba(139, 0, 255, 0.16), transparent 48%),
+		radial-gradient(circle at 52% 38%, rgba(255, 0, 170, 0.08), transparent 38%),
+		linear-gradient(145deg, #06070d 0%, var(--fx-space-black) 56%, #030307 100%);
+}
+
+.voxis-futuristic-root * {
+	box-sizing: border-box;
+}
+
+.voxis-futuristic-root h1,
+.voxis-futuristic-root h2,
+.voxis-futuristic-root h3,
+.voxis-futuristic-root h4,
+.voxis-futuristic-root .heading-fx {
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif;
+	letter-spacing: 0.01em;
+}
+
+.glass-bg {
+	background: linear-gradient(180deg, rgba(16, 24, 38, 0.74), rgba(8, 12, 22, 0.72));
+	border: 1px solid var(--fx-border);
+	backdrop-filter: blur(18px) saturate(130%);
+	-webkit-backdrop-filter: blur(18px) saturate(130%);
+	box-shadow: var(--fx-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.holo-border {
+	position: relative;
+}
+
+.holo-border::before {
+	content: "";
+	position: absolute;
+	inset: -1px;
+	border-radius: inherit;
+	padding: 1px;
+	background: linear-gradient(132deg, rgba(0, 245, 255, 0.58), rgba(255, 0, 170, 0.42), rgba(139, 0, 255, 0.55));
+	-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	pointer-events: none;
+	opacity: 0.62;
+}
+
+.neon-text-cyan {
+	color: var(--fx-electric-cyan);
+	text-shadow: 0 0 10px rgba(0, 245, 255, 0.52);
+}
+
+.neon-text-magenta {
+	color: var(--fx-neon-magenta);
+	text-shadow: 0 0 10px rgba(255, 0, 170, 0.48);
+}
+
+.scanline {
+	position: relative;
+	overflow: hidden;
+}
+
+.scanline::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+	background-size: 100% 3px;
+	opacity: 0.2;
+	pointer-events: none;
+}
+
+.pulse-glow {
+	animation: pulseGlow 2.8s var(--fx-ease) infinite;
+}
+
+.data-stream {
+	position: relative;
+	overflow: hidden;
+}
+
+.data-stream::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: -120%;
+	width: 120%;
+	height: 100%;
+	background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.18), transparent);
+	animation: dataSweep 3.4s linear infinite;
+}
+
+.futuristic-btn {
+	position: relative;
+	border-radius: 16px;
+	border: 1px solid var(--fx-border);
+	background: linear-gradient(165deg, rgba(23, 38, 56, 0.82), rgba(8, 14, 26, 0.9));
+	color: var(--fx-text);
+	padding: 0.74rem 1.2rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	transform-style: preserve-3d;
+	transition: transform 250ms var(--fx-ease), box-shadow 260ms var(--fx-ease), border-color 260ms var(--fx-ease), background 260ms var(--fx-ease);
+	box-shadow: var(--fx-shadow-neon), inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.futuristic-btn::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: linear-gradient(135deg, rgba(0, 245, 255, 0.2), rgba(255, 0, 170, 0.05) 58%, transparent);
+	opacity: 0.65;
+	pointer-events: none;
+}
+
+.futuristic-btn:hover {
+	transform: translateY(-2px) translateZ(4px);
+	border-color: var(--fx-border-strong);
+	box-shadow: 0 0 34px rgba(0, 245, 255, 0.28), 0 14px 20px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.futuristic-btn:active {
+	animation: press3D 180ms var(--fx-ease);
+	transform: translateY(1px) scale(0.985);
+}
+
+.futuristic-btn:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.26), 0 0 34px rgba(0, 245, 255, 0.24);
+}
+
+.futuristic-btn.secondary {
+	background: linear-gradient(165deg, rgba(20, 22, 40, 0.76), rgba(9, 10, 20, 0.92));
+	border-color: rgba(139, 0, 255, 0.42);
+	box-shadow: 0 0 22px rgba(139, 0, 255, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.futuristic-btn.ghost {
+	background: rgba(0, 0, 0, 0.26);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.futuristic-card {
+	position: relative;
+	border-radius: 20px;
+	padding: 18px;
+	background: linear-gradient(170deg, rgba(20, 28, 44, 0.7), rgba(8, 12, 22, 0.85));
+	border: 1px solid rgba(0, 245, 255, 0.16);
+	box-shadow: var(--fx-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	backdrop-filter: blur(14px);
+	overflow: hidden;
+}
+
+.futuristic-card::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background-image:
+		linear-gradient(rgba(0, 245, 255, 0.06) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(0, 245, 255, 0.06) 1px, transparent 1px);
+	background-size: 20px 20px;
+	opacity: 0.2;
+	pointer-events: none;
+}
+
+.futuristic-popup-backdrop {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	background: rgba(0, 0, 0, 0.62);
+	backdrop-filter: blur(8px);
+	z-index: 1000;
+	animation: fadeInHolo 260ms var(--fx-ease);
+}
+
+.futuristic-popup {
+	width: min(620px, calc(100vw - 32px));
+	border-radius: 24px;
+	border: 1px solid rgba(0, 245, 255, 0.22);
+	background: linear-gradient(160deg, rgba(18, 26, 43, 0.84), rgba(8, 12, 20, 0.9));
+	box-shadow: 0 24px 50px rgba(0, 0, 0, 0.56), 0 0 30px rgba(0, 245, 255, 0.18);
+	backdrop-filter: blur(20px);
+	transform: perspective(1200px) rotateX(2deg);
+	animation: popupRise 300ms var(--fx-ease);
+}
+
+.futuristic-popup-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 16px;
+	border-bottom: 1px solid rgba(0, 245, 255, 0.18);
+}
+
+.popup-close-btn {
+	border: 1px solid rgba(255, 0, 170, 0.4);
+	background: rgba(255, 0, 170, 0.14);
+	color: #ffd7ef;
+	width: 34px;
+	height: 34px;
+	border-radius: 999px;
+	display: grid;
+	place-items: center;
+}
+
+.futuristic-tab-list {
+	display: flex;
+	gap: 8px;
+	padding: 6px;
+	border-radius: 14px;
+	background: rgba(3, 8, 14, 0.62);
+	border: 1px solid rgba(0, 245, 255, 0.14);
+}
+
+.futuristic-tab {
+	position: relative;
+	border: 0;
+	background: transparent;
+	color: var(--fx-muted);
+	padding: 9px 14px;
+	border-radius: 10px;
+	font-weight: 650;
+	transition: color 220ms var(--fx-ease), transform 220ms var(--fx-ease), background 220ms var(--fx-ease);
+}
+
+.futuristic-tab.active {
+	color: var(--fx-electric-cyan);
+	background: rgba(0, 245, 255, 0.12);
+	text-shadow: 0 0 12px rgba(0, 245, 255, 0.5);
+	transform: translateY(-1px);
+}
+
+.futuristic-tab.active::after {
+	content: "";
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	bottom: -2px;
+	height: 2px;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--fx-electric-cyan), var(--fx-neon-magenta));
+	animation: tabSlide 260ms var(--fx-ease);
+}
+
+.futuristic-panel {
+	border-radius: 18px;
+	border: 1px solid rgba(0, 245, 255, 0.16);
+	background: var(--fx-glass-strong);
+	box-shadow: var(--fx-shadow-soft);
+}
+
+.futuristic-panel-header {
+	padding: 10px 14px;
+	border-bottom: 1px solid rgba(0, 245, 255, 0.16);
+}
+
+.futuristic-input,
+.futuristic-select,
+.futuristic-textarea {
+	width: 100%;
+	border-radius: 12px;
+	border: 1px solid rgba(0, 245, 255, 0.22);
+	background: rgba(1, 6, 12, 0.7);
+	color: var(--fx-text);
+	padding: 10px 12px;
+	transition: border-color 220ms var(--fx-ease), box-shadow 220ms var(--fx-ease), background 220ms var(--fx-ease);
+}
+
+.futuristic-input::placeholder,
+.futuristic-textarea::placeholder {
+	color: rgba(131, 173, 192, 0.84);
+}
+
+.futuristic-input:focus,
+.futuristic-select:focus,
+.futuristic-textarea:focus {
+	outline: none;
+	border-color: rgba(0, 245, 255, 0.7);
+	box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.2), 0 0 18px rgba(0, 245, 255, 0.22);
+}
+
+.futuristic-toggle {
+	position: relative;
+	width: 56px;
+	height: 30px;
+	border-radius: 999px;
+	background: rgba(90, 95, 120, 0.34);
+	border: 1px solid rgba(0, 245, 255, 0.24);
+	transition: background 220ms var(--fx-ease), border-color 220ms var(--fx-ease);
+}
+
+.futuristic-toggle::before {
+	content: "";
+	position: absolute;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	top: 3px;
+	left: 3px;
+	background: #e9f8ff;
+	box-shadow: 0 0 10px rgba(0, 245, 255, 0.3);
+	transition: transform 220ms var(--fx-ease), box-shadow 220ms var(--fx-ease), background 220ms var(--fx-ease);
+}
+
+.futuristic-toggle.on {
+	background: rgba(0, 245, 255, 0.24);
+	border-color: rgba(0, 245, 255, 0.55);
+}
+
+.futuristic-toggle.on::before {
+	transform: translateX(25px);
+	background: var(--fx-electric-cyan);
+	box-shadow: 0 0 16px rgba(0, 245, 255, 0.65);
+}
+
+.futuristic-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid rgba(0, 245, 255, 0.26);
+	background: rgba(0, 245, 255, 0.12);
+	color: #bdf8ff;
+	font-size: 0.74rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.futuristic-progress {
+	width: 100%;
+	height: 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.08);
+	overflow: hidden;
+	border: 1px solid rgba(0, 245, 255, 0.2);
+}
+
+.futuristic-progress > span {
+	display: block;
+	height: 100%;
+	background: linear-gradient(90deg, var(--fx-electric-cyan), var(--fx-neon-magenta));
+	box-shadow: 0 0 18px rgba(0, 245, 255, 0.4);
+	transition: width 280ms var(--fx-ease);
+}
+
+.futuristic-orb {
+	width: 42px;
+	height: 42px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 28% 28%, #ffffff, var(--fx-electric-cyan) 36%, #1477ff 72%, #001f36 100%);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-shadow: 0 0 22px rgba(0, 245, 255, 0.6), inset 0 -8px 10px rgba(0, 0, 0, 0.22);
+	animation: orbPulse 2.4s var(--fx-ease) infinite;
+}
+
+.futuristic-orb.small {
+	width: 28px;
+	height: 28px;
+}
+
+.futuristic-orb.positive {
+	background: radial-gradient(circle at 28% 28%, #fff, var(--fx-emerald) 38%, #00895b 80%);
+}
+
+.futuristic-orb.warning {
+	background: radial-gradient(circle at 28% 28%, #fff, var(--fx-amber) 38%, #8c5d00 80%);
+}
+
+.futuristic-orb.critical {
+	background: radial-gradient(circle at 28% 28%, #fff, var(--fx-neon-magenta) 40%, #6b0047 82%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.futuristic-btn,
+	.futuristic-tab,
+	.futuristic-orb,
+	.pulse-glow,
+	.data-stream::before {
+		animation: none !important;
+		transition-duration: 0ms !important;
+	}
+}
+
+@keyframes fadeInHolo {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes popupRise {
+	from {
+		opacity: 0;
+		transform: perspective(1200px) rotateX(8deg) translateY(14px) scale(0.98);
+	}
+
+	to {
+		opacity: 1;
+		transform: perspective(1200px) rotateX(2deg) translateY(0) scale(1);
+	}
+}
+
+@keyframes press3D {
+	from {
+		transform: translateY(-1px) scale(1);
+	}
+
+	to {
+		transform: translateY(1px) scale(0.985);
+	}
+}
+
+@keyframes orbPulse {
+	0%,
+	100% {
+		box-shadow: 0 0 20px rgba(0, 245, 255, 0.5), inset 0 -8px 10px rgba(0, 0, 0, 0.22);
+	}
+
+	50% {
+		box-shadow: 0 0 32px rgba(0, 245, 255, 0.78), inset 0 -8px 12px rgba(0, 0, 0, 0.24);
+	}
+}
+
+@keyframes tabSlide {
+	from {
+		opacity: 0;
+		transform: scaleX(0.4);
+	}
+
+	to {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+}
+
+@keyframes pulseGlow {
+	0%,
+	100% {
+		filter: drop-shadow(0 0 0 rgba(0, 245, 255, 0));
+	}
+
+	50% {
+		filter: drop-shadow(0 0 10px rgba(0, 245, 255, 0.52));
+	}
+}
+
+@keyframes dataSweep {
+	from {
+		transform: translateX(0);
+	}
+
+	to {
+		transform: translateX(190%);
+	}
+}
