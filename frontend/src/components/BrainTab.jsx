@@ -1,5 +1,6 @@
 import { useMemo, useRef, useEffect } from "react";
 import "./BrainTab.css";
+import "../styles/futuristic-ui-kit.css";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ function truncate(str, max) {
 function MoodPanel({ moodEvent }) {
   if (!moodEvent?.mood) {
     return (
-      <section className="bt-panel bt-mood-panel">
+      <section className="bt-panel bt-mood-panel futuristic-card holo-border scanline">
         <h3 className="bt-panel-title">Mood</h3>
         <p className="bt-empty-hint">Waiting for mood data…</p>
       </section>
@@ -67,7 +68,7 @@ function MoodPanel({ moodEvent }) {
   ];
 
   return (
-    <section className="bt-panel bt-mood-panel">
+    <section className="bt-panel bt-mood-panel futuristic-card holo-border scanline">
       <h3 className="bt-panel-title">Mood</h3>
       {label && <span className="bt-mood-label">{label}</span>}
       <div className="bt-vad-rows">
@@ -103,7 +104,7 @@ function NarrativeFeed({ events }) {
 
   if (events.length === 0) {
     return (
-      <section className="bt-panel bt-narrative-panel">
+      <section className="bt-panel bt-narrative-panel futuristic-card holo-border scanline">
         <h3 className="bt-panel-title">Narrative Feed</h3>
         <p className="bt-empty-hint">Step-by-step events will appear here during generation.</p>
       </section>
@@ -119,7 +120,7 @@ function NarrativeFeed({ events }) {
   };
 
   return (
-    <section className="bt-panel bt-narrative-panel">
+    <section className="bt-panel bt-narrative-panel futuristic-card holo-border scanline">
       <h3 className="bt-panel-title">Narrative Feed</h3>
       <ol className="bt-narrative-list" ref={feedRef}>
         {[...events].reverse().map((ev, i) => (
@@ -137,7 +138,7 @@ function NarrativeFeed({ events }) {
 function MemoryPanel({ memoryEvent }) {
   if (!memoryEvent?.memories?.length) {
     return (
-      <section className="bt-panel bt-memory-panel">
+      <section className="bt-panel bt-memory-panel futuristic-card holo-border scanline">
         <h3 className="bt-panel-title">Memory Retrieval</h3>
         <p className="bt-empty-hint">No memories retrieved yet.</p>
       </section>
@@ -145,7 +146,7 @@ function MemoryPanel({ memoryEvent }) {
   }
 
   return (
-    <section className="bt-panel bt-memory-panel">
+    <section className="bt-panel bt-memory-panel futuristic-card holo-border scanline">
       <h3 className="bt-panel-title">Memory Retrieval</h3>
       <ul className="bt-memory-list">
         {memoryEvent.memories.map((mem, i) => {
@@ -184,7 +185,7 @@ function MemoryPanel({ memoryEvent }) {
 function IntentPanel({ intentEvent }) {
   if (!intentEvent?.activeIntent) {
     return (
-      <section className="bt-panel bt-intent-panel">
+      <section className="bt-panel bt-intent-panel futuristic-card holo-border scanline">
         <h3 className="bt-panel-title">Active Intent</h3>
         <p className="bt-empty-hint">No active goal selected.</p>
       </section>
@@ -195,7 +196,7 @@ function IntentPanel({ intentEvent }) {
   const maxScore = Math.max(1, ...Object.values(scores));
 
   return (
-    <section className="bt-panel bt-intent-panel">
+    <section className="bt-panel bt-intent-panel futuristic-card holo-border scanline">
       <h3 className="bt-panel-title">Active Intent</h3>
       <p className="bt-active-intent">{intentEvent.activeIntent}</p>
       {Object.keys(scores).length > 0 && (
@@ -226,7 +227,7 @@ function IntentPanel({ intentEvent }) {
 function PromptBudgetPanel({ promptEvent }) {
   if (!promptEvent?.tokenUsage) {
     return (
-      <section className="bt-panel bt-budget-panel">
+      <section className="bt-panel bt-budget-panel futuristic-card holo-border scanline">
         <h3 className="bt-panel-title">Prompt Budget</h3>
         <p className="bt-empty-hint">Awaiting prompt assembly…</p>
       </section>
@@ -239,7 +240,7 @@ function PromptBudgetPanel({ promptEvent }) {
     utilPct >= 90 ? "bt-bar-red" : utilPct >= 70 ? "bt-bar-amber" : "bt-bar-green";
 
   return (
-    <section className="bt-panel bt-budget-panel">
+    <section className="bt-panel bt-budget-panel futuristic-card holo-border scanline">
       <h3 className="bt-panel-title">Prompt Budget</h3>
       <div className="bt-budget-row">
         <span className="bt-budget-label">Utilization</span>
@@ -282,7 +283,7 @@ export default function BrainTab({ brainEvents = [], personality, livePhase }) {
   const hasAny = brainEvents.length > 0;
 
   return (
-    <div className="brain-tab">
+    <div className="brain-tab voxis-futuristic-root">
       <div className="bt-header">
         <h2 className="bt-title">
           Brain

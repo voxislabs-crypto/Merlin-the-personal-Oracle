@@ -208,6 +208,7 @@ What this demonstrates in minutes:
 - A persistent top-right `Home` node remains available as an uncluttered return control back to the full core graph.
 - Background FX now always attempts to render the uploaded MP4 whenever FX is not `off`, with a cache-busted source path and graceful fallback to shader-only mode if video decode fails.
 - UI control surfaces now include a futuristic glass-material pass (tabs, sidebar toggles, persona action buttons, and editor section controls) with specular highlights, layered depth shadows, and press/hover depth states.
+- Brain telemetry tab now uses the FuturisticUI kit styling pass (glass cards, holographic borders, neon state chips, and readable sci-fi data surfaces) while preserving existing live SSE diagnostics behavior.
 - The 3D Neural Core canvas now renders with transparent clear color so the global cyberpunk background video/shader stack can bleed through behind neural geometry.
 - Neural Core now listens for `webglcontextlost`/`webglcontextrestored`, lowers max DPR on the 3D canvas, and surfaces a lightweight recovery hint while the GPU context resets.
 - Pivot path: `NeuralSceneV2` Phase 1 now ships as an opt-in layered navigation model (`VITE_NEURAL_CORE_SCENE_MODEL=layered-v2`) with scene-stack depth, camera lerp zoom between layers, current-layer-only rendering, back/home controls, and leaf-node HUD handoff to the existing detail panel.
