@@ -1009,10 +1009,15 @@ export default function VoiceLab({
     ? ttsSettings.find((entry) => entry.provider === selectedProviderId) || null
     : null;
 
-  const supportsCloudModelCatalog = voiceProfile.engine === "cloud" || voiceProfile.engine === "auto";
+  const supportsCloudModelCatalog = !selectedProviderId;
   const selectedCloudModelOption = cloudModels.some((model) => model.id === voiceProfile.providerModel)
     ? voiceProfile.providerModel
     : CUSTOM_OPTION;
+  const modelFieldLabel = selectedProviderId
+    ? "TTS Model"
+    : voiceProfile.engine === "kokoro" || voiceProfile.engine === "piper"
+      ? "Cloud Fallback Model"
+      : "TTS Model";
 
   // ── Effects ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -2288,7 +2293,7 @@ export default function VoiceLab({
 
               <div className="vlab-field">
                 <div className="vlab-label-row">
-                  <label htmlFor="vlab-model">TTS Model</label>
+                  <label htmlFor="vlab-model">{modelFieldLabel}</label>
                   {(selectedProviderId || supportsCloudModelCatalog) ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {selectedProviderId && showProviderUpdated ? (
@@ -2397,7 +2402,9 @@ export default function VoiceLab({
                       />
                     ) : null}
                     <small className="vlab-small">
-                      {cloudModelError || "Auto-loaded from Runtime LLM provider model list."}
+                      {cloudModelError || (voiceProfile.engine === "kokoro" || voiceProfile.engine === "piper"
+                        ? "Used if voice synthesis needs to fall back to cloud from this engine."
+                        : "Auto-loaded from Runtime LLM provider model list.")}
                     </small>
                   </>
                 ) : (
