@@ -1069,20 +1069,34 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
   function shouldFallbackFromExplicitRequest(error) {
     const provider = String(error?.ttsProvider || "").toLowerCase();
     const providerStatus = String(error?.ttsProviderStatus || "").toLowerCase();
+    const providerCode = String(error?.ttsProviderCode || "").toLowerCase();
     const statusCode = Number(error?.statusCode || 0);
     const upstreamStatus = Number(error?.providerStatus || 0);
 
-    if (provider !== "elevenlabs") {
-      return false;
+    if (provider === "elevenlabs") {
+      return (
+        statusCode === 429 ||
+        upstreamStatus === 429 ||
+        providerStatus === "too_many_concurrent_requests" ||
+        providerStatus === "concurrent_limit_exceeded" ||
+        providerStatus === "quota_exceeded"
+      );
     }
 
-    return (
-      statusCode === 429 ||
-      upstreamStatus === 429 ||
-      providerStatus === "too_many_concurrent_requests" ||
-      providerStatus === "concurrent_limit_exceeded" ||
-      providerStatus === "quota_exceeded"
-    );
+    if (provider === "cloud") {
+      return (
+        statusCode === 401 ||
+        statusCode === 403 ||
+        statusCode === 429 ||
+        upstreamStatus === 401 ||
+        upstreamStatus === 403 ||
+        upstreamStatus === 429 ||
+        providerCode === "insufficient_quota" ||
+        providerCode === "invalid_api_key"
+      );
+    }
+
+    return false;
   }
 
   async function runEngine(eng, profileOverride = adjustedVoiceProfile) {
