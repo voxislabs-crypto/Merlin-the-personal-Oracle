@@ -847,6 +847,20 @@ const CLOUD_MODEL_PRESETS = [
   { id: "gpt-4o-mini-tts", label: "gpt-4o-mini-tts" },
 ];
 
+const CLOUD_VOICE_PRESETS = [
+  { id: "alloy", label: "Alloy" },
+  { id: "ash", label: "Ash" },
+  { id: "ballad", label: "Ballad" },
+  { id: "coral", label: "Coral" },
+  { id: "echo", label: "Echo" },
+  { id: "fable", label: "Fable" },
+  { id: "nova", label: "Nova" },
+  { id: "onyx", label: "Onyx" },
+  { id: "sage", label: "Sage" },
+  { id: "shimmer", label: "Shimmer" },
+  { id: "__custom__", label: "Custom voice id" },
+];
+
 const CUSTOM_OPTION = "__custom__";
 const PROSODY_PROGRESS_STEPS = [
   "Scraping source audio",
@@ -1013,11 +1027,25 @@ export default function VoiceLab({
   const selectedCloudModelOption = cloudModels.some((model) => model.id === voiceProfile.providerModel)
     ? voiceProfile.providerModel
     : CUSTOM_OPTION;
+  const selectedCloudVoiceOption = CLOUD_VOICE_PRESETS.some((voice) => voice.id === (voiceProfile.providerVoice || voiceProfile.preferredVoice || ""))
+    ? (voiceProfile.providerVoice || voiceProfile.preferredVoice || "")
+    : CUSTOM_OPTION;
   const modelFieldLabel = selectedProviderId
     ? "TTS Model"
     : voiceProfile.engine === "kokoro" || voiceProfile.engine === "piper"
       ? "Cloud Fallback Model"
       : "TTS Model";
+  const voiceFieldLabel = voiceProfile.engine === "piper"
+    ? "Piper Voice"
+    : voiceProfile.engine === "kokoro"
+      ? "Kokoro Voice"
+      : voiceProfile.engine === "elevenlabs"
+        ? "ElevenLabs Voice"
+        : voiceProfile.engine === "cartesia"
+          ? "Cartesia Voice"
+          : voiceProfile.engine === "cloud"
+            ? "Cloud Voice"
+            : "Cloud/Fallback Voice";
 
   // ── Effects ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -2112,15 +2140,7 @@ export default function VoiceLab({
               <div className="vlab-field">
                 <div className="vlab-label-row">
                   <label>
-                    {voiceProfile.engine === "piper"
-                      ? "Piper Voice"
-                      : voiceProfile.engine === "kokoro"
-                        ? "Kokoro Voice"
-                        : voiceProfile.engine === "elevenlabs"
-                          ? "ElevenLabs Voice"
-                          : voiceProfile.engine === "cartesia"
-                            ? "Cartesia Voice"
-                            : "TTS Voice"}
+                    {voiceFieldLabel}
                   </label>
                   {(voiceProfile.engine === "elevenlabs" || voiceProfile.engine === "cartesia") ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2279,15 +2299,43 @@ export default function VoiceLab({
                     </small>
                   </>
                 ) : (
-                  <input
-                    className="vlab-input"
-                    value={voiceProfile.providerVoice || voiceProfile.preferredVoice}
-                    onChange={(e) => {
-                      updateVoiceField("providerVoice", e.target.value);
-                      updateVoiceField("preferredVoice", e.target.value);
-                    }}
-                    placeholder="alloy"
-                  />
+                  <>
+                    <select
+                      className="vlab-select"
+                      value={selectedCloudVoiceOption}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        if (next === CUSTOM_OPTION) {
+                          updateVoiceField("providerVoice", "");
+                          updateVoiceField("preferredVoice", "");
+                          return;
+                        }
+                        updateVoiceField("providerVoice", next);
+                        updateVoiceField("preferredVoice", next);
+                      }}
+                    >
+                      <option value="" disabled>Select a cloud voice</option>
+                      {CLOUD_VOICE_PRESETS.map((voice) => (
+                        <option key={voice.id || CUSTOM_OPTION} value={voice.id || CUSTOM_OPTION}>{voice.label}</option>
+                      ))}
+                    </select>
+                    {selectedCloudVoiceOption === CUSTOM_OPTION ? (
+                      <input
+                        className="vlab-input"
+                        value={voiceProfile.providerVoice || voiceProfile.preferredVoice || ""}
+                        onChange={(e) => {
+                          updateVoiceField("providerVoice", e.target.value);
+                          updateVoiceField("preferredVoice", e.target.value);
+                        }}
+                        placeholder="alloy"
+                      />
+                    ) : null}
+                    <small className="vlab-small">
+                      {voiceProfile.engine === "kokoro" || voiceProfile.engine === "piper"
+                        ? "Used if voice synthesis needs to fall back to cloud from this engine."
+                        : "OpenAI-compatible cloud voice selection."}
+                    </small>
+                  </>
                 )}
               </div>
 
