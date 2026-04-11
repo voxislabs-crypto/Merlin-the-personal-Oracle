@@ -693,7 +693,7 @@ export default function LlmSettingsPanel({ onStatus }) {
     }
 
     if (!apiKey.trim() && !selectedSavedCredential?.keyHint && !llmEnvInfo.envConfigured) {
-      onStatus?.({ type: "error", message: "API key is required unless a saved key already exists for this provider." });
+      onStatus?.({ type: "error", message: "API key is required. Paste a key or select a provider that has a saved key." });
       return;
     }
 
@@ -850,7 +850,13 @@ export default function LlmSettingsPanel({ onStatus }) {
               autoComplete="off"
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              placeholder={selectedSavedCredential?.keyHint ? "Saved key on file. Enter a new key only to replace it." : "Paste provider key"}
+              placeholder={
+                selectedSavedCredential?.keyHint
+                  ? "Saved key on file. Enter a new key only to replace it."
+                  : llmEnvInfo.envConfigured
+                    ? "Env key on file (works for its own provider). Paste a new key to use a different one."
+                    : "Paste provider key"
+              }
               disabled={isLoading || isConnecting}
             />
             {selectedSavedCredential?.keyHint ? (

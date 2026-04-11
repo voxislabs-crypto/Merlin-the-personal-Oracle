@@ -152,8 +152,15 @@ function normalizeModelList(payload) {
         isFree: isLikelyFreeModel(item, id, name),
       };
     })
-    .filter(Boolean)
-    .slice(0, 400);
+    .filter(Boolean);
+
+  // OpenRouter returns hundreds of models which is overwhelming in a UI dropdown.
+  // Return free models first (up to 80), then fill remaining slots with paid ones.
+  const freeModels = normalized.filter((m) => m.isFree);
+  const paidModels = normalized.filter((m) => !m.isFree);
+  const cap = 100;
+  const freeCap = Math.min(freeModels.length, 80);
+  return [...freeModels.slice(0, freeCap), ...paidModels.slice(0, cap - freeCap)];
 }
 
 function chooseDefaultModel(providerId, models) {

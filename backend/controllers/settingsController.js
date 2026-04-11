@@ -108,21 +108,34 @@ export async function connectLlmSettingsHandler(req, res, next) {
     const savedCredential = getSavedLlmCredential({ provider: requestedProvider, baseUrl });
     const envApiKey = String(process.env.LLM_API_KEY || "").trim();
     const envBaseUrl = String(process.env.LLM_BASE_URL || "").trim();
-    const apiKey = suppliedApiKey || savedCredential?.apiKey || envApiKey;
+
+    // Only use the env key as a fallback if it actually belongs to the requested
+    // provider — prevents silently connecting to OpenRouter when the user explicitly
+    // selected Groq/OpenAI/etc.
+    const envKeyProvider = getSuggestedProviderIdFromApiKey(envApiKey);
+    const envKeyMatchesRequest =
+      !envKeyProvider || // key has no detectable prefix (e.g. OpenAI sk-proj-)
+      envKeyProvider === requestedProvider ||
+      requestedProvider === "custom";
+
+    const apiKey = suppliedApiKey || savedCredential?.apiKey || (envKeyMatchesRequest ? envApiKey : "");
 
     if (!apiKey) {
-      return res.status(400).json({ error: "apiKey is required unless a saved key already exists for this provider." });
+      const envKeyProviderHint = envKeyProvider
+        ? ` Your only configured key is for ${envKeyProvider}; select ${envKeyProvider} to connect without typing a key.`
+        : "";
+      return res.status(400).json({
+        error: `No API key found for ${requestedProvider}.${envKeyProviderHint}`,
+      });
     }
 
     // When no explicit baseUrl was provided and the provider is custom, fall
     // back to the env base URL so the env-configured endpoint is used.
     const resolvedBaseUrl = baseUrl || (requestedProvider === "custom" ? envBaseUrl : "");
 
-    const suggestedProvider = getSuggestedProviderIdFromApiKey(apiKey);
-    const provider =
-      suggestedProvider && requestedProvider !== "custom" && suggestedProvider !== requestedProvider
-        ? suggestedProvider
-        : requestedProvider;
+    // Don't silently re-route to a different provider; the key validation in
+    // fetchProviderModels will throw a clear error if the key doesn't match.
+    const provider = requestedProvider;
 
     const connected = await fetchProviderModels({
       providerId: provider,
@@ -163,6 +176,8 @@ export async function connectLlmSettingsHandler(req, res, next) {
 export async function detectLlmProviderHandler(req, res, next) {
   try {
     const suppliedKey = String(req.body?.apiKey || "").trim();
+    // Fall back to env key for detect — the whole point of detect is to figure
+    // out which provider a key belongs to, so the env key is always valid here.
     const apiKey = suppliedKey || String(process.env.LLM_API_KEY || "").trim();
     if (!apiKey) {
       return res.status(400).json({ error: "apiKey is required." });
