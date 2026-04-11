@@ -162,7 +162,8 @@ export async function connectLlmSettingsHandler(req, res, next) {
 
 export async function detectLlmProviderHandler(req, res, next) {
   try {
-    const apiKey = String(req.body?.apiKey || "").trim();
+    const suppliedKey = String(req.body?.apiKey || "").trim();
+    const apiKey = suppliedKey || String(process.env.LLM_API_KEY || "").trim();
     if (!apiKey) {
       return res.status(400).json({ error: "apiKey is required." });
     }

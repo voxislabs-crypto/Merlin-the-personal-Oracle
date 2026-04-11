@@ -653,7 +653,7 @@ export default function LlmSettingsPanel({ onStatus }) {
   }
 
   async function detectProvider() {
-    if (!apiKey.trim()) {
+    if (!apiKey.trim() && !llmEnvInfo.envConfigured) {
       onStatus?.({ type: "error", message: "Enter an API key before auto-detect." });
       return;
     }
@@ -692,7 +692,7 @@ export default function LlmSettingsPanel({ onStatus }) {
       return;
     }
 
-    if (!apiKey.trim() && !selectedSavedCredential?.keyHint) {
+    if (!apiKey.trim() && !selectedSavedCredential?.keyHint && !llmEnvInfo.envConfigured) {
       onStatus?.({ type: "error", message: "API key is required unless a saved key already exists for this provider." });
       return;
     }
