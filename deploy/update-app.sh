@@ -84,7 +84,11 @@ fi
 npm --prefix "$APP_DIR" run build
 
 echo "[6/6] Restarting backend"
-pm2 startOrReload "$APP_DIR/ecosystem.config.cjs" --only "$PM2_APP_NAME" --update-env
+if [[ -f "$APP_DIR/ecosystem.config.cjs" ]]; then
+  pm2 startOrReload "$APP_DIR/ecosystem.config.cjs" --only "$PM2_APP_NAME" --update-env
+else
+  pm2 restart "$PM2_APP_NAME" --update-env
+fi
 pm2 save
 
 echo "Done."

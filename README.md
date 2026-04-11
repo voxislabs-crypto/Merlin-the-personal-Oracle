@@ -475,6 +475,8 @@ bash deploy/update-app.sh
 
 `deploy/update-app.sh` now defaults to the `NeuronMap` branch and reloads PM2 with `--update-env` so backend env changes are picked up during deploy.
 
+The repo now includes `ecosystem.config.cjs`, so `pm2 startOrReload` has a stable config file on fresh servers and normal deploys.
+
 For a conservative branch deploy that stashes local changes first:
 
 ```bash
