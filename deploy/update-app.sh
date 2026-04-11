@@ -11,7 +11,8 @@ set -euo pipefail
 #   --reset-db  : remove sqlite DB and WAL/SHM files
 
 APP_DIR="${APP_DIR:-/opt/voxis}"
-BRANCH="${BRANCH:-feature/cyberpunk-ui-redesign}"
+BRANCH="${BRANCH:-NeuronMap}"
+PM2_APP_NAME="${PM2_APP_NAME:-voxis-backend}"
 BACKEND_DIR="$APP_DIR/backend"
 DB_FILE="$BACKEND_DIR/voxis.sqlite"
 BACKUP_DIR="$BACKEND_DIR/backups"
@@ -83,7 +84,7 @@ fi
 npm --prefix "$APP_DIR" run build
 
 echo "[6/6] Restarting backend"
-pm2 startOrReload "$APP_DIR/ecosystem.config.cjs" --only voxis-backend
+pm2 startOrReload "$APP_DIR/ecosystem.config.cjs" --only "$PM2_APP_NAME" --update-env
 pm2 save
 
 echo "Done."

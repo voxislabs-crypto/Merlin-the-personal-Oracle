@@ -473,6 +473,8 @@ cd /opt/voxis
 bash deploy/update-app.sh
 ```
 
+`deploy/update-app.sh` now defaults to the `NeuronMap` branch and reloads PM2 with `--update-env` so backend env changes are picked up during deploy.
+
 For a conservative branch deploy that stashes local changes first:
 
 ```bash
