@@ -149,6 +149,14 @@ export function getSavedLlmCredential({ provider, baseUrl } = {}) {
     return exactMatch;
   }
 
+  // When the caller omitted baseUrl (non-custom providers), also accept the
+  // first credential that matches on provider alone so saved keys are reused.
+  if (!target.baseUrl) {
+    return savedCredentials.find(
+      (credential) => credential.provider === target.provider,
+    ) || null;
+  }
+
   return savedCredentials.find(
     (credential) => credential.provider === target.provider && credential.baseUrl === "",
   ) || null;

@@ -1332,6 +1332,12 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
       );
     }
 
+    // Piper process failures (binary missing, model not found, timeout) should
+    // always degrade to the next configured engine rather than surface a 502.
+    if (requested === "piper" || provider === "piper") {
+      return true;
+    }
+
     return false;
   }
 
