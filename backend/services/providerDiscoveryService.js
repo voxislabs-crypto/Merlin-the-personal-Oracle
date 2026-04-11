@@ -56,6 +56,34 @@ const PROVIDERS = [
 
 const PROVIDER_MAP = new Map(PROVIDERS.map((provider) => [provider.id, provider]));
 
+function getSuggestedProviderIdFromApiKey(apiKey) {
+  const trimmedKey = String(apiKey || "").trim();
+  if (!trimmedKey) {
+    return "";
+  }
+
+  if (trimmedKey.startsWith("sk-ant-")) return "anthropic";
+  if (trimmedKey.startsWith("sk-or-v1-")) return "openrouter";
+  if (trimmedKey.startsWith("xai-") || trimmedKey.startsWith("xai_")) return "grok";
+  if (trimmedKey.startsWith("gsk_")) return "groq";
+  return "";
+}
+
+function validateApiKeyMatchesProvider(providerId, apiKey) {
+  const suggestedProviderId = getSuggestedProviderIdFromApiKey(apiKey);
+  if (!suggestedProviderId || !providerId || providerId === "custom" || suggestedProviderId === providerId) {
+    return;
+  }
+
+  const suggestedProvider = PROVIDER_MAP.get(suggestedProviderId);
+  const selectedProvider = PROVIDER_MAP.get(providerId);
+  const error = new Error(
+    `This API key looks like a ${suggestedProvider?.name || suggestedProviderId} key, but ${selectedProvider?.name || providerId} is selected. Choose ${suggestedProvider?.name || suggestedProviderId} or use Detect Provider first.`,
+  );
+  error.statusCode = 400;
+  throw error;
+}
+
 function buildHeaders(provider, apiKey) {
   const headers = {
     "Content-Type": "application/json",
@@ -232,6 +260,8 @@ export async function fetchProviderModels({ providerId, apiKey, baseUrl }) {
     error.statusCode = 400;
     throw error;
   }
+
+  validateApiKeyMatchesProvider(String(providerId || "").trim().toLowerCase(), trimmedKey);
 
   const provider = resolveProviderConfig(providerId, baseUrl);
   const detection = await probeProvider(provider, trimmedKey);

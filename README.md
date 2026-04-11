@@ -449,6 +449,7 @@ What this script proves after it runs:
 Provider troubleshooting notes:
 
 - If chat returns `LLM request failed with 401: Missing Authentication header`, your active runtime provider has no API key loaded. Re-save provider credentials in Settings or set `LLM_API_KEY` in `backend/.env`, then restart PM2 with `--update-env`.
+- In Settings, switching the provider now clears the previous model list until you click `Detect Provider` or `Connect Provider`. If the API key prefix obviously does not match the selected provider, Voxis returns a targeted `400` instead of a generic connect failure.
 - If TTS is forced to Piper, confirm the live backend sees that routing by checking `/health/tts`. You should see `routing.envEngine: "piper"` plus a configured Piper model path.
 - If Piper still times out, verify `PIPER_COMMAND`, `PIPER_MODEL_PATH`, and the effective `timeoutMs` in `/health/tts`, then raise `PIPER_TIMEOUT_MS` in `backend/.env` and restart with `pm2 restart voxis-backend --update-env`.
 - For a direct shell smoke test, source `backend/.env` first; `grep` only prints values and does not export them:

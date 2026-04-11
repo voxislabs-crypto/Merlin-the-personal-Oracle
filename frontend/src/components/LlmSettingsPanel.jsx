@@ -332,6 +332,21 @@ export default function LlmSettingsPanel({ onStatus }) {
   }, [provider, selectedProvider?.baseUrl]);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/$/, "");
+    const normalizedConnectedBaseUrl = String(connected?.baseUrl || "").trim().replace(/\/$/, "");
+    const sameConnection = connected?.provider === provider && normalizedBaseUrl === normalizedConnectedBaseUrl;
+
+    if (!sameConnection) {
+      setAvailableModels([]);
+      setModel("");
+    }
+  }, [provider, baseUrl, connected?.provider, connected?.baseUrl, isLoading]);
+
+  useEffect(() => {
     if (!selectedTtsProvider) {
       return;
     }
@@ -862,6 +877,9 @@ export default function LlmSettingsPanel({ onStatus }) {
                 </option>
               ))}
             </select>
+            {!availableModels.length ? (
+              <p className="llm-field-helper">Switching providers clears the previous model list. Click Detect Provider or Connect Provider to load models for the selected provider.</p>
+            ) : null}
           </div>
         </div>
 
