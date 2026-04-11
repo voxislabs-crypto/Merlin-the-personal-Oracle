@@ -17,6 +17,24 @@ import { getLlmRuntimeConfig, setLlmRuntimeConfig } from "../models/settingsMode
 import { fetchProviderModels } from "./providerDiscoveryService.js";
 
 function getLlmConfig() {
+  const envApiKey = String(process.env.LLM_API_KEY || "").trim();
+  const envBaseUrl = String(process.env.LLM_BASE_URL || "").trim();
+
+  // Env API key takes precedence when explicitly set.
+  // This prevents a stale DB runtime config (e.g. from a previous provider
+  // connected via the Settings UI) from silently overriding a fresh deployment.
+  // DB config is used as a fallback for UI-only installs that have no .env key.
+  if (envApiKey) {
+    return {
+      provider: "",
+      baseUrl: (envBaseUrl || DEFAULT_BASE_URL).replace(/\/$/, ""),
+      model: process.env.LLM_MODEL || DEFAULT_MODEL,
+      apiKey: envApiKey,
+      models: [],
+      isRuntimeConfig: false,
+    };
+  }
+
   const runtime = getLlmRuntimeConfig();
   if (runtime?.apiKey && runtime?.baseUrl) {
     return {
@@ -31,9 +49,9 @@ function getLlmConfig() {
 
   return {
     provider: "",
-    baseUrl: (process.env.LLM_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, ""),
+    baseUrl: (envBaseUrl || DEFAULT_BASE_URL).replace(/\/$/, ""),
     model: process.env.LLM_MODEL || DEFAULT_MODEL,
-    apiKey: process.env.LLM_API_KEY || "",
+    apiKey: "",
     models: [],
     isRuntimeConfig: false,
   };
