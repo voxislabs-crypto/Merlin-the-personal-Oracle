@@ -805,6 +805,24 @@ export default function LlmSettingsPanel({ onStatus }) {
     }
   }
 
+  async function removeSavedCredential(savedProvider) {
+    try {
+      const response = await authFetch("/settings/llm/saved", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: savedProvider.provider, baseUrl: savedProvider.baseUrl }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to remove saved key.");
+      }
+      setSavedProviders(data.savedProviders || []);
+      onStatus?.({ type: "success", message: `Removed saved key for ${savedProvider.provider}.` });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to remove saved key." });
+    }
+  }
+
   return (
     <div className="llm-settings">
       <style>{settingsStyles}</style>
@@ -924,6 +942,27 @@ export default function LlmSettingsPanel({ onStatus }) {
             No runtime LLM is connected right now. Env fallbacks can still be used server-side if configured.
           </div>
         )}
+
+        {savedProviders.length > 0 ? (
+          <div className="llm-field">
+            <label>Saved Keys</label>
+            {savedProviders.map((sp) => (
+              <div key={`${sp.provider}::${sp.baseUrl}`} style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px" }}>
+                <span style={{ flex: 1, fontSize: "0.86rem", color: "var(--muted)" }}>
+                  {sp.provider}{sp.baseUrl ? ` (${sp.baseUrl})` : ""} — {sp.keyHint}
+                </span>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ padding: "2px 10px", fontSize: "0.78rem" }}
+                  onClick={() => void removeSavedCredential(sp)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="settings-section">

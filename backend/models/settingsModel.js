@@ -162,6 +162,23 @@ export function getSavedLlmCredential({ provider, baseUrl } = {}) {
   ) || null;
 }
 
+export function removeSavedLlmCredential({ provider, baseUrl }) {
+  const target = normalizeCredentialTarget(provider, baseUrl);
+  if (!target.provider) {
+    return getSavedLlmCredentials();
+  }
+
+  const savedCredentials = getSavedLlmCredentials().filter(
+    (credential) => !(credential.provider === target.provider && credential.baseUrl === target.baseUrl),
+  );
+
+  writeAppSetting(LLM_SAVED_CREDENTIALS_KEY, {
+    credentials: sanitizeSavedCredentials(savedCredentials),
+  });
+
+  return getSavedLlmCredentials();
+}
+
 export function upsertSavedLlmCredential({ provider, baseUrl, apiKey }) {
   const target = normalizeCredentialTarget(provider, baseUrl);
   const normalizedKey = String(apiKey || "").trim();

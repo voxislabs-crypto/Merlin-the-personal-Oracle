@@ -219,6 +219,16 @@ export function disconnectLlmSettingsHandler(_req, res) {
   return res.json(toPublicConfig(null));
 }
 
+export function removeSavedLlmCredentialHandler(req, res) {
+  const provider = String(req.body?.provider || "").trim();
+  const baseUrl = String(req.body?.baseUrl || "").trim();
+  if (!provider) {
+    return res.status(400).json({ error: "provider is required." });
+  }
+  removeSavedLlmCredential({ provider, baseUrl });
+  return res.json(toPublicConfig(getLlmRuntimeConfig()));
+}
+
 // ── TTS Settings (BYOK) ────────────────────────────────────────────────────
 
 const TTS_PROVIDER_META = {

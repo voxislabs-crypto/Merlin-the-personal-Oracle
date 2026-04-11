@@ -4,6 +4,7 @@ import {
   connectLlmSettingsHandler,
   detectLlmProviderHandler,
   disconnectLlmSettingsHandler,
+  removeSavedLlmCredentialHandler,
   getLlmSettingsHandler,
   listLlmProvidersHandler,
   selectLlmModelHandler,
@@ -25,6 +26,7 @@ router.post("/settings/llm/connect", requireAuth, requireAdmin, connectLlmSettin
 router.post("/settings/llm/detect", requireAuth, requireAdmin, detectLlmProviderHandler);
 router.post("/settings/llm/model", requireAuth, requireAdmin, selectLlmModelHandler);
 router.delete("/settings/llm", requireAuth, requireAdmin, disconnectLlmSettingsHandler);
+router.delete("/settings/llm/saved", requireAuth, requireAdmin, removeSavedLlmCredentialHandler);
 
 // TTS BYOK — users save API keys from the browser, no .env needed
 router.get("/settings/tts", requireAuth, getTtsSettingsHandler);

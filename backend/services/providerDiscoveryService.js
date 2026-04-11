@@ -194,11 +194,25 @@ function chooseDefaultModel(providerId, models) {
   return models[0].id;
 }
 
-async function probeProvider(provider, apiKey) {
-  const response = await fetch(`${provider.baseUrl}${provider.modelsPath}`, {
-    method: "GET",
-    headers: buildHeaders(provider, apiKey),
-  });
+async function probeProvider(provider, apiKey, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${provider.baseUrl}${provider.modelsPath}`, {
+      method: "GET",
+      headers: buildHeaders(provider, apiKey),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      return null; // treat timeout as "provider not reachable"
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     return null;
