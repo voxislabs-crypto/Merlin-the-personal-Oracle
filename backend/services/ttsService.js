@@ -1055,7 +1055,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
     throw error;
   }
 
-  const requested = String(voiceProfile?.engine || "auto").trim().toLowerCase();
+  const requested = String(voiceProfile?.engine || process.env.TTS_ENGINE || "auto").trim().toLowerCase();
   const engine = resolveEngine(voiceProfile);
   const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, sfx } = prepareSpeechSynthesis({
     personality,

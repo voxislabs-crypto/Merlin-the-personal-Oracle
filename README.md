@@ -416,6 +416,32 @@ Optional Piper install variables:
 sudo APP_DIR=/opt/voxis DEFAULT_MODEL=en_US-amy-medium SET_ENGINE=piper bash deploy/install-piper.sh
 ```
 
+Configure OpenRouter (LLM) + Piper (TTS) in one pass on a live DO server:
+
+```bash
+cd /opt/voxis
+sudo APP_DIR=/opt/voxis OPENROUTER_API_KEY="sk-or-v1-..." bash deploy/configure-openrouter-piper.sh
+```
+
+Optional configuration variables:
+
+```bash
+sudo APP_DIR=/opt/voxis \
+  OPENROUTER_MODEL=meta-llama/llama-3.3-8b-instruct:free \
+  PIPER_MODEL_ID=en_US-lessac-medium \
+  PM2_APP_NAME=voxis-backend \
+  RESTART_PM2=true \
+  bash deploy/configure-openrouter-piper.sh
+```
+
+What this script proves after it runs:
+
+- Writes env routing for OpenRouter LLM and forced Piper TTS
+- Installs Piper CLI in `/opt/piper-venv` and model in `/opt/piper/models`
+- Produces `/tmp/voxis-piper-test.wav` from a live synthesis smoke test
+- Restarts PM2 app with `--update-env` (unless disabled)
+- Prints `/health/tts` Piper availability snapshot when backend is reachable
+
 Deploy updates later:
 
 ```bash
