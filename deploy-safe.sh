@@ -40,7 +40,12 @@ echo "→ Building frontend..."
 npm run build
 
 echo "→ Restarting backend..."
-pm2 restart "${PM2_APP_NAME}"
+if [[ -f "${APP_DIR}/ecosystem.config.cjs" ]]; then
+	pm2 startOrReload "${APP_DIR}/ecosystem.config.cjs" --only "${PM2_APP_NAME}" --update-env
+else
+	pm2 restart "${PM2_APP_NAME}" --update-env
+fi
+pm2 save >/dev/null 2>&1 || true
 
 echo "→ Reloading nginx..."
 sudo systemctl reload nginx

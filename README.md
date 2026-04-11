@@ -308,6 +308,7 @@ cp backend/.env.example backend/.env
 | `LLM_API_KEY` | Optional environment fallback API key for OpenAI-compatible chat providers (runtime settings in UI take precedence when connected) |
 | `LLM_BASE_URL` | Optional environment fallback base URL for a custom or self-hosted LLM |
 | `LLM_MODEL` | Optional environment fallback model name for chat (e.g. `gpt-4o`, `mistral-small`) |
+| `LLM_LOCK_ENV` | Optional `true` to force chat runtime to keep using `LLM_*` env values instead of Settings-connected providers |
 | `MOOD_ADJUDICATION_ENABLED` | Enables semantic mood adjudication on ambiguous turns; set to `false` to force regex-only mood updates |
 | `PERSONA_PROMPT_CHAR_BUDGET` | Approximate character budget for the runtime persona prompt before section compression kicks in |
 | `PERSONA_PROMPT_CHAR_BUDGET_DEFAULT` | Optional override for the default creative context prompt budget |
@@ -324,6 +325,7 @@ cp backend/.env.example backend/.env
 | `PIPER_COMMAND` | Piper executable command (default: `piper`) |
 | `PIPER_MODEL_PATH` | Default `.onnx` model path used when engine resolves to Piper |
 | `PIPER_SPEAKER` | Optional default numeric speaker id for multi-speaker Piper models |
+| `PIPER_TIMEOUT_MS` | Optional Piper synthesis timeout in milliseconds; defaults to `90000` and scales up for longer text |
 | `KOKORO_DEFAULT_VOICE` | Optional default Kokoro voice id (for example `af_heart`) |
 | `KOKORO_DTYPE` | Optional Kokoro precision (`q8` recommended for low memory) |
 | `KOKORO_HF_TOKEN` | Optional Hugging Face token for Kokoro model downloads on restricted hosts (can also be set in Voice Lab Advanced Kokoro Access) |
@@ -335,6 +337,8 @@ cp backend/.env.example backend/.env
 | `CARTESIA_MODEL` | Optional Cartesia model id (default `sonic-2`) |
 
 Voice Lab will also auto-scan common Piper model locations such as `/opt/piper/models` and the directory containing `PIPER_MODEL_PATH`, then present discovered voices in a dropdown when you switch the engine to `piper`.
+
+For longer replies, Voxis now chunks Piper synthesis by sentence group, inserts short mood-aware pauses, and stitches the WAV output server-side. That gives Piper more breathing room than a single flat block without requiring a cloud voice provider.
 
 Research scraping works without any LLM credentials. If an LLM is configured, Voxis also synthesizes scraped source notes into a structured character profile automatically.
 
@@ -445,6 +449,19 @@ What this script proves after it runs:
 Provider troubleshooting notes:
 
 - If chat returns `LLM request failed with 401: Missing Authentication header`, your active runtime provider has no API key loaded. Re-save provider credentials in Settings or set `LLM_API_KEY` in `backend/.env`, then restart PM2 with `--update-env`.
+- If TTS is forced to Piper, confirm the live backend sees that routing by checking `/health/tts`. You should see `routing.envEngine: "piper"` plus a configured Piper model path.
+- If Piper still times out, verify `PIPER_COMMAND`, `PIPER_MODEL_PATH`, and the effective `timeoutMs` in `/health/tts`, then raise `PIPER_TIMEOUT_MS` in `backend/.env` and restart with `pm2 restart voxis-backend --update-env`.
+- For a direct shell smoke test, source `backend/.env` first; `grep` only prints values and does not export them:
+
+```bash
+cd /opt/voxis
+set -a
+source backend/.env
+set +a
+printf 'hello from voxis\n' | "${PIPER_COMMAND:-/usr/local/bin/piper}" --model "${PIPER_MODEL_PATH}" --output_file /tmp/voxis-piper-smoke.wav
+ls -lh /tmp/voxis-piper-smoke.wav
+```
+
 - `Voice Provider Credentials` only lists dedicated TTS providers (`elevenlabs`, `cartesia`) by design. `kokoro`, `piper`, and `cloud/openai-compatible` are configured through Voice Lab + env/runtime routing, not this credential list.
 - Cartesia model discovery can vary by account/API version; Voxis now retries model discovery across Cartesia endpoint variants before surfacing an error.
 
@@ -461,6 +478,8 @@ For a conservative branch deploy that stashes local changes first:
 cd /opt/voxis
 bash ./deploy-safe.sh
 ```
+
+`deploy-safe.sh` reloads PM2 with `--update-env`, so backend env changes are picked up during deploy.
 
 Optional overrides:
 

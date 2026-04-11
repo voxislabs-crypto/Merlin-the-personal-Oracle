@@ -13,6 +13,7 @@ import {
   applyProsodyToKokoroText,
 } from "./prosodyCompiler.js";
 import { interpretEmotionSpectrum } from "./emotionSpectrum.js";
+import { splitIntoChunks } from "./chunkSpeech.js";
 import { getKokoroHfToken, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
 
 const require = createRequire(import.meta.url);
@@ -29,6 +30,9 @@ const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
 const DEFAULT_TTS_FORMAT = "mp3";
 const DEFAULT_FETCH_TIMEOUT_MS = 9000;
+const DEFAULT_PIPER_TIMEOUT_MS = 90_000;
+const MIN_PIPER_TIMEOUT_MS = 30_000;
+const MAX_PIPER_TIMEOUT_MS = 180_000;
 
 export const TTS_ENGINE_CAPABILITIES = Object.freeze({
   elevenlabs: Object.freeze({
@@ -137,7 +141,166 @@ function getPiperConfig() {
     command: process.env.PIPER_COMMAND || "piper",
     modelPath: String(process.env.PIPER_MODEL_PATH || "").trim(),
     speaker: String(process.env.PIPER_SPEAKER || "").trim(),
+    timeoutMs: getPiperTimeoutMs(),
   };
+}
+
+function getPiperTimeoutMs(text = "") {
+  const configuredTimeout = Number(process.env.PIPER_TIMEOUT_MS || DEFAULT_PIPER_TIMEOUT_MS);
+  const safeConfiguredTimeout = Number.isFinite(configuredTimeout)
+    ? Math.max(MIN_PIPER_TIMEOUT_MS, Math.round(configuredTimeout))
+    : DEFAULT_PIPER_TIMEOUT_MS;
+  const textLength = String(text || "").trim().length;
+
+  if (!textLength) {
+    return safeConfiguredTimeout;
+  }
+
+  const scaledTimeout = 20_000 + (textLength * 120);
+  return Math.min(MAX_PIPER_TIMEOUT_MS, Math.max(safeConfiguredTimeout, scaledTimeout));
+}
+
+function clampPiperPauseMs(pauseMs, voiceProfile = {}) {
+  const arousal = Number(voiceProfile?.moodArousal);
+  const boundedArousal = Number.isFinite(arousal) ? Math.max(0, Math.min(1, arousal)) : 0.5;
+  const pauseScale = 1.18 - (boundedArousal * 0.42);
+  const minPauseMs = 90;
+  const maxPauseMs = 900;
+  return Math.round(Math.max(minPauseMs, Math.min(maxPauseMs, Number(pauseMs || 0) * pauseScale)));
+}
+
+export function planPiperChunkSynthesis(text, voiceProfile = {}) {
+  const normalized = String(text || "").trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const chunks = splitIntoChunks(normalized, {
+    minPauseMs: 100,
+    maxPauseMs: 700,
+  });
+
+  if (chunks.length <= 1) {
+    return [{ text: normalized, pauseMs: 0 }];
+  }
+
+  return chunks.map((chunk, index) => ({
+    text: chunk.text,
+    pauseMs: index === chunks.length - 1 ? 0 : clampPiperPauseMs(chunk.pauseMs, voiceProfile),
+  }));
+}
+
+function parseWavBuffer(buffer) {
+  const input = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  if (input.length < 44 || input.toString("ascii", 0, 4) !== "RIFF" || input.toString("ascii", 8, 12) !== "WAVE") {
+    throw new Error("Unsupported WAV buffer.");
+  }
+
+  let offset = 12;
+  let fmt = null;
+  let data = null;
+
+  while (offset + 8 <= input.length) {
+    const chunkId = input.toString("ascii", offset, offset + 4);
+    const chunkSize = input.readUInt32LE(offset + 4);
+    const chunkStart = offset + 8;
+    const chunkEnd = chunkStart + chunkSize;
+
+    if (chunkEnd > input.length) {
+      break;
+    }
+
+    if (chunkId === "fmt ") {
+      fmt = {
+        audioFormat: input.readUInt16LE(chunkStart),
+        numChannels: input.readUInt16LE(chunkStart + 2),
+        sampleRate: input.readUInt32LE(chunkStart + 4),
+        byteRate: input.readUInt32LE(chunkStart + 8),
+        blockAlign: input.readUInt16LE(chunkStart + 12),
+        bitsPerSample: input.readUInt16LE(chunkStart + 14),
+      };
+    } else if (chunkId === "data") {
+      data = input.subarray(chunkStart, chunkEnd);
+    }
+
+    offset = chunkEnd + (chunkSize % 2);
+  }
+
+  if (!fmt || !data) {
+    throw new Error("WAV buffer is missing fmt or data chunks.");
+  }
+
+  return { ...fmt, data };
+}
+
+function createWavBuffer({ audioFormat, numChannels, sampleRate, byteRate, blockAlign, bitsPerSample, data }) {
+  const pcmData = Buffer.isBuffer(data) ? data : Buffer.from(data || []);
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + pcmData.length, 4);
+  header.write("WAVE", 8, "ascii");
+  header.write("fmt ", 12, "ascii");
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(audioFormat, 20);
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(pcmData.length, 40);
+  return Buffer.concat([header, pcmData]);
+}
+
+function createSilenceBuffer(durationMs, format) {
+  const boundedMs = Math.max(0, Math.round(Number(durationMs) || 0));
+  if (!boundedMs) {
+    return Buffer.alloc(0);
+  }
+
+  const frameCount = Math.round((format.sampleRate * boundedMs) / 1000);
+  const byteLength = frameCount * format.blockAlign;
+  const fill = format.audioFormat === 1 && format.bitsPerSample === 8 ? 128 : 0;
+  return Buffer.alloc(byteLength, fill);
+}
+
+export function concatenateWavBuffers(buffers, pauseDurationsMs = []) {
+  const parsed = buffers.map(parseWavBuffer);
+  if (!parsed.length) {
+    throw new Error("At least one WAV buffer is required.");
+  }
+
+  const base = parsed[0];
+  for (const candidate of parsed.slice(1)) {
+    if (
+      candidate.audioFormat !== base.audioFormat ||
+      candidate.numChannels !== base.numChannels ||
+      candidate.sampleRate !== base.sampleRate ||
+      candidate.blockAlign !== base.blockAlign ||
+      candidate.bitsPerSample !== base.bitsPerSample
+    ) {
+      throw new Error("Cannot concatenate WAV buffers with different audio formats.");
+    }
+  }
+
+  const segments = [];
+  for (let index = 0; index < parsed.length; index += 1) {
+    segments.push(parsed[index].data);
+    const pauseMs = Number(pauseDurationsMs[index] || 0);
+    if (pauseMs > 0) {
+      segments.push(createSilenceBuffer(pauseMs, base));
+    }
+  }
+
+  return createWavBuffer({
+    audioFormat: base.audioFormat,
+    numChannels: base.numChannels,
+    sampleRate: base.sampleRate,
+    byteRate: base.byteRate,
+    blockAlign: base.blockAlign,
+    bitsPerSample: base.bitsPerSample,
+    data: Buffer.concat(segments),
+  });
 }
 
 function toTitleCase(value) {
@@ -465,12 +628,7 @@ export function classifySpeechContext({ text = "", speechHint = "", personality 
 }
 
 function resolveEngine(voiceProfile) {
-  // Explicit TTS_ENGINE env var acts as a global server-level override and
-  // takes precedence over per-persona voiceProfile.engine settings.
-  const envEngine = String(process.env.TTS_ENGINE || "").trim().toLowerCase();
-  const requested = (envEngine && envEngine !== "auto")
-    ? envEngine
-    : String(voiceProfile?.engine || "auto").trim().toLowerCase();
+  const requested = getRequestedEngine(voiceProfile);
 
   if (requested === "kokoro") return "kokoro";
   if (requested === "elevenlabs") return "elevenlabs";
@@ -480,6 +638,17 @@ function resolveEngine(voiceProfile) {
 
   const autoOrder = getAutoEngineOrder(voiceProfile);
   return autoOrder[0] || "kokoro";
+}
+
+function getRequestedEngine(voiceProfile) {
+  // Explicit TTS_ENGINE env var acts as a global server-level override and
+  // takes precedence over per-persona voiceProfile.engine settings.
+  const envEngine = String(process.env.TTS_ENGINE || "").trim().toLowerCase();
+  if (envEngine && envEngine !== "auto") {
+    return envEngine;
+  }
+
+  return String(voiceProfile?.engine || envEngine || "auto").trim().toLowerCase();
 }
 
 export function getAutoEngineOrder(voiceProfile) {
@@ -698,7 +867,7 @@ async function generateCloudSpeechAudio({ personality, text, voiceProfile, speec
   };
 }
 
-function runPiper({ command, args, text, timeoutMs = 30_000 }) {
+function runPiper({ command, args, text, timeoutMs = DEFAULT_PIPER_TIMEOUT_MS }) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: ["pipe", "ignore", "pipe"],
@@ -711,7 +880,11 @@ function runPiper({ command, args, text, timeoutMs = 30_000 }) {
       if (settled) return;
       settled = true;
       child.kill("SIGKILL");
-      reject(new Error(`Piper TTS timed out after ${timeoutMs / 1000}s. Check PIPER_COMMAND and PIPER_MODEL_PATH.`));
+      reject(
+        new Error(
+          `Piper TTS timed out after ${timeoutMs / 1000}s for ${String(text || "").trim().length} chars. Check PIPER_COMMAND, PIPER_MODEL_PATH, and PIPER_TIMEOUT_MS.`,
+        ),
+      );
     }, timeoutMs);
 
     child.stderr.on("data", (chunk) => {
@@ -741,9 +914,9 @@ function runPiper({ command, args, text, timeoutMs = 30_000 }) {
   });
 }
 
-async function generatePiperSpeechAudio({ text, voiceProfile }) {
-  const config = getPiperConfig();
+async function generateSinglePiperSpeechAudio({ text, voiceProfile, config }) {
   const modelPath = String(voiceProfile?.piperModelPath || config.modelPath || "").trim();
+  const timeoutMs = getPiperTimeoutMs(text);
 
   if (!modelPath) {
     const error = new Error(
@@ -775,9 +948,6 @@ async function generatePiperSpeechAudio({ text, voiceProfile }) {
   );
   args.push("--length_scale", String(lengthScale));
 
-  // noise_scale: phoneme energy/expressiveness variance (0–1).
-  // noise_w: duration/cadence rhythm variation (0–1).
-  // Both are driven from mood arousal so high-energy states sound more alive.
   const arousal = Number(voiceProfile?.moodArousal);
   if (Number.isFinite(arousal) || Number.isFinite(Number(voiceProfile?.noiseScale)) || Number.isFinite(Number(voiceProfile?.noiseW))) {
     const noiseScale = Math.min(
@@ -793,21 +963,62 @@ async function generatePiperSpeechAudio({ text, voiceProfile }) {
   }
 
   try {
-    await runPiper({ command, args, text });
+    await runPiper({ command, args, text, timeoutMs });
     const buffer = await fs.readFile(tmpFile);
 
     return {
       buffer,
       contentType: "audio/wav",
       engine: "piper",
+      timeoutMs,
     };
   } catch (error) {
-    const wrapped = new Error(`Piper synthesis failed: ${error.message || error}`);
+    const wrapped = new Error(
+      `Piper synthesis failed: ${error.message || error} (command: ${command}, model: ${modelPath}, timeoutMs: ${timeoutMs})`,
+    );
     wrapped.statusCode = 502;
     throw wrapped;
   } finally {
     await fs.unlink(tmpFile).catch(() => {});
   }
+}
+
+async function generatePiperSpeechAudio({ text, voiceProfile }) {
+  const config = getPiperConfig();
+  const chunkPlan = planPiperChunkSynthesis(text, voiceProfile);
+
+  if (chunkPlan.length <= 1) {
+    return generateSinglePiperSpeechAudio({
+      text: chunkPlan[0]?.text || text,
+      voiceProfile,
+      config,
+    });
+  }
+
+  const chunkBuffers = [];
+  const pauseDurationsMs = [];
+  let maxTimeoutMs = 0;
+
+  for (const chunk of chunkPlan) {
+    const chunkAudio = await generateSinglePiperSpeechAudio({
+      text: chunk.text,
+      voiceProfile,
+      config,
+    });
+    chunkBuffers.push(chunkAudio.buffer);
+    pauseDurationsMs.push(chunk.pauseMs || 0);
+    maxTimeoutMs = Math.max(maxTimeoutMs, Number(chunkAudio.timeoutMs) || 0);
+  }
+
+  return {
+    buffer: concatenateWavBuffers(chunkBuffers, pauseDurationsMs),
+    contentType: "audio/wav",
+    engine: "piper",
+    chunked: true,
+    chunkCount: chunkPlan.length,
+    pauseMsTotal: pauseDurationsMs.reduce((sum, pauseMs) => sum + Number(pauseMs || 0), 0),
+    timeoutMs: maxTimeoutMs,
+  };
 }
 
 // === KOKORO TTS ===
@@ -1080,7 +1291,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
     throw error;
   }
 
-  const requested = String(voiceProfile?.engine || process.env.TTS_ENGINE || "auto").trim().toLowerCase();
+  const requested = getRequestedEngine(voiceProfile);
   const engine = resolveEngine(voiceProfile);
   const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, sfx } = prepareSpeechSynthesis({
     personality,
@@ -1166,6 +1377,9 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
         attemptedEngines,
         fallbackUsed: false,
         emotionFrame,
+        chunked: Boolean(audio.chunked),
+        chunkCount: Number(audio.chunkCount || 0),
+        pauseMsTotal: Number(audio.pauseMsTotal || 0),
       },
       sfx,
     };
@@ -1198,6 +1412,9 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
             fallbackFrom: engine,
             fallbackReason: primaryError.message || "Primary engine failed.",
             emotionFrame,
+            chunked: Boolean(audio.chunked),
+            chunkCount: Number(audio.chunkCount || 0),
+            pauseMsTotal: Number(audio.pauseMsTotal || 0),
           },
           sfx,
         };
@@ -1517,15 +1734,30 @@ export async function listProviderOptions(provider) {
 
 export async function getTtsHealthStatus() {
   const providerStatus = listProviderStatus();
+  const piperConfig = getPiperConfig();
+  const envEngine = String(process.env.TTS_ENGINE || "auto").trim().toLowerCase() || "auto";
 
   return {
     status: "ok",
+    routing: {
+      envEngine,
+      requestedEngine: getRequestedEngine(),
+      autoOrder: getAutoEngineOrder(),
+    },
     engines: {
       ...providerStatus,
       kokoro: {
         ...providerStatus.kokoro,
         importError: _kokoroImportError ? String(_kokoroImportError.message || _kokoroImportError) : "",
         loadError: _kokoroLoadError ? String(_kokoroLoadError.message || _kokoroLoadError) : "",
+      },
+      piper: {
+        ...providerStatus.piper,
+        command: String(piperConfig.command || "").trim(),
+        modelPathConfigured: Boolean(piperConfig.modelPath),
+        modelPath: piperConfig.modelPath,
+        speakerConfigured: Boolean(piperConfig.speaker),
+        timeoutMs: piperConfig.timeoutMs,
       },
     },
   };

@@ -264,6 +264,12 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [kokoroHfToken, setKokoroHfToken] = useState("");
   const [isSavingKokoroToken, setIsSavingKokoroToken] = useState(false);
   const [isClearingKokoroToken, setIsClearingKokoroToken] = useState(false);
+  const [llmEnvInfo, setLlmEnvInfo] = useState({
+    envConfigured: false,
+    envBaseUrl: "",
+    envModel: "",
+    envLocked: false,
+  });
 
   const selectedProvider = useMemo(
     () => providers.find((candidate) => candidate.id === provider) || null,
@@ -450,6 +456,13 @@ export default function LlmSettingsPanel({ onStatus }) {
         setAvailableModels([]);
         setModel("");
       }
+
+      setLlmEnvInfo({
+        envConfigured: Boolean(settingsData.envConfigured),
+        envBaseUrl: String(settingsData.envBaseUrl || "").trim(),
+        envModel: String(settingsData.envModel || "").trim(),
+        envLocked: Boolean(settingsData.envLocked),
+      });
 
       const ttsProviderList = Array.isArray(ttsData.providers) ? ttsData.providers : [];
       setTtsProviders(ttsProviderList);
@@ -779,6 +792,14 @@ export default function LlmSettingsPanel({ onStatus }) {
             Connect the provider used for chat, memory, and eval requests. If you only need per-character voice tuning, stay in Voice Lab.
           </p>
         </div>
+
+        {llmEnvInfo.envConfigured ? (
+          <div className={`llm-connected ${llmEnvInfo.envLocked ? "warn" : "info"}`}>
+            {llmEnvInfo.envLocked
+              ? `backend/.env is currently locking chat runtime to ${llmEnvInfo.envBaseUrl || "the env provider"}${llmEnvInfo.envModel ? ` (${llmEnvInfo.envModel})` : ""}. Set LLM_LOCK_ENV=false or remove LLM_* env values to switch providers from this panel.`
+              : `backend/.env has an LLM fallback configured${llmEnvInfo.envModel ? ` (${llmEnvInfo.envModel})` : ""}, but runtime providers connected from this panel now take priority.`}
+          </div>
+        ) : null}
 
         <div className="llm-grid">
           <div className="llm-field">

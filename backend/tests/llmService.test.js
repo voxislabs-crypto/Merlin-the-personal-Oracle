@@ -24,6 +24,59 @@ describe("llmService model fallback", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    delete process.env.LLM_API_KEY;
+    delete process.env.LLM_BASE_URL;
+    delete process.env.LLM_MODEL;
+    delete process.env.LLM_LOCK_ENV;
+  });
+
+  it("prefers runtime config over env unless env locking is enabled", async () => {
+    process.env.LLM_API_KEY = "sk-env";
+    process.env.LLM_BASE_URL = "https://openrouter.ai/api/v1";
+    process.env.LLM_MODEL = "meta-llama/llama-3.3-8b-instruct:free";
+
+    mockGetLlmRuntimeConfig.mockReturnValue({
+      provider: "openrouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      apiKey: "sk-or-v1-test",
+      model: "deepseek/deepseek-r1:free",
+      models: [
+        { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1", isFree: true },
+      ],
+    });
+
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        choices: [
+          { message: { content: "Runtime wins" } },
+        ],
+      }),
+    });
+
+    const { generateChatCompletion } = await import("../services/llmService.js");
+    const result = await generateChatCompletion([{ role: "user", content: "hello" }]);
+
+    expect(result).toBe("Runtime wins");
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).model).toBe("deepseek/deepseek-r1:free");
+
+    vi.resetModules();
+    global.fetch.mockClear();
+    process.env.LLM_LOCK_ENV = "true";
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        choices: [
+          { message: { content: "Env wins" } },
+        ],
+      }),
+    });
+
+    const lockedModule = await import("../services/llmService.js");
+    const lockedResult = await lockedModule.generateChatCompletion([{ role: "user", content: "hello" }]);
+
+    expect(lockedResult).toBe("Env wins");
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).model).toBe("meta-llama/llama-3.3-8b-instruct:free");
   });
 
   it("retries a rate-limited runtime model with the next configured alternative", async () => {
@@ -120,6 +173,62 @@ describe("llmService model fallback", () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(mockSetLlmRuntimeConfig).not.toHaveBeenCalled();
+  });
+
+  it("retries an unavailable openrouter model when the provider reports no endpoints", async () => {
+    mockGetLlmRuntimeConfig.mockReturnValue({
+      provider: "openrouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      apiKey: "sk-or-v1-test",
+      model: "meta-llama/llama-3.3-8b-instruct:free",
+      models: [
+        { id: "meta-llama/llama-3.3-8b-instruct:free", name: "Llama 3.3 8B", isFree: true },
+        { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1", isFree: true },
+      ],
+    });
+
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            error: {
+              message: "No endpoints found for meta-llama/llama-3.3-8b-instruct:free.",
+            },
+          }),
+        ),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          choices: [
+            {
+              message: {
+                content: "Fallback reply after unavailable model",
+              },
+            },
+          ],
+        }),
+      });
+
+    const { generateChatCompletion } = await import("../services/llmService.js");
+    const result = await generateChatCompletion([{ role: "user", content: "hello" }]);
+
+    expect(result).toBe("Fallback reply after unavailable model");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).model).toBe("meta-llama/llama-3.3-8b-instruct:free");
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body).model).toBe("deepseek/deepseek-r1:free");
+    expect(mockSetLlmRuntimeConfig).toHaveBeenCalledWith({
+      provider: "openrouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      apiKey: "sk-or-v1-test",
+      model: "deepseek/deepseek-r1:free",
+      models: [
+        { id: "meta-llama/llama-3.3-8b-instruct:free", name: "Llama 3.3 8B", isFree: true },
+        { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1", isFree: true },
+      ],
+    });
   });
 
   it("refreshes live openrouter models on 429 when cached alternatives are stale", async () => {

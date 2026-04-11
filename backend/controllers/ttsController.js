@@ -9,6 +9,27 @@ import {
 } from "../services/ttsService.js";
 import { sanitizeVoiceProfile } from "../services/voiceProfileSanitizer.js";
 
+function setEncodedHeader(res, name, value, { maxBytes = 1800 } = {}) {
+  const normalized = String(value || "");
+  if (!normalized) {
+    return;
+  }
+
+  if (Buffer.byteLength(normalized, "utf8") > maxBytes) {
+    return;
+  }
+
+  res.setHeader(name, normalized);
+}
+
+function setEncodedJsonHeader(res, name, payload, options) {
+  try {
+    setEncodedHeader(res, name, encodeURIComponent(JSON.stringify(payload ?? {})), options);
+  } catch {
+    // Optional debug headers should never fail the audio response.
+  }
+}
+
 export async function listPiperVoicesHandler(req, res, next) {
   try {
     const payload = await listPiperVoiceOptions();
@@ -75,20 +96,11 @@ export async function generateSpeechHandler(req, res, next) {
 
     res.setHeader("Content-Type", audio.contentType);
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("X-Voxis-Directed-Text", encodeURIComponent(audio.directedText || text));
+    setEncodedHeader(res, "X-Voxis-Directed-Text", encodeURIComponent(audio.directedText || text), { maxBytes: 1200 });
     res.setHeader("X-Voxis-Tts-Engine", audio.engine || "unknown");
-    res.setHeader(
-      "X-Voxis-Adjusted-Voice",
-      encodeURIComponent(JSON.stringify(audio.adjustedVoiceProfile || voiceProfile)),
-    );
-    res.setHeader(
-      "X-Voxis-Prosody",
-      encodeURIComponent(JSON.stringify(audio.prosodyEnvelope || {})),
-    );
-    res.setHeader(
-      "X-Voxis-Tts-Telemetry",
-      encodeURIComponent(JSON.stringify(audio.telemetry || {})),
-    );
+    setEncodedJsonHeader(res, "X-Voxis-Adjusted-Voice", audio.adjustedVoiceProfile || voiceProfile, { maxBytes: 1400 });
+    setEncodedJsonHeader(res, "X-Voxis-Prosody", audio.prosodyEnvelope || {}, { maxBytes: 1400 });
+    setEncodedJsonHeader(res, "X-Voxis-Tts-Telemetry", audio.telemetry || {}, { maxBytes: 1400 });
     return res.send(audio.buffer);
   } catch (error) {
     return next(error);

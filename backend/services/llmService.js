@@ -19,11 +19,22 @@ import { fetchProviderModels } from "./providerDiscoveryService.js";
 function getLlmConfig() {
   const envApiKey = String(process.env.LLM_API_KEY || "").trim();
   const envBaseUrl = String(process.env.LLM_BASE_URL || "").trim();
+  const envLocked = String(process.env.LLM_LOCK_ENV || "").trim().toLowerCase() === "true";
+  const runtime = getLlmRuntimeConfig();
 
-  // Env API key takes precedence when explicitly set.
-  // This prevents a stale DB runtime config (e.g. from a previous provider
-  // connected via the Settings UI) from silently overriding a fresh deployment.
-  // DB config is used as a fallback for UI-only installs that have no .env key.
+  if (!envLocked && runtime?.apiKey && runtime?.baseUrl) {
+    return {
+      provider: runtime.provider || "",
+      baseUrl: runtime.baseUrl.replace(/\/$/, ""),
+      model: runtime.model || DEFAULT_MODEL,
+      apiKey: runtime.apiKey,
+      models: Array.isArray(runtime.models) ? runtime.models : [],
+      isRuntimeConfig: true,
+    };
+  }
+
+  // Set LLM_LOCK_ENV=true if you want deployments to force env config and
+  // ignore provider switches made from the Settings UI.
   if (envApiKey) {
     return {
       provider: "",
@@ -35,7 +46,6 @@ function getLlmConfig() {
     };
   }
 
-  const runtime = getLlmRuntimeConfig();
   if (runtime?.apiKey && runtime?.baseUrl) {
     return {
       provider: runtime.provider || "",
@@ -193,7 +203,34 @@ async function createLlmRequestError(response, model) {
   error.providerPayload = providerPayload;
   error.model = model;
   error.isRateLimit = response.status === 429;
+  error.isModelUnavailable = isRetryableModelAvailabilityError({
+    providerStatus: response.status,
+    providerPayload,
+    message: providerMessage,
+  });
   return error;
+}
+
+function isRetryableModelAvailabilityError({ providerStatus = 0, providerPayload = null, message = "" } = {}) {
+  const normalizedMessage = String(
+    providerPayload?.error?.metadata?.raw ||
+    providerPayload?.error?.message ||
+    message || "",
+  ).trim().toLowerCase();
+
+  if (providerStatus === 404) {
+    return /no endpoints found|model .*not found|no provider available|not a valid model id/.test(normalizedMessage);
+  }
+
+  if (providerStatus === 400) {
+    return /no endpoints found|not a valid model id|model .*not found/.test(normalizedMessage);
+  }
+
+  return false;
+}
+
+function shouldRetryWithFallback(error) {
+  return Boolean(error?.isRateLimit || error?.isModelUnavailable);
 }
 
 function getFallbackModels(config) {
@@ -381,7 +418,7 @@ async function requestChatCompletion({ messages, temperature = 0.85, includeMeta
       return result.reply;
     } catch (error) {
       lastError = error;
-      if (!error?.isRateLimit) {
+      if (!shouldRetryWithFallback(error)) {
         throw error;
       }
 
@@ -548,7 +585,7 @@ async function requestChatCompletionStream({ messages, temperature = 0.85, onTok
       return result.reply;
     } catch (error) {
       lastError = error;
-      if (!error?.isRateLimit) {
+      if (!shouldRetryWithFallback(error)) {
         throw error;
       }
 

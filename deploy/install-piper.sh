@@ -184,4 +184,8 @@ echo "Test audio: $TEST_WAV"
 echo "Backend env updated: $BACKEND_ENV"
 echo
 echo "If backend is running under PM2:"
-echo "  pm2 restart voxis-backend"
+echo "  pm2 restart voxis-backend --update-env"
+echo
+echo "Manual shell smoke test:"
+echo "  set -a && source $BACKEND_ENV && set +a"
+echo "  printf '%s\\n' 'hello from voxis' | \\"\${PIPER_COMMAND:-/usr/local/bin/piper}\\" --model \\"\${PIPER_MODEL_PATH}\\" --output_file /tmp/voxis-piper-smoke.wav"

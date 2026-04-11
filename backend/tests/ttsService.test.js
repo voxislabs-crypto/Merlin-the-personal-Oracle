@@ -3,6 +3,29 @@ import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+function createTestWav(sampleCount = 8, sampleRate = 16000) {
+  const pcm = Buffer.alloc(sampleCount * 2);
+  for (let index = 0; index < sampleCount; index += 1) {
+    pcm.writeInt16LE(index * 200, index * 2);
+  }
+
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8, "ascii");
+  header.write("fmt ", 12, "ascii");
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
+
 describe("ttsService Piper voice discovery", () => {
   let tempDir = "";
 
@@ -119,5 +142,78 @@ describe("ttsService Piper voice discovery", () => {
         nativeControls: expect.arrayContaining(["lengthScale"]),
       }),
     );
+  });
+
+  it("plans piper chunked synthesis with pause shaping", async () => {
+    const { planPiperChunkSynthesis } = await import("../services/ttsService.js");
+
+    const result = planPiperChunkSynthesis("Hey there. This might actually work! Keep going?", {
+      moodArousal: 0.2,
+    });
+
+    expect(result).toHaveLength(3);
+    expect(result[0].text).toBe("Hey there.");
+    expect(result[0].pauseMs).toBeGreaterThan(0);
+    expect(result[2].pauseMs).toBe(0);
+  });
+
+  it("concatenates wav buffers with inserted silence", async () => {
+    const { concatenateWavBuffers } = await import("../services/ttsService.js");
+
+    const first = createTestWav(8, 16000);
+    const second = createTestWav(4, 16000);
+    const combined = concatenateWavBuffers([first, second], [250, 0]);
+
+    expect(combined.toString("ascii", 0, 4)).toBe("RIFF");
+    expect(combined.toString("ascii", 8, 12)).toBe("WAVE");
+    const dataSize = combined.readUInt32LE(40);
+    expect(dataSize).toBe(16 + 8000 + 8);
+  });
+
+  it("reports forced piper routing and env-backed diagnostics", async () => {
+    const previousEngine = process.env.TTS_ENGINE;
+    const previousModelPath = process.env.PIPER_MODEL_PATH;
+    const previousSpeaker = process.env.PIPER_SPEAKER;
+    const previousTimeout = process.env.PIPER_TIMEOUT_MS;
+
+    process.env.TTS_ENGINE = "piper";
+    process.env.PIPER_MODEL_PATH = "/opt/piper/models/en_US-lessac-medium.onnx";
+    process.env.PIPER_SPEAKER = "1";
+    process.env.PIPER_TIMEOUT_MS = "120000";
+
+    try {
+      const { getTtsHealthStatus } = await import("../services/ttsService.js");
+      const result = await getTtsHealthStatus();
+
+      expect(result.routing).toEqual(
+        expect.objectContaining({
+          envEngine: "piper",
+          requestedEngine: "piper",
+        }),
+      );
+
+      expect(result.engines.piper).toEqual(
+        expect.objectContaining({
+          available: true,
+          command: "piper",
+          modelPathConfigured: true,
+          modelPath: "/opt/piper/models/en_US-lessac-medium.onnx",
+          speakerConfigured: true,
+          timeoutMs: 120000,
+        }),
+      );
+    } finally {
+      if (previousEngine === undefined) delete process.env.TTS_ENGINE;
+      else process.env.TTS_ENGINE = previousEngine;
+
+      if (previousModelPath === undefined) delete process.env.PIPER_MODEL_PATH;
+      else process.env.PIPER_MODEL_PATH = previousModelPath;
+
+      if (previousSpeaker === undefined) delete process.env.PIPER_SPEAKER;
+      else process.env.PIPER_SPEAKER = previousSpeaker;
+
+      if (previousTimeout === undefined) delete process.env.PIPER_TIMEOUT_MS;
+      else process.env.PIPER_TIMEOUT_MS = previousTimeout;
+    }
   });
 });

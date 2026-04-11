@@ -31,6 +31,10 @@ function maskApiKey(apiKey) {
 }
 
 function toPublicConfig(config) {
+  const envApiKey = String(process.env.LLM_API_KEY || "").trim();
+  const envBaseUrl = String(process.env.LLM_BASE_URL || "").trim();
+  const envModel = String(process.env.LLM_MODEL || "").trim();
+  const envLocked = String(process.env.LLM_LOCK_ENV || "").trim().toLowerCase() === "true";
   const savedProviders = getSavedLlmCredentials().map((credential) => ({
     provider: credential.provider,
     baseUrl: credential.baseUrl,
@@ -48,6 +52,10 @@ function toPublicConfig(config) {
       keyHint: "",
       connectedAt: "",
       savedProviders,
+      envConfigured: Boolean(envApiKey),
+      envBaseUrl,
+      envModel,
+      envLocked,
     };
   }
 
@@ -60,6 +68,10 @@ function toPublicConfig(config) {
     keyHint: maskApiKey(config.apiKey),
     connectedAt: config.connectedAt || "",
     savedProviders,
+    envConfigured: Boolean(envApiKey),
+    envBaseUrl,
+    envModel,
+    envLocked,
   };
 }
 
