@@ -20,6 +20,14 @@ try {
 const app = express();
 const port = Number(process.env.PORT || 3101);
 
+function getReleaseInfo() {
+  return {
+    gitSha: String(process.env.VOXIS_GIT_SHA || "").trim(),
+    branch: String(process.env.VOXIS_BRANCH || "").trim(),
+    pm2AppName: String(process.env.PM2_APP_NAME || "voxis-backend").trim(),
+  };
+}
+
 app.use(
   cors({
     origin: true,
@@ -33,7 +41,10 @@ app.use(express.json());
 app.use(clerkVerify);
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    release: getReleaseInfo(),
+  });
 });
 
 app.get("/health/tts", async (_req, res, next) => {
@@ -65,7 +76,10 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(port, () => {
-  console.log(`Voxis backend listening on port ${port}`);
+  const release = getReleaseInfo();
+  console.log(
+    `Voxis backend listening on port ${port} (branch=${release.branch || "unknown"}, sha=${release.gitSha || "unknown"})`,
+  );
   // Non-blocking SFX pre-fetch on startup
   initSfxCache().catch((err) => console.warn("[SFX Cache] init error:", err.message));
   // Pre-load Kokoro model in the background so the first TTS request is instant.

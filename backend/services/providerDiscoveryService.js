@@ -56,7 +56,7 @@ const PROVIDERS = [
 
 const PROVIDER_MAP = new Map(PROVIDERS.map((provider) => [provider.id, provider]));
 
-function getSuggestedProviderIdFromApiKey(apiKey) {
+export function getSuggestedProviderIdFromApiKey(apiKey) {
   const trimmedKey = String(apiKey || "").trim();
   if (!trimmedKey) {
     return "";

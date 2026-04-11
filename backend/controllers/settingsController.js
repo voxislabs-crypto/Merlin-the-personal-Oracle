@@ -18,6 +18,7 @@ import {
 import {
   detectProviderByApiKey,
   fetchProviderModels,
+  getSuggestedProviderIdFromApiKey,
   listSupportedProviders,
 } from "../services/providerDiscoveryService.js";
 
@@ -95,21 +96,27 @@ export function listLlmProvidersHandler(_req, res) {
 
 export async function connectLlmSettingsHandler(req, res, next) {
   try {
-    const provider = String(req.body?.provider || "").trim();
+    const requestedProvider = String(req.body?.provider || "").trim();
     const baseUrl = String(req.body?.baseUrl || "").trim();
     const requestedModel = String(req.body?.model || "").trim();
     const suppliedApiKey = String(req.body?.apiKey || "").trim();
 
-    if (!provider) {
+    if (!requestedProvider) {
       return res.status(400).json({ error: "provider is required." });
     }
 
-    const savedCredential = getSavedLlmCredential({ provider, baseUrl });
+    const savedCredential = getSavedLlmCredential({ provider: requestedProvider, baseUrl });
     const apiKey = suppliedApiKey || savedCredential?.apiKey || "";
 
     if (!apiKey) {
       return res.status(400).json({ error: "apiKey is required unless a saved key already exists for this provider." });
     }
+
+    const suggestedProvider = getSuggestedProviderIdFromApiKey(apiKey);
+    const provider =
+      suggestedProvider && requestedProvider !== "custom" && suggestedProvider !== requestedProvider
+        ? suggestedProvider
+        : requestedProvider;
 
     const connected = await fetchProviderModels({
       providerId: provider,
@@ -139,6 +146,8 @@ export async function connectLlmSettingsHandler(req, res, next) {
     return res.json({
       ...toPublicConfig(saved),
       providerName: connected.providerName,
+      autoCorrectedProvider: provider !== requestedProvider,
+      requestedProvider,
     });
   } catch (error) {
     return next(error);

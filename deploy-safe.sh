@@ -40,6 +40,9 @@ echo "→ Building frontend..."
 npm run build
 
 echo "→ Restarting backend..."
+export VOXIS_GIT_SHA="$(git -C "${APP_DIR}" rev-parse --short HEAD)"
+export VOXIS_BRANCH="${BRANCH}"
+export PM2_APP_NAME
 if [[ -f "${APP_DIR}/ecosystem.config.cjs" ]]; then
 	pm2 startOrReload "${APP_DIR}/ecosystem.config.cjs" --only "${PM2_APP_NAME}" --update-env
 else

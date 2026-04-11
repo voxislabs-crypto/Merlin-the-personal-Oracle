@@ -12,6 +12,7 @@ const mockSetVoiceDefaults = vi.fn();
 
 const mockDetectProviderByApiKey = vi.fn();
 const mockFetchProviderModels = vi.fn();
+const mockGetSuggestedProviderIdFromApiKey = vi.fn();
 const mockListSupportedProviders = vi.fn();
 
 vi.mock("../models/settingsModel.js", () => ({
@@ -32,6 +33,7 @@ vi.mock("../models/settingsModel.js", () => ({
 vi.mock("../services/providerDiscoveryService.js", () => ({
   detectProviderByApiKey: mockDetectProviderByApiKey,
   fetchProviderModels: mockFetchProviderModels,
+  getSuggestedProviderIdFromApiKey: mockGetSuggestedProviderIdFromApiKey,
   listSupportedProviders: mockListSupportedProviders,
 }));
 
@@ -56,6 +58,7 @@ describe("settingsController", () => {
     mockSetVoiceDefaults.mockReset();
     mockDetectProviderByApiKey.mockReset();
     mockFetchProviderModels.mockReset();
+    mockGetSuggestedProviderIdFromApiKey.mockReset();
     mockListSupportedProviders.mockReset();
     mockGetSavedLlmCredentials.mockReturnValue([]);
     mockGetAllTtsCredentials.mockReturnValue([]);
@@ -165,6 +168,54 @@ describe("settingsController", () => {
         providerName: "OpenRouter",
       }),
     );
+  });
+
+  it("auto-corrects the provider when the API key prefix clearly indicates another provider", async () => {
+    mockGetSuggestedProviderIdFromApiKey.mockReturnValue("openrouter");
+    mockFetchProviderModels.mockResolvedValue({
+      provider: "openrouter",
+      providerName: "OpenRouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      models: [{ id: "openai/gpt-4o-mini", name: "GPT-4o mini", isFree: false }],
+      model: "openai/gpt-4o-mini",
+    });
+    mockSetLlmRuntimeConfig.mockReturnValue({
+      provider: "openrouter",
+      baseUrl: "https://openrouter.ai/api/v1",
+      apiKey: "sk-or-v1-live",
+      model: "openai/gpt-4o-mini",
+      models: [{ id: "openai/gpt-4o-mini", name: "GPT-4o mini", isFree: false }],
+      connectedAt: "2026-04-11T00:00:00.000Z",
+    });
+
+    const { connectLlmSettingsHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+    const next = vi.fn();
+
+    await connectLlmSettingsHandler(
+      {
+        body: {
+          provider: "grok",
+          apiKey: "sk-or-v1-live",
+        },
+      },
+      res,
+      next,
+    );
+
+    expect(mockFetchProviderModels).toHaveBeenCalledWith({
+      providerId: "openrouter",
+      baseUrl: "",
+      apiKey: "sk-or-v1-live",
+    });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "openrouter",
+        requestedProvider: "grok",
+        autoCorrectedProvider: true,
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
   });
 
   it("returns shared default voice source with the public TTS settings", async () => {

@@ -57,6 +57,11 @@ Then:
 - Start chatting
 - Toggle the debug panel in chat to inspect mood, memory, intent, and prompt-budget behavior per turn
 
+Health and deploy verification:
+
+- `curl http://127.0.0.1:3101/health` returns a `release` block with `branch` and `gitSha` when the backend was restarted through the provided PM2 deploy scripts.
+- `deploy/update-app.sh` and `deploy-safe.sh` export those values before `pm2 ... --update-env`, so it is immediately visible when the server is still running stale code.
+
 ---
 
 ## Why This Matters
@@ -158,6 +163,7 @@ What this demonstrates in minutes:
 - System prompts are generated dynamically at runtime — not stored as static strings — so every conversation turn reflects the full current state of the character, its memory, and its live mood.
 - Persist chat history in SQLite and inject the last 10 messages into every LLM request for session continuity.
 - Configure LLM providers at runtime from the UI with a provider-first flow (provider -> API key -> models -> active model), with optional auto-detect as a helper. Built-ins include OpenAI, Grok (xAI), Groq, OpenRouter, Together, Mistral, Anthropic, plus a Custom OpenAI-compatible endpoint.
+- The LLM connect flow now auto-corrects obvious built-in provider/API-key mismatches by key prefix instead of failing immediately with a generic `400`.
 - Chat now includes a bottom-right context-window meter that tracks used vs max tokens per turn, using provider-reported usage when available and a live fallback estimate while streaming; hover or focus the meter for input/output token breakdown and active model details.
 - Select a user profile and chat mode (`kids`, `normal`, or `scientist`) at runtime; age-band policy enforces safe mode fallback automatically when requested mode is not allowed.
 - Chat policy now fails closed: if `userId` is missing or invalid, requests default to strict kids policy.
