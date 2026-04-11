@@ -728,11 +728,20 @@ export default function LlmSettingsPanel({ onStatus }) {
       setAvailableModels(data.models || []);
       setModel(data.model || "");
       setApiKey("");
+      // Sync provider dropdown to whichever provider actually connected (may
+      // differ from requested when the backend auto-corrects based on key prefix).
+      if (data.provider) {
+        setProvider(data.provider);
+        if (data.baseUrl) setBaseUrl(data.baseUrl);
+      }
+      const corrected = data.autoCorrectedProvider && data.requestedProvider && data.requestedProvider !== data.provider;
       onStatus?.({
         type: "success",
-        message: apiKey.trim()
-          ? `Connected ${data.providerName || data.provider} and saved the updated key.`
-          : `Connected ${data.providerName || data.provider} using the saved key.`,
+        message: corrected
+          ? `Auto-corrected to ${data.providerName || data.provider} (your key is for ${data.providerName || data.provider}, not ${data.requestedProvider}). Connected successfully.`
+          : apiKey.trim()
+            ? `Connected ${data.providerName || data.provider} and saved the updated key.`
+            : `Connected ${data.providerName || data.provider} using the saved key.`,
       });
     } catch (error) {
       onStatus?.({ type: "error", message: error.message || "Failed to connect provider." });
