@@ -698,28 +698,41 @@ async function generateCloudSpeechAudio({ personality, text, voiceProfile, speec
   };
 }
 
-function runPiper({ command, args, text }) {
+function runPiper({ command, args, text, timeoutMs = 30_000 }) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: ["pipe", "ignore", "pipe"],
     });
 
+    let settled = false;
     let stderr = "";
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill("SIGKILL");
+      reject(new Error(`Piper TTS timed out after ${timeoutMs / 1000}s. Check PIPER_COMMAND and PIPER_MODEL_PATH.`));
+    }, timeoutMs);
 
     child.stderr.on("data", (chunk) => {
       stderr += String(chunk || "");
     });
 
     child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       reject(error);
     });
 
     child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       if (code === 0) {
         resolve();
         return;
       }
-
       reject(new Error(`Piper exited with code ${code}. ${stderr.trim()}`.trim()));
     });
 
@@ -736,6 +749,13 @@ async function generatePiperSpeechAudio({ text, voiceProfile }) {
     const error = new Error(
       "Piper TTS requires PIPER_MODEL_PATH or voiceProfile.piperModelPath.",
     );
+    error.statusCode = 500;
+    throw error;
+  }
+
+  const command = String(config.command || "piper").trim();
+  if (!command) {
+    const error = new Error("Piper TTS requires PIPER_COMMAND to be set.");
     error.statusCode = 500;
     throw error;
   }
@@ -773,7 +793,7 @@ async function generatePiperSpeechAudio({ text, voiceProfile }) {
   }
 
   try {
-    await runPiper({ command: config.command, args, text });
+    await runPiper({ command, args, text });
     const buffer = await fs.readFile(tmpFile);
 
     return {
