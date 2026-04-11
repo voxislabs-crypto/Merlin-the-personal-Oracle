@@ -735,13 +735,16 @@ export default function LlmSettingsPanel({ onStatus }) {
         if (data.baseUrl) setBaseUrl(data.baseUrl);
       }
       const corrected = data.autoCorrectedProvider && data.requestedProvider && data.requestedProvider !== data.provider;
+      const rateLimited = Boolean(data.rateLimited);
       onStatus?.({
-        type: "success",
+        type: rateLimited ? "warn" : "success",
         message: corrected
           ? `Auto-corrected to ${data.providerName || data.provider} (your key is for ${data.providerName || data.provider}, not ${data.requestedProvider}). Connected successfully.`
-          : apiKey.trim()
-            ? `Connected ${data.providerName || data.provider} and saved the updated key.`
-            : `Connected ${data.providerName || data.provider} using the saved key.`,
+          : rateLimited
+            ? `Connected ${data.providerName || data.provider} — but the model list endpoint is rate-limited. Type your model ID manually in the Model field.`
+            : apiKey.trim()
+              ? `Connected ${data.providerName || data.provider} and saved the updated key.`
+              : `Connected ${data.providerName || data.provider} using the saved key.`,
       });
     } catch (error) {
       onStatus?.({ type: "error", message: error.message || "Failed to connect provider." });
@@ -897,21 +900,33 @@ export default function LlmSettingsPanel({ onStatus }) {
 
           <div className="llm-field">
             <label htmlFor="llm-model">Model</label>
-            <select
-              id="llm-model"
-              value={model}
-              onChange={(event) => void applyModel(event.target.value)}
-              disabled={!availableModels.length || isConnecting || isLoading}
-            >
-              <option value="">Choose model</option>
-              {availableModels.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {(candidate.name || candidate.id) + (candidate.isFree ? " (free)" : "")}
-                </option>
-              ))}
-            </select>
+            {availableModels.length ? (
+              <select
+                id="llm-model"
+                value={model}
+                onChange={(event) => void applyModel(event.target.value)}
+                disabled={isConnecting || isLoading}
+              >
+                <option value="">Choose model</option>
+                {availableModels.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {(candidate.name || candidate.id) + (candidate.isFree ? " (free)" : "")}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="llm-model"
+                type="text"
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+                onBlur={(event) => { if (event.target.value.trim() && connected?.connected) void applyModel(event.target.value.trim()); }}
+                placeholder="Type model ID (e.g. grok-3-mini)"
+                disabled={isConnecting || isLoading}
+              />
+            )}
             {!availableModels.length ? (
-              <p className="llm-field-helper">Switching providers clears the previous model list. Click Detect Provider or Connect Provider to load models for the selected provider.</p>
+              <p className="llm-field-helper">No model list available. Type a model ID and press Tab or click Connect to apply it.</p>
             ) : null}
           </div>
         </div>

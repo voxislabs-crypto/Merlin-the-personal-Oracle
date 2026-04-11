@@ -144,8 +144,10 @@ export async function connectLlmSettingsHandler(req, res, next) {
       apiKey,
     });
 
+    // When the model list is empty (e.g. rate-limited), accept any typed model;
+    // otherwise require the model to be in the fetched list.
     const selectedModel =
-      requestedModel && connected.models.some((model) => model.id === requestedModel)
+      requestedModel && (connected.models.length === 0 || connected.models.some((model) => model.id === requestedModel))
         ? requestedModel
         : connected.model;
 
@@ -168,6 +170,7 @@ export async function connectLlmSettingsHandler(req, res, next) {
       providerName: connected.providerName,
       autoCorrectedProvider: provider !== requestedProvider,
       requestedProvider,
+      rateLimited: Boolean(connected.rateLimited),
     });
   } catch (error) {
     return next(error);

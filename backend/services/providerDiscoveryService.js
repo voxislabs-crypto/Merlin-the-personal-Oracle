@@ -219,6 +219,19 @@ async function probeProvider(provider, apiKey, timeoutMs = 15000) {
   }
 
   if (!response.ok) {
+    // 429 means the key is valid but the models endpoint is rate-limited.
+    // Return a minimal result so the user can still connect; the model list
+    // will just be empty and they can type the model ID manually.
+    if (response.status === 429) {
+      return {
+        provider: provider.id,
+        providerName: provider.name,
+        baseUrl: provider.baseUrl,
+        models: [],
+        model: "",
+        rateLimited: true,
+      };
+    }
     return null;
   }
 
