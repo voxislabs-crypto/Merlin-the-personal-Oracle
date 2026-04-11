@@ -106,11 +106,17 @@ export async function connectLlmSettingsHandler(req, res, next) {
     }
 
     const savedCredential = getSavedLlmCredential({ provider: requestedProvider, baseUrl });
-    const apiKey = suppliedApiKey || savedCredential?.apiKey || "";
+    const envApiKey = String(process.env.LLM_API_KEY || "").trim();
+    const envBaseUrl = String(process.env.LLM_BASE_URL || "").trim();
+    const apiKey = suppliedApiKey || savedCredential?.apiKey || envApiKey;
 
     if (!apiKey) {
       return res.status(400).json({ error: "apiKey is required unless a saved key already exists for this provider." });
     }
+
+    // When no explicit baseUrl was provided and the provider is custom, fall
+    // back to the env base URL so the env-configured endpoint is used.
+    const resolvedBaseUrl = baseUrl || (requestedProvider === "custom" ? envBaseUrl : "");
 
     const suggestedProvider = getSuggestedProviderIdFromApiKey(apiKey);
     const provider =
@@ -120,7 +126,7 @@ export async function connectLlmSettingsHandler(req, res, next) {
 
     const connected = await fetchProviderModels({
       providerId: provider,
-      baseUrl,
+      baseUrl: resolvedBaseUrl,
       apiKey,
     });
 
