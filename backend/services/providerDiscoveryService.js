@@ -194,9 +194,11 @@ function chooseDefaultModel(providerId, models) {
   return models[0].id;
 }
 
-async function probeProvider(provider, apiKey, timeoutMs = 12000) {
+async function probeProvider(provider, apiKey, timeoutMs = 15000) {
+  // OpenRouter returns 300+ models — give it more time on slow servers.
+  const effectiveTimeout = provider.id === "openrouter" ? 30000 : timeoutMs;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), effectiveTimeout);
 
   let response;
   try {
@@ -207,7 +209,9 @@ async function probeProvider(provider, apiKey, timeoutMs = 12000) {
     });
   } catch (err) {
     if (err.name === "AbortError") {
-      return null; // treat timeout as "provider not reachable"
+      const error = new Error(`${provider.name} took too long to respond (>${effectiveTimeout / 1000}s). Try again or check your connection.`);
+      error.statusCode = 504;
+      throw error;
     }
     throw err;
   } finally {
@@ -287,7 +291,7 @@ export async function fetchProviderModels({ providerId, apiKey, baseUrl }) {
   const provider = resolveProviderConfig(providerId, baseUrl);
   const detection = await probeProvider(provider, trimmedKey);
   if (!detection) {
-    const error = new Error("Unable to fetch models for the selected provider. Verify API key and base URL.");
+    const error = new Error(`Unable to connect to ${providerId}. The API key may be invalid, or the provider may be temporarily unreachable.`);
     error.statusCode = 400;
     throw error;
   }
