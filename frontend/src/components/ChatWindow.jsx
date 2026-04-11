@@ -1163,7 +1163,7 @@ export default function ChatWindow({
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [speechEnergy, setSpeechEnergy] = useState(0);
   const [voiceTelemetry, setVoiceTelemetry] = useState(null);
-  const [debugMode, setDebugMode] = useState(true);
+  const [debugMode, setDebugMode] = useState(false);
   const [performanceText, setPerformanceText] = useState(null); // EPF text to perform
   const [emotionDrift, setEmotionDrift] = useState([]);
   const [zoneShiftActive, setZoneShiftActive] = useState(false);
