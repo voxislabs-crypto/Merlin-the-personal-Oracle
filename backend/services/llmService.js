@@ -166,7 +166,11 @@ async function createLlmRequestError(response, model) {
     `Provider returned ${response.status}.`;
 
   const error = new Error(`LLM request failed with ${response.status}: ${providerMessage}`);
-  error.statusCode = response.status === 429 ? 429 : 502;
+  if (response.status === 401 || response.status === 403 || response.status === 429) {
+    error.statusCode = response.status;
+  } else {
+    error.statusCode = 502;
+  }
   error.providerStatus = response.status;
   error.providerPayload = providerPayload;
   error.model = model;

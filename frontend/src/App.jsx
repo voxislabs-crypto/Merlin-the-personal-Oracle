@@ -776,6 +776,12 @@ const appStyles = `
       inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
 
+  .main-content select option,
+  .main-content select optgroup {
+    color: #dbe7ff;
+    background: #0a1323;
+  }
+
   .main-content button:not(.tab):not(.sidebar-toggle):not(.debug-toggle):not(.context-meter-info):not(.popup-close-btn) {
     border-radius: 12px;
     border: 1px solid rgba(0, 245, 255, 0.3);

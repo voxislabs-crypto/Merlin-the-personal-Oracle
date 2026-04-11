@@ -1415,11 +1415,30 @@ async function fetchCartesiaOptions() {
   }
 
   try {
-    const modelsResponse = await fetchWithTimeoutRetry("https://api.cartesia.ai/2024-06-10/models", { headers }, { retries: 1 });
-    if (!modelsResponse.ok) {
-      throw new Error(`models request failed (${modelsResponse.status})`);
+    const modelEndpoints = [
+      "https://api.cartesia.ai/models",
+      "https://api.cartesia.ai/2024-06-10/models",
+    ];
+
+    let payload = null;
+    let lastModelFetchError = null;
+
+    for (const endpoint of modelEndpoints) {
+      const modelsResponse = await fetchWithTimeoutRetry(endpoint, { headers }, { retries: 1 });
+      if (!modelsResponse.ok) {
+        lastModelFetchError = new Error(`models request failed (${modelsResponse.status})`);
+        continue;
+      }
+
+      payload = await modelsResponse.json();
+      lastModelFetchError = null;
+      break;
     }
-    const payload = await modelsResponse.json();
+
+    if (!payload) {
+      throw lastModelFetchError || new Error("models request failed");
+    }
+
     const list = Array.isArray(payload)
       ? payload
       : Array.isArray(payload?.models)

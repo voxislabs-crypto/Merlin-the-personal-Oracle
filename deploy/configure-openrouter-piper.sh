@@ -115,6 +115,12 @@ if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
   set_kv "$ENV_FILE" "LLM_API_KEY" "$OPENROUTER_API_KEY"
 fi
 
+if ! grep -qE '^LLM_API_KEY=.+$' "$ENV_FILE"; then
+  echo "Missing LLM_API_KEY after configuration."
+  echo "Pass OPENROUTER_API_KEY=... when running this script, or set LLM_API_KEY manually in $ENV_FILE."
+  exit 1
+fi
+
 echo "[4/6] Local Piper smoke test"
 TEST_WAV="/tmp/voxis-piper-test.wav"
 printf '%s\n' "Piper smoke test from Voxis." | "$PIPER_BIN" --model "$MODEL_ONNX" --output_file "$TEST_WAV"

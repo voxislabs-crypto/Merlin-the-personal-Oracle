@@ -442,6 +442,12 @@ What this script proves after it runs:
 - Restarts PM2 app with `--update-env` (unless disabled)
 - Prints `/health/tts` Piper availability snapshot when backend is reachable
 
+Provider troubleshooting notes:
+
+- If chat returns `LLM request failed with 401: Missing Authentication header`, your active runtime provider has no API key loaded. Re-save provider credentials in Settings or set `LLM_API_KEY` in `backend/.env`, then restart PM2 with `--update-env`.
+- `Voice Provider Credentials` only lists dedicated TTS providers (`elevenlabs`, `cartesia`) by design. `kokoro`, `piper`, and `cloud/openai-compatible` are configured through Voice Lab + env/runtime routing, not this credential list.
+- Cartesia model discovery can vary by account/API version; Voxis now retries model discovery across Cartesia endpoint variants before surfacing an error.
+
 Deploy updates later:
 
 ```bash
