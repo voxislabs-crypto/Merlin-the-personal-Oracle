@@ -5,4 +5,7 @@ backend/voxis.sqlite
 backend/voxis.sqlite-shm
 backend/voxis.sqlite-wal
 frontend/dist/
+dist/
+build/
+*.log
 *.zip
