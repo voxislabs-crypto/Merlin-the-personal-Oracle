@@ -5,6 +5,7 @@ import {
   getSavedLlmCredentials,
   setLlmRuntimeConfig,
   upsertSavedLlmCredential,
+  removeSavedLlmCredential,
   getAllTtsCredentials,
   getTtsCredential,
   setTtsCredential,
