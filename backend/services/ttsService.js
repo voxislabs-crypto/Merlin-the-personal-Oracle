@@ -465,7 +465,12 @@ export function classifySpeechContext({ text = "", speechHint = "", personality 
 }
 
 function resolveEngine(voiceProfile) {
-  const requested = String(voiceProfile?.engine || process.env.TTS_ENGINE || "auto").trim().toLowerCase();
+  // Explicit TTS_ENGINE env var acts as a global server-level override and
+  // takes precedence over per-persona voiceProfile.engine settings.
+  const envEngine = String(process.env.TTS_ENGINE || "").trim().toLowerCase();
+  const requested = (envEngine && envEngine !== "auto")
+    ? envEngine
+    : String(voiceProfile?.engine || "auto").trim().toLowerCase();
 
   if (requested === "kokoro") return "kokoro";
   if (requested === "elevenlabs") return "elevenlabs";

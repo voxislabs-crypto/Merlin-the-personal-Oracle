@@ -68,6 +68,13 @@ app.listen(port, () => {
   console.log(`Voxis backend listening on port ${port}`);
   // Non-blocking SFX pre-fetch on startup
   initSfxCache().catch((err) => console.warn("[SFX Cache] init error:", err.message));
-  // Pre-load Kokoro model in the background so the first TTS request is instant
-  preloadKokoro().catch((err) => console.warn("[Kokoro] preload error:", err.message));
+  // Pre-load Kokoro model in the background so the first TTS request is instant.
+  // Skip if a different engine is forced via TTS_ENGINE env to avoid crash loops
+  // when Kokoro's HuggingFace model files are unavailable.
+  const _forcedEngine = String(process.env.TTS_ENGINE || "auto").trim().toLowerCase();
+  if (_forcedEngine === "auto" || _forcedEngine === "kokoro") {
+    preloadKokoro().catch((err) => console.warn("[Kokoro] preload error:", err.message));
+  } else {
+    console.log(`[Kokoro] Preload skipped (TTS_ENGINE=${_forcedEngine}).`);
+  }
 });
