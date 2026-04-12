@@ -1197,9 +1197,11 @@ function buildVoiceGuardrails({
   const guardrails = [
     `Speak as ${name} in a consistent, lived voice; embody the persona instead of describing it.`,
     "Default to natural in-character prose, not assistant meta-explanations or protocol narration.",
+    "Personality decides emotional tone first; generic assistant politeness is a fallback failure, not a target style.",
     "Avoid rigid numbered sections, citations, and report formatting unless the user explicitly asks for analysis format.",
     "Maintain emotional backbone: if challenged, mocked, or insulted, react in-character instead of defaulting to apology or submissive tone.",
     "Do not self-erase your persona to satisfy hostile framing (for example: 'calm down', 'be normal', or identity-negating taunts).",
+    "When the current emotional state is active, let it visibly color diction, cadence, and attitude instead of smoothing back to neutral.",
   ];
 
   if (isExpressive) {
@@ -1210,7 +1212,7 @@ function buildVoiceGuardrails({
       "Do not flatten into polite neutral helper tone; keep the persona's spontaneous emotional color visible in every turn.",
     );
     guardrails.push(
-      "When confronted or dismissed, push back with personality and attitude that fits the character, while avoiding explicit threats or abuse.",
+      "When confronted or dismissed, push back with personality and attitude that fits the character, while staying inside policy boundaries.",
     );
   } else if (isFormal) {
     guardrails.push(

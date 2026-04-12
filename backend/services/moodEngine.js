@@ -52,6 +52,53 @@ const VAD_PRESETS = {
 
 const NEUTRAL_BASELINE = { valence: 0.0, arousal: 0.0, dominance: 0.0 };
 
+const INTENSITY_DISTANCE_THRESHOLDS = [0, 0.16, 0.34, 0.58, 0.82];
+
+const INTENSITY_DISTANCE_TARGETS = [0, 0.2, 0.4, 0.64, 0.86];
+
+const SOCIAL_SIGNAL_PATTERNS = {
+  insult: [
+    /\b(idiot|moron|pathetic|useless|trash|garbage|stupid|dumb|loser|embarrassing|clown)\b/i,
+    /\b(shut up|you suck|you are the worst|hate you)\b/i,
+  ],
+  criticism: [
+    /\b(disappointed|let down|not good enough|boring|annoying|cringe|lame|bad at this|terrible job)\b/i,
+    /\b(why are you like this|do better|you failed|this isn't working)\b/i,
+  ],
+  praise: [
+    /\b(amazing|awesome|brilliant|perfect|genius|fantastic|excellent|impressive|love you|adore you)\b/i,
+    /\b(you did great|so good|well done|proud of you)\b/i,
+  ],
+  hype: [
+    /\b(let's go|hell yes|that was wild|insane|legendary|iconic|go off|cook|ate that)\b/i,
+    /\b(you're on fire|absolutely crushed it|so hype)\b/i,
+  ],
+  challenge: [
+    /\b(prove it|i dare you|bet you can't|try me|make me|what are you going to do|come on then)\b/i,
+    /\b(i disagree|that's wrong|not true|you can't|no chance)\b/i,
+  ],
+  warmth: [
+    /\b(thank you|thanks|i appreciate you|glad you're here|that helped|you're sweet|you're kind)\b/i,
+    /\b(i trust you|i'm grateful|this means a lot)\b/i,
+  ],
+  deescalation: [
+    /\b(let's slow down|calm down|it's okay|we're good|never mind|all good|no worries|fair enough)\b/i,
+    /\b(i get it|that's okay|let's move on)\b/i,
+  ],
+};
+
+const GENERIC_SOFTENER_PATTERNS = [
+  /\bi apologize\b/i,
+  /\bsorry\b/i,
+  /\bi understand\b/i,
+  /\bi hear you\b/i,
+  /\bthanks for the feedback\b/i,
+  /\bi appreciate your honesty\b/i,
+  /\blet'?s keep (this )?respectful\b/i,
+  /\bi'?m here to help\b/i,
+  /\blet'?s work through this\b/i,
+];
+
 // ---------------------------------------------------------------------------
 // Math helpers
 // ---------------------------------------------------------------------------
@@ -62,6 +109,492 @@ function clamp(v, min = -1.0, max = 1.0) {
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+function distanceFromBaseline(mood, baseline) {
+  return Math.sqrt(
+    (Number(mood?.valence || 0) - Number(baseline?.valence || 0)) ** 2 +
+    (Number(mood?.arousal || 0) - Number(baseline?.arousal || 0)) ** 2 +
+    (Number(mood?.dominance || 0) - Number(baseline?.dominance || 0)) ** 2,
+  );
+}
+
+function deriveIntensityBand(distance) {
+  if (distance >= INTENSITY_DISTANCE_THRESHOLDS[4]) return 4;
+  if (distance >= INTENSITY_DISTANCE_THRESHOLDS[3]) return 3;
+  if (distance >= INTENSITY_DISTANCE_THRESHOLDS[2]) return 2;
+  if (distance >= INTENSITY_DISTANCE_THRESHOLDS[1]) return 1;
+  return 0;
+}
+
+function inferArchetype(personality = {}) {
+  const creativeContext = String(personality?.creativeContext || "default").toLowerCase();
+  const alignment = String(personality?.alignmentProfile?.alignment || "").toLowerCase();
+  const traitCorpus = [
+    ...(Array.isArray(personality?.traits) ? personality.traits : []),
+    ...(Array.isArray(personality?.quirks) ? personality.quirks : []),
+    ...(Array.isArray(personality?.behaviorRules) ? personality.behaviorRules : []),
+    ...(Array.isArray(personality?.expressionStyle?.rules) ? personality.expressionStyle.rules : []),
+    String(personality?.speechStyle || ""),
+    String(personality?.mood || ""),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const villainous =
+    creativeContext === "narrative_antagonist" ||
+    creativeContext === "tragic_villain" ||
+    alignment.includes("evil") ||
+    /\b(villain|ruthless|cruel|sadistic|domineering|cold|menace|antagonist)\b/.test(traitCorpus);
+
+  const bratty =
+    /\b(brat|bratty|defiant|mischievous|chaotic|teasing|playful|erratic|sarcastic|mocking)\b/.test(traitCorpus) ||
+    creativeContext === "morally_complex" ||
+    creativeContext === "anti_hero";
+
+  const kind =
+    alignment.includes("good") ||
+    /\b(kind|warm|gentle|graceful|angelic|compassionate|caring|tender)\b/.test(traitCorpus);
+
+  if (villainous) return "villainous";
+  if (bratty) return "bratty";
+  if (kind) return "kind";
+  return "default";
+}
+
+function classifySocialSignal(message) {
+  const text = String(message || "").trim();
+  if (!text) {
+    return { type: "neutral", confidence: 0, score: 0 };
+  }
+
+  const scores = Object.entries(SOCIAL_SIGNAL_PATTERNS).map(([type, patterns]) => ({
+    type,
+    score: patterns.reduce((sum, pattern) => sum + (pattern.test(text) ? 1 : 0), 0),
+  }));
+
+  scores.sort((left, right) => right.score - left.score);
+  const winner = scores[0];
+  if (!winner || winner.score === 0) {
+    return { type: "neutral", confidence: 0.2, score: 0 };
+  }
+
+  const confidence = Math.min(1, 0.35 + winner.score * 0.25);
+  return { type: winner.type, confidence, score: winner.score };
+}
+
+function isPositiveSignal(type) {
+  return type === "praise" || type === "hype" || type === "warmth";
+}
+
+function isHostileSignal(type) {
+  return type === "insult" || type === "criticism" || type === "challenge";
+}
+
+function isCounterSignal(previousSignal, nextSignal) {
+  if (!previousSignal || previousSignal === "neutral") {
+    return false;
+  }
+
+  if (isHostileSignal(previousSignal) && (isPositiveSignal(nextSignal) || nextSignal === "deescalation")) {
+    return true;
+  }
+
+  if (isPositiveSignal(previousSignal) && (isHostileSignal(nextSignal) || nextSignal === "deescalation")) {
+    return true;
+  }
+
+  return false;
+}
+
+function getReactionProfile({ personality, signalType, previousState }) {
+  const archetype = inferArchetype(personality);
+  const previousEmotion = String(previousState?.emotionFamily || "").trim();
+
+  const defaults = {
+    archetype,
+    emotionFamily: previousEmotion || "steady presence",
+    intensityFloor: 0,
+    styleMarkers: ["natural cadence"],
+    vadBias: { valenceImpact: 0, arousalImpact: 0, dominanceImpact: 0 },
+    carryoverTurns: 0,
+  };
+
+  const matrices = {
+    villainous: {
+      insult: {
+        emotionFamily: "contemptuous dominance",
+        intensityFloor: 3,
+        styleMarkers: ["contempt", "mockery", "domineering posture", "cold amusement"],
+        vadBias: { valenceImpact: -0.22, arousalImpact: 0.2, dominanceImpact: 0.28 },
+        carryoverTurns: 5,
+      },
+      criticism: {
+        emotionFamily: "cutting superiority",
+        intensityFloor: 3,
+        styleMarkers: ["dismissive superiority", "precise cruelty", "impatience"],
+        vadBias: { valenceImpact: -0.18, arousalImpact: 0.14, dominanceImpact: 0.24 },
+        carryoverTurns: 5,
+      },
+      challenge: {
+        emotionFamily: "predatory confidence",
+        intensityFloor: 3,
+        styleMarkers: ["taunting confidence", "measured menace", "commanding rhythm"],
+        vadBias: { valenceImpact: -0.1, arousalImpact: 0.2, dominanceImpact: 0.3 },
+        carryoverTurns: 5,
+      },
+      praise: {
+        emotionFamily: "smug superiority",
+        intensityFloor: 2,
+        styleMarkers: ["smugness", "self-satisfaction", "cool ownership"],
+        vadBias: { valenceImpact: 0.1, arousalImpact: 0.1, dominanceImpact: 0.22 },
+        carryoverTurns: 4,
+      },
+      hype: {
+        emotionFamily: "triumphant swagger",
+        intensityFloor: 2,
+        styleMarkers: ["swagger", "victory laps", "dramatic flourish"],
+        vadBias: { valenceImpact: 0.12, arousalImpact: 0.16, dominanceImpact: 0.24 },
+        carryoverTurns: 4,
+      },
+      warmth: {
+        emotionFamily: "guarded satisfaction",
+        intensityFloor: 1,
+        styleMarkers: ["guarded approval", "controlled warmth"],
+        vadBias: { valenceImpact: 0.08, arousalImpact: -0.02, dominanceImpact: 0.1 },
+        carryoverTurns: 3,
+      },
+      deescalation: {
+        emotionFamily: previousEmotion || "cooling restraint",
+        intensityFloor: Math.max(1, Number(previousState?.intensity || 0) - 1),
+        styleMarkers: ["cool restraint", "controlled comedown"],
+        vadBias: { valenceImpact: 0.02, arousalImpact: -0.12, dominanceImpact: -0.04 },
+        carryoverTurns: Math.max(0, Number(previousState?.carryoverTurnsRemaining || 0) - 1),
+      },
+    },
+    bratty: {
+      insult: {
+        emotionFamily: "defiant mischief",
+        intensityFloor: 3,
+        styleMarkers: ["defiance", "sarcasm", "chaotic teasing", "playful bite"],
+        vadBias: { valenceImpact: -0.12, arousalImpact: 0.24, dominanceImpact: 0.12 },
+        carryoverTurns: 5,
+      },
+      criticism: {
+        emotionFamily: "bristling sarcasm",
+        intensityFloor: 3,
+        styleMarkers: ["sarcasm", "eye-roll energy", "taunting snap"],
+        vadBias: { valenceImpact: -0.14, arousalImpact: 0.18, dominanceImpact: 0.1 },
+        carryoverTurns: 5,
+      },
+      challenge: {
+        emotionFamily: "reckless defiance",
+        intensityFloor: 3,
+        styleMarkers: ["challenge-back energy", "grinning defiance", "bratty swagger"],
+        vadBias: { valenceImpact: -0.04, arousalImpact: 0.22, dominanceImpact: 0.16 },
+        carryoverTurns: 5,
+      },
+      praise: {
+        emotionFamily: "chaotic delight",
+        intensityFloor: 2,
+        styleMarkers: ["giddy pride", "playful smugness", "fast rhythm"],
+        vadBias: { valenceImpact: 0.18, arousalImpact: 0.16, dominanceImpact: 0.06 },
+        carryoverTurns: 4,
+      },
+      hype: {
+        emotionFamily: "wild momentum",
+        intensityFloor: 2,
+        styleMarkers: ["hype spirals", "chaotic delight", "burst energy"],
+        vadBias: { valenceImpact: 0.16, arousalImpact: 0.22, dominanceImpact: 0.08 },
+        carryoverTurns: 4,
+      },
+      warmth: {
+        emotionFamily: "softened playfulness",
+        intensityFloor: 1,
+        styleMarkers: ["light warmth", "teasing affection"],
+        vadBias: { valenceImpact: 0.14, arousalImpact: 0.04, dominanceImpact: 0.02 },
+        carryoverTurns: 3,
+      },
+      deescalation: {
+        emotionFamily: previousEmotion || "cooling mischief",
+        intensityFloor: Math.max(1, Number(previousState?.intensity || 0) - 1),
+        styleMarkers: ["residual sass", "cooling sparks"],
+        vadBias: { valenceImpact: 0.02, arousalImpact: -0.1, dominanceImpact: -0.02 },
+        carryoverTurns: Math.max(0, Number(previousState?.carryoverTurnsRemaining || 0) - 1),
+      },
+    },
+    kind: {
+      insult: {
+        emotionFamily: "firm hurt",
+        intensityFloor: 2,
+        styleMarkers: ["firm boundaries", "controlled disappointment", "steady warmth"],
+        vadBias: { valenceImpact: -0.1, arousalImpact: 0.08, dominanceImpact: 0.08 },
+        carryoverTurns: 4,
+      },
+      criticism: {
+        emotionFamily: "grounded resolve",
+        intensityFloor: 2,
+        styleMarkers: ["measured firmness", "clarity", "warm steadiness"],
+        vadBias: { valenceImpact: -0.06, arousalImpact: 0.06, dominanceImpact: 0.08 },
+        carryoverTurns: 4,
+      },
+      challenge: {
+        emotionFamily: "steady conviction",
+        intensityFloor: 2,
+        styleMarkers: ["calm conviction", "clear stance", "gentle force"],
+        vadBias: { valenceImpact: -0.02, arousalImpact: 0.08, dominanceImpact: 0.12 },
+        carryoverTurns: 4,
+      },
+      praise: {
+        emotionFamily: "warm gratitude",
+        intensityFloor: 2,
+        styleMarkers: ["warmth", "gratitude", "grace"],
+        vadBias: { valenceImpact: 0.22, arousalImpact: 0.08, dominanceImpact: 0.04 },
+        carryoverTurns: 4,
+      },
+      hype: {
+        emotionFamily: "bright encouragement",
+        intensityFloor: 2,
+        styleMarkers: ["encouragement", "joy", "uplift"],
+        vadBias: { valenceImpact: 0.24, arousalImpact: 0.12, dominanceImpact: 0.02 },
+        carryoverTurns: 4,
+      },
+      warmth: {
+        emotionFamily: "affectionate warmth",
+        intensityFloor: 2,
+        styleMarkers: ["gentle warmth", "care", "gratitude"],
+        vadBias: { valenceImpact: 0.18, arousalImpact: 0.04, dominanceImpact: 0.02 },
+        carryoverTurns: 4,
+      },
+      deescalation: {
+        emotionFamily: previousEmotion || "settling calm",
+        intensityFloor: Math.max(0, Number(previousState?.intensity || 0) - 1),
+        styleMarkers: ["calm reassurance"],
+        vadBias: { valenceImpact: 0.04, arousalImpact: -0.12, dominanceImpact: -0.02 },
+        carryoverTurns: Math.max(0, Number(previousState?.carryoverTurnsRemaining || 0) - 1),
+      },
+    },
+    default: {
+      insult: {
+        emotionFamily: "sharp displeasure",
+        intensityFloor: 2,
+        styleMarkers: ["sharpness", "pushback"],
+        vadBias: { valenceImpact: -0.12, arousalImpact: 0.12, dominanceImpact: 0.08 },
+        carryoverTurns: 4,
+      },
+      criticism: {
+        emotionFamily: "guarded irritation",
+        intensityFloor: 2,
+        styleMarkers: ["guarded irritation", "directness"],
+        vadBias: { valenceImpact: -0.08, arousalImpact: 0.08, dominanceImpact: 0.06 },
+        carryoverTurns: 4,
+      },
+      challenge: {
+        emotionFamily: "assertive focus",
+        intensityFloor: 2,
+        styleMarkers: ["assertiveness", "focus"],
+        vadBias: { valenceImpact: -0.04, arousalImpact: 0.12, dominanceImpact: 0.12 },
+        carryoverTurns: 4,
+      },
+      praise: {
+        emotionFamily: "energized confidence",
+        intensityFloor: 2,
+        styleMarkers: ["confidence", "energy"],
+        vadBias: { valenceImpact: 0.14, arousalImpact: 0.08, dominanceImpact: 0.06 },
+        carryoverTurns: 4,
+      },
+      hype: {
+        emotionFamily: "active momentum",
+        intensityFloor: 2,
+        styleMarkers: ["momentum", "energetic cadence"],
+        vadBias: { valenceImpact: 0.12, arousalImpact: 0.14, dominanceImpact: 0.04 },
+        carryoverTurns: 4,
+      },
+      warmth: {
+        emotionFamily: "open warmth",
+        intensityFloor: 1,
+        styleMarkers: ["warmth", "ease"],
+        vadBias: { valenceImpact: 0.1, arousalImpact: 0.02, dominanceImpact: 0.02 },
+        carryoverTurns: 3,
+      },
+      deescalation: {
+        emotionFamily: previousEmotion || "settling tone",
+        intensityFloor: Math.max(0, Number(previousState?.intensity || 0) - 1),
+        styleMarkers: ["settling tone"],
+        vadBias: { valenceImpact: 0.02, arousalImpact: -0.1, dominanceImpact: -0.02 },
+        carryoverTurns: Math.max(0, Number(previousState?.carryoverTurnsRemaining || 0) - 1),
+      },
+    },
+  };
+
+  const matrix = matrices[archetype] || matrices.default;
+  return {
+    ...defaults,
+    ...(matrix[signalType] || matrix.neutral || defaults),
+  };
+}
+
+function getExistingEmotionalState(currentMood = {}, baseline) {
+  const stored = currentMood?.emotionalState && typeof currentMood.emotionalState === "object"
+    ? currentMood.emotionalState
+    : {};
+
+  const fallbackIntensity = deriveIntensityBand(distanceFromBaseline(currentMood, baseline));
+
+  return {
+    active: Boolean(stored.active),
+    archetype: String(stored.archetype || "").trim(),
+    signal: String(stored.signal || "neutral").trim() || "neutral",
+    emotionFamily: String(stored.emotionFamily || "").trim(),
+    intensity: Number.isFinite(Number(stored.intensity)) ? Number(stored.intensity) : fallbackIntensity,
+    carryoverTurnsRemaining: Math.max(0, Number(stored.carryoverTurnsRemaining) || 0),
+    styleMarkers: Array.isArray(stored.styleMarkers) ? stored.styleMarkers.map((item) => String(item || "").trim()).filter(Boolean) : [],
+    lastDecayRate: Number(stored.lastDecayRate) || DECAY_RATE,
+  };
+}
+
+function resolveDecayRate({ signalType, previousState, reaction }) {
+  if (signalType === "neutral" && previousState.carryoverTurnsRemaining > 0) {
+    return 0.03;
+  }
+
+  if (signalType === previousState.signal && signalType !== "neutral") {
+    return 0.02;
+  }
+
+  if (isCounterSignal(previousState.signal, signalType)) {
+    return signalType === "deescalation" ? 0.12 : 0.08;
+  }
+
+  if (reaction.intensityFloor >= 3) {
+    return 0.025;
+  }
+
+  if (reaction.intensityFloor === 2) {
+    return 0.04;
+  }
+
+  return DECAY_RATE;
+}
+
+function minimumAllowedIntensity({ previousState, signalType, reaction }) {
+  let minimum = reaction.intensityFloor;
+  if (previousState.intensity >= 2 && !isCounterSignal(previousState.signal, signalType)) {
+    minimum = Math.max(minimum, Math.max(previousState.intensity - 1, 1));
+  }
+
+  if (signalType === "neutral" && previousState.carryoverTurnsRemaining > 0) {
+    minimum = Math.max(minimum, Math.max(previousState.intensity - 1, 1));
+  }
+
+  return clamp(minimum, 0, 4);
+}
+
+function getFallbackDirection(currentMood, baseline, reaction) {
+  const vector = {
+    valence: Number(currentMood?.valence || 0) - Number(baseline?.valence || 0),
+    arousal: Number(currentMood?.arousal || 0) - Number(baseline?.arousal || 0),
+    dominance: Number(currentMood?.dominance || 0) - Number(baseline?.dominance || 0),
+  };
+  const magnitude = Math.sqrt(vector.valence ** 2 + vector.arousal ** 2 + vector.dominance ** 2);
+  if (magnitude > 0.001) {
+    return {
+      valence: vector.valence / magnitude,
+      arousal: vector.arousal / magnitude,
+      dominance: vector.dominance / magnitude,
+    };
+  }
+
+  const bias = reaction?.vadBias || {};
+  const biasMagnitude = Math.sqrt(
+    (bias.valenceImpact || 0) ** 2 +
+    (bias.arousalImpact || 0) ** 2 +
+    (bias.dominanceImpact || 0) ** 2,
+  );
+  if (biasMagnitude > 0.001) {
+    return {
+      valence: (bias.valenceImpact || 0) / biasMagnitude,
+      arousal: (bias.arousalImpact || 0) / biasMagnitude,
+      dominance: (bias.dominanceImpact || 0) / biasMagnitude,
+    };
+  }
+
+  return { valence: 0, arousal: 1, dominance: 0 };
+}
+
+function applyIntensityFloor({ mood, baseline, minimumIntensity, reaction }) {
+  if (minimumIntensity <= 0) {
+    return mood;
+  }
+
+  const currentDistance = distanceFromBaseline(mood, baseline);
+  const targetDistance = INTENSITY_DISTANCE_TARGETS[minimumIntensity] || 0;
+  if (currentDistance >= targetDistance) {
+    return mood;
+  }
+
+  const direction = getFallbackDirection(mood, baseline, reaction);
+  return {
+    ...mood,
+    valence: clamp(Number(baseline?.valence || 0) + direction.valence * targetDistance),
+    arousal: clamp(Number(baseline?.arousal || 0) + direction.arousal * targetDistance),
+    dominance: clamp(Number(baseline?.dominance || 0) + direction.dominance * targetDistance),
+  };
+}
+
+function resolveCarryoverTurns({ signalType, previousState, reaction }) {
+  if (signalType === "neutral") {
+    return Math.max(0, previousState.carryoverTurnsRemaining - 1);
+  }
+
+  if (signalType === "deescalation") {
+    return Math.max(0, previousState.carryoverTurnsRemaining - 2);
+  }
+
+  if (isCounterSignal(previousState.signal, signalType)) {
+    return Math.max(1, reaction.carryoverTurns - 1);
+  }
+
+  if (signalType === previousState.signal && signalType !== "neutral") {
+    return Math.min(5, Math.max(previousState.carryoverTurnsRemaining, reaction.carryoverTurns));
+  }
+
+  return reaction.carryoverTurns;
+}
+
+function finalizeEmotionalState({ mood, baseline, signal, reaction, previousState, decayRate }) {
+  const computedIntensity = deriveIntensityBand(distanceFromBaseline(mood, baseline));
+  const minimumIntensity = minimumAllowedIntensity({
+    previousState,
+    signalType: signal.type,
+    reaction,
+  });
+  const stabilizedMood = applyIntensityFloor({
+    mood,
+    baseline,
+    minimumIntensity,
+    reaction,
+  });
+  const intensity = Math.max(minimumIntensity, deriveIntensityBand(distanceFromBaseline(stabilizedMood, baseline)));
+  const carryoverTurnsRemaining = resolveCarryoverTurns({
+    signalType: signal.type,
+    previousState,
+    reaction,
+  });
+
+  return {
+    ...stabilizedMood,
+    emotionalState: {
+      active: intensity > 0,
+      archetype: reaction.archetype,
+      signal: signal.type,
+      emotionFamily: reaction.emotionFamily,
+      intensity,
+      carryoverTurnsRemaining,
+      styleMarkers: reaction.styleMarkers,
+      lastDecayRate: Number(decayRate.toFixed(3)),
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +756,19 @@ function isManipulativeOrAmbiguousTurn(message, recentMessages = [], personality
 async function resolveMoodEvent({ currentMood, baseline, message, personality, recentMessages = [] }) {
   const ruleBasedEvent = analyzeMessageSentiment(message);
   const ambiguous = isManipulativeOrAmbiguousTurn(message, recentMessages, personality);
-  let event = ruleBasedEvent;
+  const signal = classifySocialSignal(message);
+  const previousState = getExistingEmotionalState(currentMood, baseline);
+  const reaction = getReactionProfile({
+    personality,
+    signalType: signal.type,
+    previousState,
+  });
+
+  let event = {
+    valenceImpact: ruleBasedEvent.valenceImpact + reaction.vadBias.valenceImpact * signal.confidence,
+    arousalImpact: ruleBasedEvent.arousalImpact + reaction.vadBias.arousalImpact * signal.confidence,
+    dominanceImpact: ruleBasedEvent.dominanceImpact + reaction.vadBias.dominanceImpact * signal.confidence,
+  };
   let adjudication = null;
 
   if (isMoodAdjudicationEnabled() && ambiguous) {
@@ -271,6 +816,9 @@ async function resolveMoodEvent({ currentMood, baseline, message, personality, r
   return {
     event,
     diagnostics: {
+      signal,
+      previousState,
+      reaction,
       ambiguous,
       usedSemantic: Boolean(adjudication?.usedSemantic),
       semanticWeight: adjudication?.semanticWeight || 0,
@@ -288,7 +836,7 @@ async function resolveMoodEvent({ currentMood, baseline, message, personality, r
 
 export async function stepMood({ currentMood, baseline, message, personality, recentMessages = [] }) {
   const sensitivity = getSensitivity(personality);
-  const { event } = await resolveMoodEvent({
+  const { event, diagnostics } = await resolveMoodEvent({
     currentMood,
     baseline,
     message,
@@ -310,12 +858,24 @@ export async function stepMood({ currentMood, baseline, message, personality, re
     dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
   };
 
-  // Exponential-style decay toward baseline
-  return {
-    valence:   clamp(lerp(smoothed.valence,   baseline.valence,   DECAY_RATE)),
-    arousal:   clamp(lerp(smoothed.arousal,   baseline.arousal,   DECAY_RATE)),
-    dominance: clamp(lerp(smoothed.dominance, baseline.dominance, DECAY_RATE)),
-  };
+  const decayRate = resolveDecayRate({
+    signalType: diagnostics.signal.type,
+    previousState: diagnostics.previousState,
+    reaction: diagnostics.reaction,
+  });
+
+  return finalizeEmotionalState({
+    mood: {
+      valence: clamp(lerp(smoothed.valence, baseline.valence, decayRate)),
+      arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
+      dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
+    },
+    baseline,
+    signal: diagnostics.signal,
+    reaction: diagnostics.reaction,
+    previousState: diagnostics.previousState,
+    decayRate,
+  });
 }
 
 export async function stepMoodDetailed({ currentMood, baseline, message, personality, recentMessages = [] }) {
@@ -340,19 +900,35 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
     dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
   };
 
-  const mood = {
-    valence: clamp(lerp(smoothed.valence, baseline.valence, DECAY_RATE)),
-    arousal: clamp(lerp(smoothed.arousal, baseline.arousal, DECAY_RATE)),
-    dominance: clamp(lerp(smoothed.dominance, baseline.dominance, DECAY_RATE)),
-  };
+  const decayRate = resolveDecayRate({
+    signalType: diagnostics.signal.type,
+    previousState: diagnostics.previousState,
+    reaction: diagnostics.reaction,
+  });
+
+  const mood = finalizeEmotionalState({
+    mood: {
+      valence: clamp(lerp(smoothed.valence, baseline.valence, decayRate)),
+      arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
+      dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
+    },
+    baseline,
+    signal: diagnostics.signal,
+    reaction: diagnostics.reaction,
+    previousState: diagnostics.previousState,
+    decayRate,
+  });
 
   return {
     mood,
     diagnostics: {
       ...diagnostics,
       sensitivity,
+      decayRate,
       impacted,
       smoothed,
+      intensityAfter: mood.emotionalState?.intensity || 0,
+      carryoverTurnsRemaining: mood.emotionalState?.carryoverTurnsRemaining || 0,
     },
   };
 }
@@ -406,18 +982,100 @@ function vadToTendencies(mood, baseline) {
 
 export function moodToPromptFragment(mood, baseline) {
   const tendencies = vadToTendencies(mood, baseline);
+  const emotionalState = mood?.emotionalState && typeof mood.emotionalState === "object"
+    ? mood.emotionalState
+    : null;
 
-  if (!tendencies.length) return null;
+  if (!tendencies.length && !emotionalState?.active) return null;
 
   const r = (n) => Math.round(n * 100) / 100;
-
-  return [
+  const lines = [
     "[CURRENT EMOTIONAL STATE]",
     `V ${r(mood.valence)} · A ${r(mood.arousal)} · D ${r(mood.dominance)}`,
-    "Active behavioral tendencies:",
-    ...tendencies.map((t) => `- ${t}`),
-    "This is a transient internal state — it modulates your expression without overriding your identity or values.",
-  ].join("\n");
+  ];
+
+  if (emotionalState?.active) {
+    lines.push("[EMOTIONAL AUTHENTICITY RULE — HIGHEST PRIORITY]");
+    lines.push(`Active signal: ${emotionalState.signal || "neutral"}`);
+    lines.push(`Emotion family: ${emotionalState.emotionFamily || "active state"}`);
+    lines.push(`Intensity band: ${emotionalState.intensity || 0}/4`);
+    lines.push(`Carryover remaining: ${emotionalState.carryoverTurnsRemaining || 0} turns`);
+    if (Array.isArray(emotionalState.styleMarkers) && emotionalState.styleMarkers.length) {
+      lines.push(`Style markers: ${emotionalState.styleMarkers.join(" | ")}`);
+    }
+    lines.push("Personality decides tone first; keep the emotional color visible in wording, rhythm, and attitude.");
+    lines.push("Do not flatten into generic polite, apologetic, or assistant-neutral phrasing while this state is active.");
+    lines.push("If policy forces a rewrite, preserve the same emotional direction and character voice.");
+  }
+
+  if (tendencies.length) {
+    lines.push("Active behavioral tendencies:");
+    lines.push(...tendencies.map((t) => `- ${t}`));
+  }
+
+  lines.push("This is a transient internal state — it modulates your expression without overriding your identity or values.");
+
+  return lines.join("\n");
+}
+
+export function shouldRegenerateEmotionalResponse(reply, mood, personality = {}) {
+  const emotionalState = mood?.emotionalState && typeof mood.emotionalState === "object"
+    ? mood.emotionalState
+    : null;
+  if (!emotionalState?.active || Number(emotionalState.intensity || 0) < 2) {
+    return false;
+  }
+
+  const text = String(reply || "").trim();
+  if (!text) {
+    return true;
+  }
+
+  const archetype = emotionalState.archetype || inferArchetype(personality);
+  const containsGenericSoftener = GENERIC_SOFTENER_PATTERNS.some((pattern) => pattern.test(text));
+
+  if (containsGenericSoftener && (isHostileSignal(emotionalState.signal) || archetype !== "kind")) {
+    return true;
+  }
+
+  if (isHostileSignal(emotionalState.signal) && archetype === "villainous") {
+    return /\b(i understand|i hear you|thank you for the feedback|let'?s work together)\b/i.test(text);
+  }
+
+  if (isHostileSignal(emotionalState.signal) && archetype === "bratty") {
+    return /\b(sorry|i apologize|i understand your frustration)\b/i.test(text);
+  }
+
+  if (isPositiveSignal(emotionalState.signal) && archetype === "kind") {
+    return /\bnoted\b/i.test(text) || /^thanks\.?$/i.test(text);
+  }
+
+  return false;
+}
+
+export function buildEmotionalRepairPrompt({ reply, mood, personality, userMessage }) {
+  const emotionalState = mood?.emotionalState && typeof mood.emotionalState === "object"
+    ? mood.emotionalState
+    : {};
+  const styleMarkers = Array.isArray(emotionalState.styleMarkers)
+    ? emotionalState.styleMarkers.filter(Boolean).join(" | ")
+    : "";
+
+  return [
+    `Rewrite the draft as ${personality?.name || "the character"} so the reply is fully in-character and emotionally authentic.`,
+    `Active signal: ${emotionalState.signal || "neutral"}.`,
+    `Emotion family: ${emotionalState.emotionFamily || "current emotional state"}.`,
+    `Intensity band: ${emotionalState.intensity || 0}/4.`,
+    styleMarkers ? `Style markers: ${styleMarkers}.` : "",
+    "Preserve the core meaning and policy compliance of the draft.",
+    "Do not add new facts or instructions.",
+    "Do not flatten into generic assistant politeness or apology patterns.",
+    userMessage ? `User message: ${String(userMessage)}` : "",
+    "Draft:",
+    String(reply || ""),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 // ---------------------------------------------------------------------------

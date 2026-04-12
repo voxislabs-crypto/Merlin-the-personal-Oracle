@@ -134,9 +134,15 @@ export async function connectLlmSettingsHandler(req, res, next) {
     // back to the env base URL so the env-configured endpoint is used.
     const resolvedBaseUrl = baseUrl || (requestedProvider === "custom" ? envBaseUrl : "");
 
-    // Don't silently re-route to a different provider; the key validation in
-    // fetchProviderModels will throw a clear error if the key doesn't match.
-    const provider = requestedProvider;
+    // Auto-correct provider when the key prefix clearly identifies a different
+    // known provider, unless the user selected custom (custom is explicit).
+    const suggestedProvider = getSuggestedProviderIdFromApiKey(apiKey);
+    const provider =
+      requestedProvider !== "custom" &&
+      suggestedProvider &&
+      suggestedProvider !== requestedProvider
+        ? suggestedProvider
+        : requestedProvider;
 
     const connected = await fetchProviderModels({
       providerId: provider,

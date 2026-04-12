@@ -30,6 +30,8 @@ import {
   moodFromLabel,
   moodToPromptFragment,
   moodToLabel,
+  shouldRegenerateEmotionalResponse,
+  buildEmotionalRepairPrompt,
 } from "../services/moodEngine.js";
 import {
   buildScientistEvidencePrompt,
@@ -520,6 +522,8 @@ export async function chatHandler(req, res, next) {
 
     // Persist synchronously before the LLM call so mood influences this response.
     updateMoodState(personalityId, newMood);
+    personality.moodState = newMood;
+    personality.mood = moodLabel;
     streamedDebugData.mood = {
       before: currentMood,
       after: newMood,
@@ -726,6 +730,7 @@ export async function chatHandler(req, res, next) {
     const usedFallbackReply = generation.usedFallbackReply;
     let scientistValidation = null;
     let scientistRepairAttempted = false;
+    let emotionalRepairApplied = false;
 
     if (policy.activeMode === "scientist" && !usedFallbackReply && enforceScientistStructure) {
       const availableSources = Array.isArray(personality?.researchSources)
@@ -776,6 +781,45 @@ export async function chatHandler(req, res, next) {
       }
     }
 
+    if (
+      policy.activeMode !== "kids" &&
+      !usedFallbackReply &&
+      shouldRegenerateEmotionalResponse(reply, newMood, personality)
+    ) {
+      try {
+        const emotionalRepairMessages = [
+          { role: "system", content: buildModePolicyPrompt(policy) },
+          { role: "system", content: buildPersonaAnchor(personality) },
+        ];
+
+        if (scientistContract) {
+          emotionalRepairMessages.push({ role: "system", content: scientistContract });
+        }
+
+        if (moodFragment) {
+          emotionalRepairMessages.push({ role: "system", content: moodFragment });
+        }
+
+        emotionalRepairMessages.push({
+          role: "user",
+          content: buildEmotionalRepairPrompt({
+            reply,
+            mood: newMood,
+            personality,
+            userMessage: message,
+          }),
+        });
+
+        const repairedEmotionReply = await generateChatCompletion(emotionalRepairMessages);
+        if (String(repairedEmotionReply || "").trim()) {
+          reply = repairedEmotionReply.trim();
+          emotionalRepairApplied = true;
+        }
+      } catch {
+        // Keep the original reply if the repair pass fails.
+      }
+    }
+
     let kidsReadability = null;
 
     if (policy.activeMode === "kids") {
@@ -808,6 +852,12 @@ export async function chatHandler(req, res, next) {
         : null;
     streamedDebugData.kids = kidsReadability;
     streamedDebugData.rateLimit = rateLimit;
+    streamedDebugData.emotionalAuthenticity = {
+      active: Boolean(newMood?.emotionalState?.active),
+      intensity: newMood?.emotionalState?.intensity || 0,
+      signal: newMood?.emotionalState?.signal || "neutral",
+      repairApplied: emotionalRepairApplied,
+    };
     stream.write("debug", {
       phase: "reply",
       debug: streamedDebugData,
@@ -889,6 +939,12 @@ export async function chatHandler(req, res, next) {
           : null,
       kids: kidsReadability,
       rateLimit,
+      emotionalAuthenticity: {
+        active: Boolean(newMood?.emotionalState?.active),
+        intensity: newMood?.emotionalState?.intensity || 0,
+        signal: newMood?.emotionalState?.signal || "neutral",
+        repairApplied: emotionalRepairApplied,
+      },
       prompt: promptPackage.debug,
       flags: {
         reconditioned: shouldRecondition,
@@ -896,6 +952,7 @@ export async function chatHandler(req, res, next) {
         historyMessages: history.length,
         rateLimitRecovered: Boolean(rateLimit?.retrySucceeded),
         rateLimitFallbackDelivered: Boolean(rateLimit?.fallbackDelivered),
+        emotionalRepairApplied,
       },
     };
 
