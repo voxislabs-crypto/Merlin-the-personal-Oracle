@@ -5,6 +5,7 @@ import {
   simplifyKidsReply,
   simplifyKidsReplyByAge,
   estimateReadabilityGrade,
+  shouldEnforceScientistStructure,
   validateScientistReply,
   validateScientistCitationRanges,
   buildScientistRepairPrompt,
@@ -357,5 +358,32 @@ describe("buildScientistRepairPrompt", () => {
   it("does not demand citations when citationRequired=false", () => {
     const prompt = buildScientistRepairPrompt({ draft: "draft", citationRequired: false });
     expect(prompt).not.toMatch(/Citations are required/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shouldEnforceScientistStructure
+// ---------------------------------------------------------------------------
+describe("shouldEnforceScientistStructure", () => {
+  it("does not force scientist structure for casual 'How are you' chat", () => {
+    expect(shouldEnforceScientistStructure("How are you doing today?")).toBe(false);
+  });
+
+  it("does not force scientist structure for in-character banter", () => {
+    expect(shouldEnforceScientistStructure("Hey Zoe, stay in character and tease me.")).toBe(false);
+  });
+
+  it("forces scientist structure for explicit evidence requests", () => {
+    expect(
+      shouldEnforceScientistStructure(
+        "Can you explain this claim and provide evidence, assumptions, and uncertainty?",
+      ),
+    ).toBe(true);
+  });
+
+  it("forces scientist structure for methodological 'how does' questions", () => {
+    expect(shouldEnforceScientistStructure("How does this model estimate uncertainty in practice?")).toBe(
+      true,
+    );
   });
 });

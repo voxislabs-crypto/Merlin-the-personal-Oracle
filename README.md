@@ -169,6 +169,8 @@ What this demonstrates in minutes:
 - Chat policy now fails closed: if `userId` is missing or invalid, requests default to strict kids policy.
 - Mode is session-locked per `(userId, personalityId)` conversation thread to prevent policy bleed from mid-thread mode switches.
 - Scientist mode now validates response structure (`Answer`, `Evidence`, `Uncertainty`, `Next Questions`) and performs one repair pass when required sections or citations are missing.
+- Scientist structure enforcement now stays intent-aware: casual prompts like "How are you?" remain conversational, while explicit analytical/evidence requests still trigger structured scientist formatting.
+- Persona voice guardrails now enforce emotional backbone under user hostility, reducing drift into generic apologetic assistant tone and preserving in-character responses.
 - Scientist citation checks now validate citation references (`[S#]`) against the actually attached source index range.
 - Kids mode applies strict unsafe-topic blocking plus readability-aware response simplification tuned to low reading levels.
 - Long-term memory facts are extracted asynchronously after each reply and injected back into future prompts, letting characters "remember" things the user told them across sessions.
