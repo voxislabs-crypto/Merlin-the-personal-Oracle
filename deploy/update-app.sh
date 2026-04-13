@@ -4,11 +4,13 @@ set -euo pipefail
 # Quick maintenance script for Voxis.
 # - Pull latest branch
 # - Install deps
+# - Optional: preload Kokoro model cache
 # - Build frontend
 # - Restart PM2 backend
 # Optional:
 #   --backup-db : copy sqlite DB to backend/backups/
 #   --reset-db  : remove sqlite DB and WAL/SHM files
+#   --preload-kokoro : pre-download Kokoro model cache on server
 
 APP_DIR="${APP_DIR:-/opt/voxis}"
 BRANCH="${BRANCH:-NeuronMap}"
@@ -19,14 +21,16 @@ BACKUP_DIR="$BACKEND_DIR/backups"
 
 DO_BACKUP=false
 DO_RESET=false
+DO_PRELOAD_KOKORO=false
 
 for arg in "$@"; do
   case "$arg" in
     --backup-db) DO_BACKUP=true ;;
     --reset-db) DO_RESET=true ;;
+    --preload-kokoro) DO_PRELOAD_KOKORO=true ;;
     *)
       echo "Unknown flag: $arg"
-      echo "Usage: $0 [--backup-db] [--reset-db]"
+      echo "Usage: $0 [--backup-db] [--reset-db] [--preload-kokoro]"
       exit 1
       ;;
   esac
@@ -61,6 +65,11 @@ fi
 
 echo "[4/6] Installing dependencies"
 npm --prefix "$APP_DIR" install
+
+if [[ "$DO_PRELOAD_KOKORO" == true ]]; then
+  echo "[4c/6] Preloading Kokoro model cache"
+  bash "$APP_DIR/deploy/preload-kokoro-model.sh"
+fi
 
 echo "[4b/6] Ensuring prosody tools are installed"
 if ! command -v yt-dlp >/dev/null 2>&1 || ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
