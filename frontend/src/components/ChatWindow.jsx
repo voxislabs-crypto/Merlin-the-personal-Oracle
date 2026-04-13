@@ -2112,6 +2112,28 @@ export default function ChatWindow({
                                 {formatted.nextQuestions}
                               </div>
                             ) : null}
+                            <button
+                              type="button"
+                              onClick={() => void generateAudio(getAssistantSpeechContent(message))}
+                              disabled={isGeneratingAudio || !voiceProfile.enabled}
+                              title="Replay this response"
+                              style={{
+                                marginTop: "6px",
+                                padding: "2px 7px",
+                                borderRadius: "999px",
+                                border: "1px solid rgba(0,180,255,0.2)",
+                                background: "rgba(0,180,255,0.06)",
+                                color: "#8fdfff",
+                                fontWeight: 700,
+                                fontSize: "0.62rem",
+                                letterSpacing: "0.06em",
+                                textTransform: "uppercase",
+                                cursor: isGeneratingAudio || !voiceProfile.enabled ? "not-allowed" : "pointer",
+                                opacity: isGeneratingAudio || !voiceProfile.enabled ? 0.5 : 1,
+                              }}
+                            >
+                              Replay
+                            </button>
                             {canPerform && (
                               <button
                                 type="button"
