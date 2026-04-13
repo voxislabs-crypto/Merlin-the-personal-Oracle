@@ -1452,17 +1452,19 @@ export default function VoiceLab({
     }
   }
 
-  async function generateAudio(text) {
+  async function generateAudio(text, voiceOverride = null) {
     if (!voiceProfile.enabled || !text?.trim() || !personality) return;
 
     setupAnalyser(); // safe to call on user-gesture; noop after first setup
     setIsGeneratingAudio(true);
 
+    const effectiveVoiceProfile = voiceOverride ? { ...voiceProfile, ...voiceOverride } : voiceProfile;
+
     try {
       const response = await authFetch(`/personality/${personality.id}/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voiceProfile }),
+        body: JSON.stringify({ text, voiceProfile: effectiveVoiceProfile }),
       });
 
       if (!response.ok) {
@@ -1801,29 +1803,76 @@ export default function VoiceLab({
                   </>
                 ) : voiceProfile.engine === "kokoro" ? (
                   <>
-                    <select
-                      className="vlab-select"
-                      value={voiceProfile.kokoroVoice || ""}
-                      onChange={(e) => {
-                        updateVoiceField("kokoroVoice", e.target.value);
-                        updateVoiceField("providerVoice", e.target.value);
-                        updateVoiceField("preferredVoice", e.target.value);
-                      }}
-                      disabled={isLoadingKokoroVoices || kokoroVoices.length === 0}
-                    >
-                      <option value="">
-                        {isLoadingKokoroVoices
-                          ? "LOADING KOKORO VOICES..."
-                          : kokoroVoices.length
-                            ? "Select a Kokoro voice"
-                            : "No Kokoro voices loaded"}
-                      </option>
-                      {kokoroVoices.map((voice) => (
-                        <option key={voice.id} value={voice.id}>{voice.label}</option>
-                      ))}
-                    </select>
-                    <small className="vlab-small">
-                      {kokoroVoiceError || "Kokoro ships free local voices. First server run downloads model cache once."}
+                    {isLoadingKokoroVoices ? (
+                      <div className="vlab-small" style={{ padding: "8px 0" }}>LOADING KOKORO VOICES...</div>
+                    ) : kokoroVoices.length === 0 ? (
+                      <div className="vlab-small" style={{ padding: "8px 0" }}>
+                        {kokoroVoiceError || "No Kokoro voices loaded"}
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {kokoroVoices.map((voice) => {
+                          const isSelected = (voiceProfile.kokoroVoice || "") === voice.id;
+                          return (
+                            <div
+                              key={voice.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                padding: "6px 10px",
+                                borderRadius: "8px",
+                                border: isSelected
+                                  ? "1px solid rgba(0,234,255,0.45)"
+                                  : "1px solid rgba(0,180,255,0.12)",
+                                background: isSelected
+                                  ? "rgba(0,234,255,0.07)"
+                                  : "rgba(6,14,28,0.5)",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => {
+                                updateVoiceField("kokoroVoice", voice.id);
+                                updateVoiceField("providerVoice", voice.id);
+                                updateVoiceField("preferredVoice", voice.id);
+                              }}
+                            >
+                              <span style={{ flex: 1, fontSize: "0.85rem", color: isSelected ? "#00eaff" : "var(--text)" }}>
+                                {voice.label}
+                              </span>
+                              <button
+                                type="button"
+                                title={`Preview ${voice.label}`}
+                                disabled={isGeneratingAudio}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  generateAudio(
+                                    "Hello! This is a quick voice preview so you can hear how I sound.",
+                                    { kokoroVoice: voice.id, providerVoice: voice.id, preferredVoice: voice.id },
+                                  );
+                                }}
+                                style={{
+                                  flexShrink: 0,
+                                  padding: "3px 9px",
+                                  borderRadius: "999px",
+                                  border: "1px solid rgba(0,234,255,0.25)",
+                                  background: "rgba(0,234,255,0.07)",
+                                  color: "#00eaff",
+                                  fontSize: "0.7rem",
+                                  fontWeight: 700,
+                                  cursor: isGeneratingAudio ? "not-allowed" : "pointer",
+                                  opacity: isGeneratingAudio ? 0.4 : 1,
+                                  letterSpacing: "0.05em",
+                                }}
+                              >
+                                ▶
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <small className="vlab-small" style={{ marginTop: "4px", display: "block" }}>
+                      {kokoroVoiceError || "Click a voice to select it. Press ▶ to hear a quick preview."}
                     </small>
                   </>
                 ) : voiceProfile.engine === "elevenlabs" ? (
