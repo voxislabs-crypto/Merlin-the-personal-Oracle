@@ -62,6 +62,13 @@ Health and deploy verification:
 - `curl http://127.0.0.1:3101/health` returns a `release` block with `branch` and `gitSha` when the backend was restarted through the provided PM2 deploy scripts.
 - `deploy/update-app.sh` and `deploy-safe.sh` export those values before `pm2 ... --update-env`, so it is immediately visible when the server is still running stale code.
 
+### Security and Runtime Hardening (Apr 2026)
+
+- Secret leak incident response is now documented in-repo: leaked backup/key files are ignored (`.env_bak`, `*.bak`, `*key*.txt`) and should never be tracked.
+- Chat runtime now enforces a single preference-extraction pipeline per assistant response lifecycle to avoid duplicate LLM calls and duplicate writes.
+- SSE reply flow now uses a single close point for debug streams to avoid post-close execution.
+- EPF presentation fallback now marks parse failures as non-performance output with an explicit parse error signal.
+
 ---
 
 ## Why This Matters

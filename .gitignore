@@ -9,3 +9,7 @@ dist/
 build/
 *.log
 *.zip
+.env_bak
+backend/.env_bak
+*.bak
+*key*.txt

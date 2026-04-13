@@ -996,6 +996,39 @@ export async function chatHandler(req, res, next) {
       },
     };
 
+    const vadDeltaForGate = {
+      valence: newMood.valence - currentMood.valence,
+      arousal: newMood.arousal,
+    };
+    const shouldRunPreferenceExtraction = shouldExtractPreferences({
+      userMessage: message,
+      assistantReply: reply,
+      moodDelta: vadDeltaForGate,
+    });
+
+    const extractPersonaPreferences = async () => {
+      if (!shouldRunPreferenceExtraction) {
+        return [];
+      }
+
+      const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
+        personality,
+        userMessage: message,
+        assistantReply: reply,
+        existingPreferences: personaPreferences,
+      });
+
+      for (const pref of newPersonaPrefs) {
+        upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
+      }
+
+      if (newPersonaPrefs.length > 0) {
+        prunePersonaPreferences(personalityId, 80);
+      }
+
+      return newPersonaPrefs;
+    };
+
     const assistantPresentation = buildAssistantPresentation(reply);
 
     const responsePayload = {
@@ -1099,74 +1132,20 @@ export async function chatHandler(req, res, next) {
         }
       }
 
-      // Async: extract any new persona preferences revealed in the assistant reply.
       try {
-        const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
-          personality,
-          userMessage: message,
-          assistantReply: reply,
-          existingPreferences: personaPreferences,
-        });
-
-        for (const pref of newPersonaPrefs) {
-          upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
-        }
-
-        if (newPersonaPrefs.length > 0) {
-          prunePersonaPreferences(personalityId, 80);
-        }
-
+        const newPersonaPrefs = await extractPersonaPreferences();
         stream.write("debug", {
           phase: "preference-write",
           debug: {
             ...debugData,
             personaPreferencesExtracted: newPersonaPrefs,
+            flags: shouldRunPreferenceExtraction
+              ? debugData.flags
+              : { ...debugData.flags, preferenceExtractionGated: true },
           },
         });
       } catch {
         // Preference extraction is additive and non-fatal.
-      }
-
-      stream.close("done", { ok: true });
-      // Dual gate: only run costly LLM extraction when strong emotion is present.
-      // Keyword gate fires on explicit "I love/hate/..." language;
-      // VAD gate fires when the mood shifted significantly this turn.
-      const vadDeltaForGate = {
-        valence: newMood.valence - currentMood.valence,
-        arousal: newMood.arousal,
-      };
-      if (shouldExtractPreferences({ userMessage: message, assistantReply: reply, moodDelta: vadDeltaForGate })) {
-        try {
-          const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
-            personality,
-            userMessage: message,
-            assistantReply: reply,
-            existingPreferences: personaPreferences,
-          });
-
-          for (const pref of newPersonaPrefs) {
-            upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
-          }
-
-          if (newPersonaPrefs.length > 0) {
-            prunePersonaPreferences(personalityId, 80);
-          }
-
-          stream.write("debug", {
-            phase: "preference-write",
-            debug: {
-              ...debugData,
-              personaPreferencesExtracted: newPersonaPrefs,
-            },
-          });
-        } catch {
-          // Preference extraction is additive and non-fatal.
-        }
-      } else {
-        stream.write("debug", {
-          phase: "preference-write",
-          debug: { ...debugData, personaPreferencesExtracted: [], flags: { ...debugData.flags, preferenceExtractionGated: true } },
-        });
       }
 
       stream.close("done", { ok: true });
@@ -1225,48 +1204,9 @@ export async function chatHandler(req, res, next) {
       });
     }
 
-    // Async: extract any new persona preferences revealed in the assistant reply.
     setImmediate(async () => {
       try {
-        const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
-          personality,
-          userMessage: message,
-          assistantReply: reply,
-          existingPreferences: personaPreferences,
-        });
-
-        for (const pref of newPersonaPrefs) {
-          upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
-        }
-
-        if (newPersonaPrefs.length > 0) {
-          prunePersonaPreferences(personalityId, 80);
-        }
-      } catch {
-        // Preference extraction is additive and non-fatal.
-      }
-    });
-    setImmediate(async () => {
-      const vadDeltaForGate = {
-        valence: newMood.valence - currentMood.valence,
-        arousal: newMood.arousal,
-      };
-      if (!shouldExtractPreferences({ userMessage: message, assistantReply: reply, moodDelta: vadDeltaForGate })) return;
-      try {
-        const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
-          personality,
-          userMessage: message,
-          assistantReply: reply,
-          existingPreferences: personaPreferences,
-        });
-
-        for (const pref of newPersonaPrefs) {
-          upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
-        }
-
-        if (newPersonaPrefs.length > 0) {
-          prunePersonaPreferences(personalityId, 80);
-        }
+        await extractPersonaPreferences();
       } catch {
         // Preference extraction is additive and non-fatal.
       }
