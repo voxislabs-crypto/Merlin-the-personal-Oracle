@@ -1665,6 +1665,14 @@ export default function ChatWindow({
           type: "info",
           message: `SFX included: ${parsedSfx.join(", ")}`,
         });
+        
+        // Preload SFX audio files for playback during speech
+        for (const sfxName of parsedSfx) {
+          const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxName)}`;
+          fetch(sfxUrl).catch(() => {
+            // SFX not yet cached (will be downloaded on next startup)
+          });
+        }
       }
 
       const blob = await response.blob();
