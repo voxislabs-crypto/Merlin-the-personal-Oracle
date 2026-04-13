@@ -1186,6 +1186,7 @@ export default function ChatWindow({
     rate: 1,
     preferredVoice: "alloy",
     providerVoice: "alloy",
+    kokoroVoice: "af_heart",
     providerModel: "gpt-4o-mini-tts",
     piperModelPath: "",
     piperSpeaker: null,
@@ -1401,6 +1402,7 @@ export default function ChatWindow({
         personality.voiceProfile?.preferredVoice || personality.voiceProfile?.providerVoice || "alloy",
       providerVoice:
         personality.voiceProfile?.providerVoice || personality.voiceProfile?.preferredVoice || "alloy",
+      kokoroVoice: personality.voiceProfile?.kokoroVoice || "af_heart",
       providerModel: personality.voiceProfile?.providerModel || "gpt-4o-mini-tts",
       piperModelPath: personality.voiceProfile?.piperModelPath || "",
       piperSpeaker: personality.voiceProfile?.piperSpeaker ?? null,
@@ -1637,6 +1639,16 @@ export default function ChatWindow({
         }
       }
 
+      const ttsSfxHeader = response.headers.get("X-Voxis-Tts-Sfx");
+      let parsedSfx = [];
+      if (ttsSfxHeader) {
+        try {
+          parsedSfx = JSON.parse(decodeURIComponent(ttsSfxHeader));
+        } catch {
+          parsedSfx = [];
+        }
+      }
+
       setVoiceTelemetry(parsedTelemetry);
 
       if (parsedTelemetry?.fallbackUsed) {
@@ -1645,6 +1657,13 @@ export default function ChatWindow({
         onStatus?.({
           type: "success",
           message: `TTS fallback active: ${fallbackFrom} failed, switched to ${chosenEngine}.`,
+        });
+      }
+
+      if (Array.isArray(parsedSfx) && parsedSfx.length > 0) {
+        onStatus?.({
+          type: "info",
+          message: `SFX included: ${parsedSfx.join(", ")}`,
         });
       }
 
@@ -1862,6 +1881,53 @@ export default function ChatWindow({
                 <span className="voice-toggle-track" />
                 <span className="voice-toggle-label">Auto-play replies</span>
               </label>
+            </div>
+
+            <div className="voice-selector">
+              <label htmlFor="voice-quick-select">
+                {`Voice (${String(voiceProfile.engine || "auto").toUpperCase()}):`}
+              </label>
+              <select
+                id="voice-quick-select"
+                value={voiceProfile.engine === "kokoro" ? (voiceProfile.kokoroVoice || "af_heart") : (voiceProfile.providerVoice || "alloy")}
+                onChange={(event) => {
+                  if (voiceProfile.engine === "kokoro") {
+                    updateVoiceField("kokoroVoice", event.target.value);
+                  } else {
+                    updateVoiceField("providerVoice", event.target.value);
+                  }
+                }}
+              >
+                {(voiceProfile.engine === "kokoro" || voiceProfile.engine === "auto") && (
+                  <>
+                    <optgroup label="Kokoro Voices">
+                      <option value="af_heart">af_heart (warm female)</option>
+                      <option value="af_nova">af_nova (energetic female)</option>
+                      <option value="af_sarah">af_sarah (casual female)</option>
+                      <option value="am_adam">am_adam (warm male)</option>
+                      <option value="am_badger">am_badger (authoritative male)</option>
+                      <option value="am_josh">am_josh (casual male)</option>
+                      <option value="am_onyx">am_onyx (deep male)</option>
+                      <option value="bf_bella">bf_bella (soft female)</option>
+                      <option value="bf_emma">bf_emma (expressive female)</option>
+                      <option value="bm_george">bm_george (engaging male)</option>
+                      <option value="bm_lewis">bm_lewis (calm male)</option>
+                    </optgroup>
+                  </>
+                )}
+                {voiceProfile.engine !== "kokoro" && (
+                  <>
+                    <optgroup label="OpenAI Cloud">
+                      <option value="alloy">Alloy (neutral, balanced)</option>
+                      <option value="echo">Echo (steady, expressive)</option>
+                      <option value="fable">Fable (warm, engaging)</option>
+                      <option value="onyx">Onyx (deep, authoritative)</option>
+                      <option value="nova">Nova (bright, dynamic)</option>
+                      <option value="shimmer">Shimmer (crisp, energetic)</option>
+                    </optgroup>
+                  </>
+                )}
+              </select>
             </div>
 
             <div className="voice-actions">
