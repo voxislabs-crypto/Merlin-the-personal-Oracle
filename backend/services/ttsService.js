@@ -5,7 +5,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { stylizeSpeech } from "./speechDirector.js";
-import { applyMoodToVoice } from "./moodVoice.js";
+import { applyMoodToVoice, buildEmotionalVoiceInstruction } from "./moodVoice.js";
 import {
   compileProsodyEnvelope,
   applyGenericProsodyText,
@@ -843,6 +843,7 @@ function getContentType(format) {
 
 async function generateCloudSpeechAudio({ personality, text, voiceProfile, speechHint }) {
   const config = getCloudConfig();
+  const mood = resolveMood(personality);
 
   if (!isCloudConfigured()) {
     const error = new Error(
@@ -867,6 +868,7 @@ async function generateCloudSpeechAudio({ personality, text, voiceProfile, speec
       instructions: [
         `Speak as ${personality.name}.`,
         personality.speechStyle || "Maintain the saved character tone.",
+        buildEmotionalVoiceInstruction(mood),
         voiceProfile.cloudInstructions || "",
         speechHint || "",
         personality.researchSummary || "",

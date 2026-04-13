@@ -81,6 +81,63 @@ export function matchPreferencesInMessage(preferences, message) {
 }
 
 // ---------------------------------------------------------------------------
+// EXTRACTION GATE — decide whether a turn is worth running the LLM extraction
+// pass on. Two independent signals; either one is sufficient.
+//
+// 1. Keyword gate  — explicit emotional language in user message OR assistant reply
+// 2. VAD gate      — significant mood shift (strong valence swing or high arousal)
+// ---------------------------------------------------------------------------
+
+const STRONG_EMOTION_SIGNALS = [
+  "i love",
+  "i hate",
+  "i really like",
+  "i can't stand",
+  "i cannot stand",
+  "i enjoy",
+  "i'm obsessed",
+  "i am obsessed",
+  "this annoys me",
+  "this pisses me off",
+  "this is amazing",
+  "this is awful",
+  "i adore",
+  "i despise",
+  "i loathe",
+  "i find it",
+  "gets me going",
+  "drives me crazy",
+  "makes me happy",
+  "makes me angry",
+  "i absolutely",
+  "i genuinely",
+  "i deeply",
+];
+
+/**
+ * Returns true when there is strong enough emotional signal to justify an
+ * LLM preference-extraction call. Combining a keyword pass with an optional
+ * VAD delta check keeps token cost near-zero on neutral turns.
+ *
+ * @param {{ userMessage: string, assistantReply: string, moodDelta?: { valence: number, arousal: number } }} params
+ */
+export function shouldExtractPreferences({ userMessage, assistantReply, moodDelta = null }) {
+  const combined = `${String(userMessage || "")} ${String(assistantReply || "")}`.toLowerCase();
+
+  // Keyword gate — fast path, zero cost.
+  if (STRONG_EMOTION_SIGNALS.some((signal) => combined.includes(signal))) return true;
+
+  // VAD gate — if the caller provides the computed delta we can use it.
+  if (moodDelta) {
+    const valenceDelta = Math.abs(Number(moodDelta.valence  || 0));
+    const arousalNow   = Number(moodDelta.arousal || 0);
+    if (valenceDelta > 0.2 || arousalNow > 0.55) return true;
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // VAD delta per preference type and archetype.
 //
 // Villainous + bratty archetypes get amplified negative reactions — they don't
@@ -144,6 +201,50 @@ function inferArchetype(personality = {}) {
   return "default";
 }
 
+// ---------------------------------------------------------------------------
+// Trait-level modifiers — applied AFTER archetype scaling for fine-grained
+// personality nuance. Reads directly from the persona's traits/quirks arrays
+// using keyword matching (traits can be phrases, not just single words).
+// ---------------------------------------------------------------------------
+
+const TRAIT_PATTERNS = [
+  { pattern: /\bvolatile\b/,              field: "arousal",   mult: 1.45 },
+  { pattern: /\bexplosive\b/,             field: "arousal",   mult: 1.40 },
+  { pattern: /\bpassionate\b/,            field: "arousal",   mult: 1.25 },
+  { pattern: /\bintense\b/,              field: "arousal",   mult: 1.20 },
+  { pattern: /\bstoic\b/,                field: "arousal",   mult: 0.55 },
+  { pattern: /\bimpassive\b/,             field: "arousal",   mult: 0.50 },
+  { pattern: /\bmeasured\b/,             field: "arousal",   mult: 0.65 },
+  { pattern: /\bcold\b/,                 field: "arousal",   mult: 0.60 },
+  { pattern: /\bdominant\b/,             field: "dominance", add:  0.15 },
+  { pattern: /\bcommanding\b/,           field: "dominance", add:  0.12 },
+  { pattern: /\bassertive\b/,            field: "dominance", add:  0.10 },
+  { pattern: /\bsubmissive\b/,           field: "dominance", add: -0.15 },
+  { pattern: /\bempathetic|empathic\b/,  field: "valence",   mult: 1.20 },
+  { pattern: /\bnarcissist\b/,           field: "dominance", add:  0.18 },
+  { pattern: /\bchaotic\b/,              field: "arousal",   mult: 1.30 },
+];
+
+function applyTraitModifiers(delta, personality = {}) {
+  const traitCorpus = [
+    ...(Array.isArray(personality?.traits) ? personality.traits : []),
+    ...(Array.isArray(personality?.quirks) ? personality.quirks : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  let { valence, arousal, dominance } = delta;
+
+  for (const { pattern, field, mult, add } of TRAIT_PATTERNS) {
+    if (!pattern.test(traitCorpus)) continue;
+    if (field === "arousal")   { arousal    = arousal    * (mult ?? 1) + (add ?? 0); }
+    if (field === "valence")   { valence    = valence    * (mult ?? 1) + (add ?? 0); }
+    if (field === "dominance") { dominance  = dominance  * (mult ?? 1) + (add ?? 0); }
+  }
+
+  return { valence, arousal, dominance };
+}
+
 /**
  * Given matched preferences and the persona's archetype, compute the aggregate
  * VAD delta to layer on top of the social-signal result.
@@ -178,6 +279,12 @@ export function computePreferenceMoodDelta(matches, personality = {}) {
     dominance += base.dominance * weight * negMult.dominance;
     triggered.push({ prefType: pref.prefType, content: pref.content, direction: "negative" });
   }
+
+  // Layer 2: apply trait-level modifiers on top of archetype scaling.
+  const traitAdjusted = applyTraitModifiers({ valence, arousal, dominance }, personality);
+  valence   = traitAdjusted.valence;
+  arousal   = traitAdjusted.arousal;
+  dominance = traitAdjusted.dominance;
 
   // Cap total delta per dimension so one turn can't teleport mood across the board.
   const cap = 0.45;
