@@ -101,6 +101,7 @@ export async function generateSpeechHandler(req, res, next) {
     setEncodedJsonHeader(res, "X-Voxis-Adjusted-Voice", audio.adjustedVoiceProfile || voiceProfile, { maxBytes: 1400 });
     setEncodedJsonHeader(res, "X-Voxis-Prosody", audio.prosodyEnvelope || {}, { maxBytes: 1400 });
     setEncodedJsonHeader(res, "X-Voxis-Tts-Telemetry", audio.telemetry || {}, { maxBytes: 1400 });
+    setEncodedJsonHeader(res, "X-Voxis-Tts-Sfx", Array.isArray(audio.sfx) ? audio.sfx : [], { maxBytes: 800 });
     return res.send(audio.buffer);
   } catch (error) {
     return next(error);

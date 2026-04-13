@@ -1478,9 +1478,11 @@ export default function VoiceLab({
       const adjustedVoiceHeader = response.headers.get("X-Voxis-Adjusted-Voice");
       const prosodyHeader = response.headers.get("X-Voxis-Prosody");
       const telemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
+      const sfxHeader = response.headers.get("X-Voxis-Tts-Sfx");
       let adjustedVoice = null;
       let prosodyEnvelope = null;
       let ttsTelemetry = null;
+      let ttsSfx = [];
 
       if (adjustedVoiceHeader) {
         try {
@@ -1506,6 +1508,14 @@ export default function VoiceLab({
         }
       }
 
+      if (sfxHeader) {
+        try {
+          ttsSfx = JSON.parse(decodeURIComponent(sfxHeader));
+        } catch {
+          ttsSfx = [];
+        }
+      }
+
       const fallbackMood = personality?.moodState || personality?.moodBaseline || {};
       const emotionFrame = ttsTelemetry?.emotionFrame || interpretEmotionSpectrum(fallbackMood);
 
@@ -1524,6 +1534,13 @@ export default function VoiceLab({
         onStatus?.({
           type: "success",
           message: `TTS fallback active: ${fallbackFrom} failed, switched to ${chosenEngine}.`,
+        });
+      }
+
+      if (Array.isArray(ttsSfx) && ttsSfx.length > 0) {
+        onStatus?.({
+          type: "info",
+          message: `SFX included: ${ttsSfx.join(", ")}`,
         });
       }
 

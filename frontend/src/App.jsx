@@ -11,6 +11,8 @@ import MemoryJournal from "./components/MemoryJournal.jsx";
 import PersonaEditor from "./components/PersonaEditor.jsx";
 import HarnessReport from "./components/HarnessReport.jsx";
 import LlmSettingsPanel from "./components/LlmSettingsPanel.jsx";
+import MoodRuntimeSettings from "./components/MoodRuntimeSettings.jsx";
+import ExpressionSamplingSettings from "./components/ExpressionSamplingSettings.jsx";
 import ApiDiagnosticsPanel from "./components/ApiDiagnosticsPanel.jsx";
 import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
@@ -2562,7 +2564,24 @@ export default function App() {
                     </div>
                   </div>
                   <ApiDiagnosticsPanel onStatus={setStatus} />
+                  <div style={{ marginTop: 24 }}>
+                    <h3 className="section-heading">Chat Provider Configuration</h3>
+                  </div>
                   <LlmSettingsPanel onStatus={setStatus} />
+                  <div style={{ marginTop: 24 }}>
+                    <h3 className="section-heading">Emotional Engine Tuning</h3>
+                    <p className="section-copy">
+                      Adjust how your characters experience and recover from emotional states across turns.
+                    </p>
+                  </div>
+                  <MoodRuntimeSettings onStatus={setStatus} />
+                  <div style={{ marginTop: 24 }}>
+                    <h3 className="section-heading">Expression Sampling</h3>
+                    <p className="section-copy">
+                      Control phrase variation and realism by adjusting mood-aware sampling per chat mode.
+                    </p>
+                  </div>
+                  <ExpressionSamplingSettings onStatus={setStatus} />
                 </>
               ) : (
                 <>
