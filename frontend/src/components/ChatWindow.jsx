@@ -12,6 +12,24 @@ function isEPF(text) {
   return /\[\[[A-Za-z]+\d+\]\]/.test(text) && /^\[:\]/m.test(text);
 }
 
+function extractEPFDialogue(text) {
+  const dialogueLines = String(text || "")
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter((line) => {
+      // Plain continuation line: [:]
+      if (line.startsWith("[:]") && line.length > 3) return true;
+      // Timestamp line with trailing text: [12.0:] Spoken lyric here
+      // Long trailing text (> 200 chars) is audio-direction prose — skip it.
+      const tm = line.match(/^\[[\d.]+:\]\s+(.+)/);
+      return tm && tm[1].length < 200;
+    })
+    .map((line) => line.replace(/^\[(?::|[\d.]+):\]\s*/, "").trim())
+    .filter(Boolean);
+
+  return dialogueLines.join("\n");
+}
+
 const chatStyles = `
   .chat-shell {
     display: grid;
@@ -1123,6 +1141,21 @@ function formatAssistantContentForMode(content, mode) {
   return { main: stripped, nextQuestions: "" };
 }
 
+function getAssistantDisplayContent(message, mode) {
+  const rawContent = String(message?.content || "");
+  const displayContent = String(message?.displayContent || "");
+  const chatVisibleContent = mode === "scientist"
+    ? rawContent
+    : displayContent || extractEPFDialogue(rawContent) || rawContent;
+
+  return formatAssistantContentForMode(chatVisibleContent, mode);
+}
+
+function getAssistantSpeechContent(message) {
+  const rawContent = String(message?.content || "");
+  return String(message?.displayContent || "") || extractEPFDialogue(rawContent) || rawContent;
+}
+
 export default function ChatWindow({
   personality,
   messages,
@@ -1192,6 +1225,11 @@ export default function ChatWindow({
     [messages],
   );
 
+  const latestAssistantSpeechText = useMemo(
+    () => getAssistantSpeechContent(latestAssistantMessage),
+    [latestAssistantMessage],
+  );
+
   const activeUsage = liveUsage || latestAssistantUsage;
   const usagePercent = useMemo(() => {
     const ratio = Number(activeUsage?.percentUsed);
@@ -1224,6 +1262,7 @@ export default function ChatWindow({
     return {
       role: "assistant",
       content: liveReply || "",
+      displayContent: extractEPFDialogue(liveReply || "") || liveReply || "",
       debug: displayDebug,
       live: true,
       phase: livePhase,
@@ -1461,14 +1500,14 @@ export default function ChatWindow({
       return;
     }
 
-    const stamp = `${personality?.id || "none"}:${latestAssistantMessage.content}`;
+    const stamp = `${personality?.id || "none"}:${latestAssistantSpeechText}`;
     if (lastGeneratedRef.current === stamp) {
       return;
     }
 
-    void generateAudio(latestAssistantMessage.content);
+    void generateAudio(latestAssistantSpeechText);
     lastGeneratedRef.current = stamp;
-  }, [latestAssistantMessage, personality?.id, voiceProfile]);
+  }, [latestAssistantMessage, latestAssistantSpeechText, personality?.id, voiceProfile]);
 
   useEffect(() => {
     const valence = Number(latestAssistantDebug?.mood?.after?.valence ?? personality?.moodState?.valence ?? 0);
@@ -1486,7 +1525,7 @@ export default function ChatWindow({
       return;
     }
 
-    const narrationStamp = `${personality?.id || "none"}:${latestAssistantMessage.content}:${valence.toFixed(2)}`;
+    const narrationStamp = `${personality?.id || "none"}:${latestAssistantSpeechText}:${valence.toFixed(2)}`;
     if (lastNarrationRef.current === narrationStamp) {
       return;
     }
@@ -1507,6 +1546,7 @@ export default function ChatWindow({
     activeMode,
     latestAssistantDebug,
     latestAssistantMessage,
+    latestAssistantSpeechText,
     neuralProfile?.voiceNarrationEnabled,
     personality?.id,
     personality?.moodState?.valence,
@@ -1620,7 +1660,14 @@ export default function ChatWindow({
       requestAnimationFrame(() => {
         const audioElement = audioRef.current;
         if (audioElement instanceof HTMLAudioElement) {
-          void audioElement.play().catch(() => {});
+          audioElement.muted = false;
+          audioElement.volume = 1;
+          void audioElement.play().catch((playError) => {
+            onStatus?.({
+              type: "error",
+              message: `Audio generated but playback was blocked. Press play on the audio control. ${playError?.message ? `(${playError.message})` : ""}`.trim(),
+            });
+          });
         }
       });
     } catch (error) {
@@ -1820,8 +1867,8 @@ export default function ChatWindow({
             <div className="voice-actions">
               <button
                 type="button"
-                className="voice-btn"
-                onClick={() => void generateAudio(latestAssistantMessage?.content || "")}
+                  className="voice-btn"
+                  onClick={() => void generateAudio(latestAssistantSpeechText)}
                 disabled={isGeneratingAudio || !latestAssistantMessage}
               >
                 {isGeneratingAudio ? "Generating…" : "▶ Play Latest Reply"}
@@ -1974,12 +2021,14 @@ export default function ChatWindow({
                     {message.live ? (
                       <>
                         <span className="live-phase">{message.phase || "processing"}</span>
-                        {message.content || "Thinking..."}
+                        {activeMode === "scientist"
+                          ? message.content || "Thinking..."
+                          : message.displayContent || message.content || "Thinking..."}
                       </>
                     ) : message.role === "assistant" ? (
                       (() => {
-                        const formatted = formatAssistantContentForMode(message.content, activeMode);
-                        const canPerform = !message.live && isEPF(message.content);
+                        const formatted = getAssistantDisplayContent(message, activeMode);
+                        const canPerform = activeMode === "scientist" && !message.live && Boolean(message.isPerformanceOutput || isEPF(message.content));
                         return (
                           <>
                             <div className="assistant-normal-main">{formatted.main}</div>

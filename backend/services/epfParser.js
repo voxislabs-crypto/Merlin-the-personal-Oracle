@@ -131,9 +131,22 @@ export function parseEPF(rawOutput) {
     }
 
     // ── Timestamp: [20.0:] or [0.0:] ──────────────────────────────────────
-    const timeMatch = line.match(/^\[(\d+(?:\.\d+)?):\]/);
+    // Format can be bare "[20.0:]" (timestamp only) or "[20.0:] Spoken text"
+    // (timestamp + first dialogue line merged on one line by the LLM).
+    const timeMatch = line.match(/^\[(\d+(?:\.\d+)?):\]\s*(.*)/);
     if (timeMatch && current) {
       current.startTime = parseFloat(timeMatch[1]);
+      const trailingText = timeMatch[2].trim();
+      if (trailingText) {
+        // Short text = spoken dialogue lyric; long text = audio direction prose.
+        if (trailingText.length < 200) {
+          current.dialogueLines.push(trailingText);
+          inAudioDirection = false;
+        } else {
+          inAudioDirection = true;
+          audioDirectionBuffer.push(trailingText);
+        }
+      }
       continue;
     }
 
