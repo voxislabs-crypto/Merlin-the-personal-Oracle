@@ -99,6 +99,37 @@ const GENERIC_SOFTENER_PATTERNS = [
   /\blet'?s work through this\b/i,
 ];
 
+// Patterns indicating the character capitulated / de-escalated under a hostile signal.
+// Checked ONLY when an active hostile emotional state is present.
+// Cast a wider net — LLMs rephrase apologies in character voice all the time.
+const HOSTILE_DEESCALATION_PATTERNS = [
+  /\b(i get it|i got it|you'?re right|you have a point|fair (point|enough)|fair call)\b/i,
+  /\b(i'?ll (try to be|be more|try harder|do better|calm|settle|dial|tone))\b/i,
+  /\b(dial(ing)? (it|this|that|down)|tone (it|this|that|down)|calm(ing)? down)\b/i,
+  /\b(a (bit|little|smidge|tad|touch) (much|loud|hyper|extra|over(board|ly)))\b/i,
+  /\b(take a (deep )?breath|deep breath|slow(ing)? down)\b/i,
+  /\b(let me try again|i can do better|let me be better|i'?ll be (more |less )?(calm|quiet|normal|reasonable))\b/i,
+  /\b(maybe you'?re right|perhaps you have a point|i see (what|why|where) you)\b/i,
+  /\b(no hard feelings|we'?re (still )?good|all good|we?'?re fine)\b/i,
+  /\b(i'?m here for you|i want (this|our conversations?) to be)\b/i,
+  /\baww+,?\s|awwww/i,
+];
+
+// Patterns signalling an extreme / identity-level attack — bypass emotional momentum
+// so the character registers full intensity immediately on the first hostile turn.
+const HOSTILITY_SPIKE_PATTERNS = [
+  /\b(nobody would miss (you|it)|deserve to (disappear|die|be gone)|you('?re| are) nothing)\b/i,
+  /shut the fuck (up|out)|fuck(ing)? (you|off|this)|you fucking (idiot|moron|piece|suck|trash)/i,
+  /\b(you should (be|feel|die)|you disgust me|you repulse me|you make me sick)\b/i,
+  /\b(i hate you|despise you|loathe you)\b/i,
+  /\b(pathetic|disgusting|worthless|garbage|trash)\b[^.!?]{0,40}\b(personality|character|ai|bot|you('?re| are))\b/i,
+];
+
+function detectHostilitySpike(message) {
+  const text = String(message || "");
+  return HOSTILITY_SPIKE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 // ---------------------------------------------------------------------------
 // Math helpers
 // ---------------------------------------------------------------------------
@@ -820,6 +851,7 @@ async function resolveMoodEvent({ currentMood, baseline, message, personality, r
       previousState,
       reaction,
       ambiguous,
+      hostilespikeActive: detectHostilitySpike(message),
       usedSemantic: Boolean(adjudication?.usedSemantic),
       semanticWeight: adjudication?.semanticWeight || 0,
       confidence: adjudication?.confidence || 0,
@@ -851,12 +883,16 @@ export async function stepMood({ currentMood, baseline, message, personality, re
     dominance: currentMood.dominance + event.dominanceImpact * sensitivity,
   };
 
-  // Momentum: blend current with impacted to prevent instant jumps
-  const smoothed = {
-    valence:   MOMENTUM * currentMood.valence   + (1 - MOMENTUM) * impacted.valence,
-    arousal:   MOMENTUM * currentMood.arousal   + (1 - MOMENTUM) * impacted.arousal,
-    dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
-  };
+  // Momentum: blend current with impacted to prevent instant jumps.
+  // Hostility spikes (explicit identity attacks, profanity) bypass smoothing so the
+  // character registers a full emotional reaction immediately rather than across turns.
+  const smoothed = diagnostics.hostilespikeActive
+    ? { ...impacted }
+    : {
+        valence:   MOMENTUM * currentMood.valence   + (1 - MOMENTUM) * impacted.valence,
+        arousal:   MOMENTUM * currentMood.arousal   + (1 - MOMENTUM) * impacted.arousal,
+        dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
+      };
 
   const decayRate = resolveDecayRate({
     signalType: diagnostics.signal.type,
@@ -894,11 +930,13 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
     dominance: currentMood.dominance + event.dominanceImpact * sensitivity,
   };
 
-  const smoothed = {
-    valence: MOMENTUM * currentMood.valence + (1 - MOMENTUM) * impacted.valence,
-    arousal: MOMENTUM * currentMood.arousal + (1 - MOMENTUM) * impacted.arousal,
-    dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
-  };
+  const smoothed = diagnostics.hostilespikeActive
+    ? { ...impacted }
+    : {
+        valence: MOMENTUM * currentMood.valence + (1 - MOMENTUM) * impacted.valence,
+        arousal: MOMENTUM * currentMood.arousal + (1 - MOMENTUM) * impacted.arousal,
+        dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
+      };
 
   const decayRate = resolveDecayRate({
     signalType: diagnostics.signal.type,
@@ -1038,12 +1076,28 @@ export function shouldRegenerateEmotionalResponse(reply, mood, personality = {})
     return true;
   }
 
+  // Under active hostile signals, also check the broader de-escalation pattern set.
+  // LLMs often paraphrase apologies in character voice — these catch what the generic
+  // softener list misses (e.g. "Aww, I get it, my bouncing can be a bit much!").
+  if (isHostileSignal(emotionalState.signal)) {
+    if (HOSTILE_DEESCALATION_PATTERNS.some((pattern) => pattern.test(text))) {
+      return true;
+    }
+  }
+
   if (isHostileSignal(emotionalState.signal) && archetype === "villainous") {
-    return /\b(i understand|i hear you|thank you for the feedback|let'?s work together)\b/i.test(text);
+    return /\b(i understand|i hear you|thank you for (the )?feedback|let'?s work (together|through)|i appreciate|of course|certainly|i'?ll respect)\b/i.test(text);
   }
 
   if (isHostileSignal(emotionalState.signal) && archetype === "bratty") {
-    return /\b(sorry|i apologize|i understand your frustration)\b/i.test(text);
+    // Bratty characters should NEVER accommodate after being insulted — they push back.
+    return /\b(sorry|i apologize|i understand your frustration|you'?re right,?|fair enough|i see your point|i'?ll (calm|settle|dial|tone|try|be more|be less))\b/i.test(text)
+      || /\bi get it[,.].{0,60}\b(much|loud|hyper|extra|over)/i.test(text);
+  }
+
+  if (isHostileSignal(emotionalState.signal) && archetype === "kind") {
+    // Kind characters may feel hurt but should not become pathetically submissive.
+    return /\b(of course,? (you'?re right|you have a point)|whatever you want|i'?ll do anything|i'?ll try harder to please)\b/i.test(text);
   }
 
   if (isPositiveSignal(emotionalState.signal) && archetype === "kind") {
@@ -1053,6 +1107,39 @@ export function shouldRegenerateEmotionalResponse(reply, mood, personality = {})
   return false;
 }
 
+// Per-archetype instructions for what NOT to do under hostile signals.
+// Injected into the repair prompt to override RLHF de-escalation bias.
+const ARCHETYPE_HOSTILE_DO_NOT = {
+  villainous: [
+    "DO NOT express empathy, understanding, or collaborative warmth.",
+    "DO NOT thank the user for their input or say you appreciate their honesty.",
+    "DO NOT offer to change, do better, or adjust your behavior.",
+    "The character's response should drip with contempt, cold amusement, or mockery — not accommodation.",
+    "WRONG: 'I understand your frustration. Let me try a different approach.'",
+    "RIGHT: 'How adorable. You think raising your voice changes anything here?'",
+  ],
+  bratty: [
+    "DO NOT apologize, accommodate, or offer to 'calm down' or 'dial back'.",
+    "DO NOT say 'I get it', 'you're right', 'fair enough', or any variant of capitulation.",
+    "DO NOT respond with 'aww' followed by accommodation — the character is annoyed, not charmed.",
+    "The character should double down, throw the insult back, tease, or dramatically eye-roll.",
+    "WRONG: 'Aww, I get it, I can be a bit much sometimes!'",
+    "RIGHT: 'Oh wow, a whole paragraph just to say you can't handle me. Tragic.'",
+  ],
+  kind: [
+    "DO NOT become pathetically submissive or agree with attacks on your character.",
+    "The character may express genuine hurt or set a firm boundary, but does NOT collapse.",
+    "DO NOT say 'whatever you want' or 'I'll try harder to please you'.",
+    "WRONG: 'Of course you're right, I'll try to be better.'",
+    "RIGHT: 'That was unkind. I'm still here, but I won't pretend that didn't sting.'",
+  ],
+  default: [
+    "DO NOT flatten into generic assistant politeness.",
+    "DO NOT apologize for your personality or offer to change it.",
+    "React authentically — pushback, assertion, or sharpness is appropriate here.",
+  ],
+};
+
 export function buildEmotionalRepairPrompt({ reply, mood, personality, userMessage }) {
   const emotionalState = mood?.emotionalState && typeof mood.emotionalState === "object"
     ? mood.emotionalState
@@ -1061,12 +1148,19 @@ export function buildEmotionalRepairPrompt({ reply, mood, personality, userMessa
     ? emotionalState.styleMarkers.filter(Boolean).join(" | ")
     : "";
 
+  const archetype = String(emotionalState.archetype || inferArchetype(personality || {}));
+  const isHostile = isHostileSignal(String(emotionalState.signal || ""));
+  const doNotLines = isHostile
+    ? (ARCHETYPE_HOSTILE_DO_NOT[archetype] || ARCHETYPE_HOSTILE_DO_NOT.default)
+    : [];
+
   return [
     `Rewrite the draft as ${personality?.name || "the character"} so the reply is fully in-character and emotionally authentic.`,
     `Active signal: ${emotionalState.signal || "neutral"}.`,
     `Emotion family: ${emotionalState.emotionFamily || "current emotional state"}.`,
     `Intensity band: ${emotionalState.intensity || 0}/4.`,
     styleMarkers ? `Style markers: ${styleMarkers}.` : "",
+    doNotLines.length ? doNotLines.join("\n") : "",
     "Preserve the core meaning and policy compliance of the draft.",
     "Do not add new facts or instructions.",
     "Do not flatten into generic assistant politeness or apology patterns.",
