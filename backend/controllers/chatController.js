@@ -70,6 +70,7 @@ import {
   reinforcePersonaPreferences,
   decayPersonaPreferences,
 } from "../models/preferencesModel.js";
+import { getMoodRuntimeConfig } from "../models/settingsModel.js";
 import {
   buildRateLimitFallbackReply,
   buildRateLimitNotice,
@@ -557,6 +558,7 @@ export async function chatHandler(req, res, next) {
       personality,
       recentMessages: history,
       preferenceDelta,
+      runtimeConfig: getMoodRuntimeConfig(),
     });
     const newMood = moodStep.mood;
     const moodLabel = moodToLabel(newMood);
@@ -570,6 +572,7 @@ export async function chatHandler(req, res, next) {
       after: newMood,
       label: moodLabel,
       adjudication: moodStep.diagnostics,
+      runtime: moodStep.diagnostics?.runtime || null,
       preferenceMatches: preferenceDelta
         ? { triggered: preferenceDelta.triggered, archetype: preferenceDelta.archetype }
         : null,

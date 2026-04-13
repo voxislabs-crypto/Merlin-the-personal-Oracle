@@ -5,6 +5,7 @@ const LLM_SAVED_CREDENTIALS_KEY = "llm_saved_credentials";
 const TTS_CREDENTIALS_KEY = "tts_credentials";
 const VOICE_DEFAULTS_KEY = "voice_defaults";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
+const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 
 function parseJsonObject(value) {
   try {
@@ -319,4 +320,57 @@ export function setKokoroHfToken({ token }) {
 
 export function clearKokoroHfToken() {
   db.prepare(`DELETE FROM app_settings WHERE key = ?`).run(KOKORO_HF_TOKEN_KEY);
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function sanitizeRecoveryCurves(curves) {
+  const input = curves && typeof curves === "object" ? curves : {};
+  return {
+    default: clampNumber(input.default, 0.01, 0.25, 0.08),
+    stoic: clampNumber(input.stoic, 0.01, 0.25, 0.12),
+    volatile: clampNumber(input.volatile, 0.01, 0.25, 0.04),
+    bratty: clampNumber(input.bratty, 0.01, 0.25, 0.06),
+    villainous: clampNumber(input.villainous, 0.01, 0.25, 0.03),
+    kind: clampNumber(input.kind, 0.01, 0.25, 0.1),
+  };
+}
+
+function sanitizeMoodRuntimeConfig(config) {
+  const normalized = config && typeof config === "object" ? config : {};
+  const inertia = clampNumber(normalized.inertia, 0.5, 0.95, 0.75);
+  const responsiveness = clampNumber(
+    normalized.responsiveness,
+    0.05,
+    0.5,
+    Number((1 - inertia).toFixed(3)),
+  );
+
+  return {
+    inertia,
+    responsiveness,
+    perTurnDeltaCap: clampNumber(normalized.perTurnDeltaCap, 0.2, 0.8, 0.45),
+    recoveryCurves: sanitizeRecoveryCurves(normalized.recoveryCurves),
+    updatedAt: String(normalized.updatedAt || "").trim(),
+  };
+}
+
+export function getMoodRuntimeConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(MOOD_RUNTIME_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeMoodRuntimeConfig(parsed);
+}
+
+export function setMoodRuntimeConfig(config) {
+  const sanitized = sanitizeMoodRuntimeConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(MOOD_RUNTIME_CONFIG_KEY, payload);
+  return getMoodRuntimeConfig();
 }

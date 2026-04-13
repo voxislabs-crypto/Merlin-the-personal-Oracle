@@ -14,14 +14,20 @@
 
 import { adjudicateMoodShift, isMoodAdjudicationEnabled } from "./llmService.js";
 
-// Decay rate per conversation turn (how quickly mood returns to baseline).
-const DECAY_RATE = 0.08;
-
-// Momentum coefficient — prevents instant emotional jumps (inertia).
-const MOMENTUM = 0.75;
-
-// Hard safety guard: maximum movement per V/A/D axis in one turn.
-const MAX_AXIS_DELTA_PER_TURN = 0.45;
+// Default runtime configuration. Can be overridden per-request via settings.
+const DEFAULT_MOOD_RUNTIME = {
+  inertia: 0.75,
+  responsiveness: 0.25,
+  perTurnDeltaCap: 0.45,
+  recoveryCurves: {
+    default: 0.08,
+    stoic: 0.12,
+    volatile: 0.04,
+    bratty: 0.06,
+    villainous: 0.03,
+    kind: 0.1,
+  },
+};
 
 // ---------------------------------------------------------------------------
 // VAD presets — map from common mood label strings to starting coordinates
@@ -145,7 +151,50 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function applyPerTurnDeltaCaps(currentMood, candidateMood) {
+function resolveMoodRuntimeConfig(input = null) {
+  const provided = input && typeof input === "object" ? input : {};
+  const inertiaRaw = Number(provided.inertia);
+  const inertia = Number.isFinite(inertiaRaw)
+    ? clamp(inertiaRaw, 0.5, 0.95)
+    : DEFAULT_MOOD_RUNTIME.inertia;
+  const fallbackResponsiveness = Number((1 - inertia).toFixed(3));
+  const responsivenessRaw = Number(provided.responsiveness);
+  const responsiveness = clamp(
+    Number.isFinite(responsivenessRaw) ? responsivenessRaw : fallbackResponsiveness,
+    0.05,
+    0.5,
+  );
+  const curves = provided.recoveryCurves && typeof provided.recoveryCurves === "object"
+    ? provided.recoveryCurves
+    : {};
+
+  return {
+    inertia,
+    responsiveness,
+    perTurnDeltaCap: Number.isFinite(Number(provided.perTurnDeltaCap))
+      ? clamp(Number(provided.perTurnDeltaCap), 0.2, 0.8)
+      : DEFAULT_MOOD_RUNTIME.perTurnDeltaCap,
+    recoveryCurves: {
+      default: Number.isFinite(Number(curves.default)) ? clamp(Number(curves.default), 0.01, 0.25) : DEFAULT_MOOD_RUNTIME.recoveryCurves.default,
+      stoic: Number.isFinite(Number(curves.stoic)) ? clamp(Number(curves.stoic), 0.01, 0.25) : DEFAULT_MOOD_RUNTIME.recoveryCurves.stoic,
+      volatile: Number.isFinite(Number(curves.volatile)) ? clamp(Number(curves.volatile), 0.01, 0.25) : DEFAULT_MOOD_RUNTIME.recoveryCurves.volatile,
+      bratty: Number.isFinite(Number(curves.bratty)) ? clamp(Number(curves.bratty), 0.01, 0.25) : DEFAULT_MOOD_RUNTIME.recoveryCurves.bratty,
+      villainous: Number.isFinite(Number(curves.villainous)) ? clamp(Number(curves.villainous), 0.01, 0.25) : DEFAULT_MOOD_RUNTIME.recoveryCurves.villainous,
+      kind: Number.isFinite(Number(curves.kind)) ? clamp(Number(curves.kind), 0.01, 0.25) : DEFAULT_MOOD_RUNTIME.recoveryCurves.kind,
+    },
+  };
+}
+
+function blendWithRuntimeInertia(currentValue, impactedValue, runtime) {
+  const inertia = Number(runtime?.inertia || DEFAULT_MOOD_RUNTIME.inertia);
+  const responsiveness = Number(runtime?.responsiveness || DEFAULT_MOOD_RUNTIME.responsiveness);
+  const total = Math.max(0.001, inertia + responsiveness);
+  const currentWeight = inertia / total;
+  const impactedWeight = responsiveness / total;
+  return currentWeight * currentValue + impactedWeight * impactedValue;
+}
+
+function applyPerTurnDeltaCaps(currentMood, candidateMood, cap = DEFAULT_MOOD_RUNTIME.perTurnDeltaCap) {
   const current = {
     valence: Number(currentMood?.valence || 0),
     arousal: Number(currentMood?.arousal || 0),
@@ -154,13 +203,13 @@ function applyPerTurnDeltaCaps(currentMood, candidateMood) {
 
   const capped = {
     valence: clamp(
-      current.valence + clamp(Number(candidateMood?.valence || 0) - current.valence, -MAX_AXIS_DELTA_PER_TURN, MAX_AXIS_DELTA_PER_TURN),
+      current.valence + clamp(Number(candidateMood?.valence || 0) - current.valence, -cap, cap),
     ),
     arousal: clamp(
-      current.arousal + clamp(Number(candidateMood?.arousal || 0) - current.arousal, -MAX_AXIS_DELTA_PER_TURN, MAX_AXIS_DELTA_PER_TURN),
+      current.arousal + clamp(Number(candidateMood?.arousal || 0) - current.arousal, -cap, cap),
     ),
     dominance: clamp(
-      current.dominance + clamp(Number(candidateMood?.dominance || 0) - current.dominance, -MAX_AXIS_DELTA_PER_TURN, MAX_AXIS_DELTA_PER_TURN),
+      current.dominance + clamp(Number(candidateMood?.dominance || 0) - current.dominance, -cap, cap),
     ),
   };
 
@@ -220,6 +269,23 @@ function inferArchetype(personality = {}) {
   if (villainous) return "villainous";
   if (bratty) return "bratty";
   if (kind) return "kind";
+  return "default";
+}
+
+function inferRecoveryProfile(personality = {}) {
+  const archetype = inferArchetype(personality);
+  const traitCorpus = [
+    ...(Array.isArray(personality?.traits) ? personality.traits : []),
+    ...(Array.isArray(personality?.quirks) ? personality.quirks : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (/\bstoic|measured|detached|cold\b/.test(traitCorpus)) return "stoic";
+  if (/\bvolatile|explosive|erratic|intense\b/.test(traitCorpus)) return "volatile";
+  if (archetype === "bratty") return "bratty";
+  if (archetype === "villainous") return "villainous";
+  if (archetype === "kind") return "kind";
   return "default";
 }
 
@@ -510,7 +576,7 @@ function getExistingEmotionalState(currentMood = {}, baseline) {
     intensity: Number.isFinite(Number(stored.intensity)) ? Number(stored.intensity) : fallbackIntensity,
     carryoverTurnsRemaining: Math.max(0, Number(stored.carryoverTurnsRemaining) || 0),
     styleMarkers: Array.isArray(stored.styleMarkers) ? stored.styleMarkers.map((item) => String(item || "").trim()).filter(Boolean) : [],
-    lastDecayRate: Number(stored.lastDecayRate) || DECAY_RATE,
+    lastDecayRate: Number(stored.lastDecayRate) || DEFAULT_MOOD_RUNTIME.recoveryCurves.default,
   };
 }
 
@@ -535,7 +601,14 @@ function resolveDecayRate({ signalType, previousState, reaction }) {
     return 0.04;
   }
 
-  return DECAY_RATE;
+  return DEFAULT_MOOD_RUNTIME.recoveryCurves.default;
+}
+
+function applyRecoveryCurve(decayRate, { personality, signalType, runtime }) {
+  const profile = inferRecoveryProfile(personality);
+  const profileRate = Number(runtime?.recoveryCurves?.[profile] || runtime?.recoveryCurves?.default || decayRate);
+  const blend = signalType === "neutral" || signalType === "deescalation" ? 0.75 : 0.35;
+  return clamp(lerp(decayRate, profileRate, blend), 0.01, 0.25);
 }
 
 function minimumAllowedIntensity({ previousState, signalType, reaction }) {
@@ -896,7 +969,8 @@ async function resolveMoodEvent({ currentMood, baseline, message, personality, r
 // Public: advance mood by one turn
 // ---------------------------------------------------------------------------
 
-export async function stepMood({ currentMood, baseline, message, personality, recentMessages = [] }) {
+export async function stepMood({ currentMood, baseline, message, personality, recentMessages = [], runtimeConfig = null }) {
+  const runtime = resolveMoodRuntimeConfig({ ...DEFAULT_MOOD_RUNTIME, ...(runtimeConfig || {}) });
   const sensitivity = getSensitivity(personality);
   const { event, diagnostics } = await resolveMoodEvent({
     currentMood,
@@ -919,15 +993,20 @@ export async function stepMood({ currentMood, baseline, message, personality, re
   const smoothed = diagnostics.hostilespikeActive
     ? { ...impacted }
     : {
-        valence:   MOMENTUM * currentMood.valence   + (1 - MOMENTUM) * impacted.valence,
-        arousal:   MOMENTUM * currentMood.arousal   + (1 - MOMENTUM) * impacted.arousal,
-        dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
+        valence:   blendWithRuntimeInertia(currentMood.valence, impacted.valence, runtime),
+        arousal:   blendWithRuntimeInertia(currentMood.arousal, impacted.arousal, runtime),
+        dominance: blendWithRuntimeInertia(currentMood.dominance, impacted.dominance, runtime),
       };
 
-  const decayRate = resolveDecayRate({
+  const baseDecayRate = resolveDecayRate({
     signalType: diagnostics.signal.type,
     previousState: diagnostics.previousState,
     reaction: diagnostics.reaction,
+  });
+  const decayRate = applyRecoveryCurve(baseDecayRate, {
+    personality,
+    signalType: diagnostics.signal.type,
+    runtime,
   });
 
   const decayedMood = {
@@ -935,7 +1014,7 @@ export async function stepMood({ currentMood, baseline, message, personality, re
     arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
     dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
   };
-  const { capped } = applyPerTurnDeltaCaps(currentMood, decayedMood);
+  const { capped } = applyPerTurnDeltaCaps(currentMood, decayedMood, runtime.perTurnDeltaCap);
 
   return finalizeEmotionalState({
     mood: capped,
@@ -947,7 +1026,16 @@ export async function stepMood({ currentMood, baseline, message, personality, re
   });
 }
 
-export async function stepMoodDetailed({ currentMood, baseline, message, personality, recentMessages = [], preferenceDelta = null }) {
+export async function stepMoodDetailed({
+  currentMood,
+  baseline,
+  message,
+  personality,
+  recentMessages = [],
+  preferenceDelta = null,
+  runtimeConfig = null,
+}) {
+  const runtime = resolveMoodRuntimeConfig({ ...DEFAULT_MOOD_RUNTIME, ...(runtimeConfig || {}) });
   const sensitivity = getSensitivity(personality);
   const { event, diagnostics } = await resolveMoodEvent({
     currentMood,
@@ -979,15 +1067,20 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
   const smoothed = diagnostics.hostilespikeActive
     ? { ...impacted }
     : {
-        valence: MOMENTUM * currentMood.valence + (1 - MOMENTUM) * impacted.valence,
-        arousal: MOMENTUM * currentMood.arousal + (1 - MOMENTUM) * impacted.arousal,
-        dominance: MOMENTUM * currentMood.dominance + (1 - MOMENTUM) * impacted.dominance,
+        valence: blendWithRuntimeInertia(currentMood.valence, impacted.valence, runtime),
+        arousal: blendWithRuntimeInertia(currentMood.arousal, impacted.arousal, runtime),
+        dominance: blendWithRuntimeInertia(currentMood.dominance, impacted.dominance, runtime),
       };
 
-  const decayRate = resolveDecayRate({
+  const baseDecayRate = resolveDecayRate({
     signalType: diagnostics.signal.type,
     previousState: diagnostics.previousState,
     reaction: diagnostics.reaction,
+  });
+  const decayRate = applyRecoveryCurve(baseDecayRate, {
+    personality,
+    signalType: diagnostics.signal.type,
+    runtime,
   });
 
   const decayedMood = {
@@ -995,7 +1088,7 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
     arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
     dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
   };
-  const { capped, deltaCapsApplied } = applyPerTurnDeltaCaps(currentMood, decayedMood);
+  const { capped, deltaCapsApplied } = applyPerTurnDeltaCaps(currentMood, decayedMood, runtime.perTurnDeltaCap);
 
   const mood = finalizeEmotionalState({
     mood: capped,
@@ -1012,6 +1105,8 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
       ...diagnostics,
       sensitivity,
       decayRate,
+      baseDecayRate,
+      runtime,
       impacted,
       smoothed,
       decayedMood,

@@ -73,6 +73,7 @@ Health and deploy verification:
 - Mood diagnostics now emit turn snapshots (`before`, `afterMerge`, `afterMomentum`, `afterDecay`, `afterClamp`) plus a delta-cap indicator for traceability.
 - Persona preference storage now resolves high-overlap polarity conflicts using weighted dominance, preventing contradictory duplicate memories for the same topic.
 - Matched preferences are reinforced on trigger (importance + trigger count + last-trigger timestamp), while stale preferences decay on cadence with floor caps to prevent permanent saturation.
+- Mood physics is now runtime-configurable through settings (`/settings/mood-runtime`) with inertia, responsiveness, per-turn delta cap, and archetype recovery curves (`default`, `stoic`, `volatile`, `bratty`, `villainous`, `kind`).
 
 ---
 

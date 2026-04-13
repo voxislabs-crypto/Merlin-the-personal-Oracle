@@ -15,6 +15,8 @@ import {
   getKokoroSettingsHandler,
   saveKokoroHfTokenHandler,
   clearKokoroHfTokenHandler,
+  getMoodRuntimeSettingsHandler,
+  saveMoodRuntimeSettingsHandler,
 } from "../controllers/settingsController.js";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth.js";
 
@@ -36,5 +38,7 @@ router.delete("/settings/tts/:provider", requireAuth, requireAdmin, clearTtsCred
 router.get("/settings/kokoro", requireAuth, getKokoroSettingsHandler);
 router.put("/settings/kokoro", requireAuth, requireAdmin, saveKokoroHfTokenHandler);
 router.delete("/settings/kokoro", requireAuth, requireAdmin, clearKokoroHfTokenHandler);
+router.get("/settings/mood-runtime", requireAuth, getMoodRuntimeSettingsHandler);
+router.put("/settings/mood-runtime", requireAuth, requireAdmin, saveMoodRuntimeSettingsHandler);
 
 export default router;

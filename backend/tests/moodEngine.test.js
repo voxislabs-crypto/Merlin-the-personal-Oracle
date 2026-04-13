@@ -66,6 +66,14 @@ const DEESCALATION_MESSAGE = "Let's slow down, it's okay, all good.";
 const NEUTRAL_MESSAGE = "Tell me about the weather.";
 const CHALLENGE_MESSAGE = "Prove it, I dare you, bet you can't.";
 
+function vadDistance(a, b) {
+  return Math.sqrt(
+    (Number(a?.valence || 0) - Number(b?.valence || 0)) ** 2 +
+    (Number(a?.arousal || 0) - Number(b?.arousal || 0)) ** 2 +
+    (Number(a?.dominance || 0) - Number(b?.dominance || 0)) ** 2,
+  );
+}
+
 // ── Helper: run N turns of stepMood with the same message ───────────────────
 async function runTurns(n, message, personality, baseline) {
   let mood = { ...baseline };
@@ -282,6 +290,97 @@ describe("shouldRegenerateEmotionalResponse", () => {
       personality: KIND,
     });
     expect(shouldRegenerateEmotionalResponse("Noted.", kindMood, KIND)).toBe(true);
+  });
+});
+
+describe("runtime-configurable emotional dynamics", () => {
+  it("uses lower inertia/higher responsiveness to produce larger first-turn movement", async () => {
+    const baseline = moodFromLabel("neutral");
+    const mildSignal = "Thanks, this is good and helpful.";
+    const lowMotion = await stepMoodDetailed({
+      currentMood: { ...baseline },
+      baseline,
+      message: mildSignal,
+      personality: KIND,
+      runtimeConfig: {
+        inertia: 0.92,
+        responsiveness: 0.08,
+      },
+    });
+
+    const highMotion = await stepMoodDetailed({
+      currentMood: { ...baseline },
+      baseline,
+      message: mildSignal,
+      personality: KIND,
+      runtimeConfig: {
+        inertia: 0.55,
+        responsiveness: 0.45,
+      },
+    });
+
+    expect(vadDistance(highMotion.diagnostics.stateSnapshots.afterMomentum, baseline))
+      .toBeGreaterThan(vadDistance(lowMotion.diagnostics.stateSnapshots.afterMomentum, baseline));
+  });
+
+  it("applies archetype-specific recovery curves so stoic recovers faster than volatile", async () => {
+    const baseline = moodFromLabel("neutral");
+    const runtimeConfig = {
+      recoveryCurves: {
+        default: 0.08,
+        stoic: 0.2,
+        volatile: 0.02,
+        bratty: 0.06,
+        villainous: 0.03,
+        kind: 0.1,
+      },
+    };
+
+    const stoicPrimed = await stepMood({
+      currentMood: { ...baseline },
+      baseline,
+      message: INSULT_MESSAGE,
+      personality: {
+        ...KIND,
+        traits: ["stoic", "measured"],
+      },
+      runtimeConfig,
+    });
+
+    const volatilePrimed = await stepMood({
+      currentMood: { ...baseline },
+      baseline,
+      message: INSULT_MESSAGE,
+      personality: {
+        ...KIND,
+        traits: ["volatile", "intense"],
+      },
+      runtimeConfig,
+    });
+
+    const stoicRecovered = await stepMood({
+      currentMood: stoicPrimed,
+      baseline,
+      message: NEUTRAL_MESSAGE,
+      personality: {
+        ...KIND,
+        traits: ["stoic", "measured"],
+      },
+      runtimeConfig,
+    });
+
+    const volatileRecovered = await stepMood({
+      currentMood: volatilePrimed,
+      baseline,
+      message: NEUTRAL_MESSAGE,
+      personality: {
+        ...KIND,
+        traits: ["volatile", "intense"],
+      },
+      runtimeConfig,
+    });
+
+    expect(vadDistance(stoicRecovered, baseline)).toBeLessThan(vadDistance(volatileRecovered, baseline));
   });
 });
 

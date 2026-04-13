@@ -15,6 +15,8 @@ import {
   getKokoroHfToken,
   setKokoroHfToken,
   clearKokoroHfToken,
+  getMoodRuntimeConfig,
+  setMoodRuntimeConfig,
 } from "../models/settingsModel.js";
 import {
   detectProviderByApiKey,
@@ -361,4 +363,14 @@ export function clearKokoroHfTokenHandler(_req, res, next) {
   } catch (error) {
     return next(error);
   }
+}
+
+export function getMoodRuntimeSettingsHandler(_req, res) {
+  return res.json(getMoodRuntimeConfig());
+}
+
+export function saveMoodRuntimeSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setMoodRuntimeConfig(body);
+  return res.json(updated);
 }
