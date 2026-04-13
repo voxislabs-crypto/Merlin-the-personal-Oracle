@@ -914,7 +914,7 @@ export async function stepMood({ currentMood, baseline, message, personality, re
   });
 }
 
-export async function stepMoodDetailed({ currentMood, baseline, message, personality, recentMessages = [] }) {
+export async function stepMoodDetailed({ currentMood, baseline, message, personality, recentMessages = [], preferenceDelta = null }) {
   const sensitivity = getSensitivity(personality);
   const { event, diagnostics } = await resolveMoodEvent({
     currentMood,
@@ -924,10 +924,23 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
     recentMessages,
   });
 
+  // Layer persona preference delta on top of the social-signal event.
+  // Preferences represent deeply personal triggers that bypass the generic
+  // signal classification — they fire based on what the persona actually cares about.
+  const prefValence   = Number(preferenceDelta?.valenceImpact   || 0);
+  const prefArousal   = Number(preferenceDelta?.arousalImpact   || 0);
+  const prefDominance = Number(preferenceDelta?.dominanceImpact || 0);
+
+  const combinedEvent = {
+    valenceImpact:   event.valenceImpact   + prefValence,
+    arousalImpact:   event.arousalImpact   + prefArousal,
+    dominanceImpact: event.dominanceImpact + prefDominance,
+  };
+
   const impacted = {
-    valence: currentMood.valence + event.valenceImpact * sensitivity,
-    arousal: currentMood.arousal + event.arousalImpact * sensitivity,
-    dominance: currentMood.dominance + event.dominanceImpact * sensitivity,
+    valence: currentMood.valence + combinedEvent.valenceImpact * sensitivity,
+    arousal: currentMood.arousal + combinedEvent.arousalImpact * sensitivity,
+    dominance: currentMood.dominance + combinedEvent.dominanceImpact * sensitivity,
   };
 
   const smoothed = diagnostics.hostilespikeActive
@@ -967,6 +980,15 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
       smoothed,
       intensityAfter: mood.emotionalState?.intensity || 0,
       carryoverTurnsRemaining: mood.emotionalState?.carryoverTurnsRemaining || 0,
+      preferenceDelta: preferenceDelta
+        ? {
+            valenceImpact:   prefValence,
+            arousalImpact:   prefArousal,
+            dominanceImpact: prefDominance,
+            triggered:       preferenceDelta.triggered || [],
+            archetype:       preferenceDelta.archetype || null,
+          }
+        : null,
     },
   };
 }

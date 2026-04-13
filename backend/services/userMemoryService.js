@@ -1,3 +1,5 @@
+import { extractUserEmotionalPreferences } from "./preferencesService.js";
+
 const PII_PATTERNS = [
   /\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/, // SSN-like
   /\b(?:\+?\d{1,2}\s*)?(?:\(?\d{3}\)?[-.\s]?){2}\d{4}\b/, // phone-like
@@ -70,13 +72,25 @@ export function extractUserMemoriesFromMessage(message) {
     });
   }
 
+  // Merge richer emotional preference patterns from preferencesService.
+  const emotionalCandidates = extractUserEmotionalPreferences(text);
+  for (const item of emotionalCandidates) {
+    // Avoid duplicates: skip if the same core phrase is already captured.
+    const alreadyCovered = candidates.some(
+      (c) => c.content.toLowerCase().includes(item.content.toLowerCase().slice(5, 40)),
+    );
+    if (!alreadyCovered) {
+      candidates.push(item);
+    }
+  }
+
   return candidates
     .map((item) => ({
       ...item,
       content: normalizeWhitespace(item.content),
     }))
     .filter((item) => item.content && !hasPotentialPii(item.content))
-    .slice(0, 2);
+    .slice(0, 4);
 }
 
 export function buildUserMemoryPromptSection(userMemories = []) {

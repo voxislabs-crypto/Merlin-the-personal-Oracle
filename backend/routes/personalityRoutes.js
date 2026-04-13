@@ -35,6 +35,12 @@ import {
   deleteMemoryHandler,
 } from "../controllers/memoryController.js";
 import {
+  listPersonaPreferencesHandler,
+  createPersonaPreferenceHandler,
+  updatePersonaPreferenceHandler,
+  deletePersonaPreferenceHandler,
+} from "../controllers/preferencesController.js";
+import {
   performanceHandler,
   parsePerformanceHandler,
 } from "../controllers/performanceController.js";
@@ -57,6 +63,10 @@ router.get("/personality/:id/memory", requireAuth, listMemoryHandler);
 router.post("/personality/:id/memory/backfill", requireAuth, backfillMemoryEmbeddingsHandler);
 router.put("/memory/:memoryId", requireAuth, updateMemoryHandler);
 router.delete("/memory/:memoryId", requireAuth, deleteMemoryHandler);
+router.get("/personality/:id/preferences", requireAuth, listPersonaPreferencesHandler);
+router.post("/personality/:id/preferences", requireAuth, createPersonaPreferenceHandler);
+router.put("/personality-preference/:prefId", requireAuth, updatePersonaPreferenceHandler);
+router.delete("/personality-preference/:prefId", requireAuth, deletePersonaPreferenceHandler);
 router.get("/tts/piper-voices", requireAuth, listPiperVoicesHandler);
 router.get("/tts/kokoro-voices", requireAuth, listKokoroVoicesHandler);
 router.get("/tts/providers", requireAuth, listProviderStatusHandler);

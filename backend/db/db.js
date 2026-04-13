@@ -194,4 +194,34 @@ db.exec(`
   ON user_memory (userId, importance DESC, id DESC)
 `);
 
+// ---------------------------------------------------------------------------
+// Persona Preference Memory — what each persona loves, hates, finds exciting
+// or annoying. These persist across conversations and actively influence mood.
+// prefType: 'loves'|'likes'|'excites'|'hates'|'dislikes'|'annoys'|'offends'|'bores'
+// source:   'learned' (extracted from dialogue) | 'explicit' (manually set)
+// ---------------------------------------------------------------------------
+db.exec(`
+  CREATE TABLE IF NOT EXISTS persona_preferences (
+    id INTEGER PRIMARY KEY,
+    personalityId INTEGER NOT NULL,
+    prefType TEXT NOT NULL DEFAULT 'likes',
+    content TEXT NOT NULL,
+    importance INTEGER NOT NULL DEFAULT 7,
+    source TEXT NOT NULL DEFAULT 'learned',
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (personalityId) REFERENCES personalities(id)
+  )
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_persona_preferences_personality_id
+  ON persona_preferences (personalityId, importance DESC, id DESC)
+`);
+
+// ---------------------------------------------------------------------------
+// Extended user memory types for emotional preferences:
+// 'user_likes' | 'user_dislikes' | 'user_trigger_positive' | 'user_trigger_negative'
+// are stored in the existing user_memory table — no schema change needed.
+// ---------------------------------------------------------------------------
+
 export default db;

@@ -56,6 +56,18 @@ import {
   extractUserMemoriesFromMessage,
 } from "../services/userMemoryService.js";
 import {
+  matchPreferencesInMessage,
+  computePreferenceMoodDelta,
+  buildPersonaPreferencesPromptSection,
+  buildUserEmotionalProfileSection,
+  extractPersonaPreferencesFromConversation,
+} from "../services/preferencesService.js";
+import {
+  getPersonaPreferences,
+  upsertPersonaPreference,
+  prunePersonaPreferences,
+} from "../models/preferencesModel.js";
+import {
   buildRateLimitFallbackReply,
   buildRateLimitNotice,
   buildRateLimitRetryMessages,
@@ -511,12 +523,22 @@ export async function chatHandler(req, res, next) {
       content: m.content,
     }));
 
+    // Load persona preferences once per turn — used for mood matching and prompt.
+    const personaPreferences = getPersonaPreferences(personalityId);
+
+    // Check whether the user message touches any of the persona's emotional preferences.
+    const preferenceMatches = matchPreferencesInMessage(personaPreferences, message);
+    const preferenceDelta = preferenceMatches.allMatches.length > 0
+      ? computePreferenceMoodDelta(preferenceMatches, personality)
+      : null;
+
     const moodStep = await stepMoodDetailed({
       currentMood,
       baseline: moodBaseline,
       message,
       personality,
       recentMessages: history,
+      preferenceDelta,
     });
     const newMood = moodStep.mood;
     const moodLabel = moodToLabel(newMood);
@@ -530,6 +552,9 @@ export async function chatHandler(req, res, next) {
       after: newMood,
       label: moodLabel,
       adjudication: moodStep.diagnostics,
+      preferenceMatches: preferenceDelta
+        ? { triggered: preferenceDelta.triggered, archetype: preferenceDelta.archetype }
+        : null,
     };
     stream.write("debug", {
       phase: "mood",
@@ -635,6 +660,19 @@ export async function chatHandler(req, res, next) {
     const userMemorySection = buildUserMemoryPromptSection(userMemoryFacts);
     if (userMemorySection) {
       messages.push({ role: "system", content: userMemorySection });
+    }
+
+    // Persona emotional preferences — what this persona loves, hates, is triggered by.
+    // Injected as a system section so the LLM stays in character when topics arise.
+    const personaPrefsSection = buildPersonaPreferencesPromptSection(personaPreferences);
+    if (personaPrefsSection) {
+      messages.push({ role: "system", content: personaPrefsSection });
+    }
+
+    // What the persona has learned about this user's emotional preferences.
+    const userEmotionalSection = buildUserEmotionalProfileSection(userMemoryFacts);
+    if (userEmotionalSection) {
+      messages.push({ role: "system", content: userEmotionalSection });
     }
 
     // Periodic reconditioning: inject a compressed persona anchor every N turns to
@@ -1060,6 +1098,34 @@ export async function chatHandler(req, res, next) {
         }
       }
 
+      // Async: extract any new persona preferences revealed in the assistant reply.
+      try {
+        const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
+          personality,
+          userMessage: message,
+          assistantReply: reply,
+          existingPreferences: personaPreferences,
+        });
+
+        for (const pref of newPersonaPrefs) {
+          upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
+        }
+
+        if (newPersonaPrefs.length > 0) {
+          prunePersonaPreferences(personalityId, 80);
+        }
+
+        stream.write("debug", {
+          phase: "preference-write",
+          debug: {
+            ...debugData,
+            personaPreferencesExtracted: newPersonaPrefs,
+          },
+        });
+      } catch {
+        // Preference extraction is additive and non-fatal.
+      }
+
       stream.close("done", { ok: true });
       return;
     }
@@ -1115,6 +1181,28 @@ export async function chatHandler(req, res, next) {
         }
       });
     }
+
+    // Async: extract any new persona preferences revealed in the assistant reply.
+    setImmediate(async () => {
+      try {
+        const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
+          personality,
+          userMessage: message,
+          assistantReply: reply,
+          existingPreferences: personaPreferences,
+        });
+
+        for (const pref of newPersonaPrefs) {
+          upsertPersonaPreference(personalityId, pref.prefType, pref.content, pref.importance);
+        }
+
+        if (newPersonaPrefs.length > 0) {
+          prunePersonaPreferences(personalityId, 80);
+        }
+      } catch {
+        // Preference extraction is additive and non-fatal.
+      }
+    });
 
     return res.json(responsePayload);
   } catch (error) {
