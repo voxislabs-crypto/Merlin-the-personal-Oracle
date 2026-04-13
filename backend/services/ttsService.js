@@ -10,8 +10,8 @@ import {
   compileProsodyEnvelope,
   applyGenericProsodyText,
   applyProsodyToElevenLabsText,
-  applyProsodyToKokoroText,
 } from "./prosodyCompiler.js";
+import { shapeForKokoro } from "./kokoroShaper.js";
 import { interpretEmotionSpectrum } from "./emotionSpectrum.js";
 import { splitIntoChunks } from "./chunkSpeech.js";
 import { getKokoroHfToken, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
@@ -749,7 +749,7 @@ function prepareEngineInput({ engine, text, voiceProfile, prosodyEnvelope }) {
   }
 
   if (engine === "kokoro") {
-    synthesisText = applyProsodyToKokoroText(text, prosodyEnvelope);
+    synthesisText = shapeForKokoro(text, prosodyEnvelope);
     profile.rate = Number(prosodyEnvelope?.targetRate ?? profile.rate ?? 1);
   }
 

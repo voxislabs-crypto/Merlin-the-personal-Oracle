@@ -260,6 +260,7 @@ backend/
     researchService.js       Source scraping, ranking, synthesis
     speechProfiles.js        Personality-to-prosody profile mapping
     speechDirector.js        Personality + mood prosody text shaping
+    kokoroShaper.js          Kokoro-focused phrasing, mood, and emphasis text shaping
     chunkSpeech.js           Optional sentence chunk timing utility
     ttsService.js            TTS generation
     providerDiscoveryService.js Provider catalog + model discovery
