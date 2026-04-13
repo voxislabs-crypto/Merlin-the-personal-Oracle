@@ -1507,7 +1507,7 @@ export default function ChatWindow({
       return;
     }
 
-    void generateAudio(latestAssistantSpeechText);
+    void generateAudio(latestAssistantSpeechText, { silentAutoplayBlock: true });
     lastGeneratedRef.current = stamp;
   }, [latestAssistantMessage, latestAssistantSpeechText, personality?.id, voiceProfile]);
 
@@ -1600,7 +1600,7 @@ export default function ChatWindow({
     setSpeechEnergy(0);
   }
 
-  async function generateAudio(text) {
+  async function generateAudio(text, { silentAutoplayBlock = false } = {}) {
     if (!voiceProfile.enabled || !text.trim() || !personality) {
       return;
     }
@@ -1690,10 +1690,12 @@ export default function ChatWindow({
           audioElement.muted = false;
           audioElement.volume = 1;
           void audioElement.play().catch((playError) => {
-            onStatus?.({
-              type: "error",
-              message: `Audio generated but playback was blocked. Press play on the audio control. ${playError?.message ? `(${playError.message})` : ""}`.trim(),
-            });
+            if (!silentAutoplayBlock) {
+              onStatus?.({
+                type: "info",
+                message: `Audio ready — press play on the audio control below. ${playError?.message ? `(${playError.message})` : ""}`.trim(),
+              });
+            }
           });
         }
       });
@@ -1892,9 +1894,21 @@ export default function ChatWindow({
             </div>
 
             <div className="voice-selector">
-              <label htmlFor="voice-quick-select">
-                {`Voice (${String(voiceProfile.engine || "auto").toUpperCase()}):`}
-              </label>
+              <label htmlFor="voice-engine-select">Engine:</label>
+              <select
+                id="voice-engine-select"
+                value={voiceProfile.engine || "auto"}
+                onChange={(event) => updateVoiceField("engine", event.target.value)}
+                style={{ marginBottom: 6 }}
+              >
+                <option value="auto">Auto (server default)</option>
+                <option value="cloud">Cloud (OpenAI)</option>
+                <option value="kokoro">Kokoro (local, free)</option>
+                <option value="piper">Piper (local)</option>
+                <option value="elevenlabs">ElevenLabs</option>
+                <option value="cartesia">Cartesia</option>
+              </select>
+              <label htmlFor="voice-quick-select">Voice:</label>
               <select
                 id="voice-quick-select"
                 value={voiceProfile.engine === "kokoro" ? (voiceProfile.kokoroVoice || "af_heart") : (voiceProfile.providerVoice || "alloy")}
@@ -1906,33 +1920,30 @@ export default function ChatWindow({
                   }
                 }}
               >
-                {(voiceProfile.engine === "kokoro" || voiceProfile.engine === "auto") && (
+                {voiceProfile.engine === "kokoro" ? (
                   <>
-                    <optgroup label="Kokoro Voices">
-                      <option value="af_heart">af_heart (warm female)</option>
-                      <option value="af_nova">af_nova (energetic female)</option>
-                      <option value="af_sarah">af_sarah (casual female)</option>
-                      <option value="am_adam">am_adam (warm male)</option>
-                      <option value="am_badger">am_badger (authoritative male)</option>
-                      <option value="am_josh">am_josh (casual male)</option>
-                      <option value="am_onyx">am_onyx (deep male)</option>
-                      <option value="bf_bella">bf_bella (soft female)</option>
-                      <option value="bf_emma">bf_emma (expressive female)</option>
-                      <option value="bm_george">bm_george (engaging male)</option>
-                      <option value="bm_lewis">bm_lewis (calm male)</option>
-                    </optgroup>
+                    <option value="af_heart">af_heart — warm female</option>
+                    <option value="af_nova">af_nova — energetic female</option>
+                    <option value="af_sarah">af_sarah — casual female</option>
+                    <option value="af_sky">af_sky — light female</option>
+                    <option value="am_adam">am_adam — warm male</option>
+                    <option value="am_onyx">am_onyx — deep male</option>
+                    <option value="am_michael">am_michael — mid male</option>
+                    <option value="bf_alice">bf_alice — British female</option>
+                    <option value="bf_emma">bf_emma — expressive British female</option>
+                    <option value="bm_george">bm_george — engaging British male</option>
+                    <option value="bm_lewis">bm_lewis — calm British male</option>
                   </>
-                )}
-                {voiceProfile.engine !== "kokoro" && (
+                ) : (
                   <>
-                    <optgroup label="OpenAI Cloud">
-                      <option value="alloy">Alloy (neutral, balanced)</option>
-                      <option value="echo">Echo (steady, expressive)</option>
-                      <option value="fable">Fable (warm, engaging)</option>
-                      <option value="onyx">Onyx (deep, authoritative)</option>
-                      <option value="nova">Nova (bright, dynamic)</option>
-                      <option value="shimmer">Shimmer (crisp, energetic)</option>
-                    </optgroup>
+                    <option value="alloy">Alloy — neutral, balanced</option>
+                    <option value="echo">Echo — steady, expressive</option>
+                    <option value="fable">Fable — warm, engaging</option>
+                    <option value="onyx">Onyx — deep, authoritative</option>
+                    <option value="nova">Nova — bright, dynamic</option>
+                    <option value="shimmer">Shimmer — crisp, energetic</option>
+                    <option value="ash">Ash — measured</option>
+                    <option value="sage">Sage — calm female</option>
                   </>
                 )}
               </select>
