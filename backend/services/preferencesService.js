@@ -137,6 +137,61 @@ export function shouldExtractPreferences({ userMessage, assistantReply, moodDelt
   return false;
 }
 
+export function shouldExtractPreferencesWithCooldown({
+  userMessage,
+  assistantReply,
+  moodDelta = null,
+  lastExtractionAtMs = null,
+  lastExtractionTurn = null,
+  currentTurn = 0,
+  nowMs = Date.now(),
+  minIntervalMs = 45_000,
+  minTurns = 3,
+}) {
+  const signalTriggered = shouldExtractPreferences({ userMessage, assistantReply, moodDelta });
+  if (!signalTriggered) {
+    return {
+      shouldExtract: false,
+      signalTriggered: false,
+      reason: "no_emotional_signal",
+      cooldownRemainingMs: 0,
+      cooldownRemainingTurns: 0,
+    };
+  }
+
+  const elapsedMs = Number.isFinite(Number(lastExtractionAtMs))
+    ? Math.max(0, nowMs - Number(lastExtractionAtMs))
+    : Number.POSITIVE_INFINITY;
+  const turnsSince = Number.isFinite(Number(lastExtractionTurn))
+    ? Math.max(0, Number(currentTurn) - Number(lastExtractionTurn))
+    : Number.POSITIVE_INFINITY;
+
+  const cooldownRemainingMs = Number.isFinite(elapsedMs)
+    ? Math.max(0, Math.round(minIntervalMs - elapsedMs))
+    : 0;
+  const cooldownRemainingTurns = Number.isFinite(turnsSince)
+    ? Math.max(0, Math.round(minTurns - turnsSince))
+    : 0;
+
+  if (cooldownRemainingMs > 0 || cooldownRemainingTurns > 0) {
+    return {
+      shouldExtract: false,
+      signalTriggered: true,
+      reason: cooldownRemainingMs > 0 ? "cooldown_ms" : "cooldown_turns",
+      cooldownRemainingMs,
+      cooldownRemainingTurns,
+    };
+  }
+
+  return {
+    shouldExtract: true,
+    signalTriggered: true,
+    reason: "allowed",
+    cooldownRemainingMs: 0,
+    cooldownRemainingTurns: 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // VAD delta per preference type and archetype.
 //

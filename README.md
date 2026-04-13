@@ -66,8 +66,11 @@ Health and deploy verification:
 
 - Secret leak incident response is now documented in-repo: leaked backup/key files are ignored (`.env_bak`, `*.bak`, `*key*.txt`) and should never be tracked.
 - Chat runtime now enforces a single preference-extraction pipeline per assistant response lifecycle to avoid duplicate LLM calls and duplicate writes.
+- Preference extraction now includes a cooldown gate (time + turn based) so strong-signal turns cannot repeatedly retrigger extraction loops.
 - SSE reply flow now uses a single close point for debug streams to avoid post-close execution.
 - EPF presentation fallback now marks parse failures as non-performance output with an explicit parse error signal.
+- Mood runtime now applies hard per-turn V/A/D axis caps after merge/decay to prevent runaway emotional jumps while preserving inertia.
+- Mood diagnostics now emit turn snapshots (`before`, `afterMerge`, `afterMomentum`, `afterDecay`, `afterClamp`) plus a delta-cap indicator for traceability.
 
 ---
 

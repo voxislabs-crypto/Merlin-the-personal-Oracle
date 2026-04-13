@@ -20,6 +20,9 @@ const DECAY_RATE = 0.08;
 // Momentum coefficient — prevents instant emotional jumps (inertia).
 const MOMENTUM = 0.75;
 
+// Hard safety guard: maximum movement per V/A/D axis in one turn.
+const MAX_AXIS_DELTA_PER_TURN = 0.45;
+
 // ---------------------------------------------------------------------------
 // VAD presets — map from common mood label strings to starting coordinates
 // ---------------------------------------------------------------------------
@@ -140,6 +143,33 @@ function clamp(v, min = -1.0, max = 1.0) {
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+function applyPerTurnDeltaCaps(currentMood, candidateMood) {
+  const current = {
+    valence: Number(currentMood?.valence || 0),
+    arousal: Number(currentMood?.arousal || 0),
+    dominance: Number(currentMood?.dominance || 0),
+  };
+
+  const capped = {
+    valence: clamp(
+      current.valence + clamp(Number(candidateMood?.valence || 0) - current.valence, -MAX_AXIS_DELTA_PER_TURN, MAX_AXIS_DELTA_PER_TURN),
+    ),
+    arousal: clamp(
+      current.arousal + clamp(Number(candidateMood?.arousal || 0) - current.arousal, -MAX_AXIS_DELTA_PER_TURN, MAX_AXIS_DELTA_PER_TURN),
+    ),
+    dominance: clamp(
+      current.dominance + clamp(Number(candidateMood?.dominance || 0) - current.dominance, -MAX_AXIS_DELTA_PER_TURN, MAX_AXIS_DELTA_PER_TURN),
+    ),
+  };
+
+  const deltaCapsApplied =
+    Math.abs(capped.valence - Number(candidateMood?.valence || 0)) > 0.0001 ||
+    Math.abs(capped.arousal - Number(candidateMood?.arousal || 0)) > 0.0001 ||
+    Math.abs(capped.dominance - Number(candidateMood?.dominance || 0)) > 0.0001;
+
+  return { capped, deltaCapsApplied };
 }
 
 function distanceFromBaseline(mood, baseline) {
@@ -900,12 +930,15 @@ export async function stepMood({ currentMood, baseline, message, personality, re
     reaction: diagnostics.reaction,
   });
 
+  const decayedMood = {
+    valence: clamp(lerp(smoothed.valence, baseline.valence, decayRate)),
+    arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
+    dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
+  };
+  const { capped } = applyPerTurnDeltaCaps(currentMood, decayedMood);
+
   return finalizeEmotionalState({
-    mood: {
-      valence: clamp(lerp(smoothed.valence, baseline.valence, decayRate)),
-      arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
-      dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
-    },
+    mood: capped,
     baseline,
     signal: diagnostics.signal,
     reaction: diagnostics.reaction,
@@ -957,12 +990,15 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
     reaction: diagnostics.reaction,
   });
 
+  const decayedMood = {
+    valence: clamp(lerp(smoothed.valence, baseline.valence, decayRate)),
+    arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
+    dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
+  };
+  const { capped, deltaCapsApplied } = applyPerTurnDeltaCaps(currentMood, decayedMood);
+
   const mood = finalizeEmotionalState({
-    mood: {
-      valence: clamp(lerp(smoothed.valence, baseline.valence, decayRate)),
-      arousal: clamp(lerp(smoothed.arousal, baseline.arousal, decayRate)),
-      dominance: clamp(lerp(smoothed.dominance, baseline.dominance, decayRate)),
-    },
+    mood: capped,
     baseline,
     signal: diagnostics.signal,
     reaction: diagnostics.reaction,
@@ -978,6 +1014,35 @@ export async function stepMoodDetailed({ currentMood, baseline, message, persona
       decayRate,
       impacted,
       smoothed,
+      decayedMood,
+      deltaCapsApplied,
+      stateSnapshots: {
+        before: {
+          valence: Number(currentMood?.valence || 0),
+          arousal: Number(currentMood?.arousal || 0),
+          dominance: Number(currentMood?.dominance || 0),
+        },
+        afterMerge: {
+          valence: Number(impacted.valence || 0),
+          arousal: Number(impacted.arousal || 0),
+          dominance: Number(impacted.dominance || 0),
+        },
+        afterMomentum: {
+          valence: Number(smoothed.valence || 0),
+          arousal: Number(smoothed.arousal || 0),
+          dominance: Number(smoothed.dominance || 0),
+        },
+        afterDecay: {
+          valence: Number(decayedMood.valence || 0),
+          arousal: Number(decayedMood.arousal || 0),
+          dominance: Number(decayedMood.dominance || 0),
+        },
+        afterClamp: {
+          valence: Number(capped.valence || 0),
+          arousal: Number(capped.arousal || 0),
+          dominance: Number(capped.dominance || 0),
+        },
+      },
       intensityAfter: mood.emotionalState?.intensity || 0,
       carryoverTurnsRemaining: mood.emotionalState?.carryoverTurnsRemaining || 0,
       preferenceDelta: preferenceDelta

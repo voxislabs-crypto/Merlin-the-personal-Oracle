@@ -61,7 +61,7 @@ import {
   buildPersonaPreferencesPromptSection,
   buildUserEmotionalProfileSection,
   extractPersonaPreferencesFromConversation,
-  shouldExtractPreferences,
+  shouldExtractPreferencesWithCooldown,
 } from "../services/preferencesService.js";
 import {
   getPersonaPreferences,
@@ -94,6 +94,14 @@ function getReconditionEvery(creativeContext) {
 // Maximum number of long-term memory facts to retain per personality.
 const MEMORY_MAX = 50;
 const MEMORY_RETRIEVAL_LIMIT = 5;
+
+const PREF_EXTRACTION_MIN_INTERVAL_MS = 45_000;
+const PREF_EXTRACTION_MIN_TURNS = 3;
+const preferenceExtractionState = new Map();
+
+function preferenceExtractionKey(personalityId, userScopedId) {
+  return `${Number(personalityId) || 0}:${userScopedId ?? "anon"}`;
+}
 
 function estimateMessagesTokenCount(messages = []) {
   return messages.reduce((total, item) => {
@@ -1000,16 +1008,29 @@ export async function chatHandler(req, res, next) {
       valence: newMood.valence - currentMood.valence,
       arousal: newMood.arousal,
     };
-    const shouldRunPreferenceExtraction = shouldExtractPreferences({
+    const extractionStateKey = preferenceExtractionKey(personalityId, userScopedId);
+    const previousExtraction = preferenceExtractionState.get(extractionStateKey) || null;
+    const extractionDecision = shouldExtractPreferencesWithCooldown({
       userMessage: message,
       assistantReply: reply,
       moodDelta: vadDeltaForGate,
+      lastExtractionAtMs: previousExtraction?.atMs ?? null,
+      lastExtractionTurn: previousExtraction?.turn ?? null,
+      currentTurn: totalMessages,
+      minIntervalMs: PREF_EXTRACTION_MIN_INTERVAL_MS,
+      minTurns: PREF_EXTRACTION_MIN_TURNS,
     });
+    const shouldRunPreferenceExtraction = extractionDecision.shouldExtract;
 
     const extractPersonaPreferences = async () => {
       if (!shouldRunPreferenceExtraction) {
         return [];
       }
+
+      preferenceExtractionState.set(extractionStateKey, {
+        atMs: Date.now(),
+        turn: totalMessages + 2,
+      });
 
       const newPersonaPrefs = await extractPersonaPreferencesFromConversation({
         personality,
@@ -1141,7 +1162,13 @@ export async function chatHandler(req, res, next) {
             personaPreferencesExtracted: newPersonaPrefs,
             flags: shouldRunPreferenceExtraction
               ? debugData.flags
-              : { ...debugData.flags, preferenceExtractionGated: true },
+              : {
+                  ...debugData.flags,
+                  preferenceExtractionGated: true,
+                  preferenceExtractionGateReason: extractionDecision.reason,
+                  preferenceExtractionCooldownMs: extractionDecision.cooldownRemainingMs,
+                  preferenceExtractionCooldownTurns: extractionDecision.cooldownRemainingTurns,
+                },
           },
         });
       } catch {
