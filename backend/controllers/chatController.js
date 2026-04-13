@@ -1091,6 +1091,7 @@ export async function chatHandler(req, res, next) {
       reply,
       displayReply: assistantPresentation.displayReply,
       isPerformanceOutput: assistantPresentation.isPerformanceOutput,
+      expressionReplayId: sampled.replayId || "",
       isAI: true,
       moodState: newMood,
       moodLabel,

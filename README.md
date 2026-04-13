@@ -75,6 +75,7 @@ Health and deploy verification:
 - Matched preferences are reinforced on trigger (importance + trigger count + last-trigger timestamp), while stale preferences decay on cadence with floor caps to prevent permanent saturation.
 - Mood physics is now runtime-configurable through settings (`/settings/mood-runtime`) with inertia, responsiveness, per-turn delta cap, and archetype recovery curves (`default`, `stoic`, `volatile`, `bratty`, `villainous`, `kind`).
 - Bounded expressive sampling is now available as a surface-only variation layer (`/settings/expression-sampling`): deterministic-by-seed weighted top-k phrase selection with per-mode profiles (`kids`, `scientist`, `normal`) and debug trace metadata for selected replacements.
+- Expression sampling phase 2 adds mood-aware phrase banks, seeded replay IDs in chat payloads (`expressionReplayId`), and lexical protection for structured/system lines (for example scientist `Answer:`/`Evidence:` sections and `[S#]` citation lines).
 
 ---
 
@@ -164,6 +165,7 @@ What this demonstrates in minutes:
 - When `cloud` (or `auto`) is selected, the `TTS Model` dropdown auto-populates from the active Runtime LLM provider models, with custom model fallback.
 - When `Piper` is selected in Voice Lab, Voxis scans local `.onnx` models and surfaces detected voices in a dropdown for quick selection.
 - When `Kokoro` is selected, Voice Lab loads bundled free voice presets and the backend can warm-download/cache the model on server startup.
+- Kokoro warmup/synthesis now has bounded operation timeouts and warmup fast-fail behavior to avoid long first-run stalls that can surface as upstream `524` HTML timeout pages.
 - For `ElevenLabs` and `Cartesia`, Voice Lab auto-loads voice and model dropdown options from provider APIs using your saved provider credentials, with custom ID input fallback when needed.
 - ElevenLabs voice dropdowns now render built-in voices first, then a `My Voices` section with your custom voices.
 - Voice and model dropdowns now include a manual `Reload` action so newly created provider voices/models can be pulled in immediately.

@@ -53,6 +53,8 @@ function scoreCandidates(options, context) {
 
   return options.map((option) => {
     let weight = Number(option.baseWeight || 1);
+    const bankBoost = Number(option.moodBoost || 0);
+    weight += bankBoost;
 
     if (signal === "insult" || signal === "criticism") {
       if (option.tone === "sharp") weight += 0.35;
@@ -71,10 +73,34 @@ function scoreCandidates(options, context) {
     return {
       text: option.text,
       weight: Math.max(0.05, weight),
-      reason: `tone:${option.tone || "neutral"}|energy:${option.energy || "mid"}`,
+      reason: `tone:${option.tone || "neutral"}|energy:${option.energy || "mid"}|bank:${option.bank || "default"}`,
     };
   });
 }
+
+const MOOD_BANKS = {
+  hostile: {
+    i_understand: [
+      { text: "I hear what you're saying", tone: "sharp", energy: "high", baseWeight: 1.2, moodBoost: 0.25, bank: "hostile" },
+      { text: "I get your point", tone: "sharp", energy: "mid", baseWeight: 1.1, moodBoost: 0.2, bank: "hostile" },
+    ],
+    i_can: [
+      { text: "I can handle that", tone: "sharp", energy: "high", baseWeight: 1.1, moodBoost: 0.2, bank: "hostile" },
+      { text: "I can do that", tone: "neutral", energy: "mid", baseWeight: 0.95, moodBoost: 0.1, bank: "hostile" },
+    ],
+  },
+  warm: {
+    thank_you: [
+      { text: "Thanks so much", tone: "warm", energy: "mid", baseWeight: 1.2, moodBoost: 0.25, bank: "warm" },
+      { text: "Really, thank you", tone: "warm", energy: "low", baseWeight: 1.1, moodBoost: 0.2, bank: "warm" },
+    ],
+    i_understand: [
+      { text: "I totally get that", tone: "warm", energy: "mid", baseWeight: 1.15, moodBoost: 0.2, bank: "warm" },
+      { text: "I hear you", tone: "warm", energy: "low", baseWeight: 1.05, moodBoost: 0.15, bank: "warm" },
+    ],
+  },
+  neutral: {},
+};
 
 const PHRASE_BUCKETS = [
   {
@@ -115,11 +141,51 @@ const PHRASE_BUCKETS = [
   },
 ];
 
+function getMoodBankKey(emotionSignal, mood) {
+  const signal = String(emotionSignal || "neutral").toLowerCase();
+  const valence = Number(mood?.valence || 0);
+  if (["insult", "criticism", "challenge"].includes(signal) || valence < -0.2) {
+    return "hostile";
+  }
+  if (["praise", "warmth", "hype"].includes(signal) || valence > 0.2) {
+    return "warm";
+  }
+  return "neutral";
+}
+
 function getModeProfile(config, mode) {
   const profiles = config?.modeProfiles || {};
   if (mode === "kids") return profiles.kids || { enabled: true, topK: 2, temperature: 0.3, maxReplacements: 1 };
   if (mode === "scientist") return profiles.scientist || { enabled: false, topK: 1, temperature: 0.1, maxReplacements: 0 };
   return profiles.normal || { enabled: true, topK: 3, temperature: 0.6, maxReplacements: 2 };
+}
+
+function buildReplayId(seed, mode) {
+  return `expr-${String(mode || "normal")}-${Number(seed >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function getProtectedRanges(text, mode) {
+  const raw = String(text || "");
+  const ranges = [];
+  const lines = raw.split("\n");
+  let offset = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isStructuredLine =
+      /^\s*(Answer|Evidence|Uncertainty|Next Questions|Summary|Conclusion)\s*:/i.test(trimmed) ||
+      /\[S\d+\]/.test(line) ||
+      /^\s*[-*]\s+\[S\d+\]/.test(line);
+    const modeStructured = mode === "scientist" && /^\s*(\d+\.|[-*])\s+/.test(trimmed);
+    if (isStructuredLine || modeStructured) {
+      ranges.push({ start: offset, end: offset + line.length });
+    }
+    offset += line.length + 1;
+  }
+  return ranges;
+}
+
+function isInProtectedRange(index, ranges) {
+  return ranges.some((range) => index >= range.start && index < range.end);
 }
 
 export function applyBoundedExpressionSampling(text, {
@@ -136,6 +202,7 @@ export function applyBoundedExpressionSampling(text, {
       applied: false,
       replacements: [],
       reason: "empty_text",
+      replayId: "",
     };
   }
 
@@ -150,6 +217,7 @@ export function applyBoundedExpressionSampling(text, {
       applied: false,
       replacements: [],
       reason: "global_disabled",
+      replayId: "",
     };
   }
 
@@ -160,22 +228,30 @@ export function applyBoundedExpressionSampling(text, {
       applied: false,
       replacements: [],
       reason: "mode_disabled",
+      replayId: "",
     };
   }
 
   const seed = normalizedConfig.deterministicSeed
-    ? hashString(`${seedInput}|${raw}|${mode}`)
+    ? hashString(`${seedInput}|${raw}|${mode}|${emotionSignal}`)
     : Math.floor(Math.random() * 0xffffffff);
+  const replayId = buildReplayId(seed, mode);
   const rng = createRng(seed);
+  const protectedRanges = getProtectedRanges(raw, mode);
+  const moodBankKey = getMoodBankKey(emotionSignal, mood);
 
   let next = raw;
   const replacements = [];
   for (const bucket of PHRASE_BUCKETS) {
     if (replacements.length >= profile.maxReplacements) break;
     const match = next.match(bucket.pattern);
-    if (!match) continue;
+    if (!match || typeof match.index !== "number") continue;
+    if (isInProtectedRange(match.index, protectedRanges)) {
+      continue;
+    }
 
-    const scored = scoreCandidates(bucket.options, { mood, emotionSignal });
+    const bankOptions = MOOD_BANKS[moodBankKey]?.[bucket.id] || [];
+    const scored = scoreCandidates([...bucket.options, ...bankOptions], { mood, emotionSignal });
     const sorted = scored.sort((a, b) => b.weight - a.weight).slice(0, Math.max(1, Number(profile.topK) || 3));
     const sampled = weightedSample(sorted, rng, Number(profile.temperature) || 0.6);
     if (!sampled || !sampled.text || sampled.text === match[0]) continue;
@@ -186,6 +262,7 @@ export function applyBoundedExpressionSampling(text, {
       from: match[0],
       to: sampled.text,
       reason: sampled.reason,
+      moodBank: moodBankKey,
       candidates: sorted.map((item) => ({ text: item.text, weight: Number(item.weight.toFixed(3)) })),
     });
   }
@@ -196,5 +273,7 @@ export function applyBoundedExpressionSampling(text, {
     replacements,
     reason: replacements.length > 0 ? "applied" : "no_match",
     seed,
+    replayId,
+    protectedRanges: protectedRanges.length,
   };
 }

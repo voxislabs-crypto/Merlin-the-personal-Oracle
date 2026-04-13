@@ -48,7 +48,7 @@ describe("expressionSampler", () => {
     expect(result.text).toBe(input);
   });
 
-  it("returns trace metadata for applied replacements", () => {
+  it("returns trace metadata and replay id", () => {
     const input = "I understand. Thank you.";
     const result = applyBoundedExpressionSampling(input, {
       config: baseConfig,
@@ -57,6 +57,8 @@ describe("expressionSampler", () => {
       mood: { valence: 0.3, arousal: 0.5, dominance: 0.2 },
       emotionSignal: "praise",
     });
+
+    expect(result.replayId).toMatch(/^expr-normal-[a-f0-9]{8}$/);
 
     if (result.applied) {
       expect(result.replacements.length).toBeGreaterThan(0);
@@ -68,6 +70,43 @@ describe("expressionSampler", () => {
           candidates: expect.any(Array),
         }),
       );
+    } else {
+      expect(result.reason).toBe("no_match");
+    }
+  });
+
+  it("preserves structured lines from lexical replacement", () => {
+    const input = "Answer: I understand [S1]\nI understand your point.";
+    const result = applyBoundedExpressionSampling(input, {
+      config: {
+        ...baseConfig,
+        modeProfiles: {
+          ...baseConfig.modeProfiles,
+          scientist: { enabled: true, topK: 3, temperature: 0.5, maxReplacements: 2 },
+        },
+      },
+      mode: "scientist",
+      seedInput: "structured-seed",
+      mood: { valence: 0.1, arousal: 0.2, dominance: 0 },
+      emotionSignal: "neutral",
+    });
+
+    expect(result.text.startsWith("Answer: I understand [S1]")).toBe(true);
+    expect(result.protectedRanges).toBeGreaterThan(0);
+  });
+
+  it("leans toward hostile mood bank when signal is criticism", () => {
+    const input = "I understand your concern.";
+    const result = applyBoundedExpressionSampling(input, {
+      config: baseConfig,
+      mode: "normal",
+      seedInput: "hostile-seed",
+      mood: { valence: -0.4, arousal: 0.5, dominance: 0.3 },
+      emotionSignal: "criticism",
+    });
+
+    if (result.applied) {
+      expect(result.replacements[0].moodBank).toBe("hostile");
     } else {
       expect(result.reason).toBe("no_match");
     }

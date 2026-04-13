@@ -33,6 +33,8 @@ const DEFAULT_FETCH_TIMEOUT_MS = 9000;
 const DEFAULT_PIPER_TIMEOUT_MS = 90_000;
 const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
+const DEFAULT_KOKORO_LOAD_TIMEOUT_MS = 25_000;
+const DEFAULT_KOKORO_GENERATE_TIMEOUT_MS = 30_000;
 
 export const TTS_ENGINE_CAPABILITIES = Object.freeze({
   elevenlabs: Object.freeze({
@@ -1085,6 +1087,37 @@ function getKokoroConfig() {
   };
 }
 
+function getKokoroLoadTimeoutMs() {
+  const value = Number(process.env.KOKORO_LOAD_TIMEOUT_MS || DEFAULT_KOKORO_LOAD_TIMEOUT_MS);
+  if (!Number.isFinite(value)) return DEFAULT_KOKORO_LOAD_TIMEOUT_MS;
+  return Math.max(5_000, Math.min(90_000, Math.floor(value)));
+}
+
+function getKokoroGenerateTimeoutMs() {
+  const value = Number(process.env.KOKORO_GENERATE_TIMEOUT_MS || DEFAULT_KOKORO_GENERATE_TIMEOUT_MS);
+  if (!Number.isFinite(value)) return DEFAULT_KOKORO_GENERATE_TIMEOUT_MS;
+  return Math.max(8_000, Math.min(120_000, Math.floor(value)));
+}
+
+async function withOpTimeout(promise, timeoutMs, message) {
+  let timer = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(message);
+      error.statusCode = 503;
+      error.ttsProvider = "kokoro";
+      error.ttsProviderCode = "timeout";
+      reject(error);
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function isKokoroPackageInstalled() {
   try {
     require.resolve("kokoro-js");
@@ -1129,21 +1162,31 @@ async function loadKokoroTts() {
     process.env.HF_TOKEN = config.hfToken;
   }
 
-  _kokoroInitPromise = loadKokoroModule()
-    .then(({ KokoroTTS }) => KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-      dtype: config.dtype,
-    }))
-    .then((tts) => {
-      _kokoroTts = tts;
-      _kokoroLoadError = null;
-      _kokoroInitPromise = null;
-      return tts;
-    })
-    .catch((error) => {
-      _kokoroLoadError = error;
-      _kokoroInitPromise = null;
-      throw error;
-    });
+  const loadTimeoutMs = getKokoroLoadTimeoutMs();
+  _kokoroInitPromise = withOpTimeout(
+    loadKokoroModule()
+      .then(({ KokoroTTS }) => KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+        dtype: config.dtype,
+      }))
+      .then((tts) => {
+        _kokoroTts = tts;
+        _kokoroLoadError = null;
+        _kokoroInitPromise = null;
+        return tts;
+      })
+      .catch((error) => {
+        _kokoroLoadError = error;
+        _kokoroInitPromise = null;
+        throw error;
+      }),
+    loadTimeoutMs,
+    `Kokoro model warmup timed out after ${loadTimeoutMs}ms.`,
+  ).catch((error) => {
+    _kokoroLoadError = error;
+    _kokoroInitPromise = null;
+    throw error;
+  });
+
   return _kokoroInitPromise;
 }
 
@@ -1165,12 +1208,27 @@ async function generateKokoroSpeechAudio({ text, voiceProfile }) {
     throw error;
   }
 
+  // If warmup is already in-flight and the model is not ready yet, fail fast so
+  // upstream proxies do not hold the request long enough to return 524 HTML pages.
+  if (_kokoroInitPromise && !_kokoroTts) {
+    const warmup = new Error("Kokoro model is warming up. Please retry in a few seconds.");
+    warmup.statusCode = 503;
+    warmup.ttsProvider = "kokoro";
+    warmup.ttsProviderCode = "warming_up";
+    throw warmup;
+  }
+
   const config = getKokoroConfig();
   const voice = String(voiceProfile?.kokoroVoice || voiceProfile?.providerVoice || config.voice).trim();
   const tmpFile = path.join(os.tmpdir(), `voxis-kokoro-${randomUUID()}.wav`);
   try {
     const tts = await loadKokoroTts();
-    const audio = await tts.generate(text, { voice });
+    const generateTimeoutMs = getKokoroGenerateTimeoutMs();
+    const audio = await withOpTimeout(
+      tts.generate(text, { voice }),
+      generateTimeoutMs,
+      `Kokoro synthesis timed out after ${generateTimeoutMs}ms.`,
+    );
     await audio.save(tmpFile);
     const buffer = await fs.readFile(tmpFile);
     return { buffer, contentType: "audio/wav", engine: "kokoro" };
@@ -1180,7 +1238,9 @@ async function generateKokoroSpeechAudio({ text, voiceProfile }) {
       ? " Kokoro could not download its model from Hugging Face. Pre-cache the model on the server or configure another TTS engine."
       : "";
     const wrapped = new Error(`Kokoro TTS failed: ${message}${hint}`);
-    wrapped.statusCode = 502;
+    wrapped.statusCode = Number(error?.statusCode || 502);
+    wrapped.ttsProvider = "kokoro";
+    wrapped.ttsProviderCode = String(error?.ttsProviderCode || "unknown");
     throw wrapped;
   } finally {
     await fs.unlink(tmpFile).catch(() => {});
@@ -1383,6 +1443,12 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
     // always degrade to the next configured engine rather than surface a 502.
     if (requested === "piper" || provider === "piper") {
       return true;
+    }
+
+    // Kokoro warmup/timeouts can be lengthy on first use; degrade rather than
+    // block long enough for upstream 524 timeout pages.
+    if (requested === "kokoro" || provider === "kokoro") {
+      return statusCode === 503 || providerCode === "warming_up" || providerCode === "timeout";
     }
 
     return false;
@@ -1803,6 +1869,9 @@ export async function getTtsHealthStatus() {
         ...providerStatus.kokoro,
         importError: _kokoroImportError ? String(_kokoroImportError.message || _kokoroImportError) : "",
         loadError: _kokoroLoadError ? String(_kokoroLoadError.message || _kokoroLoadError) : "",
+        warmingUp: Boolean(_kokoroInitPromise && !_kokoroTts),
+        loadTimeoutMs: getKokoroLoadTimeoutMs(),
+        generateTimeoutMs: getKokoroGenerateTimeoutMs(),
       },
       piper: {
         ...providerStatus.piper,
