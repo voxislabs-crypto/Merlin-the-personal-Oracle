@@ -2,8 +2,10 @@ import { Router } from "express";
 
 import {
   createPersonalityHandler,
+  deletePersonalityHandler,
   getPersonalityHandler,
   listPersonalitiesHandler,
+  resetPersonalityHandler,
   updatePersonalityHandler,
   updateVoiceProfileHandler,
   getVoicePresetsHandler,
@@ -47,6 +49,8 @@ router.get("/voice-presets", requireAuth, getVoicePresetsHandler);
 router.get("/personality/:id", requireAuth, getPersonalityHandler);
 router.get("/personality/:id/voice-preset", requireAuth, getRecommendedVoicePresetHandler);
 router.put("/personality/:id", requireAuth, updatePersonalityHandler);
+router.post("/personality/:id/reset", requireAuth, resetPersonalityHandler);
+router.delete("/personality/:id", requireAuth, deletePersonalityHandler);
 router.post("/personality/:id/harness", requireAuth, runHarnessHandler);
 router.get("/personality/:id/messages", requireAuth, chatHistoryHandler);
 router.get("/personality/:id/memory", requireAuth, listMemoryHandler);

@@ -63,6 +63,7 @@ import {
   sanitizeRateLimitedMessage,
 } from "../services/rateLimitRecoveryService.js";
 import { detectMemoryConflicts } from "../services/memoryConflictService.js";
+import { buildAssistantPresentation } from "../services/chatPresentationService.js";
 
 // Reconditioning cadence: antagonist/dark contexts drift faster, so we anchor more often.
 const RECONDITION_CADENCE = {
@@ -956,8 +957,12 @@ export async function chatHandler(req, res, next) {
       },
     };
 
+    const assistantPresentation = buildAssistantPresentation(reply);
+
     const responsePayload = {
       reply,
+      displayReply: assistantPresentation.displayReply,
+      isPerformanceOutput: assistantPresentation.isPerformanceOutput,
       isAI: true,
       moodState: newMood,
       moodLabel,
@@ -1135,7 +1140,24 @@ export function chatHistoryHandler(req, res, next) {
       return res.status(404).json({ error: "Personality not found." });
     }
 
-    return res.json(getChatMessages(personalityId, 50));
+    const messages = getChatMessages(personalityId, 50).map((message) => {
+      if (message.role !== "assistant") {
+        return {
+          ...message,
+          displayContent: message.content,
+          isPerformanceOutput: false,
+        };
+      }
+
+      const presentation = buildAssistantPresentation(message.content);
+      return {
+        ...message,
+        displayContent: presentation.displayReply,
+        isPerformanceOutput: presentation.isPerformanceOutput,
+      };
+    });
+
+    return res.json(messages);
   } catch (error) {
     return next(error);
   }

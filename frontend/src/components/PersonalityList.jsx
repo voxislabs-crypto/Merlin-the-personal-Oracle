@@ -43,7 +43,141 @@ const listStyles = `
 
   .personality-actions {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .persona-danger-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .persona-icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 1px solid rgba(134, 232, 255, 0.28);
+    background: rgba(9, 24, 42, 0.76);
+    color: #bfefff;
+    display: grid;
+    place-items: center;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .persona-icon-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .persona-icon-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(176, 244, 255, 0.5);
+    box-shadow: 0 10px 20px rgba(0, 166, 255, 0.16);
+  }
+
+  .persona-icon-btn.danger {
+    color: #ffb4b4;
+    border-color: rgba(255, 124, 124, 0.28);
+  }
+
+  .persona-icon-btn.danger:hover {
+    border-color: rgba(255, 154, 154, 0.54);
+    background: rgba(72, 14, 18, 0.76);
+    box-shadow: 0 10px 20px rgba(180, 28, 44, 0.22);
+  }
+
+  .persona-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(2, 8, 18, 0.74);
+    backdrop-filter: blur(8px);
+  }
+
+  .persona-modal {
+    width: min(460px, 100%);
+    border-radius: 22px;
+    border: 1px solid rgba(134, 232, 255, 0.24);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 28%),
+      linear-gradient(155deg, rgba(7, 22, 44, 0.98), rgba(4, 10, 22, 0.98));
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .persona-modal-header h3 {
+    margin: 0 0 6px;
+    font-size: 1.08rem;
+    color: #f3fbff;
+  }
+
+  .persona-modal-header p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: 0.92rem;
+  }
+
+  .persona-modal-label {
+    color: #c8efff;
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  .persona-modal-input {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(134, 232, 255, 0.3);
+    background: rgba(4, 14, 28, 0.9);
+    color: #effbff;
+    padding: 12px 14px;
+    font-size: 0.96rem;
+  }
+
+  .persona-modal-actions {
+    display: flex;
     justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .persona-modal-btn {
+    border-radius: 999px;
+    border: 1px solid rgba(134, 232, 255, 0.28);
+    background: rgba(8, 20, 36, 0.82);
+    color: #d8f7ff;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .persona-modal-btn.warn {
+    border-color: rgba(255, 201, 106, 0.4);
+    background: linear-gradient(135deg, rgba(255, 190, 90, 0.24), rgba(110, 62, 8, 0.34));
+    color: #fff2c7;
+  }
+
+  .persona-modal-btn.danger {
+    border-color: rgba(255, 138, 138, 0.45);
+    background: linear-gradient(135deg, rgba(255, 92, 92, 0.26), rgba(116, 18, 26, 0.38));
+    color: #ffe4e4;
+  }
+
+  .persona-modal-btn:disabled {
+    opacity: 0.55;
   }
 
   .choose-persona {
@@ -204,8 +338,35 @@ export default function PersonalityList({
   onRefresh,
   onSelect,
   onOpenChat,
+  onResetPersona,
+  onDeletePersona,
 }) {
   const [expandedId, setExpandedId] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmName, setConfirmName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleConfirmAction() {
+    if (!confirmAction?.personality || isSubmitting) {
+      return;
+    }
+
+    const action = confirmAction.type === "delete" ? onDeletePersona : onResetPersona;
+    if (typeof action !== "function") {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await action(confirmAction.personality, confirmName);
+      setConfirmAction(null);
+      setConfirmName("");
+    } catch {
+      // Keep the dialog open so the user can correct the confirmation or retry.
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <>
@@ -292,6 +453,41 @@ export default function PersonalityList({
                       >
                         {isActive ? "Selected" : "Choose Persona"}
                       </button>
+                      <div className="persona-danger-actions">
+                        <button
+                          type="button"
+                          className="persona-icon-btn"
+                          title={`Reset ${personality.name}`}
+                          aria-label={`Reset ${personality.name}`}
+                          onClick={() => {
+                            setConfirmAction({ type: "reset", personality });
+                            setConfirmName("");
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 5a7 7 0 1 1-6.36 9.92" />
+                            <path d="M5 5v5h5" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="persona-icon-btn danger"
+                          title={`Delete ${personality.name}`}
+                          aria-label={`Delete ${personality.name}`}
+                          onClick={() => {
+                            setConfirmAction({ type: "delete", personality });
+                            setConfirmName("");
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7h16" />
+                            <path d="M9 7V4h6v3" />
+                            <path d="M7 7l1 13h8l1-13" />
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -304,6 +500,74 @@ export default function PersonalityList({
           No personalities saved yet. Open the Character Request page and create one.
         </div>
       )}
+
+      {confirmAction?.personality ? (
+        <div
+          className="persona-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${confirmAction.type === "delete" ? "Delete" : "Reset"} persona`}
+          onClick={() => {
+            if (!isSubmitting) {
+              setConfirmAction(null);
+              setConfirmName("");
+            }
+          }}
+        >
+          <div className="persona-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="persona-modal-header">
+              <div>
+                <h3>
+                  {confirmAction.type === "delete" ? "Delete persona" : "Reset learned memory"}
+                </h3>
+                <p>
+                  {confirmAction.type === "delete"
+                    ? "This permanently removes the persona, chat history, saved memory, and local voice artifacts."
+                    : "This keeps the persona profile but clears chat history, learned memory, and the live mood state."}
+                </p>
+              </div>
+            </div>
+
+            <label className="persona-modal-label" htmlFor="persona-confirm-name">
+              Type <strong>{confirmAction.personality.name}</strong> to proceed.
+            </label>
+            <input
+              id="persona-confirm-name"
+              className="persona-modal-input"
+              value={confirmName}
+              onChange={(event) => setConfirmName(event.target.value)}
+              placeholder={confirmAction.personality.name}
+              autoFocus
+            />
+
+            <div className="persona-modal-actions">
+              <button
+                type="button"
+                className="persona-modal-btn"
+                onClick={() => {
+                  setConfirmAction(null);
+                  setConfirmName("");
+                }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`persona-modal-btn ${confirmAction.type === "delete" ? "danger" : "warn"}`}
+                onClick={() => void handleConfirmAction()}
+                disabled={isSubmitting || confirmName.trim() !== confirmAction.personality.name}
+              >
+                {isSubmitting
+                  ? "Working..."
+                  : confirmAction.type === "delete"
+                    ? "Proceed Delete"
+                    : "Proceed Reset"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

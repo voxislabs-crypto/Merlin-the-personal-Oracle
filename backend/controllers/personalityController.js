@@ -1,14 +1,20 @@
 import {
   createPersonality,
+  deletePersonality,
   getAllPersonalities,
   getPersonalityById,
+  resetPersonalityState,
   updatePersonality,
   updatePersonalityVoiceProfile,
 } from "../models/personalityModel.js";
+import { clearChatMessagesForPersonality } from "../models/chatModel.js";
+import { clearPersonalityMemory } from "../models/memoryModel.js";
 import { moodFromLabel } from "../services/moodEngine.js";
 import { mapToVoxisPersonality } from "../services/hybridPersonalityService.js";
 import { getAllVoicePresets, recommendVoicePreset } from "../services/voicePresetsService.js";
 import { sanitizeVoiceProfile } from "../services/voiceProfileSanitizer.js";
+import path from "path";
+import { rm, unlink } from "fs/promises";
 
 function sanitizeItems(items) {
   if (!Array.isArray(items)) {
@@ -88,6 +94,26 @@ function clamp01(value, fallback = 0.5) {
   }
 
   return Math.min(1, Math.max(0, n));
+}
+
+function hasMatchingConfirmation(existingName, confirmName) {
+  return String(confirmName || "").trim() === String(existingName || "").trim();
+}
+
+async function removePersonaArtifacts(personality) {
+  const personalityId = Number(personality?.id);
+  if (Number.isInteger(personalityId)) {
+    const voiceSampleDir = path.resolve(process.cwd(), "voice-samples", `persona-${personalityId}`);
+    await rm(voiceSampleDir, { recursive: true, force: true }).catch(() => {});
+  }
+
+  const prosodyTemplatePath = String(personality?.prosodyTemplatePath || "").trim();
+  if (prosodyTemplatePath) {
+    const safePath = path.isAbsolute(prosodyTemplatePath)
+      ? prosodyTemplatePath
+      : path.resolve(process.cwd(), prosodyTemplatePath);
+    await unlink(safePath).catch(() => {});
+  }
 }
 
 const VALID_ALIGNMENTS = new Set([
@@ -519,6 +545,83 @@ export function getRecommendedVoicePresetHandler(req, res, next) {
 
     const preset = recommendVoicePreset(personality);
     return res.json(preset);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function resetPersonalityHandler(req, res, next) {
+  try {
+    const personalityId = Number(req.params.id);
+    const ownerId = req.voxisUser?.id ?? null;
+
+    if (!Number.isInteger(personalityId)) {
+      return res.status(400).json({ error: "A valid personality id is required." });
+    }
+
+    const personality = getPersonalityById(personalityId, ownerId);
+
+    if (!personality) {
+      return res.status(404).json({ error: "Personality not found." });
+    }
+
+    if (!hasMatchingConfirmation(personality.name, req.body?.confirmName)) {
+      return res.status(400).json({ error: "Type the persona name exactly to proceed." });
+    }
+
+    clearChatMessagesForPersonality(personalityId);
+    clearPersonalityMemory(personalityId);
+
+    const moodBaseline =
+      personality?.moodBaseline && typeof personality.moodBaseline === "object"
+        ? personality.moodBaseline
+        : moodFromLabel(personality?.mood || "neutral");
+
+    const updated = resetPersonalityState(personalityId, { ...moodBaseline });
+
+    return res.json({
+      ok: true,
+      personality: updated,
+      cleared: {
+        chatMessages: true,
+        memoryFacts: true,
+        moodState: true,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deletePersonalityHandler(req, res, next) {
+  try {
+    const personalityId = Number(req.params.id);
+    const ownerId = req.voxisUser?.id ?? null;
+
+    if (!Number.isInteger(personalityId)) {
+      return res.status(400).json({ error: "A valid personality id is required." });
+    }
+
+    const personality = getPersonalityById(personalityId, ownerId);
+
+    if (!personality) {
+      return res.status(404).json({ error: "Personality not found." });
+    }
+
+    if (!hasMatchingConfirmation(personality.name, req.body?.confirmName)) {
+      return res.status(400).json({ error: "Type the persona name exactly to proceed." });
+    }
+
+    clearChatMessagesForPersonality(personalityId);
+    clearPersonalityMemory(personalityId);
+    await removePersonaArtifacts(personality);
+    deletePersonality(personalityId);
+
+    return res.json({
+      ok: true,
+      deletedId: personalityId,
+      deletedName: personality.name,
+    });
   } catch (error) {
     return next(error);
   }

@@ -378,3 +378,16 @@ export function updateMoodState(id, moodState) {
   );
 }
 
+export function resetPersonalityState(id, moodState) {
+  db.prepare(`UPDATE personalities SET moodState = ? WHERE id = ?`).run(
+    JSON.stringify(moodState || {}),
+    id,
+  );
+
+  return getPersonalityById(id);
+}
+
+export function deletePersonality(id) {
+  db.prepare(`DELETE FROM personalities WHERE id = ?`).run(id);
+}
+

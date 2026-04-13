@@ -194,3 +194,7 @@ export function getLatestModeForUserPersonality(userId, personalityId) {
 
   return row?.mode || null;
 }
+
+export function clearChatMessagesForPersonality(personalityId) {
+  db.prepare(`DELETE FROM chat_messages WHERE personalityId = ?`).run(personalityId);
+}

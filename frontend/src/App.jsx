@@ -16,6 +16,22 @@ import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
 import "./styles/futuristic-ui-kit.css";
 
+function normalizeChatMessage(message) {
+  const role = String(message?.role || "").trim().toLowerCase();
+  const content = String(message?.content || "");
+  const displayContent = String(message?.displayContent || message?.displayReply || content);
+
+  return {
+    ...message,
+    role,
+    content,
+    displayContent,
+    isPerformanceOutput: Boolean(message?.isPerformanceOutput),
+    debug: message?.debug || null,
+    usage: message?.usage || null,
+  };
+}
+
 const appStyles = `
   :root {
     color-scheme: dark;
@@ -1596,7 +1612,7 @@ export default function App() {
 
       setChatLogs((current) => ({
         ...current,
-        [personalityId]: data,
+        [personalityId]: Array.isArray(data) ? data.map(normalizeChatMessage) : [],
       }));
     } catch (error) {
       setStatus({
@@ -1653,6 +1669,119 @@ export default function App() {
       type: "success",
       message: `${personality.name} was updated.`,
     });
+  }
+
+  async function handleResetPersonality(personality, confirmName) {
+    if (!personality?.id) {
+      return;
+    }
+
+    try {
+      const response = await authFetch(`/personality/${personality.id}/reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirmName }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reset personality memory.");
+      }
+
+      const updatedPersonality = data.personality || personality;
+
+      setPersonalities((current) => {
+        const list = Array.isArray(current) ? current : [];
+        return list.map((item) => (item.id === updatedPersonality.id ? updatedPersonality : item));
+      });
+      setChatLogs((current) => ({
+        ...current,
+        [personality.id]: [],
+      }));
+      setPersonaMemoryById((current) => ({
+        ...current,
+        [personality.id]: [],
+      }));
+      setLiveChatState((current) => ({
+        ...current,
+        [personality.id]: null,
+      }));
+      setStatus({
+        type: "success",
+        message: `${updatedPersonality.name} was reset. Learned memory and chat history were cleared.`,
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Failed to reset personality memory.",
+      });
+      throw error;
+    }
+  }
+
+  async function handleDeletePersonality(personality, confirmName) {
+    if (!personality?.id) {
+      return;
+    }
+
+    try {
+      const response = await authFetch(`/personality/${personality.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirmName }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete personality.");
+      }
+
+      let nextSelectedId = selectedId;
+      setPersonalities((current) => {
+        const list = Array.isArray(current) ? current : [];
+        const remaining = list.filter((item) => item.id !== personality.id);
+        if (selectedId === personality.id) {
+          nextSelectedId = remaining[0]?.id || null;
+        }
+        return remaining;
+      });
+      setChatLogs((current) => {
+        const next = { ...current };
+        delete next[personality.id];
+        return next;
+      });
+      setPersonaMemoryById((current) => {
+        const next = { ...current };
+        delete next[personality.id];
+        return next;
+      });
+      setLiveChatState((current) => {
+        const next = { ...current };
+        delete next[personality.id];
+        return next;
+      });
+
+      if (selectedId === personality.id) {
+        setSelectedId(nextSelectedId);
+      }
+
+      setStatus({
+        type: "success",
+        message: `${data.deletedName || personality.name} was deleted.`,
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Failed to delete personality.",
+      });
+      throw error;
+    }
   }
 
   function handlePersonaFieldUpdate({ field, index, value }) {
@@ -1793,7 +1922,7 @@ export default function App() {
       ...current,
       [personalityId]: [
         ...(current[personalityId] || []),
-        { role: "user", content: message },
+        normalizeChatMessage({ role: "user", content: message }),
       ],
     }));
 
@@ -1896,10 +2025,14 @@ export default function App() {
                   [personalityId]: [
                     ...(current[personalityId] || []),
                     {
-                      role: "assistant",
-                      content: payload.reply,
-                      debug: payload.debug || null,
-                      usage: payload.usage || null,
+                      ...normalizeChatMessage({
+                        role: "assistant",
+                        content: payload.reply,
+                        displayContent: payload.displayReply,
+                        isPerformanceOutput: payload.isPerformanceOutput,
+                        debug: payload.debug || null,
+                        usage: payload.usage || null,
+                      }),
                     },
                   ],
                 }));
@@ -1963,10 +2096,14 @@ export default function App() {
           [personalityId]: [
             ...(current[personalityId] || []),
             {
-              role: "assistant",
-              content: data.reply,
-              debug: data.debug || null,
-              usage: data.usage || null,
+              ...normalizeChatMessage({
+                role: "assistant",
+                content: data.reply,
+                displayContent: data.displayReply,
+                isPerformanceOutput: data.isPerformanceOutput,
+                debug: data.debug || null,
+                usage: data.usage || null,
+              }),
             },
           ],
         }));
@@ -2128,6 +2265,8 @@ export default function App() {
                 onRefresh={loadPersonalities}
                 onSelect={handleSelectPersonality}
                 onOpenChat={() => setActiveView("chat")}
+                onResetPersona={handleResetPersonality}
+                onDeletePersona={handleDeletePersonality}
               />
             ) : (
               <div className="sidebar-mini">
