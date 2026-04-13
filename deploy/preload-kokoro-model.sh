@@ -22,6 +22,24 @@ else
   echo "[Kokoro preload] backend/.env not found; using process environment only"
 fi
 
-npm --prefix "$BACKEND_DIR" run kokoro:preload
+PRELOAD_ARGS=()
+
+if [[ "${KOKORO_PREWARM_VOICES:-0}" == "1" ]]; then
+  PRELOAD_ARGS+=("--prewarm-voices")
+fi
+
+if [[ -n "${KOKORO_VOICE_PROFILE:-}" ]]; then
+  PRELOAD_ARGS+=("--voice-profile=${KOKORO_VOICE_PROFILE}")
+fi
+
+if [[ -n "${KOKORO_VOICE_LIST:-}" ]]; then
+  PRELOAD_ARGS+=("--voice-list=${KOKORO_VOICE_LIST}")
+fi
+
+if [[ "${KOKORO_LIST_VOICE_PROFILES:-0}" == "1" ]]; then
+  PRELOAD_ARGS+=("--list-voice-profiles")
+fi
+
+npm --prefix "$BACKEND_DIR" run kokoro:preload -- "${PRELOAD_ARGS[@]}"
 
 echo "[Kokoro preload] Done."
