@@ -6,6 +6,7 @@ const TTS_CREDENTIALS_KEY = "tts_credentials";
 const VOICE_DEFAULTS_KEY = "voice_defaults";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
+const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
 
 function parseJsonObject(value) {
   try {
@@ -373,4 +374,57 @@ export function setMoodRuntimeConfig(config) {
   };
   writeAppSetting(MOOD_RUNTIME_CONFIG_KEY, payload);
   return getMoodRuntimeConfig();
+}
+
+function sanitizeExpressionModeProfile(profile, defaults) {
+  const input = profile && typeof profile === "object" ? profile : {};
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : defaults.enabled,
+    topK: Math.round(clampNumber(input.topK, 1, 6, defaults.topK)),
+    temperature: clampNumber(input.temperature, 0.05, 1.2, defaults.temperature),
+    maxReplacements: Math.round(clampNumber(input.maxReplacements, 0, 3, defaults.maxReplacements)),
+  };
+}
+
+function sanitizeExpressionSamplingConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  const defaults = {
+    enabled: true,
+    deterministicSeed: true,
+    modeProfiles: {
+      kids: { enabled: true, topK: 2, temperature: 0.3, maxReplacements: 1 },
+      scientist: { enabled: false, topK: 1, temperature: 0.1, maxReplacements: 0 },
+      normal: { enabled: true, topK: 3, temperature: 0.6, maxReplacements: 2 },
+    },
+  };
+
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : defaults.enabled,
+    deterministicSeed:
+      typeof input.deterministicSeed === "boolean"
+        ? input.deterministicSeed
+        : defaults.deterministicSeed,
+    modeProfiles: {
+      kids: sanitizeExpressionModeProfile(input.modeProfiles?.kids, defaults.modeProfiles.kids),
+      scientist: sanitizeExpressionModeProfile(input.modeProfiles?.scientist, defaults.modeProfiles.scientist),
+      normal: sanitizeExpressionModeProfile(input.modeProfiles?.normal, defaults.modeProfiles.normal),
+    },
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
+export function getExpressionSamplingConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(EXPRESSION_SAMPLING_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeExpressionSamplingConfig(parsed);
+}
+
+export function setExpressionSamplingConfig(config) {
+  const sanitized = sanitizeExpressionSamplingConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(EXPRESSION_SAMPLING_CONFIG_KEY, payload);
+  return getExpressionSamplingConfig();
 }

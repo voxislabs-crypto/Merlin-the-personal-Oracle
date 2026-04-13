@@ -70,7 +70,8 @@ import {
   reinforcePersonaPreferences,
   decayPersonaPreferences,
 } from "../models/preferencesModel.js";
-import { getMoodRuntimeConfig } from "../models/settingsModel.js";
+import { getMoodRuntimeConfig, getExpressionSamplingConfig } from "../models/settingsModel.js";
+import { applyBoundedExpressionSampling } from "../services/expressionSampler.js";
 import {
   buildRateLimitFallbackReply,
   buildRateLimitNotice,
@@ -902,6 +903,15 @@ export async function chatHandler(req, res, next) {
       };
     }
 
+    const sampled = applyBoundedExpressionSampling(reply, {
+      config: getExpressionSamplingConfig(),
+      mode: policy.activeMode || "normal",
+      seedInput: `${personalityId}:${userScopedId ?? "anon"}:${message}`,
+      mood: newMood,
+      emotionSignal: newMood?.emotionalState?.signal || "neutral",
+    });
+    reply = sampled.text;
+
     streamedDebugData.scientist = scientistValidation
       ? {
           validation: scientistValidation,
@@ -929,6 +939,7 @@ export async function chatHandler(req, res, next) {
       signal: newMood?.emotionalState?.signal || "neutral",
       repairApplied: emotionalRepairApplied,
     };
+    streamedDebugData.expressionSampling = sampled;
     stream.write("debug", {
       phase: "reply",
       debug: streamedDebugData,
@@ -1016,6 +1027,7 @@ export async function chatHandler(req, res, next) {
         signal: newMood?.emotionalState?.signal || "neutral",
         repairApplied: emotionalRepairApplied,
       },
+      expressionSampling: sampled,
       prompt: promptPackage.debug,
       flags: {
         reconditioned: shouldRecondition,

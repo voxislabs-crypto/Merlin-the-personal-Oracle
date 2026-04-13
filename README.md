@@ -74,6 +74,7 @@ Health and deploy verification:
 - Persona preference storage now resolves high-overlap polarity conflicts using weighted dominance, preventing contradictory duplicate memories for the same topic.
 - Matched preferences are reinforced on trigger (importance + trigger count + last-trigger timestamp), while stale preferences decay on cadence with floor caps to prevent permanent saturation.
 - Mood physics is now runtime-configurable through settings (`/settings/mood-runtime`) with inertia, responsiveness, per-turn delta cap, and archetype recovery curves (`default`, `stoic`, `volatile`, `bratty`, `villainous`, `kind`).
+- Bounded expressive sampling is now available as a surface-only variation layer (`/settings/expression-sampling`): deterministic-by-seed weighted top-k phrase selection with per-mode profiles (`kids`, `scientist`, `normal`) and debug trace metadata for selected replacements.
 
 ---
 

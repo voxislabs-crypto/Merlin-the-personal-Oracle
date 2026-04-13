@@ -9,6 +9,10 @@ const mockUpsertSavedLlmCredential = vi.fn();
 const mockGetAllTtsCredentials = vi.fn();
 const mockGetVoiceDefaults = vi.fn();
 const mockSetVoiceDefaults = vi.fn();
+const mockGetMoodRuntimeConfig = vi.fn();
+const mockSetMoodRuntimeConfig = vi.fn();
+const mockGetExpressionSamplingConfig = vi.fn();
+const mockSetExpressionSamplingConfig = vi.fn();
 
 const mockDetectProviderByApiKey = vi.fn();
 const mockFetchProviderModels = vi.fn();
@@ -28,6 +32,10 @@ vi.mock("../models/settingsModel.js", () => ({
   clearTtsCredential: vi.fn(),
   getVoiceDefaults: mockGetVoiceDefaults,
   setVoiceDefaults: mockSetVoiceDefaults,
+  getMoodRuntimeConfig: mockGetMoodRuntimeConfig,
+  setMoodRuntimeConfig: mockSetMoodRuntimeConfig,
+  getExpressionSamplingConfig: mockGetExpressionSamplingConfig,
+  setExpressionSamplingConfig: mockSetExpressionSamplingConfig,
 }));
 
 vi.mock("../services/providerDiscoveryService.js", () => ({
@@ -56,6 +64,10 @@ describe("settingsController", () => {
     mockGetAllTtsCredentials.mockReset();
     mockGetVoiceDefaults.mockReset();
     mockSetVoiceDefaults.mockReset();
+    mockGetMoodRuntimeConfig.mockReset();
+    mockSetMoodRuntimeConfig.mockReset();
+    mockGetExpressionSamplingConfig.mockReset();
+    mockSetExpressionSamplingConfig.mockReset();
     mockDetectProviderByApiKey.mockReset();
     mockFetchProviderModels.mockReset();
     mockGetSuggestedProviderIdFromApiKey.mockReset();
@@ -248,6 +260,71 @@ describe("settingsController", () => {
             voiceId: "voice-1",
           }),
         ]),
+      }),
+    );
+  });
+
+  it("returns expression sampling settings", async () => {
+    mockGetExpressionSamplingConfig.mockReturnValue({
+      enabled: true,
+      deterministicSeed: true,
+      modeProfiles: {
+        kids: { enabled: true, topK: 2, temperature: 0.3, maxReplacements: 1 },
+        scientist: { enabled: false, topK: 1, temperature: 0.1, maxReplacements: 0 },
+        normal: { enabled: true, topK: 3, temperature: 0.6, maxReplacements: 2 },
+      },
+    });
+
+    const { getExpressionSamplingSettingsHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+
+    getExpressionSamplingSettingsHandler({}, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        deterministicSeed: true,
+      }),
+    );
+  });
+
+  it("saves expression sampling settings", async () => {
+    mockSetExpressionSamplingConfig.mockReturnValue({
+      enabled: true,
+      deterministicSeed: false,
+      modeProfiles: {
+        kids: { enabled: true, topK: 2, temperature: 0.3, maxReplacements: 1 },
+        scientist: { enabled: false, topK: 1, temperature: 0.1, maxReplacements: 0 },
+        normal: { enabled: true, topK: 4, temperature: 0.8, maxReplacements: 2 },
+      },
+    });
+
+    const { saveExpressionSamplingSettingsHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+
+    saveExpressionSamplingSettingsHandler(
+      {
+        body: {
+          enabled: true,
+          deterministicSeed: false,
+          modeProfiles: {
+            normal: { topK: 4, temperature: 0.8 },
+          },
+        },
+      },
+      res,
+    );
+
+    expect(mockSetExpressionSamplingConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        deterministicSeed: false,
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        deterministicSeed: false,
       }),
     );
   });

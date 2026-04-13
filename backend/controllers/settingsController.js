@@ -17,6 +17,8 @@ import {
   clearKokoroHfToken,
   getMoodRuntimeConfig,
   setMoodRuntimeConfig,
+  getExpressionSamplingConfig,
+  setExpressionSamplingConfig,
 } from "../models/settingsModel.js";
 import {
   detectProviderByApiKey,
@@ -372,5 +374,15 @@ export function getMoodRuntimeSettingsHandler(_req, res) {
 export function saveMoodRuntimeSettingsHandler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const updated = setMoodRuntimeConfig(body);
+  return res.json(updated);
+}
+
+export function getExpressionSamplingSettingsHandler(_req, res) {
+  return res.json(getExpressionSamplingConfig());
+}
+
+export function saveExpressionSamplingSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setExpressionSamplingConfig(body);
   return res.json(updated);
 }

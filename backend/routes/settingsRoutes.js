@@ -17,6 +17,8 @@ import {
   clearKokoroHfTokenHandler,
   getMoodRuntimeSettingsHandler,
   saveMoodRuntimeSettingsHandler,
+  getExpressionSamplingSettingsHandler,
+  saveExpressionSamplingSettingsHandler,
 } from "../controllers/settingsController.js";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth.js";
 
@@ -40,5 +42,7 @@ router.put("/settings/kokoro", requireAuth, requireAdmin, saveKokoroHfTokenHandl
 router.delete("/settings/kokoro", requireAuth, requireAdmin, clearKokoroHfTokenHandler);
 router.get("/settings/mood-runtime", requireAuth, getMoodRuntimeSettingsHandler);
 router.put("/settings/mood-runtime", requireAuth, requireAdmin, saveMoodRuntimeSettingsHandler);
+router.get("/settings/expression-sampling", requireAuth, getExpressionSamplingSettingsHandler);
+router.put("/settings/expression-sampling", requireAuth, requireAdmin, saveExpressionSamplingSettingsHandler);
 
 export default router;
