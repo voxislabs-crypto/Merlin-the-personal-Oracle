@@ -77,6 +77,7 @@ ensureColumn("personalities", "prosodySourceUrl", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("personalities", "prosodyUpdatedAt", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("personalities", "voiceSampleAnalysis", "TEXT NOT NULL DEFAULT '{}'");
 ensureColumn("personalities", "voiceSampleSelectedAt", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("personalities", "gender", "TEXT NOT NULL DEFAULT ''");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (

@@ -490,6 +490,33 @@ function normalizeIdentifier(value) {
     .replace(/[^a-z0-9_-]+/g, " ");
 }
 
+// Maps a raw gender string from the personality object to the canonical
+// presentation values expected by resolveKokoroVoiceForIdentity.
+function normalizeGender(gender) {
+  const g = String(gender || "").trim().toLowerCase();
+  if (["female", "f", "woman", "feminine"].includes(g)) return "feminine";
+  if (["male", "m", "man", "masculine"].includes(g)) return "masculine";
+  return null;
+}
+
+// Trait → register hint table.  Only "low" and "high" are listed;
+// anything unlisted leaves the default token-inferred register unchanged.
+const TRAIT_REGISTER_HINTS = new Map([
+  ["sinister",  "low"],
+  ["menacing",  "low"],
+  ["villain",   "low"],
+  ["dark",      "low"],
+  ["brooding",  "low"],
+  ["deep",      "low"],
+  ["serious",   "low"],
+  ["bubbly",    "high"],
+  ["energetic", "high"],
+  ["bright",    "high"],
+  ["playful",   "high"],
+  ["cheerful",  "high"],
+  ["lively",    "high"],
+]);
+
 function inferAccent(identityText) {
   if (/\bbrit|british|uk|england|bf_|bm_/.test(identityText)) {
     return "british";
@@ -537,10 +564,28 @@ function buildVoiceIdentityProfile(personality = {}, voiceProfile = {}) {
     .map(normalizeIdentifier)
     .join(" ");
 
+  // Explicit gender field on the personality takes priority over token inference.
+  const genderPresentation = normalizeGender(personality?.gender);
+  const presentation = genderPresentation || inferPresentation(sourceTokens);
+
+  // Token-inferred register; override with trait hints only when the tokens
+  // couldn't produce a strong signal (i.e. fell back to the default "mid").
+  let register = inferRegister(sourceTokens);
+  if (register === "mid") {
+    const traits = Array.isArray(personality?.traits) ? personality.traits : [];
+    for (const trait of traits) {
+      const hint = TRAIT_REGISTER_HINTS.get(String(trait).toLowerCase());
+      if (hint) {
+        register = hint;
+        break;
+      }
+    }
+  }
+
   return {
     accent: inferAccent(sourceTokens),
-    presentation: inferPresentation(sourceTokens),
-    register: inferRegister(sourceTokens),
+    presentation,
+    register,
     sampleLabel: String(voiceProfile?.selectedVoiceLabel || sample.voiceLabel || "").trim(),
     preferredVoice: String(voiceProfile?.preferredVoice || voiceProfile?.providerVoice || "").trim(),
   };
