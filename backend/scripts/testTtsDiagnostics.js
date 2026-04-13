@@ -128,7 +128,7 @@ try {
   // Check if the Kokoro model has already been downloaded (cached by transformers.js)
   // The model lands in ~/.cache/huggingface/hub/ or the HF_HOME path
   const hfHome = process.env.HF_HOME || path.join(process.env.HOME || "~", ".cache", "huggingface");
-  const kokoroModelDir = path.join(hfHome, "hub", "models--onnx-community--Kokoro-82M-v1.0");
+  const kokoroModelDir = path.join(hfHome, "hub", "models--onnx-community--Kokoro-82M-v1.0-ONNX");
   if (existsSync(kokoroModelDir)) {
     pass(`Kokoro model cache found at ${kokoroModelDir}`);
   } else {

@@ -1083,7 +1083,7 @@ async function loadKokoroTts() {
   }
 
   _kokoroInitPromise = loadKokoroModule()
-    .then(({ KokoroTTS }) => KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0", {
+    .then(({ KokoroTTS }) => KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
       dtype: config.dtype,
     }))
     .then((tts) => {

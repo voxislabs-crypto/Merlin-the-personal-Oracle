@@ -10,7 +10,7 @@ import {
 } from "../services/ttsService.js";
 
 const hfHome = process.env.HF_HOME || path.join(process.env.HOME || "~", ".cache", "huggingface");
-const modelDir = path.join(hfHome, "hub", "models--onnx-community--Kokoro-82M-v1.0");
+const modelDir = path.join(hfHome, "hub", "models--onnx-community--Kokoro-82M-v1.0-ONNX");
 
 const PERSONALITY_RECOMMENDATIONS = Object.freeze({
   neutral_assistant: { primary: "af_heart", alternates: ["am_michael", "af_sarah"] },
