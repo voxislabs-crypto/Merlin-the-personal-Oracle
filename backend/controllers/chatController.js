@@ -67,6 +67,8 @@ import {
   getPersonaPreferences,
   upsertPersonaPreference,
   prunePersonaPreferences,
+  reinforcePersonaPreferences,
+  decayPersonaPreferences,
 } from "../models/preferencesModel.js";
 import {
   buildRateLimitFallbackReply,
@@ -97,6 +99,7 @@ const MEMORY_RETRIEVAL_LIMIT = 5;
 
 const PREF_EXTRACTION_MIN_INTERVAL_MS = 45_000;
 const PREF_EXTRACTION_MIN_TURNS = 3;
+const PREF_DECAY_CADENCE = 12;
 const preferenceExtractionState = new Map();
 
 function preferenceExtractionKey(personalityId, userScopedId) {
@@ -540,6 +543,12 @@ export async function chatHandler(req, res, next) {
     const preferenceDelta = preferenceMatches.allMatches.length > 0
       ? computePreferenceMoodDelta(preferenceMatches, personality)
       : null;
+    const matchedPreferenceIds = preferenceMatches.allMatches
+      .map((pref) => Number(pref.id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+    if (matchedPreferenceIds.length > 0) {
+      reinforcePersonaPreferences(matchedPreferenceIds, 1);
+    }
 
     const moodStep = await stepMoodDetailed({
       currentMood,
@@ -689,6 +698,16 @@ export async function chatHandler(req, res, next) {
     const reconditionEvery = getReconditionEvery(personality.creativeContext);
     const totalMessages = getChatMessageCount(personalityId);
     const shouldRecondition = totalMessages > 0 && totalMessages % reconditionEvery === 0;
+    const shouldDecayPreferences = totalMessages > 0 && totalMessages % PREF_DECAY_CADENCE === 0;
+    if (shouldDecayPreferences) {
+      setImmediate(() => {
+        decayPersonaPreferences(personalityId, {
+          idleDays: 14,
+          minImportance: 4,
+          decayStep: 1,
+        });
+      });
+    }
     if (shouldRecondition) {
       messages.push({ role: "system", content: buildPersonaAnchor(personality) });
     }
@@ -710,6 +729,7 @@ export async function chatHandler(req, res, next) {
     streamedDebugData.flags = {
       ...streamedDebugData.flags,
       reconditioned: shouldRecondition,
+      preferenceDecayEvaluated: shouldDecayPreferences,
       moodFragmentInjected: Boolean(moodFragment),
       historyMessages: history.length,
     };

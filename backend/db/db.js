@@ -208,10 +208,17 @@ db.exec(`
     content TEXT NOT NULL,
     importance INTEGER NOT NULL DEFAULT 7,
     source TEXT NOT NULL DEFAULT 'learned',
+    triggerCount INTEGER NOT NULL DEFAULT 0,
+    lastTriggeredAt TEXT NOT NULL DEFAULT '',
+    updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (personalityId) REFERENCES personalities(id)
   )
 `);
+
+ensureColumn("persona_preferences", "triggerCount", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("persona_preferences", "lastTriggeredAt", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("persona_preferences", "updatedAt", "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP");
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_persona_preferences_personality_id

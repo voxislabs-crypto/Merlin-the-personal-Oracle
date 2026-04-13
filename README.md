@@ -71,6 +71,8 @@ Health and deploy verification:
 - EPF presentation fallback now marks parse failures as non-performance output with an explicit parse error signal.
 - Mood runtime now applies hard per-turn V/A/D axis caps after merge/decay to prevent runaway emotional jumps while preserving inertia.
 - Mood diagnostics now emit turn snapshots (`before`, `afterMerge`, `afterMomentum`, `afterDecay`, `afterClamp`) plus a delta-cap indicator for traceability.
+- Persona preference storage now resolves high-overlap polarity conflicts using weighted dominance, preventing contradictory duplicate memories for the same topic.
+- Matched preferences are reinforced on trigger (importance + trigger count + last-trigger timestamp), while stale preferences decay on cadence with floor caps to prevent permanent saturation.
 
 ---
 
