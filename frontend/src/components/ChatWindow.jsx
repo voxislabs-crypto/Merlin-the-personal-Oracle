@@ -1766,6 +1766,7 @@ export default function ChatWindow({
         rate: Number(voiceProfile.rate),
         preferredVoice: voiceProfile.preferredVoice,
         providerVoice: voiceProfile.providerVoice || voiceProfile.preferredVoice,
+        kokoroVoice: voiceProfile.kokoroVoice || "af_heart",
         providerModel: voiceProfile.providerModel,
         piperModelPath: voiceProfile.piperModelPath,
         piperSpeaker: voiceProfile.piperSpeaker,

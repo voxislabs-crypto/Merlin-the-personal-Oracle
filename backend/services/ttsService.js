@@ -651,6 +651,18 @@ export function classifySpeechContext({ text = "", speechHint = "", personality 
   const joined = `${rawText}\n${hint}`.toLowerCase();
   const creativeContext = String(personality?.creativeContext || "default").toLowerCase();
 
+  const previewSignals = [
+    /\b(voice\s*preview|tts\s*preview|preview\s*only)\b/,
+  ].some((pattern) => pattern.test(joined));
+
+  if (previewSignals) {
+    return {
+      category: "precision",
+      styleMode: "precision",
+      preserveLiteralContent: true,
+    };
+  }
+
   const precisionSignals = [
     /```|`[^`]+`/,
     /https?:\/\//,
@@ -1115,10 +1127,18 @@ function getKokoroLoadTimeoutMs() {
   return Math.max(5_000, Math.min(90_000, Math.floor(value)));
 }
 
-function getKokoroGenerateTimeoutMs() {
-  const value = Number(process.env.KOKORO_GENERATE_TIMEOUT_MS || DEFAULT_KOKORO_GENERATE_TIMEOUT_MS);
-  if (!Number.isFinite(value)) return DEFAULT_KOKORO_GENERATE_TIMEOUT_MS;
-  return Math.max(8_000, Math.min(120_000, Math.floor(value)));
+function getKokoroGenerateTimeoutMs(text = "") {
+  const configured = Number(process.env.KOKORO_GENERATE_TIMEOUT_MS || DEFAULT_KOKORO_GENERATE_TIMEOUT_MS);
+  const base = Number.isFinite(configured)
+    ? Math.max(8_000, Math.min(120_000, Math.floor(configured)))
+    : DEFAULT_KOKORO_GENERATE_TIMEOUT_MS;
+
+  // Scale timeout proportionally to text length (~150 ms/char) so long chunks
+  // don't time out on slow CPU hardware, but short chunks fail fast.
+  const textLength = String(text || "").trim().length;
+  if (!textLength) return base;
+  const scaled = Math.round(10_000 + textLength * 150);
+  return Math.min(120_000, Math.max(base, scaled));
 }
 
 async function withOpTimeout(promise, timeoutMs, message) {
@@ -1223,6 +1243,23 @@ export async function preloadKokoro() {
   console.log("[Kokoro] Model ready.");
 }
 
+async function generateSingleKokoroChunk({ tts, text, voice, speed }) {
+  const generateTimeoutMs = getKokoroGenerateTimeoutMs(text);
+  const tmpFile = path.join(os.tmpdir(), `voxis-kokoro-${randomUUID()}.wav`);
+  try {
+    const audio = await withOpTimeout(
+      tts.generate(text, { voice, speed }),
+      generateTimeoutMs,
+      `Kokoro synthesis timed out after ${generateTimeoutMs}ms for ${text.length} chars.`,
+    );
+    await audio.save(tmpFile);
+    const buffer = await fs.readFile(tmpFile);
+    return buffer;
+  } finally {
+    await fs.unlink(tmpFile).catch(() => {});
+  }
+}
+
 async function generateKokoroSpeechAudio({ text, voiceProfile }) {
   if (!isKokoroPackageInstalled()) {
     const error = new Error("Kokoro engine is not installed. Install kokoro-js or choose another TTS engine.");
@@ -1242,18 +1279,38 @@ async function generateKokoroSpeechAudio({ text, voiceProfile }) {
 
   const config = getKokoroConfig();
   const voice = String(voiceProfile?.kokoroVoice || voiceProfile?.providerVoice || config.voice).trim();
-  const tmpFile = path.join(os.tmpdir(), `voxis-kokoro-${randomUUID()}.wav`);
+  const speed = Math.min(2.0, Math.max(0.5, Number(voiceProfile?.rate) || 1));
+
   try {
     const tts = await loadKokoroTts();
-    const generateTimeoutMs = getKokoroGenerateTimeoutMs();
-    const audio = await withOpTimeout(
-      tts.generate(text, { voice }),
-      generateTimeoutMs,
-      `Kokoro synthesis timed out after ${generateTimeoutMs}ms.`,
-    );
-    await audio.save(tmpFile);
-    const buffer = await fs.readFile(tmpFile);
-    return { buffer, contentType: "audio/wav", engine: "kokoro" };
+
+    // Split into sentence-level chunks so each chunk has its own proportional
+    // timeout and long responses don't time out or appear to hang at ~100ms/char.
+    const chunkPlan = splitIntoChunks(text, { minPauseMs: 100, maxPauseMs: 600 });
+
+    if (chunkPlan.length <= 1) {
+      const synthesisText = chunkPlan[0]?.text || text;
+      const buffer = await generateSingleKokoroChunk({ tts, text: synthesisText, voice, speed });
+      return { buffer, contentType: "audio/wav", engine: "kokoro" };
+    }
+
+    // Generate sentence chunks sequentially and concatenate into a single WAV.
+    const chunkBuffers = [];
+    const pauseDurationsMs = [];
+    for (const chunk of chunkPlan) {
+      const buf = await generateSingleKokoroChunk({ tts, text: chunk.text, voice, speed });
+      chunkBuffers.push(buf);
+      pauseDurationsMs.push(chunk.pauseMs || 0);
+    }
+
+    return {
+      buffer: concatenateWavBuffers(chunkBuffers, pauseDurationsMs),
+      contentType: "audio/wav",
+      engine: "kokoro",
+      chunked: true,
+      chunkCount: chunkPlan.length,
+      pauseMsTotal: pauseDurationsMs.reduce((sum, ms) => sum + Number(ms || 0), 0),
+    };
   } catch (error) {
     const message = String(error?.message || error || "Kokoro initialization failed.");
     const hint = /Unauthorized access to file:/i.test(message)
@@ -1264,8 +1321,6 @@ async function generateKokoroSpeechAudio({ text, voiceProfile }) {
     wrapped.ttsProvider = "kokoro";
     wrapped.ttsProviderCode = String(error?.ttsProviderCode || "unknown");
     throw wrapped;
-  } finally {
-    await fs.unlink(tmpFile).catch(() => {});
   }
 }
 
