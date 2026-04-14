@@ -67,6 +67,7 @@ export async function generateSpeechHandler(req, res, next) {
   try {
     const personalityId = Number(req.params.id);
     const text = String(req.body.text || "").trim();
+    const speechHint = String(req.body?.speechHint || "").trim();
 
     if (!Number.isInteger(personalityId)) {
       return res.status(400).json({ error: "A valid personality id is required." });
@@ -96,6 +97,7 @@ export async function generateSpeechHandler(req, res, next) {
       personality,
       text,
       voiceProfile,
+      speechHint,
     });
 
     res.setHeader("Content-Type", audio.contentType);

@@ -1462,7 +1462,7 @@ export default function VoiceLab({
     }
   }
 
-  async function generateAudio(text, voiceOverride = null) {
+  async function generateAudio(text, voiceOverride = null, speechHint = "") {
     if (!voiceProfile.enabled || !text?.trim() || !personality) return;
 
     setupAnalyser(); // safe to call on user-gesture; noop after first setup
@@ -1474,7 +1474,7 @@ export default function VoiceLab({
       const response = await authFetch(`/personality/${personality.id}/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voiceProfile: effectiveVoiceProfile }),
+        body: JSON.stringify({ text, voiceProfile: effectiveVoiceProfile, speechHint }),
       });
 
       if (!response.ok) {
@@ -1885,6 +1885,7 @@ export default function VoiceLab({
                                   generateAudio(
                                     "Hello! This is a quick voice preview so you can hear how I sound.",
                                     { kokoroVoice: voice.id, providerVoice: voice.id, preferredVoice: voice.id },
+                                    "voice preview",
                                   );
                                 }}
                                 style={{
