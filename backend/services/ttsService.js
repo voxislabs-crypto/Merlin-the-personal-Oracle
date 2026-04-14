@@ -781,6 +781,7 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
   const speechPacket = buildSpeechPacket(text, personality, mood, {
     styleMode: speechContext.styleMode,
     channel: "tts",
+    appendInjectedPhrase: false,
     ttsEngine: resolvedEngine,
   });
   let directedText = String(speechPacket?.speech || text || "").trim();
@@ -1488,7 +1489,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
     : requestedRaw;
 
   const engine = resolveEngine(voiceProfile);
-  const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, sfx } = prepareSpeechSynthesis({
+  const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, speechPacket, sfx } = prepareSpeechSynthesis({
     personality,
     text,
     voiceProfile,
@@ -1586,6 +1587,9 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
         attemptedEngines,
         fallbackUsed: false,
         emotionFrame,
+        speechEmotion: String(speechPacket?.emotion || ""),
+        injectedPhrase: String(speechPacket?.injectedPhrase || "").trim(),
+        injectedPhraseAppliedToSpeech: false,
         chunked: Boolean(audio.chunked),
         chunkCount: Number(audio.chunkCount || 0),
         pauseMsTotal: Number(audio.pauseMsTotal || 0),
@@ -1623,6 +1627,9 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
             fallbackFrom: engine,
             fallbackReason: primaryError.message || "Primary engine failed.",
             emotionFrame,
+            speechEmotion: String(speechPacket?.emotion || ""),
+            injectedPhrase: String(speechPacket?.injectedPhrase || "").trim(),
+            injectedPhraseAppliedToSpeech: false,
             chunked: Boolean(audio.chunked),
             chunkCount: Number(audio.chunkCount || 0),
             pauseMsTotal: Number(audio.pauseMsTotal || 0),

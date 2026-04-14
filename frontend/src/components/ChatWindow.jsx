@@ -2040,6 +2040,9 @@ export default function ChatWindow({
                 {voiceTelemetry.fallbackUsed
                   ? ` (fallback from ${String(voiceTelemetry.fallbackFrom || "primary")})`
                   : ""}
+                {voiceTelemetry.injectedPhrase
+                  ? ` | Personality tag (not spoken): "${String(voiceTelemetry.injectedPhrase)}"`
+                  : ""}
               </div>
             ) : null}
 

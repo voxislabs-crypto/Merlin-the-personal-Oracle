@@ -133,4 +133,32 @@ describe("speechDirector buildSpeechPacket", () => {
 
     expect(packet.speech).toBe(legacy);
   });
+
+  it("captures injectedPhrase metadata without appending to speech when appendInjectedPhrase=false", () => {
+    const personality = {
+      name: "Injector",
+      notablePhrases: ["you call that a plan?"],
+      moodState: { arousal: 0.2, dominance: 0.1 },
+      expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+    };
+
+    let packetWithInjection = null;
+    for (let index = 0; index < 200; index += 1) {
+      const candidate = `seed probe ${index}`;
+      const packet = buildSpeechPacket(candidate, personality, null, {
+        channel: "tts",
+        ttsEngine: "cartesia",
+        appendInjectedPhrase: false,
+      });
+
+      if (packet.injectedPhrase) {
+        packetWithInjection = { candidate, packet };
+        break;
+      }
+    }
+
+    expect(packetWithInjection).not.toBeNull();
+    expect(packetWithInjection.packet.injectedPhrase).toBe("you call that a plan?");
+    expect(packetWithInjection.packet.speech).toBe(packetWithInjection.candidate);
+  });
 });

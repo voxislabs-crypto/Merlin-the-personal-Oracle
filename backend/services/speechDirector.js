@@ -183,6 +183,7 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
   const styleMode = String(options?.styleMode || "performance").trim().toLowerCase();
   const precisionMode = styleMode === "precision";
   const channel = String(options?.channel || "tts").trim().toLowerCase();
+  const appendInjectedPhrase = options?.appendInjectedPhrase !== false;
   const ttsEngine = String(options?.ttsEngine || "auto").trim().toLowerCase();
   const arousal = Number(mood.arousal);
   const dominance = Number(mood.dominance);
@@ -248,7 +249,9 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
     if (shouldInject(injectSeed, 0.3)) {
       const index = Math.floor(hashString(`${injectSeed}:idx`) * notablePhrases.length);
       injectedPhrase = notablePhrases[index];
-      output = `${output} ${injectedPhrase}`.trim();
+      if (appendInjectedPhrase) {
+        output = `${output} ${injectedPhrase}`.trim();
+      }
     }
   }
 
