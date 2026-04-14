@@ -161,6 +161,7 @@ What this demonstrates in minutes:
 - Voice Lab sample synthesis now surfaces the Speech Director's transformed preview text and adjusted rate/pitch telemetry, so the TTS tab shows the same persona-driven output path used by live playback.
 - Prosody source links can now be submitted from Voice Lab, Character Request links, and Persona Editor; Voxis downloads source audio, derives rhythm/cadence/prosody template metrics, attaches the template to the persona, and removes temp audio workspace files after processing.
 - Quick voice controls (enable, autoplay, play-latest, stop, save) stay embedded in the Chat tab as compact cyberpunk toggle switches so you never have to leave the conversation.
+- Chat Quick Voice `Stop` now cancels pending in-flight TTS requests in addition to pausing playback, so delayed auto-play no longer resumes after a stop click.
 - Voice Lab supports `auto`, `kokoro`, and `cartesia` while `TTS_DEBUG_PROVIDER_LOCK` is enabled (default). Set `TTS_DEBUG_PROVIDER_LOCK=false` to re-enable the full engine matrix (`cloud`, `piper`, `elevenlabs`, etc.).
 - When `cloud` (or `auto`) is selected, the `TTS Model` dropdown auto-populates from the active Runtime LLM provider models, with custom model fallback.
 - When `Piper` is selected in Voice Lab, Voxis scans local `.onnx` models and surfaces detected voices in a dropdown for quick selection.

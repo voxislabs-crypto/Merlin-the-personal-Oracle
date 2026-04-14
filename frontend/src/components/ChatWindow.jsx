@@ -1216,6 +1216,7 @@ export default function ChatWindow({
   const messageListRef = useRef(null);
   const audioRef = useRef(null);
   const speechEnergyTimerRef = useRef(null);
+  const ttsRequestAbortRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
   const zoneShiftTimerRef = useRef(null);
   const prevZoneKeyRef = useRef("");
@@ -1602,12 +1603,18 @@ export default function ChatWindow({
   }
 
   function stopSpeaking() {
+    if (ttsRequestAbortRef.current) {
+      ttsRequestAbortRef.current.abort();
+      ttsRequestAbortRef.current = null;
+    }
+
     const audioElement = audioRef.current;
     if (audioElement instanceof HTMLAudioElement) {
       audioElement.pause();
       audioElement.currentTime = 0;
     }
 
+    setIsGeneratingAudio(false);
     setIsAudioPlaying(false);
     setSpeechEnergy(0);
   }
@@ -1618,6 +1625,8 @@ export default function ChatWindow({
     }
 
     setIsGeneratingAudio(true);
+    const controller = new AbortController();
+    ttsRequestAbortRef.current = controller;
 
     try {
       const response = await authFetch(`/personality/${personality.id}/tts`, {
@@ -1625,6 +1634,7 @@ export default function ChatWindow({
         headers: {
           "Content-Type": "application/json",
         },
+        signal: controller.signal,
         body: JSON.stringify({
           text,
           voiceProfile,
@@ -1712,11 +1722,18 @@ export default function ChatWindow({
         }
       });
     } catch (error) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+
       onStatus?.({
         type: "error",
         message: error.message || "Failed to generate speech.",
       });
     } finally {
+      if (ttsRequestAbortRef.current === controller) {
+        ttsRequestAbortRef.current = null;
+      }
       setIsGeneratingAudio(false);
     }
   }
