@@ -7,6 +7,16 @@ import PerformancePlayer from "./PerformancePlayer.jsx";
 import usePrefersReducedMotion from "../hooks/usePrefersReducedMotion.js";
 import { interpretEmotionSpectrum } from "../lib/emotionSpectrum.js";
 
+const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+
+function normalizeVoiceEngineForDebug(engine) {
+  const normalized = String(engine || "auto").trim().toLowerCase();
+  if (!TTS_DEBUG_PROVIDER_LOCK) {
+    return normalized || "auto";
+  }
+  return ["auto", "kokoro", "cartesia"].includes(normalized) ? normalized : "auto";
+}
+
 // Lightweight EPF detection — mirrors backend isPerformanceOutput
 function isEPF(text) {
   return /\[\[[A-Za-z]+\d+\]\]/.test(text) && /^\[:\]/m.test(text);
@@ -1392,10 +1402,12 @@ export default function ChatWindow({
       return;
     }
 
+    const nextEngine = normalizeVoiceEngineForDebug(personality.voiceProfile?.engine || "auto");
+
     setVoiceProfile({
       enabled: personality.voiceProfile?.enabled !== false,
       autoplay: Boolean(personality.voiceProfile?.autoplay),
-      engine: personality.voiceProfile?.engine || "auto",
+      engine: nextEngine,
       pitch: Number(personality.voiceProfile?.pitch) || 1,
       rate: Number(personality.voiceProfile?.rate) || 1,
       preferredVoice:
@@ -1898,15 +1910,25 @@ export default function ChatWindow({
               <select
                 id="voice-engine-select"
                 value={voiceProfile.engine || "auto"}
-                onChange={(event) => updateVoiceField("engine", event.target.value)}
+                onChange={(event) => updateVoiceField("engine", normalizeVoiceEngineForDebug(event.target.value))}
                 style={{ marginBottom: 6 }}
               >
-                <option value="auto">Auto (server default)</option>
-                <option value="cloud">Cloud (OpenAI)</option>
-                <option value="kokoro">Kokoro (local, free)</option>
-                <option value="piper">Piper (local)</option>
-                <option value="elevenlabs">ElevenLabs</option>
-                <option value="cartesia">Cartesia</option>
+                {TTS_DEBUG_PROVIDER_LOCK ? (
+                  <>
+                    <option value="auto">Auto (cartesia -&gt; kokoro)</option>
+                    <option value="kokoro">Kokoro (local, free)</option>
+                    <option value="cartesia">Cartesia</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="auto">Auto (server default)</option>
+                    <option value="cloud">Cloud (OpenAI)</option>
+                    <option value="kokoro">Kokoro (local, free)</option>
+                    <option value="piper">Piper (local)</option>
+                    <option value="elevenlabs">ElevenLabs</option>
+                    <option value="cartesia">Cartesia</option>
+                  </>
+                )}
               </select>
               <label htmlFor="voice-quick-select">Voice:</label>
               <select

@@ -12,6 +12,8 @@ import {
   clearTtsCredential,
   getVoiceDefaults,
   setVoiceDefaults,
+  getAllowedTtsCredentialProviders,
+  isTtsDebugProviderLockEnabled,
   getKokoroHfToken,
   setKokoroHfToken,
   clearKokoroHfToken,
@@ -262,8 +264,16 @@ const TTS_PROVIDER_META = {
   },
 };
 
+function getActiveTtsProviderMeta() {
+  const allowed = new Set(getAllowedTtsCredentialProviders());
+  return Object.fromEntries(
+    Object.entries(TTS_PROVIDER_META).filter(([id]) => allowed.has(id)),
+  );
+}
+
 function toPublicTtsCredential(cred) {
   if (!cred) return null;
+  const activeMeta = getActiveTtsProviderMeta();
   return {
     provider: cred.provider,
     connected: Boolean(cred.apiKey),
@@ -271,7 +281,7 @@ function toPublicTtsCredential(cred) {
     voiceId: cred.voiceId || "",
     model: cred.model || "",
     updatedAt: cred.updatedAt || "",
-    ...TTS_PROVIDER_META[cred.provider],
+    ...activeMeta[cred.provider],
   };
 }
 
@@ -287,7 +297,8 @@ function toPublicKokoroSettings() {
 
 export function getTtsSettingsHandler(_req, res) {
   const saved = getAllTtsCredentials();
-  const result = Object.entries(TTS_PROVIDER_META).map(([id, meta]) => {
+  const activeMeta = getActiveTtsProviderMeta();
+  const result = Object.entries(activeMeta).map(([id, meta]) => {
     const cred = saved.find((c) => c.provider === id);
     return {
       provider: id,
@@ -299,7 +310,11 @@ export function getTtsSettingsHandler(_req, res) {
       ...meta,
     };
   });
-  return res.json({ providers: result, voiceDefaults: getVoiceDefaults() });
+  return res.json({
+    providers: result,
+    voiceDefaults: getVoiceDefaults(),
+    debugLockEnabled: isTtsDebugProviderLockEnabled(),
+  });
 }
 
 export function saveVoiceDefaultsHandler(req, res) {
@@ -323,6 +338,12 @@ export function saveTtsCredentialHandler(req, res, next) {
       return res.status(400).json({ error: "apiKey is required." });
     }
 
+    if (!getActiveTtsProviderMeta()[provider]) {
+      return res.status(400).json({
+        error: `TTS debug lock is active. Provider '${provider}' is disabled.`,
+      });
+    }
+
     const saved = setTtsCredential({ provider, apiKey, voiceId, model });
     return res.json(toPublicTtsCredential(saved));
   } catch (error) {
@@ -333,6 +354,11 @@ export function saveTtsCredentialHandler(req, res, next) {
 export function clearTtsCredentialHandler(req, res, next) {
   try {
     const provider = String(req.params.provider || "").trim().toLowerCase();
+    if (!getActiveTtsProviderMeta()[provider]) {
+      return res.status(400).json({
+        error: `TTS debug lock is active. Provider '${provider}' is disabled.`,
+      });
+    }
     clearTtsCredential(provider);
     return res.json({ provider, connected: false });
   } catch (error) {

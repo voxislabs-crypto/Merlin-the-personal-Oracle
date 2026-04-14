@@ -30,6 +30,8 @@ function setEncodedJsonHeader(res, name, payload, options) {
   }
 }
 
+const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+
 export async function listPiperVoicesHandler(req, res, next) {
   try {
     const payload = await listPiperVoiceOptions();
@@ -85,7 +87,9 @@ export async function generateSpeechHandler(req, res, next) {
     if (!isTtsConfigured(voiceProfile)) {
       return res.status(500).json({
         error:
-          "TTS is not configured. Configure cloud TTS (TTS_API_KEY/TTS_BASE_URL) or Piper (PIPER_MODEL_PATH) in backend/.env.",
+          TTS_DEBUG_PROVIDER_LOCK_ENABLED
+            ? "TTS debug lock is active and no allowed engine is configured. Configure Cartesia credentials (Settings -> Voice Provider Credentials) or use Kokoro."
+            : "TTS is not configured. Configure cloud TTS (TTS_API_KEY/TTS_BASE_URL) or Piper (PIPER_MODEL_PATH) in backend/.env.",
       });
     }
     const audio = await generateSpeechAudio({

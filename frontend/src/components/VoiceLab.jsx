@@ -862,12 +862,21 @@ const CLOUD_VOICE_PRESETS = [
 ];
 
 const CUSTOM_OPTION = "__custom__";
+const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 const PROSODY_PROGRESS_STEPS = [
   "Scraping source audio",
   "Analyzing cadence and rhythm",
   "Detecting representative voices",
   "Preparing voice previews",
 ];
+
+function normalizeVoiceEngineForDebug(engine) {
+  const normalized = String(engine || "auto").trim().toLowerCase();
+  if (!TTS_DEBUG_PROVIDER_LOCK) {
+    return normalized || "auto";
+  }
+  return ["auto", "kokoro", "cartesia"].includes(normalized) ? normalized : "auto";
+}
 
 export default function VoiceLab({
   personality,
@@ -1038,10 +1047,11 @@ export default function VoiceLab({
   // ── Effects ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!personality) return;
+    const nextEngine = normalizeVoiceEngineForDebug(personality.voiceProfile?.engine || "auto");
     setVoiceProfile({
       enabled: personality.voiceProfile?.enabled !== false,
       autoplay: Boolean(personality.voiceProfile?.autoplay),
-      engine: personality.voiceProfile?.engine || "auto",
+      engine: nextEngine,
       pitch: Number(personality.voiceProfile?.pitch) || 1,
       rate: Number(personality.voiceProfile?.rate) || 1,
       preferredVoice:
@@ -1690,14 +1700,24 @@ export default function VoiceLab({
                   id="vlab-engine"
                   className="vlab-select"
                   value={voiceProfile.engine}
-                  onChange={(e) => updateVoiceField("engine", e.target.value)}
+                  onChange={(e) => updateVoiceField("engine", normalizeVoiceEngineForDebug(e.target.value))}
                 >
-                  <option value="auto">auto (elevenlabs -&gt; cartesia -&gt; cloud -&gt; piper -&gt; kokoro)</option>
-                  <option value="cloud">cloud</option>
-                  <option value="piper">piper</option>
-                  <option value="kokoro">kokoro (free local)</option>
-                  <option value="elevenlabs">elevenlabs (saved key)</option>
-                  <option value="cartesia">cartesia (saved key)</option>
+                  {TTS_DEBUG_PROVIDER_LOCK ? (
+                    <>
+                      <option value="auto">auto (cartesia -&gt; kokoro)</option>
+                      <option value="kokoro">kokoro (free local)</option>
+                      <option value="cartesia">cartesia (saved key)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="auto">auto (elevenlabs -&gt; cartesia -&gt; cloud -&gt; piper -&gt; kokoro)</option>
+                      <option value="cloud">cloud</option>
+                      <option value="piper">piper</option>
+                      <option value="kokoro">kokoro (free local)</option>
+                      <option value="elevenlabs">elevenlabs (saved key)</option>
+                      <option value="cartesia">cartesia (saved key)</option>
+                    </>
+                  )}
                 </select>
               </div>
 

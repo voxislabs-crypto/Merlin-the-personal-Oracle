@@ -7,6 +7,7 @@ const VOICE_DEFAULTS_KEY = "voice_defaults";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
+const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 
 function parseJsonObject(value) {
   try {
@@ -213,8 +214,16 @@ export function upsertSavedLlmCredential({ provider, baseUrl, apiKey }) {
 
 const TTS_PROVIDERS = ["elevenlabs", "cartesia"];
 
+export function isTtsDebugProviderLockEnabled() {
+  return TTS_DEBUG_PROVIDER_LOCK_ENABLED;
+}
+
+export function getAllowedTtsCredentialProviders() {
+  return TTS_DEBUG_PROVIDER_LOCK_ENABLED ? ["cartesia"] : TTS_PROVIDERS;
+}
+
 function sanitizeTtsProvider(id) {
-  return TTS_PROVIDERS.includes(String(id || "").trim().toLowerCase())
+  return getAllowedTtsCredentialProviders().includes(String(id || "").trim().toLowerCase())
     ? String(id).trim().toLowerCase()
     : null;
 }
@@ -244,7 +253,7 @@ export function getTtsCredential(provider) {
 
 export function getAllTtsCredentials() {
   const store = readTtsStore();
-  return TTS_PROVIDERS.map((id) => sanitizeTtsCredential(id, store[id])).filter(Boolean);
+  return getAllowedTtsCredentialProviders().map((id) => sanitizeTtsCredential(id, store[id])).filter(Boolean);
 }
 
 export function setTtsCredential({ provider, apiKey, voiceId = "", model = "" }) {

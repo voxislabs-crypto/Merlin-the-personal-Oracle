@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 
 const CUSTOM_OPTION = "__custom__";
+const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 
 const ELEVENLABS_VOICE_PRESETS = [
   { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel (default)" },
@@ -235,7 +236,7 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [ttsProviders, setTtsProviders] = useState([]);
-  const [ttsProvider, setTtsProvider] = useState("elevenlabs");
+  const [ttsProvider, setTtsProvider] = useState(TTS_DEBUG_PROVIDER_LOCK ? "cartesia" : "elevenlabs");
   const [ttsApiKey, setTtsApiKey] = useState("");
   const [ttsVoiceId, setTtsVoiceId] = useState("");
   const [ttsModel, setTtsModel] = useState("");
@@ -479,7 +480,10 @@ export default function LlmSettingsPanel({ onStatus }) {
         envLocked: Boolean(settingsData.envLocked),
       });
 
-      const ttsProviderList = Array.isArray(ttsData.providers) ? ttsData.providers : [];
+      const rawTtsProviderList = Array.isArray(ttsData.providers) ? ttsData.providers : [];
+      const ttsProviderList = TTS_DEBUG_PROVIDER_LOCK
+        ? rawTtsProviderList.filter((entry) => entry.provider === "cartesia")
+        : rawTtsProviderList;
       setTtsProviders(ttsProviderList);
       setDefaultVoiceSource(ttsData?.voiceDefaults?.source === "llm" ? "llm" : "tts");
       const connectedProvider = ttsProviderList.find((entry) => entry.connected) || ttsProviderList[0] || null;
@@ -1011,7 +1015,9 @@ export default function LlmSettingsPanel({ onStatus }) {
           <span className="settings-section-tag">Voice Providers</span>
           <h3>Voice Provider Credentials</h3>
           <p className="settings-section-copy">
-            Save ElevenLabs or Cartesia credentials once and reuse them across Voice Lab and chat playback.
+            {TTS_DEBUG_PROVIDER_LOCK
+              ? "Debug lock is active: only Cartesia credentials are enabled here."
+              : "Save ElevenLabs or Cartesia credentials once and reuse them across Voice Lab and chat playback."}
           </p>
         </div>
 

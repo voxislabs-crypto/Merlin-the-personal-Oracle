@@ -4,6 +4,16 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, safe));
 }
 
+const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+
+function isAllowedVoiceEngine(engine) {
+  const normalized = String(engine || "").trim().toLowerCase();
+  if (!TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
+    return ["auto", "cloud", "openai", "piper", "kokoro", "elevenlabs", "cartesia"].includes(normalized);
+  }
+  return ["auto", "kokoro", "cartesia"].includes(normalized);
+}
+
 export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
   const source = input && typeof input === "object" ? input : fallbackProfile;
   const fallback = fallbackProfile && typeof fallbackProfile === "object" ? fallbackProfile : {};
@@ -15,7 +25,7 @@ export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
   return {
     enabled: source.enabled !== false,
     autoplay: Boolean(source.autoplay),
-    engine: ["auto", "cloud", "openai", "piper", "kokoro", "elevenlabs", "cartesia"].includes(engine)
+    engine: isAllowedVoiceEngine(engine)
       ? engine === "openai"
         ? "cloud"
         : engine

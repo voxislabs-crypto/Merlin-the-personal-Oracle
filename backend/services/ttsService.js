@@ -35,6 +35,8 @@ const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
 const DEFAULT_KOKORO_LOAD_TIMEOUT_MS = 25_000;
 const DEFAULT_KOKORO_GENERATE_TIMEOUT_MS = 30_000;
+const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const LOCKED_TTS_ENGINES = Object.freeze(["kokoro", "cartesia"]);
 
 export const TTS_ENGINE_CAPABILITIES = Object.freeze({
   elevenlabs: Object.freeze({
@@ -73,6 +75,16 @@ export const TTS_ENGINE_CAPABILITIES = Object.freeze({
     identityFallback: true,
   }),
 });
+
+function getAllowedTtsEngines() {
+  return TTS_DEBUG_PROVIDER_LOCK_ENABLED
+    ? LOCKED_TTS_ENGINES
+    : ["kokoro", "cartesia", "elevenlabs", "cloud", "piper"];
+}
+
+function isAllowedTtsEngine(engine) {
+  return getAllowedTtsEngines().includes(String(engine || "").trim().toLowerCase());
+}
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -677,11 +689,11 @@ export function classifySpeechContext({ text = "", speechHint = "", personality 
 function resolveEngine(voiceProfile) {
   const requested = getRequestedEngine(voiceProfile);
 
-  if (requested === "kokoro") return "kokoro";
-  if (requested === "elevenlabs") return "elevenlabs";
-  if (requested === "cartesia") return "cartesia";
-  if (requested === "piper") return "piper";
-  if (requested === "cloud" || requested === "openai") return "cloud";
+  if (requested === "kokoro" && isAllowedTtsEngine("kokoro")) return "kokoro";
+  if (requested === "elevenlabs" && isAllowedTtsEngine("elevenlabs")) return "elevenlabs";
+  if (requested === "cartesia" && isAllowedTtsEngine("cartesia")) return "cartesia";
+  if (requested === "piper" && isAllowedTtsEngine("piper")) return "piper";
+  if ((requested === "cloud" || requested === "openai") && isAllowedTtsEngine("cloud")) return "cloud";
 
   const autoOrder = getAutoEngineOrder(voiceProfile);
   return autoOrder[0] || "kokoro";
@@ -699,12 +711,27 @@ function getRequestedEngine(voiceProfile) {
 }
 
 export function getAutoEngineOrder(voiceProfile) {
+  const allowed = new Set(getAllowedTtsEngines());
+  if (TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
+    const lockedOrder = ["cartesia", "kokoro"];
+    return lockedOrder.filter((engine) => {
+      if (!allowed.has(engine)) {
+        return false;
+      }
+      if (engine === "cartesia") return isCartesiaConfigured();
+      return isKokoroAvailable();
+    });
+  }
+
   const defaultSource = getVoiceDefaults().source;
   const preferredOrder = defaultSource === "llm"
     ? ["cloud", "elevenlabs", "cartesia", "piper", "kokoro"]
     : ["elevenlabs", "cartesia", "cloud", "piper", "kokoro"];
 
   return preferredOrder.filter((engine) => {
+    if (!allowed.has(engine)) {
+      return false;
+    }
     if (engine === "elevenlabs") return isElevenLabsConfigured();
     if (engine === "cartesia") return isCartesiaConfigured();
     if (engine === "cloud") return isCloudConfigured();
@@ -714,13 +741,7 @@ export function getAutoEngineOrder(voiceProfile) {
 }
 
 export function isTtsConfigured(voiceProfile = null) {
-  return (
-    isCloudConfigured() ||
-    isPiperConfigured(voiceProfile) ||
-    isElevenLabsConfigured() ||
-    isCartesiaConfigured() ||
-    isKokoroAvailable()
-  );
+  return getAutoEngineOrder(voiceProfile).length > 0;
 }
 
 function resolveMood(personality = {}) {
@@ -1399,6 +1420,13 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
   }
 
   const requested = getRequestedEngine(voiceProfile);
+  if (requested !== "auto" && !isAllowedTtsEngine(requested)) {
+    const allowed = getAllowedTtsEngines().join(", ");
+    const error = new Error(`TTS debug lock is active. Engine '${requested}' is disabled. Allowed engines: ${allowed}.`);
+    error.statusCode = 400;
+    throw error;
+  }
+
   const engine = resolveEngine(voiceProfile);
   const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, sfx } = prepareSpeechSynthesis({
     personality,
@@ -1597,10 +1625,12 @@ export function listKokoroVoices() {
 
 export function listProviderStatus() {
   const kokoroConfig = getKokoroConfig();
+  const allowed = new Set(getAllowedTtsEngines());
 
   return {
     kokoro: {
-      available: isKokoroAvailable(),
+      available: allowed.has("kokoro") && isKokoroAvailable(),
+      disabledByDebugLock: !allowed.has("kokoro"),
       installed: isKokoroPackageInstalled(),
       loaded: Boolean(_kokoroTts),
       requiresSetup: Boolean(_kokoroLoadError),
@@ -1610,22 +1640,26 @@ export function listProviderStatus() {
       capabilities: getEngineCapabilities("kokoro"),
     },
     elevenlabs: {
-      available: isElevenLabsConfigured(),
+      available: allowed.has("elevenlabs") && isElevenLabsConfigured(),
+      disabledByDebugLock: !allowed.has("elevenlabs"),
       requiresEnv: "ELEVENLABS_API_KEY or Settings -> TTS",
       capabilities: getEngineCapabilities("elevenlabs"),
     },
     cartesia: {
-      available: isCartesiaConfigured(),
+      available: allowed.has("cartesia") && isCartesiaConfigured(),
+      disabledByDebugLock: !allowed.has("cartesia"),
       requiresEnv: "CARTESIA_API_KEY or Settings -> TTS",
       capabilities: getEngineCapabilities("cartesia"),
     },
     piper: {
-      available: isPiperConfigured(),
+      available: allowed.has("piper") && isPiperConfigured(),
+      disabledByDebugLock: !allowed.has("piper"),
       requiresEnv: "PIPER_MODEL_PATH",
       capabilities: getEngineCapabilities("piper"),
     },
     cloud: {
-      available: isCloudConfigured(),
+      available: allowed.has("cloud") && isCloudConfigured(),
+      disabledByDebugLock: !allowed.has("cloud"),
       requiresEnv: "TTS_API_KEY or LLM_API_KEY",
       capabilities: getEngineCapabilities("cloud"),
     },
@@ -1834,6 +1868,16 @@ async function fetchCartesiaOptions() {
 
 export async function listProviderOptions(provider) {
   const id = String(provider || "").trim().toLowerCase();
+  if (!isAllowedTtsEngine(id)) {
+    return {
+      provider: id,
+      connected: false,
+      voices: [],
+      models: [],
+      error: "Provider is disabled by TTS debug lock.",
+    };
+  }
+
   if (id === "elevenlabs") {
     return fetchElevenLabsOptions();
   }
@@ -1859,6 +1903,8 @@ export async function getTtsHealthStatus() {
   return {
     status: "ok",
     routing: {
+      debugLockEnabled: TTS_DEBUG_PROVIDER_LOCK_ENABLED,
+      allowedEngines: getAllowedTtsEngines(),
       envEngine,
       requestedEngine: getRequestedEngine(),
       autoOrder: getAutoEngineOrder(),

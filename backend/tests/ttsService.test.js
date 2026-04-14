@@ -170,7 +170,7 @@ describe("ttsService Piper voice discovery", () => {
     expect(dataSize).toBe(16 + 8000 + 8);
   });
 
-  it("reports forced piper routing and env-backed diagnostics", async () => {
+  it("reports forced piper routing diagnostics with debug lock metadata", async () => {
     const previousEngine = process.env.TTS_ENGINE;
     const previousModelPath = process.env.PIPER_MODEL_PATH;
     const previousSpeaker = process.env.PIPER_SPEAKER;
@@ -194,7 +194,8 @@ describe("ttsService Piper voice discovery", () => {
 
       expect(result.engines.piper).toEqual(
         expect.objectContaining({
-          available: true,
+          available: false,
+          disabledByDebugLock: true,
           command: "piper",
           modelPathConfigured: true,
           modelPath: "/opt/piper/models/en_US-lessac-medium.onnx",

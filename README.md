@@ -161,13 +161,13 @@ What this demonstrates in minutes:
 - Voice Lab sample synthesis now surfaces the Speech Director's transformed preview text and adjusted rate/pitch telemetry, so the TTS tab shows the same persona-driven output path used by live playback.
 - Prosody source links can now be submitted from Voice Lab, Character Request links, and Persona Editor; Voxis downloads source audio, derives rhythm/cadence/prosody template metrics, attaches the template to the persona, and removes temp audio workspace files after processing.
 - Quick voice controls (enable, autoplay, play-latest, stop, save) stay embedded in the Chat tab as compact cyberpunk toggle switches so you never have to leave the conversation.
-- Voice Lab now supports `auto`, `cloud`, `piper`, `kokoro`, `elevenlabs`, and `cartesia` engines.
+- Voice Lab supports `auto`, `kokoro`, and `cartesia` while `TTS_DEBUG_PROVIDER_LOCK` is enabled (default). Set `TTS_DEBUG_PROVIDER_LOCK=false` to re-enable the full engine matrix (`cloud`, `piper`, `elevenlabs`, etc.).
 - When `cloud` (or `auto`) is selected, the `TTS Model` dropdown auto-populates from the active Runtime LLM provider models, with custom model fallback.
 - When `Piper` is selected in Voice Lab, Voxis scans local `.onnx` models and surfaces detected voices in a dropdown for quick selection.
 - When `Kokoro` is selected, Voice Lab loads bundled free voice presets and the backend can warm-download/cache the model on server startup.
 - Kokoro warmup/synthesis now has bounded operation timeouts and warmup fast-fail behavior to avoid long first-run stalls that can surface as upstream `524` HTML timeout pages.
-- For `ElevenLabs` and `Cartesia`, Voice Lab auto-loads voice and model dropdown options from provider APIs using your saved provider credentials, with custom ID input fallback when needed.
-- ElevenLabs voice dropdowns now render built-in voices first, then a `My Voices` section with your custom voices.
+- For `Cartesia`, Voice Lab auto-loads voice and model dropdown options from provider APIs using your saved provider credentials, with custom ID input fallback when needed.
+- If debug lock is disabled, ElevenLabs voice dropdowns render built-in voices first, then a `My Voices` section with your custom voices.
 - Voice and model dropdowns now include a manual `Reload` action so newly created provider voices/models can be pulled in immediately.
 - After a successful reload, Voice Lab briefly shows `Updated just now` next to the reload control for quick confirmation.
 - The ongoing speaking-stack implementation plan and checklist are tracked in `docs/TTS_EVOLUTION_CHECKLIST.md`.
@@ -349,6 +349,7 @@ cp backend/.env.example backend/.env
 | `TTS_API_KEY` | API key for TTS provider (can be the same as `LLM_API_KEY`) |
 | `TTS_BASE_URL` | Base URL for TTS provider (optional) |
 | `TTS_ENGINE` | Default engine selector: `auto`, `cloud`, `piper`, `kokoro`, `elevenlabs`, or `cartesia` |
+| `TTS_DEBUG_PROVIDER_LOCK` | Debug lock for TTS routing/options (default `true`). When enabled, only `kokoro` and `cartesia` are selectable and used for fallback. |
 | `PIPER_COMMAND` | Piper executable command (default: `piper`) |
 | `PIPER_MODEL_PATH` | Default `.onnx` model path used when engine resolves to Piper |
 | `PIPER_SPEAKER` | Optional default numeric speaker id for multi-speaker Piper models |
@@ -490,7 +491,7 @@ printf 'hello from voxis\n' | "${PIPER_COMMAND:-/usr/local/bin/piper}" --model "
 ls -lh /tmp/voxis-piper-smoke.wav
 ```
 
-- `Voice Provider Credentials` only lists dedicated TTS providers (`elevenlabs`, `cartesia`) by design. `kokoro`, `piper`, and `cloud/openai-compatible` are configured through Voice Lab + env/runtime routing, not this credential list.
+- With default debug lock enabled, `Voice Provider Credentials` lists only `cartesia`. Set `TTS_DEBUG_PROVIDER_LOCK=false` to restore `elevenlabs` in the credentials list.
 - Cartesia model discovery can vary by account/API version; Voxis now retries model discovery across Cartesia endpoint variants before surfacing an error.
 
 Deploy updates later:
