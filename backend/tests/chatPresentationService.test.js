@@ -32,6 +32,20 @@ describe("chatPresentationService", () => {
     expect(result.parseError).toBe(false);
   });
 
+  it("strips inline EPF metadata token leakage from dialogue", () => {
+    const epf = [
+      "[[E1]]",
+      "[88.0:]",
+      "[:] Oh jeez... 'Something'... Seriously.mosic: 4.5 bpm: 120.0 duration_secs: 150.0",
+    ].join("\n");
+
+    const result = buildAssistantPresentation(epf);
+
+    expect(result.displayReply).toBe("Oh jeez... 'Something'... Seriously.");
+    expect(result.displayReply).not.toMatch(/mosic|music|duration_secs|bpm/i);
+    expect(result.isPerformanceOutput).toBe(true);
+  });
+
   it("falls back to plain chat semantics when EPF parsing fails", () => {
     const parserSpy = vi.spyOn(epfParser, "parseEPF").mockImplementation(() => {
       throw new Error("parse failed");

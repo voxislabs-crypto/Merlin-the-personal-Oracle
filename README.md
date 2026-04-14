@@ -198,6 +198,7 @@ What this demonstrates in minutes:
   - [x] Phase 4 hardening: abbreviation-aware sentence splitting, long-sentence chunk limits, capped prefetched-audio buffer, and per-segment request timing telemetry.
   - [x] Phase 5: separate personality event renderer from TTS path (voice tags, whisper overlays, UI-only catchphrase bursts) by emitting `speechPacket.events` into telemetry and rendering event chips independently of spoken text.
   - [x] Phase 5 polish: coalesce duplicate event chips across streamed sentence telemetry, cap visible chips, and show repeat counts (`xN`) to prevent UI spam.
+  - [x] EPF metadata sanitation: strip leaked inline footer tokens (for example `mosic/music`, `bpm`, `duration_secs`, `good_crop`) from chat display extraction and final TTS synthesis input.
 - Runtime provider credentials are available in the `Settings` tab (`Voice Provider Credentials`) so you can save TTS provider keys from the browser without editing `.env`.
 - Voice routing now lives in `Settings`, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without overlapping controls.
 - Tune Big Five trait sliders, optional alignment overlay, and explicit expression style rules for personality-consistent output.

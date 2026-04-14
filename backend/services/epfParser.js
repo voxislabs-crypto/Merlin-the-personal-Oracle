@@ -58,6 +58,16 @@ function classifyAudioDirection(text) {
   return "ambient";
 }
 
+function stripInlineMetadataTokens(text) {
+  const source = String(text || "");
+  const metadataPattern = /\b(?:mosic|music|bpm|duration_secs|good_crop)\s*:\s*-?\d+(?:\.\d+)?/gi;
+  const first = metadataPattern.exec(source);
+  if (!first) {
+    return source.trim();
+  }
+  return source.slice(0, first.index).trim();
+}
+
 /**
  * Resolve the mood loop for a segment.
  * Prefers the explicitly parsed audio direction; falls back to segment-letter heuristic.
@@ -136,7 +146,7 @@ export function parseEPF(rawOutput) {
     const timeMatch = line.match(/^\[(\d+(?:\.\d+)?):\]\s*(.*)/);
     if (timeMatch && current) {
       current.startTime = parseFloat(timeMatch[1]);
-      const trailingText = timeMatch[2].trim();
+      const trailingText = stripInlineMetadataTokens(timeMatch[2]);
       if (trailingText) {
         // Short text = spoken dialogue lyric; long text = audio direction prose.
         if (trailingText.length < 200) {
@@ -152,7 +162,7 @@ export function parseEPF(rawOutput) {
 
     // ── Dialogue line: [:] some spoken text ───────────────────────────────
     if (line.startsWith("[:]") && current) {
-      const spokenText = line.replace(/^\[:\]\s*/, "").trim();
+      const spokenText = stripInlineMetadataTokens(line.replace(/^\[:\]\s*/, ""));
       if (spokenText) {
         current.dialogueLines.push(spokenText);
         inAudioDirection = false; // reset; dialogue resets audio-direction mode

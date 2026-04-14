@@ -23,6 +23,16 @@ function isEPF(text) {
   return /\[\[[A-Za-z]+\d+\]\]/.test(text) && /^\[:\]/m.test(text);
 }
 
+function stripInlineMetadataTokens(text) {
+  const source = String(text || "");
+  const metadataPattern = /\b(?:mosic|music|bpm|duration_secs|good_crop)\s*:\s*-?\d+(?:\.\d+)?/gi;
+  const first = metadataPattern.exec(source);
+  if (!first) {
+    return source.trim();
+  }
+  return source.slice(0, first.index).trim();
+}
+
 function extractEPFDialogue(text) {
   const dialogueLines = String(text || "")
     .split(/\r?\n/g)
@@ -35,7 +45,7 @@ function extractEPFDialogue(text) {
       const tm = line.match(/^\[[\d.]+:\]\s+(.+)/);
       return tm && tm[1].length < 200;
     })
-    .map((line) => line.replace(/^\[(?::|[\d.]+):\]\s*/, "").trim())
+    .map((line) => stripInlineMetadataTokens(line.replace(/^\[(?::|[\d.]+):\]\s*/, "")))
     .filter(Boolean);
 
   return dialogueLines.join("\n");

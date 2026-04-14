@@ -757,6 +757,16 @@ export function isTtsConfigured(voiceProfile = null) {
   return getAutoEngineOrder(voiceProfile).length > 0;
 }
 
+function stripInlineMetadataTokens(text) {
+  const source = String(text || "");
+  const metadataPattern = /\b(?:mosic|music|bpm|duration_secs|good_crop)\s*:\s*-?\d+(?:\.\d+)?/gi;
+  const first = metadataPattern.exec(source);
+  if (!first) {
+    return source.trim();
+  }
+  return source.slice(0, first.index).trim();
+}
+
 function resolveMood(personality = {}) {
   if (personality?.moodState && typeof personality.moodState === "object") {
     return personality.moodState;
@@ -786,6 +796,7 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
   });
   let directedText = String(speechPacket?.speech || text || "").trim();
   directedText = directedText.replace(/\[BURP\]\s*/g, () => { sfx.push("burp"); return ""; }).trim();
+  directedText = stripInlineMetadataTokens(directedText);
 
   const adjustedVoiceProfile = {
     ...applyMoodToVoice(voiceProfile, mood),
