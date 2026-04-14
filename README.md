@@ -183,6 +183,17 @@ What this demonstrates in minutes:
 - Voice and model dropdowns now include a manual `Reload` action so newly created provider voices/models can be pulled in immediately.
 - After a successful reload, Voice Lab briefly shows `Updated just now` next to the reload control for quick confirmation.
 - The ongoing speaking-stack implementation plan and checklist are tracked in `docs/TTS_EVOLUTION_CHECKLIST.md`.
+- SpeechDirector V1 now suppresses notable-phrase append specifically for Kokoro TTS so catchphrases do not add extra synthesized sentence chunks. Cartesia and other engines keep current behavior.
+- SpeechDirector V2 migration map (multi-channel packet architecture):
+  - [ ] Phase 0 (now): keep existing text-shaping/prosody path intact, suppress Kokoro-only phrase append in TTS path.
+  - [ ] Phase 1: introduce `buildSpeechPacket()` in `speechDirector.js` with fields: `speech`, `emotion`, `overlays`, `sfx`, `gestures`, `injectedPhrase`, `tts`.
+  - [ ] Phase 1: keep backward compatibility by deriving current `directedText` from `packet.speech`.
+  - [ ] Phase 2: move notable-phrase selection from string append to metadata (`packet.injectedPhrase`) and expose it via TTS telemetry/debug headers.
+  - [ ] Phase 2: keep Kokoro/Cartesia synthesis input bound to `packet.speech` only.
+  - [ ] Phase 3: add non-blocking overlay handling (`catchphrase` event type) in frontend as subtitle/SFX layer; do not add new TTS chunks.
+  - [ ] Phase 4: stream sentence-level packet queue (`sentence`, `emotion`, `overlay events`) and prefetch next sentence audio while current sentence is playing.
+  - [ ] Phase 4: add first-sentence-first playback mode to reduce perceived latency on local Kokoro.
+  - [ ] Phase 5: separate personality event renderer from TTS path (voice tags, whisper overlays, UI-only catchphrase bursts).
 - Runtime provider credentials are available in the `Settings` tab (`Voice Provider Credentials`) so you can save TTS provider keys from the browser without editing `.env`.
 - Voice routing now lives in `Settings`, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without overlapping controls.
 - Tune Big Five trait sliders, optional alignment overlay, and explicit expression style rules for personality-consistent output.

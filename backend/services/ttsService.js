@@ -772,12 +772,16 @@ function resolveMood(personality = {}) {
 export function prepareSpeechSynthesis({ personality, text, voiceProfile, speechHint }) {
   const mood = resolveMood(personality);
   const speechContext = classifySpeechContext({ text, speechHint, personality });
+  const resolvedEngine = resolveEngine(voiceProfile);
 
   // stylizeSpeech may prepend [BURP] markers for Rick-style personas.
   // We strip them here — before TTS sees the text — and return them as sfx
   // metadata so the performance controller can emit sfx events to the frontend.
   const sfx = [];
-  let directedText = stylizeSpeech(text, personality, mood, { styleMode: speechContext.styleMode }) || String(text || "").trim();
+  let directedText = stylizeSpeech(text, personality, mood, {
+    styleMode: speechContext.styleMode,
+    ttsEngine: resolvedEngine,
+  }) || String(text || "").trim();
   directedText = directedText.replace(/\[BURP\]\s*/g, () => { sfx.push("burp"); return ""; }).trim();
 
   const adjustedVoiceProfile = {

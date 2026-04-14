@@ -72,4 +72,28 @@ describe("speechDirector stylizeSpeech", () => {
 
     expect(result).toBe("Maybe set PORT=3101 and keep the JSON payload unchanged.");
   });
+
+  it("suppresses notable phrase append for kokoro tts mode", () => {
+    const personality = {
+      name: "Injector",
+      notablePhrases: ["you call that a plan?"],
+      moodState: { arousal: 0.2, dominance: 0.1 },
+      expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+    };
+
+    let injectedInput = null;
+    for (let index = 0; index < 200; index += 1) {
+      const candidate = `seed probe ${index}`;
+      const withCartesia = stylizeSpeech(candidate, personality, null, { ttsEngine: "cartesia" });
+      if (withCartesia.endsWith("you call that a plan?")) {
+        injectedInput = candidate;
+        break;
+      }
+    }
+
+    expect(injectedInput).not.toBeNull();
+
+    const withKokoro = stylizeSpeech(injectedInput, personality, null, { ttsEngine: "kokoro" });
+    expect(withKokoro).toBe(injectedInput);
+  });
 });

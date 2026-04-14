@@ -42,6 +42,19 @@ function shouldInject(seed, threshold) {
   return hashString(seed) <= threshold;
 }
 
+function shouldInjectNotablePhrase(options = {}) {
+  const channel = String(options?.channel || "").trim().toLowerCase();
+  const ttsEngine = String(options?.ttsEngine || "").trim().toLowerCase();
+
+  // V1 safety: avoid catchphrase append for Kokoro synthesis, which can add
+  // extra sentence chunks and increase already-slow local CPU latency.
+  if (channel === "tts" && ttsEngine === "kokoro") {
+    return false;
+  }
+
+  return true;
+}
+
 function normalizeMood(personality = {}, moodOverride = null) {
   if (moodOverride && typeof moodOverride === "object") {
     return moodOverride;
@@ -189,7 +202,12 @@ export function stylizeSpeech(rawText, personality = {}, moodOverride = null, op
     .map((item) => String(item || "").trim())
     .filter(Boolean);
 
-  if (!precisionMode && notablePhrases.length > 0) {
+  const shouldAppendNotablePhrase = shouldInjectNotablePhrase({
+    channel: "tts",
+    ttsEngine: options?.ttsEngine,
+  });
+
+  if (!precisionMode && shouldAppendNotablePhrase && notablePhrases.length > 0) {
     const injectSeed = `${personality.name || "anon"}:${input}`;
     if (shouldInject(injectSeed, 0.3)) {
       const index = Math.floor(hashString(`${injectSeed}:idx`) * notablePhrases.length);
