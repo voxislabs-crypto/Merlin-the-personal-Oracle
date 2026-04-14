@@ -400,6 +400,75 @@
 	background: radial-gradient(circle at 28% 28%, #fff, var(--fx-neon-magenta) 40%, #6b0047 82%);
 }
 
+/* Bridge layer: skin existing Voxis class names so the kit is visible
+   across tabs even before each component is migrated to FuturisticUIKit JSX. */
+.voxis-futuristic-root .panel {
+	background: linear-gradient(170deg, rgba(20, 28, 44, 0.7), rgba(8, 12, 22, 0.85)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.16) !important;
+	box-shadow: var(--fx-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+}
+
+.voxis-futuristic-root .tabs {
+	border: 1px solid rgba(0, 245, 255, 0.14) !important;
+	background: rgba(3, 8, 14, 0.62) !important;
+	border-radius: 14px !important;
+	padding: 6px !important;
+	gap: 8px !important;
+}
+
+.voxis-futuristic-root .tab {
+	border: 0 !important;
+	border-radius: 10px !important;
+	background: transparent !important;
+	color: var(--fx-muted) !important;
+	transition: color 220ms var(--fx-ease), transform 220ms var(--fx-ease), background 220ms var(--fx-ease) !important;
+}
+
+.voxis-futuristic-root .tab:hover {
+	color: var(--fx-electric-cyan) !important;
+	background: rgba(0, 245, 255, 0.08) !important;
+}
+
+.voxis-futuristic-root .tab.active {
+	color: var(--fx-electric-cyan) !important;
+	background: rgba(0, 245, 255, 0.12) !important;
+	text-shadow: 0 0 12px rgba(0, 245, 255, 0.5) !important;
+	transform: translateY(-1px) !important;
+	box-shadow: 0 0 14px rgba(0, 245, 255, 0.16) inset;
+}
+
+.voxis-futuristic-root .section-heading,
+.voxis-futuristic-root .settings-section h3,
+.voxis-futuristic-root .chat-header h3 {
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+	letter-spacing: 0.01em;
+	color: #dff8ff !important;
+}
+
+.voxis-futuristic-root input,
+.voxis-futuristic-root select,
+.voxis-futuristic-root textarea {
+	border-color: rgba(0, 245, 255, 0.22) !important;
+	background: rgba(1, 6, 12, 0.7) !important;
+	color: var(--fx-text) !important;
+}
+
+.voxis-futuristic-root input:focus,
+.voxis-futuristic-root select:focus,
+.voxis-futuristic-root textarea:focus {
+	outline: none;
+	border-color: rgba(0, 245, 255, 0.7) !important;
+	box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.2), 0 0 18px rgba(0, 245, 255, 0.22) !important;
+}
+
+.voxis-futuristic-root .status {
+	border: 1px solid rgba(0, 245, 255, 0.22) !important;
+	background: rgba(6, 14, 24, 0.74) !important;
+	box-shadow: 0 0 20px rgba(0, 245, 255, 0.12) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.futuristic-btn,
 	.futuristic-tab,

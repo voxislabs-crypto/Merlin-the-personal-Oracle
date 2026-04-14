@@ -167,6 +167,7 @@ What this demonstrates in minutes:
 - Settings now includes a runtime toggle (`Disable NeuronMap 3D`) that persists in localStorage so you can enable/disable Brain tab + in-chat NeuronMap without editing env vars.
 - With TTS debug lock enabled, explicit disallowed engines are auto-coerced to `auto` fallback routing instead of returning HTTP 400 from `/personality/:id/tts`.
 - Futuristic UI Kit styling is now mounted globally from `main.jsx` and the app root scope class (`voxis-futuristic-root`) is applied to body/root so kit tokens and utilities cascade across screens.
+- Futuristic UI Kit now includes a bridge styling layer for existing Voxis classes (`panel`, `tab`, form fields, status) so non-Brain tabs visibly inherit the kit before full component-by-component migration.
 - Voice Lab supports `auto`, `kokoro`, and `cartesia` while `TTS_DEBUG_PROVIDER_LOCK` is enabled (default). Set `TTS_DEBUG_PROVIDER_LOCK=false` to re-enable the full engine matrix (`cloud`, `piper`, `elevenlabs`, etc.).
 - When `cloud` (or `auto`) is selected, the `TTS Model` dropdown auto-populates from the active Runtime LLM provider models, with custom model fallback.
 - When `Piper` is selected in Voice Lab, Voxis scans local `.onnx` models and surfaces detected voices in a dropdown for quick selection.

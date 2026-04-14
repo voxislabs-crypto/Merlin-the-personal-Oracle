@@ -151,8 +151,8 @@ Included examples:
 
 ## Rollout Path
 
-1. Import `futuristic-ui-kit.css` in one screen (`BrainTab`) as a testbed.
-2. Swap existing tab pills + action buttons to `FuturisticTabs` and `FuturisticButton`.
-3. Move next to modal surfaces (`PersonalityForm`, `MemoryJournal`).
-4. Apply utility classes (`holo-border`, `data-stream`) to high-impact cards only.
+1. Import `futuristic-ui-kit.css` once in `main.jsx` for global scope.
+2. Apply root scope class `voxis-futuristic-root` to app root (`body`, `#root`, or app shell).
+3. Use the bridge layer in `futuristic-ui-kit.css` to skin existing Voxis classes (`panel`, `tab`, inputs) across all tabs.
+4. Swap existing tab pills + action buttons to `FuturisticTabs` and `FuturisticButton` as components are touched.
 5. Keep Neural Core rendering untouched; style only surrounding panels and controls.
