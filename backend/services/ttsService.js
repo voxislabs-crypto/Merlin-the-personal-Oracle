@@ -1782,8 +1782,9 @@ async function fetchCartesiaOptions() {
     "Content-Type": "application/json",
   };
 
+  const defaultModels = [{ id: "sonic-2", label: "sonic-2" }];
   let voices = [];
-  let models = [];
+  let models = [...defaultModels];
   let error = "";
 
   try {
@@ -1817,10 +1818,14 @@ async function fetchCartesiaOptions() {
 
     let payload = null;
     let lastModelFetchError = null;
+    let onlyNotFound = true;
 
     for (const endpoint of modelEndpoints) {
       const modelsResponse = await fetchWithTimeoutRetry(endpoint, { headers }, { retries: 1 });
       if (!modelsResponse.ok) {
+        if (modelsResponse.status !== 404) {
+          onlyNotFound = false;
+        }
         lastModelFetchError = new Error(`models request failed (${modelsResponse.status})`);
         continue;
       }
@@ -1830,8 +1835,12 @@ async function fetchCartesiaOptions() {
       break;
     }
 
-    if (!payload) {
+    if (!payload && !onlyNotFound) {
       throw lastModelFetchError || new Error("models request failed");
+    }
+
+    if (!payload && onlyNotFound) {
+      payload = defaultModels;
     }
 
     const list = Array.isArray(payload)
@@ -1840,13 +1849,15 @@ async function fetchCartesiaOptions() {
         ? payload.models
         : [];
 
-    models = list
+    const discoveredModels = list
       .map((model) => ({
         id: String(model?.id || model?.model_id || "").trim(),
         label: normalizeOptionName(model?.name, model?.id || model?.model_id),
       }))
       .filter((model) => model.id)
       .sort(sortByLabel);
+
+    models = discoveredModels.length ? discoveredModels : [...defaultModels];
   } catch (fetchError) {
     if (!error) {
       error = `Unable to fetch Cartesia models: ${fetchError.message || fetchError}`;

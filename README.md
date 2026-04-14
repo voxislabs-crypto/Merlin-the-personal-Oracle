@@ -496,7 +496,7 @@ ls -lh /tmp/voxis-piper-smoke.wav
 ```
 
 - With default debug lock enabled, `Voice Provider Credentials` lists only `cartesia`. Set `TTS_DEBUG_PROVIDER_LOCK=false` to restore `elevenlabs` in the credentials list.
-- Cartesia model discovery can vary by account/API version; Voxis now retries model discovery across Cartesia endpoint variants before surfacing an error.
+- Cartesia model discovery can vary by account/API version; Voxis retries endpoint variants and falls back to `sonic-2` when model-list endpoints return 404.
 
 Deploy updates later:
 
