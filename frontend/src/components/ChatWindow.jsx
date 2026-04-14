@@ -2031,6 +2031,17 @@ export default function ChatWindow({
               </div>
             ) : null}
 
+            {voiceTelemetry ? (
+              <div className="voice-telemetry">
+                TTS engine: {String(voiceTelemetry.requestedRaw || voiceTelemetry.requested || "auto")}
+                {voiceTelemetry.requestedCoerced ? ` -> ${String(voiceTelemetry.requested || "auto")}` : ""}
+                {` -> ${String(voiceTelemetry.chosenEngine || "unknown")}`}
+                {voiceTelemetry.fallbackUsed
+                  ? ` (fallback from ${String(voiceTelemetry.fallbackFrom || "primary")})`
+                  : ""}
+              </div>
+            ) : null}
+
             {audioUrl ? (
               <audio
                 id="voxis-audio-player"

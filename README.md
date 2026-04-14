@@ -163,6 +163,7 @@ What this demonstrates in minutes:
 - Quick voice controls (enable, autoplay, play-latest, stop, save) stay embedded in the Chat tab as compact cyberpunk toggle switches so you never have to leave the conversation.
 - Chat Quick Voice `Stop` now cancels pending in-flight TTS requests in addition to pausing playback, so delayed auto-play no longer resumes after a stop click.
 - Chat Quick Voice `Stop` now also shows an in-app status message confirming the stop/cancel action.
+- Chat Quick Voice now surfaces the live TTS engine path (`requested -> chosen`) and indicates coercion/fallback when recovery routing is used.
 - NeuronMap 3D rendering is temporarily disabled by default (`VITE_DISABLE_NEURONMAP_3D=true`) so form-first workflows stay active while 3D runtime issues are being debugged.
 - Settings now includes a runtime toggle (`Disable NeuronMap 3D`) that persists in localStorage so you can enable/disable Brain tab + in-chat NeuronMap without editing env vars.
 - With TTS debug lock enabled, explicit disallowed engines are auto-coerced to `auto` fallback routing instead of returning HTTP 400 from `/personality/:id/tts`.
