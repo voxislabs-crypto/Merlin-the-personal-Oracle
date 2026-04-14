@@ -504,6 +504,7 @@ ls -lh /tmp/voxis-piper-smoke.wav
 Kokoro troubleshooting on production (`502`/HTML error page):
 - If logs show `TTS debug lock is active. Engine 'piper' is disabled`, your backend is forcing `TTS_ENGINE=piper` while lock mode only allows `kokoro`/`cartesia`. Set `TTS_ENGINE=auto` (or `kokoro`) in `backend/.env` and restart PM2.
 - If PM2 logs show frequent memory restarts around `800MB`, raise backend memory ceiling (for example `PM2_MAX_MEMORY_RESTART=1536M`) and restart from ecosystem config.
+- In debug lock mode, auto-routing now prefers `kokoro` first and `cartesia` second. Cartesia synth/options calls are fast-fail to avoid long upstream timeouts before Kokoro fallback.
 
 Deploy updates later:
 

@@ -30,6 +30,7 @@ const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
 const DEFAULT_TTS_FORMAT = "mp3";
 const DEFAULT_FETCH_TIMEOUT_MS = 9000;
+const DEFAULT_CARTESIA_TIMEOUT_MS = 5000;
 const DEFAULT_PIPER_TIMEOUT_MS = 90_000;
 const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
@@ -713,13 +714,13 @@ function getRequestedEngine(voiceProfile) {
 export function getAutoEngineOrder(voiceProfile) {
   const allowed = new Set(getAllowedTtsEngines());
   if (TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
-    const lockedOrder = ["cartesia", "kokoro"];
+    const lockedOrder = ["kokoro", "cartesia"];
     return lockedOrder.filter((engine) => {
       if (!allowed.has(engine)) {
         return false;
       }
-      if (engine === "cartesia") return isCartesiaConfigured();
-      return isKokoroAvailable();
+      if (engine === "kokoro") return isKokoroAvailable();
+      return isCartesiaConfigured();
     });
   }
 
@@ -1397,7 +1398,7 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
       voice: { mode: "id", id: voiceId },
       output_format: { container: "mp3", bit_rate: 128000, sample_rate: 44100 },
     }),
-  }, { retries: 1 });
+  }, { retries: 0, timeoutMs: DEFAULT_CARTESIA_TIMEOUT_MS });
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
@@ -1789,7 +1790,11 @@ async function fetchCartesiaOptions() {
   let error = "";
 
   try {
-    const voicesResponse = await fetchWithTimeoutRetry("https://api.cartesia.ai/voices", { headers }, { retries: 1 });
+    const voicesResponse = await fetchWithTimeoutRetry(
+      "https://api.cartesia.ai/voices",
+      { headers },
+      { retries: 0, timeoutMs: DEFAULT_CARTESIA_TIMEOUT_MS },
+    );
     if (!voicesResponse.ok) {
       throw new Error(`voices request failed (${voicesResponse.status})`);
     }
@@ -1822,7 +1827,11 @@ async function fetchCartesiaOptions() {
     let onlyNotFound = true;
 
     for (const endpoint of modelEndpoints) {
-      const modelsResponse = await fetchWithTimeoutRetry(endpoint, { headers }, { retries: 1 });
+      const modelsResponse = await fetchWithTimeoutRetry(
+        endpoint,
+        { headers },
+        { retries: 0, timeoutMs: DEFAULT_CARTESIA_TIMEOUT_MS },
+      );
       if (!modelsResponse.ok) {
         if (modelsResponse.status !== 404) {
           onlyNotFound = false;
