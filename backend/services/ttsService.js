@@ -1594,6 +1594,17 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
         expressiveStyle: Array.isArray(speechPacket?.expressive?.style)
           ? speechPacket.expressive.style
           : [],
+        personalityEvents: Array.isArray(speechPacket?.events)
+          ? speechPacket.events.map((event) => ({
+              type: String(event?.type || ""),
+              text: String(event?.text || "").trim(),
+              tag: String(event?.tag || "").trim(),
+              delivery: String(event?.delivery || "overlay"),
+              spoken: Boolean(event?.spoken),
+              intensity: Number(event?.intensity || 0),
+              emotion: String(event?.emotion || "").trim(),
+            }))
+          : [],
         chunked: Boolean(audio.chunked),
         chunkCount: Number(audio.chunkCount || 0),
         pauseMsTotal: Number(audio.pauseMsTotal || 0),
@@ -1637,6 +1648,17 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
             expressiveText: String(speechPacket?.expressive?.text || "").trim(),
             expressiveStyle: Array.isArray(speechPacket?.expressive?.style)
               ? speechPacket.expressive.style
+              : [],
+            personalityEvents: Array.isArray(speechPacket?.events)
+              ? speechPacket.events.map((event) => ({
+                  type: String(event?.type || ""),
+                  text: String(event?.text || "").trim(),
+                  tag: String(event?.tag || "").trim(),
+                  delivery: String(event?.delivery || "overlay"),
+                  spoken: Boolean(event?.spoken),
+                  intensity: Number(event?.intensity || 0),
+                  emotion: String(event?.emotion || "").trim(),
+                }))
               : [],
             chunked: Boolean(audio.chunked),
             chunkCount: Number(audio.chunkCount || 0),

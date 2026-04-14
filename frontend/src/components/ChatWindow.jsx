@@ -461,42 +461,64 @@ const chatStyles = `
     line-height: 1.45;
   }
 
-  @keyframes catchphrase-fadein {
+  @keyframes personality-event-fadein {
     from { opacity: 0; transform: translateY(6px) scale(0.96); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  .catchphrase-chip {
+  .personality-events {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .personality-event-chip {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    margin-bottom: 12px;
-    padding: 5px 12px 5px 9px;
+    padding: 5px 10px 5px 9px;
     border-radius: 20px;
-    border: 1px solid rgba(255, 200, 80, 0.36);
+    border: 1px solid rgba(255, 200, 80, 0.3);
     background: rgba(255, 175, 40, 0.08);
-    color: rgba(255, 215, 100, 0.92);
+    color: rgba(255, 215, 100, 0.9);
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    animation: catchphrase-fadein 220ms ease forwards;
+    animation: personality-event-fadein 220ms ease forwards;
     box-shadow: 0 0 10px rgba(255, 200, 60, 0.10);
     max-width: 100%;
   }
 
-  .catchphrase-chip-label {
+  .personality-event-chip.catchphrase {
+    border-color: rgba(255, 200, 80, 0.34);
+    background: rgba(255, 175, 40, 0.1);
+  }
+
+  .personality-event-chip.voice-tag {
+    border-color: rgba(90, 210, 255, 0.34);
+    background: rgba(50, 180, 255, 0.1);
+    color: rgba(170, 235, 255, 0.92);
+  }
+
+  .personality-event-label {
     font-size: 0.58rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: rgba(255, 200, 60, 0.65);
+    color: rgba(255, 220, 150, 0.66);
     white-space: nowrap;
   }
 
-  .catchphrase-chip-text {
+  .personality-event-chip.voice-tag .personality-event-label {
+    color: rgba(150, 225, 255, 0.72);
+  }
+
+  .personality-event-text {
     font-style: italic;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 220px;
   }
 
   .expressive-speech {
@@ -1376,7 +1398,7 @@ export default function ChatWindow({
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [speechEnergy, setSpeechEnergy] = useState(0);
   const [voiceTelemetry, setVoiceTelemetry] = useState(null);
-  const [catchphraseChipVisible, setCatchphraseChipVisible] = useState(false);
+  const [activePersonalityEvents, setActivePersonalityEvents] = useState([]);
   const [debugMode, setDebugMode] = useState(false);
   const [performanceText, setPerformanceText] = useState(null); // EPF text to perform
   const [emotionDrift, setEmotionDrift] = useState([]);
@@ -1389,7 +1411,7 @@ export default function ChatWindow({
   const ttsRequestAbortRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
   const zoneShiftTimerRef = useRef(null);
-  const catchphraseTimerRef = useRef(null);
+  const personalityEventsTimerRef = useRef(null);
   const streamAutoplaySessionRef = useRef(null);
   const streamSentenceCursorRef = useRef(0);
   const streamQueuedSentenceKeysRef = useRef(new Set());
@@ -1603,11 +1625,11 @@ export default function ChatWindow({
 
   useEffect(() => {
     setVoiceTelemetry(null);
-    setCatchphraseChipVisible(false);
+    setActivePersonalityEvents([]);
     streamAutoplaySessionRef.current = null;
     clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
-    if (catchphraseTimerRef.current) {
-      window.clearTimeout(catchphraseTimerRef.current);
+    if (personalityEventsTimerRef.current) {
+      window.clearTimeout(personalityEventsTimerRef.current);
     }
     setEmotionDrift([]);
     prevZoneKeyRef.current = "";
@@ -1644,18 +1666,37 @@ export default function ChatWindow({
     }
   }, [emotionSpectrum?.zone?.key]);
 
-  // Show catchphrase chip when a new injected phrase arrives, auto-dismiss after 7s
+  // Show structured personality events from telemetry and auto-dismiss after 7s.
   useEffect(() => {
-    const phrase = voiceTelemetry?.injectedPhrase;
-    if (!phrase) return;
-    setCatchphraseChipVisible(true);
-    if (catchphraseTimerRef.current) {
-      window.clearTimeout(catchphraseTimerRef.current);
+    const events = Array.isArray(voiceTelemetry?.personalityEvents)
+      ? voiceTelemetry.personalityEvents
+      : [];
+
+    const normalizedEvents = events
+      .map((event, index) => ({
+        id: `${String(event?.type || "event")}:${String(event?.tag || event?.text || "")}:${index}`,
+        type: String(event?.type || "event"),
+        delivery: String(event?.delivery || "overlay"),
+        tag: String(event?.tag || "").trim(),
+        text: String(event?.text || "").trim(),
+        spoken: Boolean(event?.spoken),
+      }))
+      .filter((event) => event.tag || event.text);
+
+    if (normalizedEvents.length === 0) {
+      setActivePersonalityEvents([]);
+      return;
     }
-    catchphraseTimerRef.current = window.setTimeout(() => {
-      setCatchphraseChipVisible(false);
+
+    setActivePersonalityEvents(normalizedEvents);
+
+    if (personalityEventsTimerRef.current) {
+      window.clearTimeout(personalityEventsTimerRef.current);
+    }
+    personalityEventsTimerRef.current = window.setTimeout(() => {
+      setActivePersonalityEvents([]);
     }, 7000);
-  }, [voiceTelemetry?.injectedPhrase]);
+  }, [voiceTelemetry?.personalityEvents]);
 
   useEffect(() => {
     return () => {
@@ -1672,8 +1713,8 @@ export default function ChatWindow({
         window.clearTimeout(zoneShiftTimerRef.current);
       }
 
-      if (catchphraseTimerRef.current) {
-        window.clearTimeout(catchphraseTimerRef.current);
+      if (personalityEventsTimerRef.current) {
+        window.clearTimeout(personalityEventsTimerRef.current);
       }
 
       clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
@@ -2515,10 +2556,24 @@ export default function ChatWindow({
               </div>
             ) : null}
 
-            {catchphraseChipVisible && voiceTelemetry?.injectedPhrase ? (
-              <div className="catchphrase-chip" role="status" aria-live="polite">
-                <span className="catchphrase-chip-label">✦ personality</span>
-                <span className="catchphrase-chip-text">&ldquo;{String(voiceTelemetry.injectedPhrase)}&rdquo;</span>
+            {activePersonalityEvents.length > 0 ? (
+              <div className="personality-events" role="status" aria-live="polite">
+                {activePersonalityEvents.map((event) => {
+                  const eventTypeClass = event.type === "voice-tag" ? "voice-tag" : "catchphrase";
+                  const label = event.type === "voice-tag"
+                    ? "voice tag"
+                    : event.spoken
+                      ? "spoken phrase"
+                      : "overlay phrase";
+                  const text = event.text || event.tag;
+
+                  return (
+                    <div key={event.id} className={`personality-event-chip ${eventTypeClass}`}>
+                      <span className="personality-event-label">{label}</span>
+                      <span className="personality-event-text">&ldquo;{text}&rdquo;</span>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
 

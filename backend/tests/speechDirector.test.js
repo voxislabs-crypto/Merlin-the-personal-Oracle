@@ -160,6 +160,71 @@ describe("speechDirector buildSpeechPacket", () => {
     expect(packetWithInjection).not.toBeNull();
     expect(packetWithInjection.packet.injectedPhrase).toBe("you call that a plan?");
     expect(packetWithInjection.packet.speech).toBe(packetWithInjection.candidate);
+    expect(packetWithInjection.packet.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "catchphrase",
+          text: "you call that a plan?",
+          delivery: "overlay",
+          spoken: false,
+        }),
+      ]),
+    );
+  });
+
+  it("exposes spoken catchphrase event when appendInjectedPhrase=true", () => {
+    const personality = {
+      name: "Injector",
+      notablePhrases: ["you call that a plan?"],
+      moodState: { arousal: 0.2, dominance: 0.1 },
+      expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+    };
+
+    let packetWithInjection = null;
+    for (let index = 0; index < 200; index += 1) {
+      const candidate = `seed probe ${index}`;
+      const packet = buildSpeechPacket(candidate, personality, null, {
+        channel: "tts",
+        ttsEngine: "cartesia",
+        appendInjectedPhrase: true,
+      });
+
+      if (packet.injectedPhrase) {
+        packetWithInjection = { candidate, packet };
+        break;
+      }
+    }
+
+    expect(packetWithInjection).not.toBeNull();
+    expect(packetWithInjection.packet.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "catchphrase",
+          text: "you call that a plan?",
+          delivery: "spoken",
+          spoken: true,
+        }),
+      ]),
+    );
+  });
+
+  it("emits voice-tag event for sarcastic personalities", () => {
+    const packet = buildSpeechPacket("Yeah, that checks out.", {
+      traits: ["sarcastic"],
+      behaviorRules: ["dry wit"],
+      moodState: { arousal: 0.2, dominance: 0.4 },
+      expressionStyle: { energy: "medium", sentenceStyle: "sharp", rules: [] },
+    });
+
+    expect(packet.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "voice-tag",
+          tag: "dry-wit",
+          delivery: "overlay",
+        }),
+      ]),
+    );
   });
 
   it("includes expressive field with style array and intensity", () => {

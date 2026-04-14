@@ -226,6 +226,72 @@ function calculateExpressiveIntensity(mood, signals) {
   return Math.max(0, Math.min(1, base));
 }
 
+function buildVoiceTagEvent(signals = {}, emotion = "neutral") {
+  if (signals.sarcastic) {
+    return {
+      type: "voice-tag",
+      tag: "dry-wit",
+      delivery: "overlay",
+      intensity: 0.58,
+      emotion,
+    };
+  }
+
+  if (signals.chaotic) {
+    return {
+      type: "voice-tag",
+      tag: "chaotic-burst",
+      delivery: "overlay",
+      intensity: 0.66,
+      emotion,
+    };
+  }
+
+  if (signals.dramatic) {
+    return {
+      type: "voice-tag",
+      tag: "dramatic-rise",
+      delivery: "overlay",
+      intensity: 0.62,
+      emotion,
+    };
+  }
+
+  if (signals.calm) {
+    return {
+      type: "voice-tag",
+      tag: "calm-focus",
+      delivery: "overlay",
+      intensity: 0.4,
+      emotion,
+    };
+  }
+
+  return null;
+}
+
+function buildPersonalityEvents({ injectedPhrase, appendInjectedPhrase, channel, emotion, signals }) {
+  const events = [];
+
+  if (injectedPhrase) {
+    events.push({
+      type: "catchphrase",
+      text: injectedPhrase,
+      delivery: appendInjectedPhrase ? "spoken" : "overlay",
+      spoken: Boolean(appendInjectedPhrase),
+      channel: String(channel || "tts"),
+      intensity: 0.62,
+    });
+  }
+
+  const voiceTagEvent = buildVoiceTagEvent(signals, emotion);
+  if (voiceTagEvent) {
+    events.push(voiceTagEvent);
+  }
+
+  return events;
+}
+
 export function buildSpeechPacket(rawText, personality = {}, moodOverride = null, options = {}) {
   const input = String(rawText || "").replace(/\s+/g, " ").trim();
   if (!input) {
@@ -233,6 +299,7 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
       speech: "",
       emotion: "neutral",
       expressive: { text: null, style: ["neutral"], intensity: 0 },
+      events: [],
       overlays: [],
       sfx: [],
       gestures: [],
@@ -352,10 +419,19 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
         intensity: calculateExpressiveIntensity(mood, signals),
       };
 
+  const events = buildPersonalityEvents({
+    injectedPhrase,
+    appendInjectedPhrase,
+    channel,
+    emotion,
+    signals,
+  });
+
   return {
     speech: output,
     emotion,
     expressive,
+    events,
     overlays: [],
     sfx: [],
     gestures: [],
