@@ -191,7 +191,7 @@ What this demonstrates in minutes:
   - [x] Phase 1: keep backward compatibility by deriving current `directedText` from `packet.speech`.
   - [x] Phase 2: move notable-phrase selection from string append to metadata (`packet.injectedPhrase`) and expose it via TTS telemetry/debug headers.
   - [x] Phase 2: keep Kokoro/Cartesia synthesis input bound to `packet.speech` only.
-  - [ ] Phase 3: add non-blocking overlay handling (`catchphrase` event type) in frontend as subtitle/SFX layer; do not add new TTS chunks.
+  - [x] Phase 3: add non-blocking overlay handling (`catchphrase` event type) in frontend as subtitle/SFX layer; do not add new TTS chunks.
   - [ ] Phase 4: stream sentence-level packet queue (`sentence`, `emotion`, `overlay events`) and prefetch next sentence audio while current sentence is playing.
   - [ ] Phase 4: add first-sentence-first playback mode to reduce perceived latency on local Kokoro.
   - [ ] Phase 5: separate personality event renderer from TTS path (voice tags, whisper overlays, UI-only catchphrase bursts).

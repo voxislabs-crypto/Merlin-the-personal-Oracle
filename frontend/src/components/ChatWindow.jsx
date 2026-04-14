@@ -461,6 +461,44 @@ const chatStyles = `
     line-height: 1.45;
   }
 
+  @keyframes catchphrase-fadein {
+    from { opacity: 0; transform: translateY(6px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .catchphrase-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 12px;
+    padding: 5px 12px 5px 9px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 200, 80, 0.36);
+    background: rgba(255, 175, 40, 0.08);
+    color: rgba(255, 215, 100, 0.92);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    animation: catchphrase-fadein 220ms ease forwards;
+    box-shadow: 0 0 10px rgba(255, 200, 60, 0.10);
+    max-width: 100%;
+  }
+
+  .catchphrase-chip-label {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255, 200, 60, 0.65);
+    white-space: nowrap;
+  }
+
+  .catchphrase-chip-text {
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .voice-btn {
     padding: 9px 15px;
     border: none;
@@ -1209,6 +1247,7 @@ export default function ChatWindow({
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [speechEnergy, setSpeechEnergy] = useState(0);
   const [voiceTelemetry, setVoiceTelemetry] = useState(null);
+  const [catchphraseChipVisible, setCatchphraseChipVisible] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   const [performanceText, setPerformanceText] = useState(null); // EPF text to perform
   const [emotionDrift, setEmotionDrift] = useState([]);
@@ -1221,6 +1260,7 @@ export default function ChatWindow({
   const ttsRequestAbortRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
   const zoneShiftTimerRef = useRef(null);
+  const catchphraseTimerRef = useRef(null);
   const prevZoneKeyRef = useRef("");
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -1426,6 +1466,10 @@ export default function ChatWindow({
 
   useEffect(() => {
     setVoiceTelemetry(null);
+    setCatchphraseChipVisible(false);
+    if (catchphraseTimerRef.current) {
+      window.clearTimeout(catchphraseTimerRef.current);
+    }
     setEmotionDrift([]);
     prevZoneKeyRef.current = "";
   }, [personality?.id]);
@@ -1461,6 +1505,19 @@ export default function ChatWindow({
     }
   }, [emotionSpectrum?.zone?.key]);
 
+  // Show catchphrase chip when a new injected phrase arrives, auto-dismiss after 7s
+  useEffect(() => {
+    const phrase = voiceTelemetry?.injectedPhrase;
+    if (!phrase) return;
+    setCatchphraseChipVisible(true);
+    if (catchphraseTimerRef.current) {
+      window.clearTimeout(catchphraseTimerRef.current);
+    }
+    catchphraseTimerRef.current = window.setTimeout(() => {
+      setCatchphraseChipVisible(false);
+    }, 7000);
+  }, [voiceTelemetry?.injectedPhrase]);
+
   useEffect(() => {
     return () => {
       if (speechEnergyTimerRef.current) {
@@ -1474,6 +1531,10 @@ export default function ChatWindow({
 
       if (zoneShiftTimerRef.current) {
         window.clearTimeout(zoneShiftTimerRef.current);
+      }
+
+      if (catchphraseTimerRef.current) {
+        window.clearTimeout(catchphraseTimerRef.current);
       }
     };
   }, [audioUrl]);
@@ -2040,9 +2101,13 @@ export default function ChatWindow({
                 {voiceTelemetry.fallbackUsed
                   ? ` (fallback from ${String(voiceTelemetry.fallbackFrom || "primary")})`
                   : ""}
-                {voiceTelemetry.injectedPhrase
-                  ? ` | Personality tag (not spoken): "${String(voiceTelemetry.injectedPhrase)}"`
-                  : ""}
+              </div>
+            ) : null}
+
+            {catchphraseChipVisible && voiceTelemetry?.injectedPhrase ? (
+              <div className="catchphrase-chip" role="status" aria-live="polite">
+                <span className="catchphrase-chip-label">✦ personality</span>
+                <span className="catchphrase-chip-text">&ldquo;{String(voiceTelemetry.injectedPhrase)}&rdquo;</span>
               </div>
             ) : null}
 
