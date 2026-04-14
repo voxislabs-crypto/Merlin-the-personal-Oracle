@@ -1590,6 +1590,10 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
         speechEmotion: String(speechPacket?.emotion || ""),
         injectedPhrase: String(speechPacket?.injectedPhrase || "").trim(),
         injectedPhraseAppliedToSpeech: false,
+        expressiveText: String(speechPacket?.expressive?.text || "").trim(),
+        expressiveStyle: Array.isArray(speechPacket?.expressive?.style)
+          ? speechPacket.expressive.style
+          : [],
         chunked: Boolean(audio.chunked),
         chunkCount: Number(audio.chunkCount || 0),
         pauseMsTotal: Number(audio.pauseMsTotal || 0),
@@ -1630,6 +1634,10 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
             speechEmotion: String(speechPacket?.emotion || ""),
             injectedPhrase: String(speechPacket?.injectedPhrase || "").trim(),
             injectedPhraseAppliedToSpeech: false,
+            expressiveText: String(speechPacket?.expressive?.text || "").trim(),
+            expressiveStyle: Array.isArray(speechPacket?.expressive?.style)
+              ? speechPacket.expressive.style
+              : [],
             chunked: Boolean(audio.chunked),
             chunkCount: Number(audio.chunkCount || 0),
             pauseMsTotal: Number(audio.pauseMsTotal || 0),

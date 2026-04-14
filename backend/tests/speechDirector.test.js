@@ -161,4 +161,53 @@ describe("speechDirector buildSpeechPacket", () => {
     expect(packetWithInjection.packet.injectedPhrase).toBe("you call that a plan?");
     expect(packetWithInjection.packet.speech).toBe(packetWithInjection.candidate);
   });
+
+  it("includes expressive field with style array and intensity", () => {
+    const packet = buildSpeechPacket("We should review the deployment plan.", {
+      traits: ["analytical"],
+      moodState: { arousal: 0, dominance: 0 },
+      expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+    });
+
+    expect(packet.expressive).toMatchObject({
+      style: expect.any(Array),
+      intensity: expect.any(Number),
+    });
+    expect(packet.expressive.intensity).toBeGreaterThanOrEqual(0);
+    expect(packet.expressive.intensity).toBeLessThanOrEqual(1);
+  });
+
+  it("produces modified expressive text for chaotic high-arousal profiles", () => {
+    const packet = buildSpeechPacket("Right... we move now... no delays!", {
+      traits: ["chaotic"],
+      moodState: { arousal: 0.8, dominance: 0.1 },
+      expressionStyle: { energy: "very_high", sentenceStyle: "bursty", rules: [] },
+    });
+
+    // Chaotic signals replace ... pauses with em-dashes in expressive text
+    expect(packet.expressive.text).toMatch(/—/);
+    // speech must remain unaffected by expressive transforms
+    expect(packet.speech).not.toMatch(/—/);
+  });
+
+  it("returns null expressive text in precision mode", () => {
+    const packet = buildSpeechPacket("Right, we move now.", {
+      traits: ["chaotic"],
+      moodState: { arousal: 0.8 },
+      expressionStyle: { energy: "very_high" },
+    }, null, { styleMode: "precision" });
+
+    expect(packet.expressive.text).toBeNull();
+  });
+
+  it("returns null expressive text when no transformation applies", () => {
+    const packet = buildSpeechPacket("We should review the deployment plan.", {
+      traits: ["analytical"],
+      moodState: { arousal: 0, dominance: 0 },
+      expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+    });
+
+    // Neutral profile with no transforms — expressive text stays null
+    expect(packet.expressive.text).toBeNull();
+  });
 });

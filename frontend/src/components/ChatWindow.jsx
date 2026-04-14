@@ -499,6 +499,30 @@ const chatStyles = `
     white-space: nowrap;
   }
 
+  .expressive-speech {
+    margin-top: 2px;
+    margin-bottom: 10px;
+    padding: 6px 11px;
+    border-left: 2px solid rgba(180, 130, 255, 0.45);
+    background: rgba(150, 90, 255, 0.06);
+    border-radius: 0 7px 7px 0;
+    font-size: 0.78rem;
+    font-style: italic;
+    color: rgba(210, 180, 255, 0.88);
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+  }
+
+  .expressive-speech-label {
+    display: block;
+    font-size: 0.56rem;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(180, 130, 255, 0.55);
+    margin-bottom: 3px;
+  }
+
   .voice-btn {
     padding: 9px 15px;
     border: none;
@@ -2101,6 +2125,13 @@ export default function ChatWindow({
                 {voiceTelemetry.fallbackUsed
                   ? ` (fallback from ${String(voiceTelemetry.fallbackFrom || "primary")})`
                   : ""}
+              </div>
+            ) : null}
+
+            {voiceTelemetry?.expressiveText ? (
+              <div className="expressive-speech">
+                <span className="expressive-speech-label">voice rendering</span>
+                {String(voiceTelemetry.expressiveText)}
               </div>
             ) : null}
 

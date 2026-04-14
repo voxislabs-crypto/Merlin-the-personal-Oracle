@@ -159,12 +159,80 @@ function stripSpeechMarkup(text) {
     .replace(/^#{1,6}\s+/gm, "");
 }
 
+/**
+ * Builds the expressive display variant of speech.
+ * Applied on top of the already-stylized `speech` string.
+ * Returns `null` when no visual transformation is produced (avoids displaying duplicates).
+ */
+function buildExpressiveText(speech, emotion, signals, mood) {
+  if (!speech) return null;
+
+  let out = speech;
+  const arousal = Number(mood?.arousal);
+
+  // High arousal / excited: amplify terminal punctuation
+  if (emotion === "excited" || (Number.isFinite(arousal) && arousal >= 0.65)) {
+    out = out.replace(/!$/, "!!");
+    // Upgrade a plain sentence-final period to ! for very high arousal
+    if (Number.isFinite(arousal) && arousal >= 0.75) {
+      out = out.replace(/([a-z])\.$/i, "$1!");
+    }
+  }
+
+  // Chaotic: replace ellipsis pauses with em-dashes for visual punch
+  if (signals.chaotic) {
+    out = out.replace(/\.\.\. /g, " — ");
+  }
+
+  // Dramatic: trailing period becomes an em-dash
+  if (signals.dramatic && out.endsWith(".")) {
+    out = `${out.slice(0, -1)}—`;
+  }
+
+  // Sarcastic: append trailing ellipsis when there isn't one, suggesting dry trailing thought
+  if (signals.sarcastic && !out.endsWith("...") && !out.endsWith("—")) {
+    out = `${out}...`;
+  }
+
+  // Calm: soften any terminal ! to ...
+  if (signals.calm && out.endsWith("!") && !out.endsWith("!!")) {
+    out = `${out.slice(0, -1)}...`;
+  }
+
+  // Return null when unchanged — no point sending an identical string
+  return out !== speech ? out : null;
+}
+
+function inferExpressiveStyle(emotion, signals) {
+  const styles = [];
+  if (signals.chaotic) styles.push("chaotic");
+  if (signals.dramatic) styles.push("dramatic");
+  if (signals.sarcastic) styles.push("dry");
+  if (signals.calm) styles.push("measured");
+  if (signals.assertive) styles.push("sharp");
+  if (emotion === "excited") styles.push("excited");
+  if (emotion === "playful") styles.push("playful");
+  return styles.length ? styles : ["neutral"];
+}
+
+function calculateExpressiveIntensity(mood, signals) {
+  let base = 0.3;
+  const arousal = Number(mood?.arousal);
+  const dominance = Number(mood?.dominance);
+  if (Number.isFinite(arousal)) base += Math.abs(arousal) * 0.4;
+  if (Number.isFinite(dominance) && dominance > 0) base += dominance * 0.15;
+  if (signals.dramatic) base += 0.1;
+  if (signals.chaotic) base += 0.1;
+  return Math.max(0, Math.min(1, base));
+}
+
 export function buildSpeechPacket(rawText, personality = {}, moodOverride = null, options = {}) {
   const input = String(rawText || "").replace(/\s+/g, " ").trim();
   if (!input) {
     return {
       speech: "",
       emotion: "neutral",
+      expressive: { text: null, style: ["neutral"], intensity: 0 },
       overlays: [],
       sfx: [],
       gestures: [],
@@ -274,9 +342,20 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
     .replace(/!{2,}/g, "!")
     .trim();
 
+  const emotion = detectEmotionLabel({ mood, signals });
+
+  const expressive = precisionMode
+    ? { text: null, style: ["neutral"], intensity: 0 }
+    : {
+        text: buildExpressiveText(output, emotion, signals, mood),
+        style: inferExpressiveStyle(emotion, signals),
+        intensity: calculateExpressiveIntensity(mood, signals),
+      };
+
   return {
     speech: output,
-    emotion: detectEmotionLabel({ mood, signals }),
+    emotion,
+    expressive,
     overlays: [],
     sfx: [],
     gestures: [],
