@@ -1419,13 +1419,10 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
     throw error;
   }
 
-  const requested = getRequestedEngine(voiceProfile);
-  if (requested !== "auto" && !isAllowedTtsEngine(requested)) {
-    const allowed = getAllowedTtsEngines().join(", ");
-    const error = new Error(`TTS debug lock is active. Engine '${requested}' is disabled. Allowed engines: ${allowed}.`);
-    error.statusCode = 400;
-    throw error;
-  }
+  const requestedRaw = getRequestedEngine(voiceProfile);
+  const requested = requestedRaw !== "auto" && !isAllowedTtsEngine(requestedRaw)
+    ? "auto"
+    : requestedRaw;
 
   const engine = resolveEngine(voiceProfile);
   const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, sfx } = prepareSpeechSynthesis({
@@ -1520,6 +1517,8 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
       speechContext,
       telemetry: {
         requested,
+        requestedRaw,
+        requestedCoerced: requested !== requestedRaw,
         chosenEngine: audio.engine || engine,
         attemptedEngines,
         fallbackUsed: false,
@@ -1553,6 +1552,8 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
           speechContext,
           telemetry: {
             requested,
+            requestedRaw,
+            requestedCoerced: requested !== requestedRaw,
             chosenEngine: audio.engine || fallbackEngine,
             attemptedEngines,
             fallbackUsed: true,
