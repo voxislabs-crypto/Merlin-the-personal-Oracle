@@ -195,6 +195,7 @@ What this demonstrates in minutes:
   - [x] Phase 3.5: add `expressive` channel to `buildSpeechPacket` (`text`, `style[]`, `intensity`) — personality-driven visual variant of speech for UI display; TTS always uses `packet.speech` only.
   - [x] Phase 4: stream sentence-level packet queue (`sentence`, `emotion`, `overlay events`) and prefetch next sentence audio while current sentence is playing.
   - [x] Phase 4: add first-sentence-first playback mode to reduce perceived latency on local Kokoro.
+  - [x] Phase 4 hardening: abbreviation-aware sentence splitting, long-sentence chunk limits, capped prefetched-audio buffer, and per-segment request timing telemetry.
   - [ ] Phase 5: separate personality event renderer from TTS path (voice tags, whisper overlays, UI-only catchphrase bursts).
 - Runtime provider credentials are available in the `Settings` tab (`Voice Provider Credentials`) so you can save TTS provider keys from the browser without editing `.env`.
 - Voice routing now lives in `Settings`, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without overlapping controls.

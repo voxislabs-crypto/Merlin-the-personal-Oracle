@@ -1229,10 +1229,43 @@ function getAssistantSpeechContent(message) {
   return String(message?.displayContent || "") || extractEPFDialogue(rawContent) || rawContent;
 }
 
+const MAX_STREAM_READY_AUDIO = 3;
+const MAX_STREAM_SENTENCE_CHARS = 260;
+const DOT_PLACEHOLDER = "__VOXIS_DOT__";
+const COMMON_ABBREVIATIONS = [
+  "Mr.",
+  "Mrs.",
+  "Ms.",
+  "Dr.",
+  "Prof.",
+  "Sr.",
+  "Jr.",
+  "St.",
+  "vs.",
+  "etc.",
+  "i.e.",
+  "e.g.",
+  "U.S.",
+  "U.K.",
+  "No.",
+];
+
+function escapeRegex(text) {
+  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function splitCompleteSentences(text) {
   const source = String(text || "");
   if (!source.trim()) {
     return { sentences: [], remainder: "" };
+  }
+
+  let protectedSource = source;
+  for (const abbr of COMMON_ABBREVIATIONS) {
+    protectedSource = protectedSource.replace(
+      new RegExp(escapeRegex(abbr), "g"),
+      abbr.replace(/\./g, DOT_PLACEHOLDER),
+    );
   }
 
   const sentences = [];
@@ -1240,8 +1273,10 @@ function splitCompleteSentences(text) {
   let match = null;
   let consumedEnd = 0;
 
-  while ((match = matcher.exec(source)) !== null) {
-    const sentence = String(match[0] || "").trim();
+  while ((match = matcher.exec(protectedSource)) !== null) {
+    const sentence = String(match[0] || "")
+      .replace(new RegExp(DOT_PLACEHOLDER, "g"), ".")
+      .trim();
     if (sentence) {
       sentences.push(sentence);
     }
@@ -1250,7 +1285,10 @@ function splitCompleteSentences(text) {
 
   return {
     sentences,
-    remainder: source.slice(consumedEnd).trim(),
+    remainder: protectedSource
+      .slice(consumedEnd)
+      .replace(new RegExp(DOT_PLACEHOLDER, "g"), ".")
+      .trim(),
   };
 }
 
@@ -1258,6 +1296,42 @@ function normalizeSpeechChunk(text) {
   return String(text || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function splitLongSpeechChunk(text, maxChars = MAX_STREAM_SENTENCE_CHARS) {
+  const normalized = normalizeSpeechChunk(text);
+  if (!normalized) {
+    return [];
+  }
+
+  if (normalized.length <= maxChars) {
+    return [normalized];
+  }
+
+  const chunks = [];
+  let remaining = normalized;
+
+  while (remaining.length > maxChars) {
+    let splitAt = remaining.lastIndexOf(",", maxChars);
+    if (splitAt < Math.floor(maxChars * 0.4)) {
+      splitAt = remaining.lastIndexOf(" ", maxChars);
+    }
+    if (splitAt <= 0) {
+      splitAt = maxChars;
+    }
+
+    const part = remaining.slice(0, splitAt).trim();
+    if (part) {
+      chunks.push(part);
+    }
+    remaining = remaining.slice(splitAt).trim();
+  }
+
+  if (remaining) {
+    chunks.push(remaining);
+  }
+
+  return chunks;
 }
 
 export default function ChatWindow({
@@ -1659,19 +1733,26 @@ export default function ChatWindow({
       }
 
       for (let index = streamSentenceCursorRef.current; index < sentences.length; index += 1) {
-        const sentence = normalizeSpeechChunk(sentences[index]);
-        if (!sentence) {
-          continue;
-        }
+        const parts = splitLongSpeechChunk(sentences[index]);
+        for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
+          const sentence = normalizeSpeechChunk(parts[partIndex]);
+          if (!sentence) {
+            continue;
+          }
 
-        const sentenceKey = `${sessionKey}:${index}:${sentence}`;
-        if (streamQueuedSentenceKeysRef.current.has(sentenceKey)) {
-          continue;
-        }
+          const sentenceKey = `${sessionKey}:${index}:${partIndex}:${sentence}`;
+          if (streamQueuedSentenceKeysRef.current.has(sentenceKey)) {
+            continue;
+          }
 
-        streamQueuedSentenceKeysRef.current.add(sentenceKey);
-        streamPendingSentenceQueueRef.current.push(sentence);
-        streamAutoplayUsedRef.current = true;
+          streamQueuedSentenceKeysRef.current.add(sentenceKey);
+          streamPendingSentenceQueueRef.current.push({
+            text: sentence,
+            segmentIndex: index,
+            segmentKey: sentenceKey,
+          });
+          streamAutoplayUsedRef.current = true;
+        }
       }
 
       streamSentenceCursorRef.current = Math.max(streamSentenceCursorRef.current, sentences.length);
@@ -1693,18 +1774,25 @@ export default function ChatWindow({
       }
 
       for (let index = streamSentenceCursorRef.current; index < finalized.length; index += 1) {
-        const sentence = normalizeSpeechChunk(finalized[index]);
-        if (!sentence) {
-          continue;
-        }
+        const parts = splitLongSpeechChunk(finalized[index]);
+        for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
+          const sentence = normalizeSpeechChunk(parts[partIndex]);
+          if (!sentence) {
+            continue;
+          }
 
-        const sentenceKey = `${sessionKey}:${index}:${sentence}`;
-        if (streamQueuedSentenceKeysRef.current.has(sentenceKey)) {
-          continue;
-        }
+          const sentenceKey = `${sessionKey}:${index}:${partIndex}:${sentence}`;
+          if (streamQueuedSentenceKeysRef.current.has(sentenceKey)) {
+            continue;
+          }
 
-        streamQueuedSentenceKeysRef.current.add(sentenceKey);
-        streamPendingSentenceQueueRef.current.push(sentence);
+          streamQueuedSentenceKeysRef.current.add(sentenceKey);
+          streamPendingSentenceQueueRef.current.push({
+            text: sentence,
+            segmentIndex: index,
+            segmentKey: sentenceKey,
+          });
+        }
       }
 
       streamSentenceCursorRef.current = finalized.length;
@@ -1835,7 +1923,12 @@ export default function ChatWindow({
     streamReadyAudioQueueRef.current = [];
   }
 
-  async function requestSpeechAudio(text, controller) {
+  function getStreamQueueDepth() {
+    return streamPendingSentenceQueueRef.current.length + streamReadyAudioQueueRef.current.length;
+  }
+
+  async function requestSpeechAudio(text, controller, meta = {}) {
+    const requestStartedAt = performance.now();
     const response = await authFetch(`/personality/${personality.id}/tts`, {
       method: "POST",
       headers: {
@@ -1894,10 +1987,22 @@ export default function ChatWindow({
 
     const blob = await response.blob();
     const nextAudioUrl = URL.createObjectURL(blob);
+    const requestMs = Math.round(performance.now() - requestStartedAt);
+
+    const telemetry = parsedTelemetry
+      ? {
+          ...parsedTelemetry,
+          requestMs,
+          sentenceChars: String(text || "").length,
+          segmentIndex: Number(meta?.segmentIndex ?? -1),
+          queueDepthAtRequest: Number(meta?.queueDepthAtRequest ?? 0),
+          streamingSegment: Boolean(meta?.streamingSegment),
+        }
+      : parsedTelemetry;
 
     return {
       url: nextAudioUrl,
-      telemetry: parsedTelemetry,
+      telemetry,
     };
   }
 
@@ -1953,16 +2058,24 @@ export default function ChatWindow({
 
     try {
       while (streamPendingSentenceQueueRef.current.length > 0) {
+        if (streamReadyAudioQueueRef.current.length >= MAX_STREAM_READY_AUDIO && streamPlaybackActiveRef.current) {
+          break;
+        }
+
         const nextSentence = streamPendingSentenceQueueRef.current.shift();
-        const normalized = normalizeSpeechChunk(nextSentence);
-        if (!normalized) {
+        const normalized = normalizeSpeechChunk(nextSentence?.text || "");
+        if (!normalized || !nextSentence?.segmentKey) {
           continue;
         }
 
         const controller = new AbortController();
         ttsRequestAbortRef.current = controller;
 
-        const audioResult = await requestSpeechAudio(normalized, controller);
+        const audioResult = await requestSpeechAudio(normalized, controller, {
+          segmentIndex: nextSentence.segmentIndex,
+          queueDepthAtRequest: getStreamQueueDepth(),
+          streamingSegment: true,
+        });
         streamReadyAudioQueueRef.current.push(audioResult);
 
         if (!streamPlaybackActiveRef.current && !isAudioPlaying) {
@@ -1982,6 +2095,10 @@ export default function ChatWindow({
       }
       streamQueueProcessingRef.current = false;
       setIsGeneratingAudio(false);
+
+      if (streamPendingSentenceQueueRef.current.length > 0 && !streamPlaybackActiveRef.current) {
+        void processStreamingSentenceQueue();
+      }
     }
   }
 
@@ -2090,10 +2207,16 @@ export default function ChatWindow({
 
     if (streamReadyAudioQueueRef.current.length > 0) {
       playNextQueuedStreamAudio({ silentAutoplayBlock: true });
+      if (streamPendingSentenceQueueRef.current.length > 0 && !streamQueueProcessingRef.current) {
+        void processStreamingSentenceQueue();
+      }
       return;
     }
 
     streamPlaybackActiveRef.current = false;
+    if (streamPendingSentenceQueueRef.current.length > 0 && !streamQueueProcessingRef.current) {
+      void processStreamingSentenceQueue();
+    }
   }
 
   async function handleSaveVoiceProfile() {
