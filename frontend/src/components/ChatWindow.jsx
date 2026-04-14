@@ -1603,12 +1603,19 @@ export default function ChatWindow({
   }
 
   function stopSpeaking() {
+    const hadPendingRequest = Boolean(ttsRequestAbortRef.current);
+    const audioElement = audioRef.current;
+    const hadActivePlayback = Boolean(
+      audioElement instanceof HTMLAudioElement &&
+      !audioElement.paused &&
+      !audioElement.ended,
+    );
+
     if (ttsRequestAbortRef.current) {
       ttsRequestAbortRef.current.abort();
       ttsRequestAbortRef.current = null;
     }
 
-    const audioElement = audioRef.current;
     if (audioElement instanceof HTMLAudioElement) {
       audioElement.pause();
       audioElement.currentTime = 0;
@@ -1617,6 +1624,13 @@ export default function ChatWindow({
     setIsGeneratingAudio(false);
     setIsAudioPlaying(false);
     setSpeechEnergy(0);
+
+    if (hadPendingRequest || hadActivePlayback || isGeneratingAudio || isAudioPlaying) {
+      onStatus?.({
+        type: "info",
+        message: "Voice stopped. Any pending TTS generation was canceled.",
+      });
+    }
   }
 
   async function generateAudio(text, { silentAutoplayBlock = false } = {}) {
