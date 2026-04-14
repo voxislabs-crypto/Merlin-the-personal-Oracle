@@ -500,6 +500,10 @@ ls -lh /tmp/voxis-piper-smoke.wav
 - With default debug lock enabled, `Voice Provider Credentials` lists only `cartesia`. Set `TTS_DEBUG_PROVIDER_LOCK=false` to restore `elevenlabs` in the credentials list.
 - Cartesia model discovery can vary by account/API version; Voxis retries endpoint variants and falls back to `sonic-2` when model-list endpoints return 404.
 
+Kokoro troubleshooting on production (`502`/HTML error page):
+- If logs show `TTS debug lock is active. Engine 'piper' is disabled`, your backend is forcing `TTS_ENGINE=piper` while lock mode only allows `kokoro`/`cartesia`. Set `TTS_ENGINE=auto` (or `kokoro`) in `backend/.env` and restart PM2.
+- If PM2 logs show frequent memory restarts around `800MB`, raise backend memory ceiling (for example `PM2_MAX_MEMORY_RESTART=1536M`) and restart from ecosystem config.
+
 Deploy updates later:
 
 ```bash
