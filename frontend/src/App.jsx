@@ -18,6 +18,8 @@ import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
 import "./styles/futuristic-ui-kit.css";
 
+const DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
+
 function normalizeChatMessage(message) {
   const role = String(message?.role || "").trim().toLowerCase();
   const content = String(message?.content || "");
@@ -1273,6 +1275,12 @@ export default function App() {
   }, [isSignedIn]);
 
   useEffect(() => {
+    if (DISABLE_NEURONMAP_3D && activeView === "brain") {
+      setActiveView("builder");
+    }
+  }, [activeView]);
+
+  useEffect(() => {
     if (!selectedId) {
       return;
     }
@@ -1940,7 +1948,7 @@ export default function App() {
           mode: selectedMode,
           message,
           streamDebug: true,
-          streamBrain: activeView === "brain",
+          streamBrain: !DISABLE_NEURONMAP_3D && activeView === "brain",
         }),
       });
 
@@ -2329,13 +2337,15 @@ export default function App() {
               >
                 Adversarial Eval
               </button>
-              <button
-                type="button"
-                className={`tab ${activeView === "brain" ? "active" : ""}`}
-                onClick={() => setActiveView("brain")}
-              >
-                Brain
-              </button>
+              {!DISABLE_NEURONMAP_3D ? (
+                <button
+                  type="button"
+                  className={`tab ${activeView === "brain" ? "active" : ""}`}
+                  onClick={() => setActiveView("brain")}
+                >
+                  Brain
+                </button>
+              ) : null}
             </div>
 
             <div className="main-content">
@@ -2401,7 +2411,7 @@ export default function App() {
                     onPersonalityUpdated={handlePersonalityUpdated}
                   />
                 </>
-              ) : activeView === "brain" ? (
+              ) : activeView === "brain" && !DISABLE_NEURONMAP_3D ? (
                 <BrainTab
                   brainEvents={liveChatState[selectedId]?.brainEvents || []}
                   personality={selectedPersonality}

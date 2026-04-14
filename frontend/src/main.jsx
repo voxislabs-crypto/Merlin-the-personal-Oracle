@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { ClerkProvider } from "@clerk/react";
 
 import App from "./App.jsx";
+import "./styles/futuristic-ui-kit.css";
 import { installRuntimeGuards, reportRuntimeError } from "./lib/runtimeTelemetry.js";
 
 class AppErrorBoundary extends React.Component {

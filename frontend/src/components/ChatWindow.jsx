@@ -8,6 +8,7 @@ import usePrefersReducedMotion from "../hooks/usePrefersReducedMotion.js";
 import { interpretEmotionSpectrum } from "../lib/emotionSpectrum.js";
 
 const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
 
 function normalizeVoiceEngineForDebug(engine) {
   const normalized = String(engine || "auto").trim().toLowerCase();
@@ -1852,19 +1853,21 @@ export default function ChatWindow({
         />
       )}
       <div className="chat-shell">
-        <div className={`chat-card${neuralActivity > 0.4 ? " neural-active" : ""}`}>
-          <NeuralCore
-            personality={personality}
-            mode={activeMode || "scientist"}
-            latestDebug={displayDebug}
-            livePhase={livePhase}
-            liveSeq={liveSeq}
-            performanceTier={performanceTier}
-            voiceNarrationEnabled={Boolean(neuralProfile?.voiceNarrationEnabled)}
-            onActivityUpdate={handleBrainActivity}
-            onUpdateMemory={handleNeuralMemoryUpdate}
-            onOpenPersonaEditor={handleOpenEditorTarget}
-          />
+        <div className={`chat-card${!DISABLE_NEURONMAP_3D && neuralActivity > 0.4 ? " neural-active" : ""}`}>
+          {!DISABLE_NEURONMAP_3D ? (
+            <NeuralCore
+              personality={personality}
+              mode={activeMode || "scientist"}
+              latestDebug={displayDebug}
+              livePhase={livePhase}
+              liveSeq={liveSeq}
+              performanceTier={performanceTier}
+              voiceNarrationEnabled={Boolean(neuralProfile?.voiceNarrationEnabled)}
+              onActivityUpdate={handleBrainActivity}
+              onUpdateMemory={handleNeuralMemoryUpdate}
+              onOpenPersonaEditor={handleOpenEditorTarget}
+            />
+          ) : null}
           <div className="chat-header">
             <div className="chat-header-top">
               <h3>
