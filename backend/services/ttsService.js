@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
-import { stylizeSpeech } from "./speechDirector.js";
+import { buildSpeechPacket } from "./speechDirector.js";
 import { applyMoodToVoice, buildEmotionalVoiceInstruction } from "./moodVoice.js";
 import {
   compileProsodyEnvelope,
@@ -778,10 +778,12 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
   // We strip them here — before TTS sees the text — and return them as sfx
   // metadata so the performance controller can emit sfx events to the frontend.
   const sfx = [];
-  let directedText = stylizeSpeech(text, personality, mood, {
+  const speechPacket = buildSpeechPacket(text, personality, mood, {
     styleMode: speechContext.styleMode,
+    channel: "tts",
     ttsEngine: resolvedEngine,
-  }) || String(text || "").trim();
+  });
+  let directedText = String(speechPacket?.speech || text || "").trim();
   directedText = directedText.replace(/\[BURP\]\s*/g, () => { sfx.push("burp"); return ""; }).trim();
 
   const adjustedVoiceProfile = {
@@ -806,6 +808,7 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
     adjustedVoiceProfile,
     prosodyEnvelope,
     speechContext,
+    speechPacket,
     sfx,
   };
 }

@@ -55,6 +55,25 @@ function shouldInjectNotablePhrase(options = {}) {
   return true;
 }
 
+function detectEmotionLabel({ mood = {}, signals = {} } = {}) {
+  const arousal = Number(mood?.arousal);
+  const dominance = Number(mood?.dominance);
+
+  if (Number.isFinite(arousal) && arousal >= 0.55) {
+    return signals?.sarcastic ? "playful" : "excited";
+  }
+
+  if (Number.isFinite(arousal) && arousal <= -0.35) {
+    return "calm";
+  }
+
+  if (Number.isFinite(dominance) && dominance >= 0.5) {
+    return "assertive";
+  }
+
+  return "neutral";
+}
+
 function normalizeMood(personality = {}, moodOverride = null) {
   if (moodOverride && typeof moodOverride === "object") {
     return moodOverride;
@@ -140,16 +159,31 @@ function stripSpeechMarkup(text) {
     .replace(/^#{1,6}\s+/gm, "");
 }
 
-export function stylizeSpeech(rawText, personality = {}, moodOverride = null, options = {}) {
+export function buildSpeechPacket(rawText, personality = {}, moodOverride = null, options = {}) {
   const input = String(rawText || "").replace(/\s+/g, " ").trim();
   if (!input) {
-    return "";
+    return {
+      speech: "",
+      emotion: "neutral",
+      overlays: [],
+      sfx: [],
+      gestures: [],
+      injectedPhrase: null,
+      tts: {
+        enabled: true,
+        priority: String(options?.priority || "normal"),
+        channel: String(options?.channel || "tts"),
+        engine: String(options?.ttsEngine || "auto"),
+      },
+    };
   }
 
   const mood = normalizeMood(personality, moodOverride);
   const profile = getSpeechProfile(personality);
   const styleMode = String(options?.styleMode || "performance").trim().toLowerCase();
   const precisionMode = styleMode === "precision";
+  const channel = String(options?.channel || "tts").trim().toLowerCase();
+  const ttsEngine = String(options?.ttsEngine || "auto").trim().toLowerCase();
   const arousal = Number(mood.arousal);
   const dominance = Number(mood.dominance);
   const signals = collectSignals(personality, profile);
@@ -203,15 +237,18 @@ export function stylizeSpeech(rawText, personality = {}, moodOverride = null, op
     .filter(Boolean);
 
   const shouldAppendNotablePhrase = shouldInjectNotablePhrase({
-    channel: "tts",
-    ttsEngine: options?.ttsEngine,
+    channel,
+    ttsEngine,
   });
+
+  let injectedPhrase = null;
 
   if (!precisionMode && shouldAppendNotablePhrase && notablePhrases.length > 0) {
     const injectSeed = `${personality.name || "anon"}:${input}`;
     if (shouldInject(injectSeed, 0.3)) {
       const index = Math.floor(hashString(`${injectSeed}:idx`) * notablePhrases.length);
-      output = `${output} ${notablePhrases[index]}`.trim();
+      injectedPhrase = notablePhrases[index];
+      output = `${output} ${injectedPhrase}`.trim();
     }
   }
 
@@ -234,5 +271,22 @@ export function stylizeSpeech(rawText, personality = {}, moodOverride = null, op
     .replace(/!{2,}/g, "!")
     .trim();
 
-  return output;
+  return {
+    speech: output,
+    emotion: detectEmotionLabel({ mood, signals }),
+    overlays: [],
+    sfx: [],
+    gestures: [],
+    injectedPhrase,
+    tts: {
+      enabled: true,
+      priority: String(options?.priority || "normal"),
+      channel,
+      engine: ttsEngine,
+    },
+  };
+}
+
+export function stylizeSpeech(rawText, personality = {}, moodOverride = null, options = {}) {
+  return buildSpeechPacket(rawText, personality, moodOverride, options).speech;
 }

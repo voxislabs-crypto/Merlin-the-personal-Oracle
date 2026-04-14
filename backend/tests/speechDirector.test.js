@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stylizeSpeech } from "../services/speechDirector.js";
+import { buildSpeechPacket, stylizeSpeech } from "../services/speechDirector.js";
 
 describe("speechDirector stylizeSpeech", () => {
   it("keeps neutral text readable and unchanged for neutral profiles", () => {
@@ -95,5 +95,42 @@ describe("speechDirector stylizeSpeech", () => {
 
     const withKokoro = stylizeSpeech(injectedInput, personality, null, { ttsEngine: "kokoro" });
     expect(withKokoro).toBe(injectedInput);
+  });
+});
+
+describe("speechDirector buildSpeechPacket", () => {
+  it("returns a structured packet with speech payload", () => {
+    const packet = buildSpeechPacket("We should review the deployment plan.", {
+      traits: ["analytical"],
+      moodState: { arousal: 0, dominance: 0 },
+      expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+    });
+
+    expect(packet).toMatchObject({
+      speech: "We should review the deployment plan.",
+      overlays: [],
+      sfx: [],
+      gestures: [],
+      injectedPhrase: null,
+      tts: {
+        enabled: true,
+        priority: "normal",
+        channel: "tts",
+      },
+    });
+  });
+
+  it("keeps speech output parity with stylizeSpeech", () => {
+    const text = "Right, we move now, no delays.";
+    const personality = {
+      traits: ["chaotic"],
+      moodState: { arousal: 0.8, dominance: 0.1 },
+      expressionStyle: { energy: "very_high", sentenceStyle: "bursty", rules: [] },
+    };
+
+    const packet = buildSpeechPacket(text, personality, null, { ttsEngine: "kokoro" });
+    const legacy = stylizeSpeech(text, personality, null, { ttsEngine: "kokoro" });
+
+    expect(packet.speech).toBe(legacy);
   });
 });
