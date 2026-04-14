@@ -6,6 +6,14 @@ import App from "./App.jsx";
 import "./styles/futuristic-ui-kit.css";
 import { installRuntimeGuards, reportRuntimeError } from "./lib/runtimeTelemetry.js";
 
+if (typeof document !== "undefined") {
+  document.body.classList.add("voxis-futuristic-root");
+  const rootNode = document.getElementById("root");
+  if (rootNode) {
+    rootNode.classList.add("voxis-futuristic-root");
+  }
+}
+
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);

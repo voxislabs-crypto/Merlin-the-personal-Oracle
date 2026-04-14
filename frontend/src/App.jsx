@@ -2222,7 +2222,7 @@ export default function App() {
         editorTarget={personaEditorTarget}
         setEditorTarget={setPersonaEditorTarget}
       >
-      <div className="app-shell">
+      <div className="voxis-futuristic-root app-shell">
         <section className="hero">
           <div className="hero-grid">
             <div>
