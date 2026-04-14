@@ -18,7 +18,7 @@ import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
 import "./styles/futuristic-ui-kit.css";
 
-const DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
+const DEFAULT_DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
 
 function normalizeChatMessage(message) {
   const role = String(message?.role || "").trim().toLowerCase();
@@ -932,6 +932,10 @@ export default function App() {
     typeof window !== "undefined" && window.localStorage
       ? window.localStorage.getItem("voxis:background-fx")
       : null;
+  const storedNeuronMap3d =
+    typeof window !== "undefined" && window.localStorage
+      ? window.localStorage.getItem("voxis:disable-neuronmap-3d")
+      : null;
 
   const [personalities, setPersonalities] = useState([]);
   const [users, setUsers] = useState([]);
@@ -967,6 +971,13 @@ export default function App() {
     storedBackgroundFx === "off" || storedBackgroundFx === "low" || storedBackgroundFx === "full"
       ? storedBackgroundFx
       : "full",
+  );
+  const [disableNeuronMap3d, setDisableNeuronMap3d] = useState(
+    storedNeuronMap3d === "1"
+      ? true
+      : storedNeuronMap3d === "0"
+        ? false
+        : DEFAULT_DISABLE_NEURONMAP_3D,
   );
   const backgroundCanvasRef = useRef(null);
   const backgroundVideoRef = useRef(null);
@@ -1167,6 +1178,13 @@ export default function App() {
   }, [backgroundFxIntensity]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return;
+    }
+    window.localStorage.setItem("voxis:disable-neuronmap-3d", disableNeuronMap3d ? "1" : "0");
+  }, [disableNeuronMap3d]);
+
+  useEffect(() => {
     if (!neuralToast) {
       return;
     }
@@ -1275,10 +1293,10 @@ export default function App() {
   }, [isSignedIn]);
 
   useEffect(() => {
-    if (DISABLE_NEURONMAP_3D && activeView === "brain") {
+    if (disableNeuronMap3d && activeView === "brain") {
       setActiveView("builder");
     }
-  }, [activeView]);
+  }, [activeView, disableNeuronMap3d]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -1948,7 +1966,7 @@ export default function App() {
           mode: selectedMode,
           message,
           streamDebug: true,
-          streamBrain: !DISABLE_NEURONMAP_3D && activeView === "brain",
+          streamBrain: !disableNeuronMap3d && activeView === "brain",
         }),
       });
 
@@ -2337,7 +2355,7 @@ export default function App() {
               >
                 Adversarial Eval
               </button>
-              {!DISABLE_NEURONMAP_3D ? (
+              {!disableNeuronMap3d ? (
                 <button
                   type="button"
                   className={`tab ${activeView === "brain" ? "active" : ""}`}
@@ -2411,7 +2429,7 @@ export default function App() {
                     onPersonalityUpdated={handlePersonalityUpdated}
                   />
                 </>
-              ) : activeView === "brain" && !DISABLE_NEURONMAP_3D ? (
+              ) : activeView === "brain" && !disableNeuronMap3d ? (
                 <BrainTab
                   brainEvents={liveChatState[selectedId]?.brainEvents || []}
                   personality={selectedPersonality}
@@ -2451,6 +2469,17 @@ export default function App() {
                     </label>
                     <p className="fx-option-note">
                       Off: static atmosphere only. Low: lighter motion + lower glow. Full: cinematic video + full shader energy.
+                    </p>
+                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "var(--muted)" }}>
+                      <input
+                        type="checkbox"
+                        checked={disableNeuronMap3d}
+                        onChange={(event) => setDisableNeuronMap3d(event.target.checked)}
+                      />
+                      Disable NeuronMap 3D (form-first mode)
+                    </label>
+                    <p className="fx-option-note">
+                      Turn this off to re-enable the Brain tab and in-chat NeuronMap visualizer.
                     </p>
                   </div>
                   <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
@@ -2651,6 +2680,7 @@ export default function App() {
                     liveUsage={liveChatState[selectedId]?.usage || null}
                     activeMode={chatPolicy?.activeMode || selectedMode}
                     neuralProfile={selectedUserProfile || chatPolicy}
+                    disableNeuronMap3d={disableNeuronMap3d}
                     isLoadingMessages={isLoadingMessages}
                     isSending={isSending}
                     onSend={handleSendMessage}
