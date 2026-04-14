@@ -689,6 +689,7 @@ const initialForm = {
   expressionEnergy: "medium",
   expressionRules: "",
   resetMoodState: false,
+  avatarImageUrl: "",
 };
 
 function toCommaList(items) {
@@ -750,6 +751,7 @@ function mapPersonalityToForm(personality) {
     expressionEnergy: String(expressionStyle.energy || "medium"),
     expressionRules: toLineList(expressionStyle.rules),
     resetMoodState: false,
+    avatarImageUrl: personality.avatarImageUrl || "",
   };
 }
 
@@ -974,6 +976,7 @@ export default function PersonalityForm({
             rules: splitLineSeparated(form.expressionRules),
           },
           resetMoodState: Boolean(form.resetMoodState),
+          avatarImageUrl: form.avatarImageUrl,
         }),
       });
 
@@ -1077,6 +1080,7 @@ export default function PersonalityForm({
         goals: (data.goals || []).join(", "),
         values: (data.values || []).join(", "),
         preferredVoice: current.preferredVoice || "alloy",
+        avatarImageUrl: data.avatarImageUrl || current.avatarImageUrl,
       }));
       onError({
         type: "success",
@@ -1249,6 +1253,38 @@ export default function PersonalityForm({
               value={form.mood}
               onChange={updateField}
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="avatarImageUrl">
+              Avatar image URL
+              <Tip text="Paste any direct image URL (.jpg, .png, .webp) to use as the character portrait. Auto-populated from Wikipedia when you run Research. Leave blank to use the animated orb." />
+            </label>
+            <input
+              id="avatarImageUrl"
+              name="avatarImageUrl"
+              type="url"
+              placeholder="https://upload.wikimedia.org/…"
+              value={form.avatarImageUrl}
+              onChange={updateField}
+            />
+            {form.avatarImageUrl ? (
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                <img
+                  src={form.avatarImageUrl}
+                  alt="Avatar preview"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", objectPosition: "top center", border: "2px solid rgba(0,200,255,0.3)" }}
+                />
+                <button
+                  type="button"
+                  style={{ fontSize: "0.78rem", padding: "3px 10px", borderRadius: 8, background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.3)", color: "rgba(255,120,120,0.9)", cursor: "pointer" }}
+                  onClick={() => setForm((current) => ({ ...current, avatarImageUrl: "" }))}
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {isEditing ? (
@@ -1778,6 +1814,7 @@ export default function PersonalityForm({
                   blinkRate: Number(form.expressionBlinkRate),
                   gazeDrift: Number(form.expressionGazeDrift),
                 }}
+                imageUrl={form.avatarImageUrl || ""}
               />
               <div className="avatar-preview-controls">
                 <label htmlFor="previewPhase" style={{ color: "var(--muted)", fontSize: "0.85rem", fontWeight: 700 }}>Preview phase</label>

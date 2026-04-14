@@ -558,14 +558,19 @@ export default function AvatarCore({
   activitySpike = false,
   preResponseState = null,
   speechEnergy = 0,
+  imageUrl = "",
 }) {
   const [gaze, setGaze] = useState({ x: 0, y: 0 });
   const [animState, setAnimState] = useState("idle");
   const [spikeFlash, setSpikeFlash] = useState(false);
   const [mouthJitter, setMouthJitter] = useState({ y: 0, scaleX: 1, skew: 0, split: 0 });
+  const [imgError, setImgError] = useState(false);
   const spikeFlashTimerRef = useRef(null);
   const recoverTimerRef = useRef(null);
   const mouthTimerRef = useRef(null);
+
+  // Reset error state when URL changes
+  useEffect(() => { setImgError(false); }, [imageUrl]);
 
   // Spike flash: fires a 400ms CSS keyframe on every activitySpike rising edge
   useEffect(() => {
@@ -749,48 +754,67 @@ export default function AvatarCore({
     >
       <style>{avatarStyles}</style>
       <div className="avatar-aura" />
-      <svg className="avatar-face" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path
-          className="brow"
-          d={`M 26 ${32 + mood.browTilt + microExpression.browLeftOffset} Q 35 ${26 + mood.browTilt + microExpression.browLeftOffset} 43 ${32 + mood.browTilt + microExpression.browLeftOffset}`}
+      {imageUrl && !imgError ? (
+        <img
+          src={imageUrl}
+          alt=""
+          onError={() => setImgError(true)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            objectFit: "cover",
+            objectPosition: "top center",
+            zIndex: 2,
+          }}
         />
-        <path
-          className="brow"
-          d={`M 57 ${32 - mood.browTilt + microExpression.browRightOffset} Q 65 ${26 - mood.browTilt + microExpression.browRightOffset} 74 ${32 - mood.browTilt + microExpression.browRightOffset}`}
-        />
+      ) : (
+        <>
+          <svg className="avatar-face" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path
+              className="brow"
+              d={`M 26 ${32 + mood.browTilt + microExpression.browLeftOffset} Q 35 ${26 + mood.browTilt + microExpression.browLeftOffset} 43 ${32 + mood.browTilt + microExpression.browLeftOffset}`}
+            />
+            <path
+              className="brow"
+              d={`M 57 ${32 - mood.browTilt + microExpression.browRightOffset} Q 65 ${26 - mood.browTilt + microExpression.browRightOffset} 74 ${32 - mood.browTilt + microExpression.browRightOffset}`}
+            />
 
-        <ellipse
-          className="eye"
-          cx="34"
-          cy="48"
-          rx="10"
-          ry={mood.eyeOpen * microExpression.eyeLeftScale}
-          style={{ animationDuration: mood.blinkDuration }}
-        />
-        <ellipse
-          className="eye"
-          cx="66"
-          cy="48"
-          rx="10"
-          ry={mood.eyeOpen * microExpression.eyeRightScale}
-          style={{ animationDuration: mood.blinkDuration }}
-        />
-        <circle className="pupil" cx={36 + adjustedPupilOffsetX} cy={48 + adjustedPupilOffsetY} r={2.2 * microExpression.pupilScale} />
-        <circle className="pupil" cx={64 + adjustedPupilOffsetX} cy={48 + adjustedPupilOffsetY} r={2.2 * microExpression.pupilScale} />
-      </svg>
+            <ellipse
+              className="eye"
+              cx="34"
+              cy="48"
+              rx="10"
+              ry={mood.eyeOpen * microExpression.eyeLeftScale}
+              style={{ animationDuration: mood.blinkDuration }}
+            />
+            <ellipse
+              className="eye"
+              cx="66"
+              cy="48"
+              rx="10"
+              ry={mood.eyeOpen * microExpression.eyeRightScale}
+              style={{ animationDuration: mood.blinkDuration }}
+            />
+            <circle className="pupil" cx={36 + adjustedPupilOffsetX} cy={48 + adjustedPupilOffsetY} r={2.2 * microExpression.pupilScale} />
+            <circle className="pupil" cx={64 + adjustedPupilOffsetX} cy={48 + adjustedPupilOffsetY} r={2.2 * microExpression.pupilScale} />
+          </svg>
 
-      <div
-        className={`energy-mouth ${speakingWave ? "active" : ""} ${activitySpike || spikeFlash ? "spike" : ""}`.trim()}
-        style={{
-          background: mouthPhaseStyle.color,
-          boxShadow: `0 0 8px ${mouthPhaseStyle.glow}, 0 0 18px ${mouthPhaseStyle.glow}`,
-          transform: `translateX(-50%) translateY(${mouthJitter.y.toFixed(2)}px) scaleX(${mouthJitter.scaleX.toFixed(3)}) skewX(${mouthJitter.skew.toFixed(2)}deg)`,
-          filter: `blur(${(mouthIntensity * 1.35).toFixed(2)}px) brightness(${(1 + mouthIntensity * 0.9).toFixed(2)}) saturate(${(1 + mouthIntensity).toFixed(2)})`,
-          "--mouth-split": `${mouthJitter.split.toFixed(2)}px`,
-        }}
-      />
-
-      <div className="avatar-ghost-tail" />
+          <div
+            className={`energy-mouth ${speakingWave ? "active" : ""} ${activitySpike || spikeFlash ? "spike" : ""}`.trim()}
+            style={{
+              background: mouthPhaseStyle.color,
+              boxShadow: `0 0 8px ${mouthPhaseStyle.glow}, 0 0 18px ${mouthPhaseStyle.glow}`,
+              transform: `translateX(-50%) translateY(${mouthJitter.y.toFixed(2)}px) scaleX(${mouthJitter.scaleX.toFixed(3)}) skewX(${mouthJitter.skew.toFixed(2)}deg)`,
+              filter: `blur(${(mouthIntensity * 1.35).toFixed(2)}px) brightness(${(1 + mouthIntensity * 0.9).toFixed(2)}) saturate(${(1 + mouthIntensity).toFixed(2)})`,
+              "--mouth-split": `${mouthJitter.split.toFixed(2)}px`,
+            }}
+          />
+          <div className="avatar-ghost-tail" />
+        </>
+      )}
     </div>
   );
 }

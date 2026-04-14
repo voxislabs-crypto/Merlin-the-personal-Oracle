@@ -2489,6 +2489,7 @@ export default function ChatWindow({
                     activitySpike={activitySpike}
                     preResponseState={preResponseState}
                     speechEnergy={speechEnergy}
+                    imageUrl={personality?.avatarImageUrl || ""}
                   />
                   <span>{personality.name}</span>
                 </span>
@@ -2696,6 +2697,7 @@ export default function ChatWindow({
                 activitySpike={activitySpike}
                 preResponseState={preResponseState}
                 speechEnergy={speechEnergy}
+                imageUrl={personality?.avatarImageUrl || ""}
               />
             </div>
             <div className="avatar-panel-name">{personality.name}</div>

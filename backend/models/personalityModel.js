@@ -102,6 +102,7 @@ function normalizeRow(row) {
     voiceSampleAnalysis: parseJsonObject(row.voiceSampleAnalysis, {}),
     voiceSampleSelectedAt: String(row.voiceSampleSelectedAt || "").trim(),
     gender: String(row.gender || "").trim(),
+    avatarImageUrl: String(row.avatarImageUrl || "").trim(),
   };
 }
 
@@ -133,6 +134,7 @@ export function createPersonality(personality) {
       alignmentProfile,
       expressionStyle,
       gender,
+      avatarImageUrl,
       ownerId
     )
     VALUES (
@@ -161,6 +163,7 @@ export function createPersonality(personality) {
       @alignmentProfile,
       @expressionStyle,
       @gender,
+      @avatarImageUrl,
       @ownerId
     )
   `);
@@ -185,6 +188,7 @@ export function createPersonality(personality) {
     alignmentProfile: JSON.stringify(personality.alignmentProfile || {}),
     expressionStyle: JSON.stringify(personality.expressionStyle || {}),
     gender: String(personality.gender || "").trim(),
+    avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
     ownerId: personality.ownerId || null,
   });
 
@@ -201,7 +205,7 @@ export function getAllPersonalities(ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, expressionStyle,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
         WHERE ownerId = ?
         ORDER BY id DESC
@@ -214,7 +218,7 @@ export function getAllPersonalities(ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, expressionStyle,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
         ORDER BY id DESC
       `);
@@ -232,7 +236,7 @@ export function getPersonalityById(id, ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, expressionStyle,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
         WHERE id = ? AND ownerId = ?
       `)
@@ -244,7 +248,7 @@ export function getPersonalityById(id, ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, expressionStyle,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
         WHERE id = ?
       `);
@@ -340,7 +344,8 @@ export function updatePersonality(id, personality) {
       bigFiveProfile = @bigFiveProfile,
       alignmentProfile = @alignmentProfile,
       expressionStyle = @expressionStyle,
-      gender = @gender
+      gender = @gender,
+      avatarImageUrl = @avatarImageUrl
     WHERE id = @id
   `);
 
@@ -366,6 +371,7 @@ export function updatePersonality(id, personality) {
     alignmentProfile: JSON.stringify(personality.alignmentProfile || {}),
     expressionStyle: JSON.stringify(personality.expressionStyle || {}),
     gender: String(personality.gender || "").trim(),
+    avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
   });
 
   return getPersonalityById(id);

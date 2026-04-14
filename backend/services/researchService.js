@@ -196,6 +196,7 @@ async function fetchWikipediaSummary(query) {
       url: summaryData?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topResult.replace(/ /g, "_"))}`,
       title: summaryData?.title || topResult,
       text: truncate(summary, 1200),
+      imageUrl: summaryData?.thumbnail?.source || summaryData?.originalimage?.source || null,
       sourceType: "wikipedia",
     };
   } catch {
@@ -409,6 +410,7 @@ export async function buildResearchProfile({ name, description, sourceQuery, sou
     sourceNotes,
     creativeContext,
   });
+  fallbackProfile.avatarImageUrl = wikipediaSource?.imageUrl || "";
 
   if (!sourceNotes.length || !isLlmConfigured()) {
     return fallbackProfile;
@@ -430,6 +432,7 @@ export async function buildResearchProfile({ name, description, sourceQuery, sou
       sourceQuery: query,
       sourceUrls: fallbackProfile.sourceUrls,
       sources: sourceNotes,
+      avatarImageUrl: fallbackProfile.avatarImageUrl,
     };
   } catch {
     return fallbackProfile;

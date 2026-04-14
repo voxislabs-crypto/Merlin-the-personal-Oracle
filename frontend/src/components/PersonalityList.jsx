@@ -217,6 +217,9 @@ const listStyles = `
     border-radius: 18px;
     border: 1px solid rgba(0, 180, 255, 0.08);
     background: rgba(6, 14, 28, 0.72);
+    overflow: hidden;
+    min-width: 0;
+    width: 100%;
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
   }
 
@@ -413,6 +416,7 @@ export default function PersonalityList({
                       personalitySeed={`${personality.id}:${personality.name}:${personality.creativeContext || "default"}`}
                       expressionProfile={personality.expressionProfile}
                       expressionPreset={personality.expressionProfile?.preset || "auto"}
+                      imageUrl={personality.avatarImageUrl || ""}
                     />
                   </div>
                   <h3>{personality.name}</h3>
