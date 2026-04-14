@@ -1229,6 +1229,37 @@ function getAssistantSpeechContent(message) {
   return String(message?.displayContent || "") || extractEPFDialogue(rawContent) || rawContent;
 }
 
+function splitCompleteSentences(text) {
+  const source = String(text || "");
+  if (!source.trim()) {
+    return { sentences: [], remainder: "" };
+  }
+
+  const sentences = [];
+  const matcher = /[^.!?\n]+[.!?]+["')\]]*\s*/g;
+  let match = null;
+  let consumedEnd = 0;
+
+  while ((match = matcher.exec(source)) !== null) {
+    const sentence = String(match[0] || "").trim();
+    if (sentence) {
+      sentences.push(sentence);
+    }
+    consumedEnd = matcher.lastIndex;
+  }
+
+  return {
+    sentences,
+    remainder: source.slice(consumedEnd).trim(),
+  };
+}
+
+function normalizeSpeechChunk(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function ChatWindow({
   personality,
   messages,
@@ -1285,6 +1316,14 @@ export default function ChatWindow({
   const shouldAutoScrollRef = useRef(true);
   const zoneShiftTimerRef = useRef(null);
   const catchphraseTimerRef = useRef(null);
+  const streamAutoplaySessionRef = useRef(null);
+  const streamSentenceCursorRef = useRef(0);
+  const streamQueuedSentenceKeysRef = useRef(new Set());
+  const streamPendingSentenceQueueRef = useRef([]);
+  const streamReadyAudioQueueRef = useRef([]);
+  const streamQueueProcessingRef = useRef(false);
+  const streamPlaybackActiveRef = useRef(false);
+  const streamAutoplayUsedRef = useRef(false);
   const prevZoneKeyRef = useRef("");
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -1491,6 +1530,8 @@ export default function ChatWindow({
   useEffect(() => {
     setVoiceTelemetry(null);
     setCatchphraseChipVisible(false);
+    streamAutoplaySessionRef.current = null;
+    clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
     if (catchphraseTimerRef.current) {
       window.clearTimeout(catchphraseTimerRef.current);
     }
@@ -1560,6 +1601,8 @@ export default function ChatWindow({
       if (catchphraseTimerRef.current) {
         window.clearTimeout(catchphraseTimerRef.current);
       }
+
+      clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
     };
   }, [audioUrl]);
 
@@ -1598,7 +1641,83 @@ export default function ChatWindow({
   }, [isAudioPlaying]);
 
   useEffect(() => {
-    if (!voiceProfile.enabled || !voiceProfile.autoplay || !latestAssistantMessage) {
+    if (!voiceProfile.enabled || !voiceProfile.autoplay || !personality) {
+      return;
+    }
+
+    const sessionKey = `${personality.id}:${messages.length}`;
+
+    if (isSending) {
+      if (streamAutoplaySessionRef.current !== sessionKey) {
+        streamAutoplaySessionRef.current = sessionKey;
+        clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
+      }
+
+      const { sentences } = splitCompleteSentences(liveReply || "");
+      if (sentences.length < streamSentenceCursorRef.current) {
+        clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
+      }
+
+      for (let index = streamSentenceCursorRef.current; index < sentences.length; index += 1) {
+        const sentence = normalizeSpeechChunk(sentences[index]);
+        if (!sentence) {
+          continue;
+        }
+
+        const sentenceKey = `${sessionKey}:${index}:${sentence}`;
+        if (streamQueuedSentenceKeysRef.current.has(sentenceKey)) {
+          continue;
+        }
+
+        streamQueuedSentenceKeysRef.current.add(sentenceKey);
+        streamPendingSentenceQueueRef.current.push(sentence);
+        streamAutoplayUsedRef.current = true;
+      }
+
+      streamSentenceCursorRef.current = Math.max(streamSentenceCursorRef.current, sentences.length);
+
+      if (streamPendingSentenceQueueRef.current.length > 0) {
+        void processStreamingSentenceQueue();
+      }
+
+      return;
+    }
+
+    // Finalize trailing text once stream ends (even if it lacked punctuation).
+    if (streamAutoplaySessionRef.current === sessionKey && streamAutoplayUsedRef.current) {
+      const { sentences, remainder } = splitCompleteSentences(latestAssistantSpeechText);
+      const finalized = [...sentences];
+      const tail = normalizeSpeechChunk(remainder);
+      if (tail) {
+        finalized.push(tail);
+      }
+
+      for (let index = streamSentenceCursorRef.current; index < finalized.length; index += 1) {
+        const sentence = normalizeSpeechChunk(finalized[index]);
+        if (!sentence) {
+          continue;
+        }
+
+        const sentenceKey = `${sessionKey}:${index}:${sentence}`;
+        if (streamQueuedSentenceKeysRef.current.has(sentenceKey)) {
+          continue;
+        }
+
+        streamQueuedSentenceKeysRef.current.add(sentenceKey);
+        streamPendingSentenceQueueRef.current.push(sentence);
+      }
+
+      streamSentenceCursorRef.current = finalized.length;
+
+      if (streamPendingSentenceQueueRef.current.length > 0) {
+        void processStreamingSentenceQueue();
+      }
+
+      return;
+    }
+
+    // Fallback path for non-streamed assistant updates.
+    if (!latestAssistantMessage) {
       return;
     }
 
@@ -1609,7 +1728,16 @@ export default function ChatWindow({
 
     void generateAudio(latestAssistantSpeechText, { silentAutoplayBlock: true });
     lastGeneratedRef.current = stamp;
-  }, [latestAssistantMessage, latestAssistantSpeechText, personality?.id, voiceProfile]);
+  }, [
+    isSending,
+    liveReply,
+    latestAssistantMessage,
+    latestAssistantSpeechText,
+    messages.length,
+    personality?.id,
+    voiceProfile.autoplay,
+    voiceProfile.enabled,
+  ]);
 
   useEffect(() => {
     const valence = Number(latestAssistantDebug?.mood?.after?.valence ?? personality?.moodState?.valence ?? 0);
@@ -1689,6 +1817,174 @@ export default function ChatWindow({
     }));
   }
 
+  function clearStreamingAutoplayQueues({ revokeQueuedAudio = true } = {}) {
+    streamPendingSentenceQueueRef.current = [];
+    streamQueuedSentenceKeysRef.current = new Set();
+    streamSentenceCursorRef.current = 0;
+    streamAutoplayUsedRef.current = false;
+    streamPlaybackActiveRef.current = false;
+
+    if (revokeQueuedAudio) {
+      for (const item of streamReadyAudioQueueRef.current) {
+        if (item?.url) {
+          URL.revokeObjectURL(item.url);
+        }
+      }
+    }
+
+    streamReadyAudioQueueRef.current = [];
+  }
+
+  async function requestSpeechAudio(text, controller) {
+    const response = await authFetch(`/personality/${personality.id}/tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        text,
+        voiceProfile,
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = await readApiResponsePayload(response);
+      const errorMessage = getApiErrorMessage(
+        response,
+        payload,
+        "Failed to generate speech.",
+      );
+      throw new Error(errorMessage);
+    }
+
+    const ttsTelemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
+    let parsedTelemetry = null;
+    if (ttsTelemetryHeader) {
+      try {
+        parsedTelemetry = JSON.parse(decodeURIComponent(ttsTelemetryHeader));
+      } catch {
+        parsedTelemetry = null;
+      }
+    }
+
+    const ttsSfxHeader = response.headers.get("X-Voxis-Tts-Sfx");
+    let parsedSfx = [];
+    if (ttsSfxHeader) {
+      try {
+        parsedSfx = JSON.parse(decodeURIComponent(ttsSfxHeader));
+      } catch {
+        parsedSfx = [];
+      }
+    }
+
+    if (Array.isArray(parsedSfx) && parsedSfx.length > 0) {
+      onStatus?.({
+        type: "info",
+        message: `SFX included: ${parsedSfx.join(", ")}`,
+      });
+
+      for (const sfxName of parsedSfx) {
+        const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxName)}`;
+        fetch(sfxUrl).catch(() => {
+          // SFX not yet cached (will be downloaded on next startup)
+        });
+      }
+    }
+
+    const blob = await response.blob();
+    const nextAudioUrl = URL.createObjectURL(blob);
+
+    return {
+      url: nextAudioUrl,
+      telemetry: parsedTelemetry,
+    };
+  }
+
+  function playNextQueuedStreamAudio({ silentAutoplayBlock = true } = {}) {
+    const nextItem = streamReadyAudioQueueRef.current.shift();
+    if (!nextItem?.url) {
+      streamPlaybackActiveRef.current = false;
+      return;
+    }
+
+    streamPlaybackActiveRef.current = true;
+    setVoiceTelemetry(nextItem.telemetry || null);
+
+    if (nextItem.telemetry?.fallbackUsed) {
+      const fallbackFrom = String(nextItem.telemetry.fallbackFrom || "primary engine");
+      const chosenEngine = String(nextItem.telemetry.chosenEngine || "fallback engine");
+      onStatus?.({
+        type: "success",
+        message: `TTS fallback active: ${fallbackFrom} failed, switched to ${chosenEngine}.`,
+      });
+    }
+
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+
+    setAudioUrl(nextItem.url);
+
+    requestAnimationFrame(() => {
+      const audioElement = audioRef.current;
+      if (audioElement instanceof HTMLAudioElement) {
+        audioElement.muted = false;
+        audioElement.volume = 1;
+        void audioElement.play().catch((playError) => {
+          if (!silentAutoplayBlock) {
+            onStatus?.({
+              type: "info",
+              message: `Audio ready — press play on the audio control below. ${playError?.message ? `(${playError.message})` : ""}`.trim(),
+            });
+          }
+        });
+      }
+    });
+  }
+
+  async function processStreamingSentenceQueue() {
+    if (streamQueueProcessingRef.current || !voiceProfile.enabled || !personality) {
+      return;
+    }
+
+    streamQueueProcessingRef.current = true;
+    setIsGeneratingAudio(true);
+
+    try {
+      while (streamPendingSentenceQueueRef.current.length > 0) {
+        const nextSentence = streamPendingSentenceQueueRef.current.shift();
+        const normalized = normalizeSpeechChunk(nextSentence);
+        if (!normalized) {
+          continue;
+        }
+
+        const controller = new AbortController();
+        ttsRequestAbortRef.current = controller;
+
+        const audioResult = await requestSpeechAudio(normalized, controller);
+        streamReadyAudioQueueRef.current.push(audioResult);
+
+        if (!streamPlaybackActiveRef.current && !isAudioPlaying) {
+          playNextQueuedStreamAudio({ silentAutoplayBlock: true });
+        }
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        onStatus?.({
+          type: "error",
+          message: error.message || "Failed to generate speech.",
+        });
+      }
+    } finally {
+      if (ttsRequestAbortRef.current) {
+        ttsRequestAbortRef.current = null;
+      }
+      streamQueueProcessingRef.current = false;
+      setIsGeneratingAudio(false);
+    }
+  }
+
   function stopSpeaking() {
     const hadPendingRequest = Boolean(ttsRequestAbortRef.current);
     const audioElement = audioRef.current;
@@ -1702,6 +1998,9 @@ export default function ChatWindow({
       ttsRequestAbortRef.current.abort();
       ttsRequestAbortRef.current = null;
     }
+
+    streamAutoplaySessionRef.current = null;
+    clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
 
     if (audioElement instanceof HTMLAudioElement) {
       audioElement.pause();
@@ -1725,81 +2024,28 @@ export default function ChatWindow({
       return;
     }
 
+    // Manual/single-shot playback takes ownership from streaming queue mode.
+    streamAutoplaySessionRef.current = null;
+    clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
+
     setIsGeneratingAudio(true);
     const controller = new AbortController();
     ttsRequestAbortRef.current = controller;
 
     try {
-      const response = await authFetch(`/personality/${personality.id}/tts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          text,
-          voiceProfile,
-        }),
-      });
+      const audioResult = await requestSpeechAudio(text, controller);
+      const nextAudioUrl = audioResult.url;
 
-      if (!response.ok) {
-        const payload = await readApiResponsePayload(response);
-        const errorMessage = getApiErrorMessage(
-          response,
-          payload,
-          "Failed to generate speech.",
-        );
-        throw new Error(errorMessage);
-      }
+      setVoiceTelemetry(audioResult.telemetry);
 
-      const ttsTelemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
-      let parsedTelemetry = null;
-      if (ttsTelemetryHeader) {
-        try {
-          parsedTelemetry = JSON.parse(decodeURIComponent(ttsTelemetryHeader));
-        } catch {
-          parsedTelemetry = null;
-        }
-      }
-
-      const ttsSfxHeader = response.headers.get("X-Voxis-Tts-Sfx");
-      let parsedSfx = [];
-      if (ttsSfxHeader) {
-        try {
-          parsedSfx = JSON.parse(decodeURIComponent(ttsSfxHeader));
-        } catch {
-          parsedSfx = [];
-        }
-      }
-
-      setVoiceTelemetry(parsedTelemetry);
-
-      if (parsedTelemetry?.fallbackUsed) {
-        const fallbackFrom = String(parsedTelemetry.fallbackFrom || "primary engine");
-        const chosenEngine = String(parsedTelemetry.chosenEngine || "fallback engine");
+      if (audioResult.telemetry?.fallbackUsed) {
+        const fallbackFrom = String(audioResult.telemetry.fallbackFrom || "primary engine");
+        const chosenEngine = String(audioResult.telemetry.chosenEngine || "fallback engine");
         onStatus?.({
           type: "success",
           message: `TTS fallback active: ${fallbackFrom} failed, switched to ${chosenEngine}.`,
         });
       }
-
-      if (Array.isArray(parsedSfx) && parsedSfx.length > 0) {
-        onStatus?.({
-          type: "info",
-          message: `SFX included: ${parsedSfx.join(", ")}`,
-        });
-        
-        // Preload SFX audio files for playback during speech
-        for (const sfxName of parsedSfx) {
-          const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxName)}`;
-          fetch(sfxUrl).catch(() => {
-            // SFX not yet cached (will be downloaded on next startup)
-          });
-        }
-      }
-
-      const blob = await response.blob();
-      const nextAudioUrl = URL.createObjectURL(blob);
 
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
@@ -1837,6 +2083,17 @@ export default function ChatWindow({
       }
       setIsGeneratingAudio(false);
     }
+  }
+
+  function handleAudioEnded() {
+    setIsAudioPlaying(false);
+
+    if (streamReadyAudioQueueRef.current.length > 0) {
+      playNextQueuedStreamAudio({ silentAutoplayBlock: true });
+      return;
+    }
+
+    streamPlaybackActiveRef.current = false;
   }
 
   async function handleSaveVoiceProfile() {
@@ -2151,7 +2408,7 @@ export default function ChatWindow({
                 src={audioUrl}
                 onPlay={() => setIsAudioPlaying(true)}
                 onPause={() => setIsAudioPlaying(false)}
-                onEnded={() => setIsAudioPlaying(false)}
+                onEnded={handleAudioEnded}
               />
             ) : null}
           </div>

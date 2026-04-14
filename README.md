@@ -193,8 +193,8 @@ What this demonstrates in minutes:
   - [x] Phase 2: keep Kokoro/Cartesia synthesis input bound to `packet.speech` only.
   - [x] Phase 3: add non-blocking overlay handling (`catchphrase` event type) in frontend as subtitle/SFX layer; do not add new TTS chunks.
   - [x] Phase 3.5: add `expressive` channel to `buildSpeechPacket` (`text`, `style[]`, `intensity`) — personality-driven visual variant of speech for UI display; TTS always uses `packet.speech` only.
-  - [ ] Phase 4: stream sentence-level packet queue (`sentence`, `emotion`, `overlay events`) and prefetch next sentence audio while current sentence is playing.
-  - [ ] Phase 4: add first-sentence-first playback mode to reduce perceived latency on local Kokoro.
+  - [x] Phase 4: stream sentence-level packet queue (`sentence`, `emotion`, `overlay events`) and prefetch next sentence audio while current sentence is playing.
+  - [x] Phase 4: add first-sentence-first playback mode to reduce perceived latency on local Kokoro.
   - [ ] Phase 5: separate personality event renderer from TTS path (voice tags, whisper overlays, UI-only catchphrase bursts).
 - Runtime provider credentials are available in the `Settings` tab (`Voice Provider Credentials`) so you can save TTS provider keys from the browser without editing `.env`.
 - Voice routing now lives in `Settings`, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without overlapping controls.
