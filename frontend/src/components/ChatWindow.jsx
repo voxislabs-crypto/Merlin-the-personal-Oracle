@@ -521,6 +521,17 @@ const chatStyles = `
     max-width: 220px;
   }
 
+  .personality-event-count {
+    margin-left: 4px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255, 220, 150, 0.35);
+    color: rgba(255, 235, 190, 0.9);
+    background: rgba(255, 220, 150, 0.1);
+  }
+
   .expressive-speech {
     margin-top: 2px;
     margin-bottom: 10px;
@@ -1356,6 +1367,44 @@ function splitLongSpeechChunk(text, maxChars = MAX_STREAM_SENTENCE_CHARS) {
   return chunks;
 }
 
+function coalescePersonalityEvents(events, nowMs = Date.now()) {
+  const map = new Map();
+
+  for (const rawEvent of Array.isArray(events) ? events : []) {
+    const type = String(rawEvent?.type || "event").trim().toLowerCase();
+    const delivery = String(rawEvent?.delivery || "overlay").trim().toLowerCase();
+    const spoken = Boolean(rawEvent?.spoken);
+    const text = String(rawEvent?.text || "").trim();
+    const tag = String(rawEvent?.tag || "").trim();
+    const labelText = text || tag;
+
+    if (!labelText) {
+      continue;
+    }
+
+    const key = `${type}:${delivery}:${spoken ? "spoken" : "silent"}:${labelText.toLowerCase()}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.lastSeenMs = nowMs;
+      continue;
+    }
+
+    map.set(key, {
+      key,
+      type,
+      delivery,
+      spoken,
+      tag,
+      text,
+      count: 1,
+      lastSeenMs: nowMs,
+    });
+  }
+
+  return Array.from(map.values());
+}
+
 export default function ChatWindow({
   personality,
   messages,
@@ -1666,35 +1715,61 @@ export default function ChatWindow({
     }
   }, [emotionSpectrum?.zone?.key]);
 
-  // Show structured personality events from telemetry and auto-dismiss after 7s.
+  // Show structured personality events from telemetry, coalesce duplicates, and auto-dismiss.
   useEffect(() => {
     const events = Array.isArray(voiceTelemetry?.personalityEvents)
       ? voiceTelemetry.personalityEvents
       : [];
 
-    const normalizedEvents = events
-      .map((event, index) => ({
-        id: `${String(event?.type || "event")}:${String(event?.tag || event?.text || "")}:${index}`,
-        type: String(event?.type || "event"),
-        delivery: String(event?.delivery || "overlay"),
-        tag: String(event?.tag || "").trim(),
-        text: String(event?.text || "").trim(),
-        spoken: Boolean(event?.spoken),
-      }))
-      .filter((event) => event.tag || event.text);
+    const nowMs = Date.now();
+    const normalizedEvents = coalescePersonalityEvents(events, nowMs);
 
     if (normalizedEvents.length === 0) {
-      setActivePersonalityEvents([]);
+      setActivePersonalityEvents((current) => {
+        const pruned = current.filter((event) => nowMs - Number(event?.lastSeenMs || 0) < 7000);
+        return pruned;
+      });
       return;
     }
 
-    setActivePersonalityEvents(normalizedEvents);
+    setActivePersonalityEvents((current) => {
+      const merged = new Map();
+
+      for (const event of current) {
+        if (nowMs - Number(event?.lastSeenMs || 0) < 7000) {
+          merged.set(event.key, event);
+        }
+      }
+
+      for (const event of normalizedEvents) {
+        const existing = merged.get(event.key);
+        if (existing) {
+          merged.set(event.key, {
+            ...existing,
+            count: Number(existing.count || 1) + Number(event.count || 1),
+            lastSeenMs: nowMs,
+            // Keep latest payload text/tag for display if it changed casing.
+            text: event.text || existing.text,
+            tag: event.tag || existing.tag,
+          });
+        } else {
+          merged.set(event.key, event);
+        }
+      }
+
+      return Array.from(merged.values())
+        .sort((a, b) => Number(b.lastSeenMs || 0) - Number(a.lastSeenMs || 0))
+        .slice(0, 4);
+    });
 
     if (personalityEventsTimerRef.current) {
       window.clearTimeout(personalityEventsTimerRef.current);
     }
     personalityEventsTimerRef.current = window.setTimeout(() => {
-      setActivePersonalityEvents([]);
+      const cutoff = Date.now() - 7000;
+      setActivePersonalityEvents((current) =>
+        current.filter((event) => Number(event?.lastSeenMs || 0) >= cutoff),
+      );
     }, 7000);
   }, [voiceTelemetry?.personalityEvents]);
 
@@ -2568,9 +2643,12 @@ export default function ChatWindow({
                   const text = event.text || event.tag;
 
                   return (
-                    <div key={event.id} className={`personality-event-chip ${eventTypeClass}`}>
+                    <div key={event.key} className={`personality-event-chip ${eventTypeClass}`}>
                       <span className="personality-event-label">{label}</span>
                       <span className="personality-event-text">&ldquo;{text}&rdquo;</span>
+                      {Number(event.count || 1) > 1 ? (
+                        <span className="personality-event-count">x{Number(event.count)}</span>
+                      ) : null}
                     </div>
                   );
                 })}
