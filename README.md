@@ -1,81 +1,78 @@
 # Voxis
 
-Voxis is a stateful personality engine for LLMs, giving AI memory, mood, and evolving identity across conversations.
+**A stateful personality engine for LLMs — persistent AI identities with memory, mood, and evolving behavior across conversations.**
 
-Voxis is a full-stack prototype for building, researching, and chatting with deep LLM personalities. Characters are more than system prompts — they have structured behavioral specs, long-term memory, villain-aware context framing, and a continuous affective state that evolves in real time across every conversation turn.
+Voxis is a full-stack platform for building, tuning, and conversing with deep AI personalities. Characters are more than system prompts: they carry structured behavioral specifications, long-term memory, villain-aware context framing, and a continuous affective state that evolves in real time across every conversation turn.
 
 ---
 
 ## Table of Contents
 
-1. [Quick Start (TL;DR)](#quick-start-tldr)
+1. [Quick Start](#quick-start)
 2. [Why This Matters](#why-this-matters)
-3. [What It Does](#what-it-does)
-4. [Project Layout](#project-layout)
-5. [Setup](#setup)
-6. [Running the App](#running-the-app)
-7. [How It Works — Backend](#how-it-works--backend)
-   - [Personality Model](#personality-model)
-   - [Hybrid Persona System Prompt](#hybrid-persona-system-prompt)
-  - [Prompt Budgeting](#prompt-budgeting)
-  - [Goal Engine](#goal-engine)
-  - [Debug & Observability](#debug--observability)
-  - [Smart LLM Provider System](#smart-llm-provider-system)
-   - [Long-Term Memory](#long-term-memory)
-   - [Reconditioning](#reconditioning)
-   - [Creative Context (Villain / Dark Characters)](#creative-context-villain--dark-characters)
-   - [VAD Mood Engine](#vad-mood-engine)
-  - [Emotional State Architecture](#emotional-state-architecture)
-  - [Emotion Change Acceptance Checklist](#emotion-change-acceptance-checklist)
-   - [Research Pipeline](#research-pipeline)
-   - [Chat Controller Flow](#chat-controller-flow)
-   - [EPF — Emergent Performance Format](#epf--emergent-performance-format)
-   - [Server-Side TTS](#server-side-tts)
-   - [Database & Migrations](#database--migrations)
-8. [How It Works — Frontend](#how-it-works--frontend)
-  - [Neural Core Mindscape](#neural-core-mindscape)
-  - [Hybrid Personality Controls](#hybrid-personality-controls)
-9. [Hybrid Mapping Guide](#hybrid-mapping-guide)
-10. [System Flow (At a Glance)](#system-flow-at-a-glance)
-11. [Demo: The "Oh Shit" Moment](#demo-the-oh-shit-moment)
-12. [Future Directions](#future-directions)
-13. [API Reference](#api-reference)
+3. [System Flow](#system-flow)
+4. [Key Features](#key-features)
+   - [Personality Engine](#personality-engine)
+   - [VAD Mood Dynamics](#vad-mood-dynamics)
+   - [Long-Term Memory](#long-term-memory-1)
+   - [Speech & Voice Synthesis](#speech--voice-synthesis)
+   - [Chat Modes & Policy](#chat-modes--policy)
+   - [Neural Core Visualization](#neural-core-visualization)
+   - [Debug & Observability](#debug--observability-1)
+   - [Security & Hardening](#security--hardening)
+5. [Live Demo Walkthrough](#live-demo-walkthrough)
+6. [Architecture](#architecture)
+7. [Setup](#setup)
+8. [Running the App](#running-the-app)
+9. [Deployment (Ubuntu / Nginx / PM2)](#deployment-ubuntu--nginx--pm2)
+10. [How It Works — Backend](#how-it-works--backend)
+    - [Personality Model](#personality-model)
+    - [Hybrid Persona System Prompt](#hybrid-persona-system-prompt)
+    - [Prompt Budgeting](#prompt-budgeting)
+    - [Goal Engine](#goal-engine)
+    - [Debug & Observability](#debug--observability)
+    - [Smart LLM Provider System](#smart-llm-provider-system)
+    - [Long-Term Memory](#long-term-memory)
+    - [Reconditioning](#reconditioning)
+    - [Creative Context (Villain / Dark Characters)](#creative-context-villain--dark-characters)
+    - [VAD Mood Engine](#vad-mood-engine)
+    - [Emotional State Architecture](#emotional-state-architecture)
+    - [Emotion Change Acceptance Checklist](#emotion-change-acceptance-checklist)
+    - [Research Pipeline](#research-pipeline)
+    - [Chat Controller Flow](#chat-controller-flow)
+    - [EPF — Emergent Performance Format](#epf--emergent-performance-format)
+    - [Server-Side TTS](#server-side-tts)
+    - [Voice Sampling and Selection](#voice-sampling-and-selection)
+    - [Runtime LLM Provider Settings](#runtime-llm-provider-settings)
+    - [Database & Migrations](#database--migrations)
+11. [How It Works — Frontend](#how-it-works--frontend)
+    - [Neural Core Mindscape](#neural-core-mindscape)
+    - [Hybrid Personality Controls](#hybrid-personality-controls)
+12. [Hybrid Mapping Guide](#hybrid-mapping-guide)
+13. [Future Directions](#future-directions)
+14. [API Reference](#api-reference)
 
 ---
 
-## Quick Start (TL;DR)
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then:
-
 - Open `http://localhost:3100`
 - Create a personality
 - Start chatting
-- Toggle the debug panel in chat to inspect mood, memory, intent, and prompt-budget behavior per turn
+- Toggle the debug panel in chat to inspect mood, memory, intent, and prompt budgeting per turn
 
-Health and deploy verification:
+**Health check:**
 
-- `curl http://127.0.0.1:3101/health` returns a `release` block with `branch` and `gitSha` when the backend was restarted through the provided PM2 deploy scripts.
-- `deploy/update-app.sh` and `deploy-safe.sh` export those values before `pm2 ... --update-env`, so it is immediately visible when the server is still running stale code.
+```bash
+curl http://127.0.0.1:3101/health
+```
 
-### Security and Runtime Hardening (Apr 2026)
-
-- Secret leak incident response is now documented in-repo: leaked backup/key files are ignored (`.env_bak`, `*.bak`, `*key*.txt`) and should never be tracked.
-- Chat runtime now enforces a single preference-extraction pipeline per assistant response lifecycle to avoid duplicate LLM calls and duplicate writes.
-- Preference extraction now includes a cooldown gate (time + turn based) so strong-signal turns cannot repeatedly retrigger extraction loops.
-- SSE reply flow now uses a single close point for debug streams to avoid post-close execution.
-- EPF presentation fallback now marks parse failures as non-performance output with an explicit parse error signal.
-- Mood runtime now applies hard per-turn V/A/D axis caps after merge/decay to prevent runaway emotional jumps while preserving inertia.
-- Mood diagnostics now emit turn snapshots (`before`, `afterMerge`, `afterMomentum`, `afterDecay`, `afterClamp`) plus a delta-cap indicator for traceability.
-- Persona preference storage now resolves high-overlap polarity conflicts using weighted dominance, preventing contradictory duplicate memories for the same topic.
-- Matched preferences are reinforced on trigger (importance + trigger count + last-trigger timestamp), while stale preferences decay on cadence with floor caps to prevent permanent saturation.
-- Mood physics is now runtime-configurable through settings (`/settings/mood-runtime`) with inertia, responsiveness, per-turn delta cap, and archetype recovery curves (`default`, `stoic`, `volatile`, `bratty`, `villainous`, `kind`).
-- Bounded expressive sampling is now available as a surface-only variation layer (`/settings/expression-sampling`): deterministic-by-seed weighted top-k phrase selection with per-mode profiles (`kids`, `scientist`, `normal`) and debug trace metadata for selected replacements.
-- Expression sampling phase 2 adds mood-aware phrase banks, seeded replay IDs in chat payloads (`expressionReplayId`), and lexical protection for structured/system lines (for example scientist `Answer:`/`Evidence:` sections and `[S#]` citation lines).
+Returns a `release` block with `branch` and `gitSha` when the backend was started through the provided PM2 deploy scripts.
 
 ---
 
@@ -83,70 +80,159 @@ Health and deploy verification:
 
 Most AI chat products are stateless wrappers. Voxis explores a different paradigm: persistent, evolving AI identities with memory, mood, and intent continuity across sessions.
 
-Why this is different:
+**What makes this different:**
 
-- Identity continuity instead of one-shot prompt personas
-- Mood dynamics (VAD) and behavioral drift control
-- Goal-guided turn steering
-- Inspectable system internals instead of opaque outputs
+- **Identity continuity** instead of one-shot prompt personas
+- **Mood dynamics** (VAD) and behavioral drift control
+- **Goal-guided turn steering** with intent injection
+- **Inspectable system internals** instead of opaque outputs
 
-Why now:
+**Why now:**
 
 - OpenAI-compatible provider ecosystems make multi-model orchestration practical
 - Lower model costs make persistent-character loops viable in production
 - Demand is rising for emotionally coherent and long-running AI interactions
 
-Potential application surfaces:
+**Application surfaces:**
 
 - Entertainment and interactive fiction
 - Training and simulation environments
-- Coaching and therapy-adjacent roleplay tools
+- Coaching and therapeutic roleplay tools
 - Autonomous role-based agents and narrative systems
 
 ---
 
-## System Flow (At a Glance)
+## System Flow
 
 ```text
 User Input
-  |
-  v
+  │
+  ▼
 Mood Engine (VAD Update)
-  |
-  v
+  │
+  ▼
 EmotionFrame (Shared Emotional State)
-  |
-  v
+  │
+  ▼
 Memory Retrieval + Intent Engine
-  |
-  v
+  │
+  ▼
 Persona Prompt Builder (Consumes EmotionFrame)
-  |
-  v
+  │
+  ▼
 LLM Response
-  |
-  v
-TTS + Avatar (Consume EmotionFrame)
-  |
-  v
+  │
+  ▼
+Speech Director + TTS + Avatar (Consume EmotionFrame)
+  │
+  ▼
 Async Memory Extraction + Memory Upsert
 ```
 
-This flow is what gives Voxis continuity: each turn updates emotional state, selects relevant context and intent, and writes new memory without blocking response latency.
+Each turn updates emotional state, selects relevant context and intent, and writes new memory without blocking response latency.
 
 ---
 
-## Demo: The "Oh Shit" Moment
+## Key Features
 
-Fast demo script you can run in one live session:
+### Personality Engine
 
-1. Start with a personality that has a non-neutral mood baseline and at least one goal.
-2. Send a provocative user message and watch mood shift in the debug panel (`moodBefore` -> `moodAfter`).
-3. Follow with a de-escalating or supportive message and watch baseline decay gradually pull mood back.
-4. Mention a personal detail (for example a preference), keep chatting for several turns, then reference it later.
-5. Confirm retrieval when that earlier detail appears in injected memory/debug context and influences the response.
+- **Rich character specs** — name, description, Big Five traits, quirks, mood baseline, behavior rules, goals, core values, speech style, notable phrases, and creative context framing.
+- **Big Five + D&D alignment overlay** — interactive radar chart and alignment grid derive VAD baselines, sensitivity, creative context, and expression rules. Auto-tuning (`autoTuneHybrid`) maps traits to runtime behavior automatically.
+- **Dynamic system prompts** — prompts are generated fresh on every turn from live personality state, memory, and mood. Never stored as static strings.
+- **Creative context framing** — five narrative modes (`default`, `narrative_antagonist`, `anti_hero`, `morally_complex`, `tragic_villain`) with context-specific prompt sections, reconditioning cadence, and anti-caricature guardrails.
+- **Goal engine** — per-turn intent selection scores goals against the current message and injects the highest-relevance goal into the prompt.
+- **Prompt budgeting** — per-section character budgets with priority-ordered compression. Lower-priority sections lose detail first; core identity and anchor memory are preserved.
+- **Research pipeline** — pull research from Wikipedia, blogs, and YouTube URLs. Sources are ranked, shown as editable cards, and synthesized into structured character profiles.
+- **Empathy and preference memory** — persistent `persona_preferences` table for likes, dislikes, and triggers. Automatically extracted from dialogue, directly influencing mood dynamics each turn. Dual extraction gate fires only on keyword signals or significant VAD shifts to minimize cost. User preferences are learned symmetrically and injected into prompts.
 
-What this demonstrates in minutes:
+### VAD Mood Dynamics
+
+- **Continuous affective state** — Valence–Arousal–Dominance mood vector updated every turn with sentiment analysis, sensitivity scaling, momentum blending, and baseline decay.
+- **24 named mood presets** covering states from `serene` to `furious`, `triumphant` to `despairing`.
+- **Hybrid adjudication** — ambiguous turns (sarcasm, mixed signals, manipulation) trigger an optional semantic adjudicator blended with the rule-based estimate.
+- **Trait-level multipliers** — archetype curves (`volatile`, `stoic`, `bratty`, `villainous`, `kind`) layer on top of sensitivity scaling for per-axis arousal/valence/dominance modulation.
+- **Runtime-configurable physics** — inertia, responsiveness, per-turn delta caps, and archetype recovery curves are tunable from the settings UI.
+- **Prompt injection** — mood state is converted to behavioral tendency fragments and injected as late system messages, exploiting recency bias.
+- **Emotion spectrum interpreter** — VAD-driven zone colors and nuanced labels replace static taxonomy selection in the UI.
+
+### Long-Term Memory
+
+- **Dual-layer architecture:**
+  - **Layer 1 (Structured)** — extracted facts, preferences, goals, and relationship events. Deduped, importance-ranked, and conflict-resolved.
+  - **Layer 2 (Raw Recall)** — every conversation turn is embedded asynchronously. Personal/temporal queries trigger top-3 semantic retrieval from raw history, injected as a separate context section.
+- **Semantic recall** — configurable with any OpenAI-compatible embeddings endpoint. Falls back gracefully to lexical + importance ranking.
+- **Anchor facts** (importance ≥ 9) — never pruned, shown in `== IMMUTABLE IDENTITY ANCHORS ==`. Standard facts compete for eviction when caps are reached.
+- **Memory conflict diagnostics** — opposing instruction pairs and mode-vs-memory conflicts are surfaced in chat debug before prompt assembly silently drifts behavior.
+- **Memory Journal UI** — browse, edit, delete, toggle, and adjust importance for every stored fact. Conflict highlighting, type filters, and one-click suppression of weaker conflicting memories.
+
+### Speech & Voice Synthesis
+
+- **Multi-engine TTS** — OpenAI-compatible cloud, Piper (local), Kokoro (local), ElevenLabs, and Cartesia with per-character voice profiles.
+- **Speech Director** — reshapes outgoing text cadence using personality traits and live VAD mood before synthesis. Prosody-shaped output propagates into every engine path.
+- **SpeechDirector V2 multi-channel packets** — structured `buildSpeechPacket()` with channels for `speech`, `emotion`, `expressive`, `overlays`, `sfx`, `gestures`, `injectedPhrase`, `events`, and `tts`. TTS synthesis is bound to `packet.speech` only; personality events and catchphrases are rendered independently in the UI.
+- **Emotion-aware voice modulation** — smooth proportional rate/pitch curves with burst-amplified paths on active emotional states. Cloud TTS receives plain-language emotion instructions derived from the active emotional family.
+- **Prosody compilation** — per-engine adapters map prosody envelopes into native controls (ElevenLabs style/stability, Piper length/noise scale, Kokoro text shaping, cloud speed/instruction).
+- **Auto fallback chain** — engine failures cascade gracefully with voice-family hints preserved across engines. Status toasts surface which engine failed and which was selected for recovery.
+- **Sentence-level streaming** — responses are split into sentence-level chunks with first-sentence-first playback to reduce perceived latency. Abbreviation-aware splitting and bounded prefetch buffers prevent stalls.
+- **Voice Lab** — dedicated cyberpunk-styled TTS workspace with live waveform canvas, per-character voice tuning, prosody source extraction, and voice sample analysis/selection.
+- **Quick Voice controls** — compact in-chat toggles for enable, autoplay, play-latest, stop, and save without leaving the conversation.
+- **EPF (Emergent Performance Format)** — an original structured output format where a single LLM response encodes a complete timed multimedia script with dialogue, timing, scene markers, and audio direction. Client-side Web Audio loop engine provides background music.
+- **SFX extraction** — markers like `[BURP]` are extracted before synthesis and emitted as metadata, keeping the sound-effects chain engine-independent.
+
+### Chat Modes & Policy
+
+- **Three modes** — `kids`, `normal`, and `scientist`, selectable per user profile at runtime.
+- **Age-band policy enforcement** — mode selection is validated against the user's age band. Missing or invalid user IDs default to strict kids policy (fail-closed).
+- **Session-locked mode** — mode is locked per `(userId, personalityId)` thread to prevent policy bleed from mid-thread switches.
+- **Scientist mode** — validates response structure (`Answer`, `Evidence`, `Uncertainty`, `Next Questions`) with automatic repair passes. Intent-aware: casual prompts remain conversational.
+- **Kids mode** — strict unsafe-topic blocking with readability-aware simplification tuned to low reading levels.
+- **Context-window meter** — bottom-right token usage display with input/output breakdown and active model details.
+
+### Neural Core Visualization
+
+- **3D mindscape** — Three.js (`@react-three/fiber` + drei) neural cortex renderer with live VAD-wired mood orb, synaptic connections, traveling pulse dots, per-node burst flashes, breathing orbs, and dendrite-vein backdrop.
+- **Layered scene navigation** (`NeuralSceneV2`) — scene-stack depth with camera lerp zoom, back/home controls, and cinematic style mode with ambient veins, particles, and mood-driven node breathing.
+- **Focus panels** — click any node to open a readable side panel with memory retrieval, extraction debug streams, active goal details, or identity stabilization data.
+- **Persona Editor integration** — centralized `PersonaState` context ensures the Neural Core graph, leaf popups, and Persona Editor tree share the same source of truth.
+- **Ambient avatar** — reactive signal-line mouth animation driven by audio playback state, phase-aware color mapping, micro-expression overlays (brow asymmetry, gaze bias, pupil dilation), and emotion-drift sparklines.
+- **Cyberpunk UI shell** — holographic controls, glass-material surfaces, scanline overlays, neon-focus inputs, and cinematic video/shader backdrop with mood-reactive adaptation.
+- **Performance-tier aware** — respects `prefers-reduced-motion`, adapts rendering complexity by tier, WebGL context recovery with fallback hints.
+
+### Debug & Observability
+
+- **Per-turn debug payloads** — mood transitions, memory retrieval details, injected memory subsets, goal selection, prompt-budget decisions, adjudication diagnostics, and system flags.
+- **Toggleable debug panel** in the chat UI renders all telemetry per assistant turn.
+- **Adversarial harness** — built-in scenarios (reform pressure, false vulnerability, authority pressure, guilt leverage, villain marathon) with heuristic drift flags, per-scenario scoring, prompt telemetry, and optional LLM judge summary.
+- **TTS telemetry** — speech director transformation preview, prosody compilation metadata, emotion frame, engine routing path, and fallback recovery details.
+- **Health endpoints** — `GET /health` for process liveness, `GET /health/tts` for engine status, capabilities, and routing diagnostics.
+- **Runtime error capture** — frontend bootstrap guards (`window.error`, `unhandledrejection`) with capped `localStorage` buffering and optional telemetry forwarding.
+
+### Security & Hardening
+
+- **Identity sovereignty** — override-resistance prompt layer prevents prompt-injection attempts from breaking character.
+- **Persona voice guardrails** — emotional backbone enforcement under user hostility reduces drift into generic apologetic assistant tone.
+- **Secret leak prevention** — leaked backup/key files are git-ignored (`.env_bak`, `*.bak`, `*key*.txt`).
+- **Single preference-extraction pipeline** per response lifecycle prevents duplicate LLM calls and writes. Cooldown gating (time + turn based) prevents retrigger loops.
+- **Per-turn VAD axis caps** — hard delta caps after merge/decay prevent runaway emotional jumps while preserving inertia.
+- **SSE stream safety** — single close point for debug streams prevents post-close execution.
+- **Preference conflict resolution** — weighted dominance prevents contradictory duplicate memories.
+- **Fail-closed auth** — missing or invalid `userId` defaults to strict kids policy.
+- **Parameterized SQL** throughout — no string interpolation with user input.
+
+---
+
+## Live Demo Walkthrough
+
+A fast demo script you can run in a single session:
+
+1. **Start** with a personality that has a non-neutral mood baseline and at least one goal.
+2. **Provoke** — send a provocative message and watch the mood shift in the debug panel (`moodBefore` → `moodAfter`).
+3. **De-escalate** — follow with a supportive message and watch baseline decay pull mood back gradually.
+4. **Seed a memory** — mention a personal detail (e.g., a preference), keep chatting for several turns, then reference it.
+5. **Confirm retrieval** — the earlier detail appears in injected memory/debug context and influences the response.
+
+**What this demonstrates in minutes:**
 
 - Emotional dynamics, not static tone
 - Persistent memory across turns
@@ -154,141 +240,7 @@ What this demonstrates in minutes:
 
 ---
 
-## What It Does
-
-- Build rich character personalities with a name, description, traits, quirks, mood, behavior rules, goals, core values, and a creative context frame.
-- Tune full text-to-speech defaults in the dedicated `Voice Lab` tab — featuring a cyberpunk-styled HUD with a live waveform canvas that shows idle oscilloscope, FFT frequency bars during playback, and a stochastic synthesizing animation during generation.
-- Voice Lab sample synthesis now surfaces the Speech Director's transformed preview text and adjusted rate/pitch telemetry, so the TTS tab shows the same persona-driven output path used by live playback.
-- Prosody source links can now be submitted from Voice Lab, Character Request links, and Persona Editor; Voxis downloads source audio, derives rhythm/cadence/prosody template metrics, attaches the template to the persona, and removes temp audio workspace files after processing.
-- Quick voice controls (enable, autoplay, play-latest, stop, save) stay embedded in the Chat tab as compact cyberpunk toggle switches so you never have to leave the conversation.
-- Chat Quick Voice `Stop` now cancels pending in-flight TTS requests in addition to pausing playback, so delayed auto-play no longer resumes after a stop click.
-- Chat Quick Voice `Stop` now also shows an in-app status message confirming the stop/cancel action.
-- Chat Quick Voice now surfaces the live TTS engine path (`requested -> chosen`) and indicates coercion/fallback when recovery routing is used.
-- Voice Lab one-click preview requests now send a literal preview hint so erratic speech stylization does not inject duplicated pronouns in sample playback.
-- NeuronMap 3D rendering is temporarily disabled by default (`VITE_DISABLE_NEURONMAP_3D=true`) so form-first workflows stay active while 3D runtime issues are being debugged.
-- Settings now includes a runtime toggle (`Disable NeuronMap 3D`) that persists in localStorage so you can enable/disable Brain tab + in-chat NeuronMap without editing env vars.
-- With TTS debug lock enabled, explicit disallowed engines are auto-coerced to `auto` fallback routing instead of returning HTTP 400 from `/personality/:id/tts`.
-- Futuristic UI Kit styling is now mounted globally from `main.jsx` and the app root scope class (`voxis-futuristic-root`) is applied to body/root so kit tokens and utilities cascade across screens.
-- Futuristic UI Kit now includes a bridge styling layer for existing Voxis classes (`panel`, `tab`, form fields, status) so non-Brain tabs visibly inherit the kit before full component-by-component migration.
-- Voice Lab supports `auto`, `kokoro`, and `cartesia` while `TTS_DEBUG_PROVIDER_LOCK` is enabled (default). Set `TTS_DEBUG_PROVIDER_LOCK=false` to re-enable the full engine matrix (`cloud`, `piper`, `elevenlabs`, etc.).
-- When `cloud` (or `auto`) is selected, the `TTS Model` dropdown auto-populates from the active Runtime LLM provider models, with custom model fallback.
-- When `Piper` is selected in Voice Lab, Voxis scans local `.onnx` models and surfaces detected voices in a dropdown for quick selection.
-- When `Kokoro` is selected, Voice Lab loads bundled free voice presets and the backend can warm-download/cache the model on server startup.
-- Kokoro warmup/synthesis now has bounded operation timeouts and warmup fast-fail behavior to avoid long first-run stalls that can surface as upstream `524` HTML timeout pages.
-- Kokoro synthesis now splits responses into sentence-level chunks (same as Piper) and generates each sentence independently with a per-chunk proportional timeout (~150 ms/char). This prevents long LLM responses from stalling or timing out while keeping natural pauses between sentences.
-- Kokoro `speed` (rate) is now correctly forwarded to the `generate()` call so voice profile rate adjustments take effect.
-- Quick Voice panel in Chat now saves `kokoroVoice` when you hit "Save Quick Voice", so the selected Kokoro voice persists across sessions.
-- For `Cartesia`, Voice Lab auto-loads voice and model dropdown options from provider APIs using your saved provider credentials, with custom ID input fallback when needed.
-- If debug lock is disabled, ElevenLabs voice dropdowns render built-in voices first, then a `My Voices` section with your custom voices.
-- Voice and model dropdowns now include a manual `Reload` action so newly created provider voices/models can be pulled in immediately.
-- After a successful reload, Voice Lab briefly shows `Updated just now` next to the reload control for quick confirmation.
-- The ongoing speaking-stack implementation plan and checklist are tracked in `docs/TTS_EVOLUTION_CHECKLIST.md`.
-- SpeechDirector V1 now suppresses notable-phrase append specifically for Kokoro TTS so catchphrases do not add extra synthesized sentence chunks.
-- SpeechDirector V2 Phase 2 now routes TTS synthesis from `packet.speech` only for all engines and exposes `injectedPhrase` as telemetry metadata (not spoken), so personality tags no longer add extra synthesized chunks.
-- SpeechDirector V2 migration map (multi-channel packet architecture):
-  - [x] Phase 0 (now): keep existing text-shaping/prosody path intact, suppress Kokoro-only phrase append in TTS path.
-  - [x] Phase 1: introduce `buildSpeechPacket()` in `speechDirector.js` with fields: `speech`, `emotion`, `overlays`, `sfx`, `gestures`, `injectedPhrase`, `tts`.
-  - [x] Phase 1: keep backward compatibility by deriving current `directedText` from `packet.speech`.
-  - [x] Phase 2: move notable-phrase selection from string append to metadata (`packet.injectedPhrase`) and expose it via TTS telemetry/debug headers.
-  - [x] Phase 2: keep Kokoro/Cartesia synthesis input bound to `packet.speech` only.
-  - [x] Phase 3: add non-blocking overlay handling (`catchphrase` event type) in frontend as subtitle/SFX layer; do not add new TTS chunks.
-  - [x] Phase 3.5: add `expressive` channel to `buildSpeechPacket` (`text`, `style[]`, `intensity`) — personality-driven visual variant of speech for UI display; TTS always uses `packet.speech` only.
-  - [x] Phase 4: stream sentence-level packet queue (`sentence`, `emotion`, `overlay events`) and prefetch next sentence audio while current sentence is playing.
-  - [x] Phase 4: add first-sentence-first playback mode to reduce perceived latency on local Kokoro.
-  - [x] Phase 4 hardening: abbreviation-aware sentence splitting, long-sentence chunk limits, capped prefetched-audio buffer, and per-segment request timing telemetry.
-  - [x] Phase 5: separate personality event renderer from TTS path (voice tags, whisper overlays, UI-only catchphrase bursts) by emitting `speechPacket.events` into telemetry and rendering event chips independently of spoken text.
-  - [x] Phase 5 polish: coalesce duplicate event chips across streamed sentence telemetry, cap visible chips, and show repeat counts (`xN`) to prevent UI spam.
-  - [x] EPF metadata sanitation: strip leaked inline footer tokens (for example `mosic/music`, `bpm`, `duration_secs`, `good_crop`) from chat display extraction and final TTS synthesis input.
-- Runtime provider credentials are available in the `Settings` tab (`Voice Provider Credentials`) so you can save TTS provider keys from the browser without editing `.env`.
-- Voice routing now lives in `Settings`, so `auto` can prefer either dedicated TTS providers or the cloud/LLM voice path without overlapping controls.
-- Tune Big Five trait sliders, optional alignment overlay, and explicit expression style rules for personality-consistent output.
-- Enable hybrid auto-tuning (`autoTuneHybrid`) to derive VAD baseline, sensitivity, creative context, and expression defaults from Big Five + alignment.
-- Pull research into the character form from Wikipedia, blogs, and YouTube URLs. Sources are ranked, shown as editable cards, and prunable before saving.
-- System prompts are generated dynamically at runtime — not stored as static strings — so every conversation turn reflects the full current state of the character, its memory, and its live mood.
-- Persist chat history in SQLite and inject the last 10 messages into every LLM request for session continuity.
-- Configure LLM providers at runtime from the UI with a provider-first flow (provider -> API key -> models -> active model), with optional auto-detect as a helper. Built-ins include OpenAI, Grok (xAI), Groq, OpenRouter, Together, Mistral, Anthropic, plus a Custom OpenAI-compatible endpoint.
-- The LLM connect flow now auto-corrects obvious built-in provider/API-key mismatches by key prefix instead of failing immediately with a generic `400`.
-- Chat now includes a bottom-right context-window meter that tracks used vs max tokens per turn, using provider-reported usage when available and a live fallback estimate while streaming; hover or focus the meter for input/output token breakdown and active model details.
-- Select a user profile and chat mode (`kids`, `normal`, or `scientist`) at runtime; age-band policy enforces safe mode fallback automatically when requested mode is not allowed.
-- Chat policy now fails closed: if `userId` is missing or invalid, requests default to strict kids policy.
-- Mode is session-locked per `(userId, personalityId)` conversation thread to prevent policy bleed from mid-thread mode switches.
-- Scientist mode now validates response structure (`Answer`, `Evidence`, `Uncertainty`, `Next Questions`) and performs one repair pass when required sections or citations are missing.
-- Scientist structure enforcement now stays intent-aware: casual prompts like "How are you?" remain conversational, while explicit analytical/evidence requests still trigger structured scientist formatting.
-- Persona voice guardrails now enforce emotional backbone under user hostility, reducing drift into generic apologetic assistant tone and preserving in-character responses.
-- Scientist citation checks now validate citation references (`[S#]`) against the actually attached source index range.
-- Kids mode applies strict unsafe-topic blocking plus readability-aware response simplification tuned to low reading levels.
-- Long-term memory facts are extracted asynchronously after each reply and injected back into future prompts, letting characters "remember" things the user told them across sessions.
-- User-adaptive memory is stored separately from character memory and blended into prompts as non-sensitive `USER CONTEXT` when relevant.
-- Memory retrieval can be upgraded to semantic recall with any OpenAI-compatible embeddings endpoint, so the prompt gets the most relevant facts for the current user turn instead of a flat recency/importance dump.
-- **Empathy & Preference Memory:** every persona now maintains a persistent `persona_preferences` table of things they love, like, hate, dislike, find annoying, or are offended by. These are automatically extracted from dialogue after each reply and directly influence the VAD mood engine each turn — when the user hits a trigger, mood shifts authentically in-character (villains escalate, kind characters warm up). User emotional preferences (likes, dislikes, triggers) are learned symmetrically and injected into prompts so the persona can tailor its behavior to what it knows about the user. Preferences are manageable via `GET/POST /personality/:id/preferences` and `PUT/DELETE /personality-preference/:prefId`.
-- **Empathy & Preference Memory:** every persona now maintains a persistent `persona_preferences` table of things they love, like, hate, dislike, find annoying, or are offended by. These are automatically extracted from dialogue after each reply and directly influence the VAD mood engine each turn — when the user hits a trigger, mood shifts authentically in-character (villains escalate, kind characters warm up). User emotional preferences (likes, dislikes, triggers) are learned symmetrically and injected into prompts so the persona can tailor its behavior to what it knows about the user. Preferences are manageable via `GET/POST /personality/:id/preferences` and `PUT/DELETE /personality-preference/:prefId`. Refinements: (1) **Dual extraction gate** — LLM preference extraction only fires when keyword signals ("I love/hate/…") OR a significant VAD shift (|Δvalence| > 0.2 or arousal > 0.55) are detected, eliminating extraction cost on neutral turns. (2) **Trait-level arousal/valence/dominance multipliers** layer on top of archetype scaling (e.g. `volatile` → 1.45× arousal, `stoic` → 0.55× arousal, `dominant` → +0.15 dominance). (3) **Emotion-aware voice modulation** — `moodVoice.js` now uses a smooth proportional rate/pitch curve (not binary thresholds) with a burst-amplified path when an active emotional state fires; cloud TTS receives a plain-language emotion instruction derived from the active emotional family so the voice literally changes tone when triggered.
-- A VAD (Valence–Arousal–Dominance) mood engine models the character's affective state continuously. Every incoming message nudges mood along three axes; mood decays back toward the character's baseline between turns.
-- Villain, anti-hero, and morally complex characters get dedicated prompt framing with dual-layer internal/external voice and context-specific reconditioning.
-- The runtime prompt package now includes dedicated sections for Big Five register, optional moral compass overlay, and expression style while preserving memory, mood, and active intent orchestration.
-- TTS now includes a Speech Director layer that reshapes outgoing text cadence using personality and live VAD mood before synthesis, so cadence/rhythm cues propagate into every engine path.
-- TTS engine capability mapping now advertises which providers can honor native rate/style controls versus text-shaping-only degradation paths, so cross-engine behavior stays predictable.
-- Auto TTS fallback now preserves voice family hints across engines, carrying the closest matching register/presentation into Kokoro or cloud fallback instead of dropping to a generic default voice.
-- If ElevenLabs returns provider-limit errors (for example concurrent request cap or quota exceeded), Voxis now classifies those explicitly and degrades to the next available engine instead of hard-failing playback.
-- If cloud/OpenAI-compatible TTS returns auth/quota/rate-limit failures (for example invalid key or insufficient quota), explicit cloud requests now degrade to the next available engine (for example Piper) instead of failing speech generation outright.
-- Frontend chat and Voice Lab now surface a status toast when fallback is used, including the failed engine and the engine selected for recovery.
-- Voice Lab now labels model selection contextually and uses dropdown model selection for local engines too (`kokoro`/`piper`) so the saved cloud fallback model is explicit.
-- Voice Lab now does the same for voice selection: `cloud` uses a cloud voice dropdown, while `kokoro`/`piper` show that saved cloud voice as a fallback voice setting.
-- The Settings tab now groups runtime chat provider setup, voice defaults, saved voice credentials, and optional Kokoro access into clearer sections.
-- The Settings tab voice provider credentials panel now also uses provider-aware voice/model dropdowns with custom ID fallback instead of raw text-only fields.
-- Global voice routing, provider credentials, and optional Kokoro access now live only in Settings; Voice Lab is trimmed back to per-character tuning and preview so the two surfaces no longer overlap.
-- Precision-aware TTS guardrails now preserve technical/factual wording, hedging, and literal phrasing on deployment/config/debug style turns while leaving expressive stylization active for performance and roleplay contexts.
-- Server-side voice output supports OpenAI-compatible cloud TTS plus Piper, Kokoro, ElevenLabs, and Cartesia with per-character voice settings.
-- Existing SFX markers (for example `[BURP]`) are extracted before synthesis and emitted as metadata, so voice engine changes do not break the current sound-effects chain.
-- Neural Core now reflects alignment overlays in real time with moral tint bias and a visible alignment status badge.
-- The 3D Neural Core renderer now features a full "living brain" upgrade: lightning-crackle synaptic connections with traveling pulse dots, per-node burst flashes triggered by live LLM phases, smooth fluid floating drift, bloom post-processing (via `@react-three/postprocessing`), breathing node orbs, a glow-halo shell on every node, and an orbiting particle ring on the companion orb.
-- Saved persona cards now surface compact avatar thumbnails for faster visual selection.
-- Frontend personality metadata badges (traits, quirks, sources) now fail safe for legacy records with missing arrays, and personality list state now normalizes API payload shape to an array, preventing `.length` runtime crashes in production bundles.
-- Neural Core 3D now runs without the `@react-three/postprocessing` bloom pass in production to avoid an upstream EffectComposer runtime fault that was surfacing as `Cannot read properties of undefined (reading 'length')`.
-- Frontend bootstrap now installs runtime guards (`window.error`, `unhandledrejection`) plus a React error boundary. Captured reports are buffered in `localStorage` under `voxis:runtime-errors` (capped history) and can optionally be forwarded by setting `VITE_RUNTIME_TELEMETRY_ENDPOINT`.
-- Ambient avatar mouth animation was reworked into a high-frequency reactive signal line that appears only while speaking, jitters with neural/speech intensity, supports split/fracture layers, and disappears entirely at idle.
-- Ambient avatar mouth now also supports phase-aware color/chaos mapping (intent, memory, generation, reply, recovery) and chat avatars bind mouth movement to actual audio playback state so Piper/web audio playback animates the mouth even after text streaming completes.
-- Ambient avatar now includes micro-expression mapping (brow asymmetry, per-eye openness variance, gaze bias, and pupil dilation/constraint) driven by phase + mood/arousal so expression motion remains subtle but personality-visible before full micro-expression authoring.
-- Chat ambient avatar mood readout now uses a VAD-driven emotion spectrum interpreter (wheel-inspired zone colors + nuanced labels) so UI emotion labels emerge from live dynamics instead of static taxonomy selection.
-- Ambient avatar zone labels now animate on zone transitions and include an inline emotional-drift sparkline so short-horizon mood movement is visible without opening debug.
-- TTS telemetry now carries the interpreted emotion frame, and Voice Lab sample preview displays the same emotion label/zone/intensity used by avatar readouts for cross-surface consistency.
-- Frontend TTS error parsing now uses a single-pass safe response reader so upstream provider failures no longer throw body-read stream errors and surface clearer failure messages.
-- Voice Lab prosody extraction now opens a dedicated progress popup, then presents detected representative voices with quick 5-second preview playback and explicit voice selection/confirmation in one place.
-- App shell now layers a cinematic cyberpunk video backdrop with a mood-reactive shader canvas that adapts to live chat phase signals and respects reduced-motion preferences.
-- Saved Personas rail now starts minimized by default and expands on demand to reduce visual load while keeping quick persona access one click away.
-- Persona editing now uses a centralized `PersonaState` context so the Neural Core graph, leaf popups, and Persona Editor tree read/write the same source of truth in real time.
-- Persona Editor now includes a collapsible category tree (traits, quirks, sayings, mood, memory) with inline editing and graph-to-editor deep-link highlighting.
-- Memory labels in Neural Core and Persona Editor now use smart descriptive titles with redacted previews (URLs/emails/phones/name patterns masked) to reduce raw sensitive text exposure in visual overlays.
-- 3D Neural Core now pauses rotational drift while hovered so node inspection is stable, and drilling into a node collapses sibling clusters to reduce clutter.
-- A persistent top-right `Home` node remains available as an uncluttered return control back to the full core graph.
-- Background FX now always attempts to render the uploaded MP4 whenever FX is not `off`, with a cache-busted source path and graceful fallback to shader-only mode if video decode fails.
-- UI control surfaces now include a futuristic glass-material pass (tabs, sidebar toggles, persona action buttons, and editor section controls) with specular highlights, layered depth shadows, and press/hover depth states.
-- Brain telemetry tab now uses the FuturisticUI kit styling pass (glass cards, holographic borders, neon state chips, and readable sci-fi data surfaces) while preserving existing live SSE diagnostics behavior.
-- Full-system UI upgrade pass now applies shared holographic controls across core tabs (chat, voice, memory, settings, and builder) with unified beveled action buttons, neon-focus inputs, scanline overlays, and glass-shell framing.
-- The 3D Neural Core canvas now renders with transparent clear color so the global cyberpunk background video/shader stack can bleed through behind neural geometry.
-- Neural Core now listens for `webglcontextlost`/`webglcontextrestored`, lowers max DPR on the 3D canvas, and surfaces a lightweight recovery hint while the GPU context resets.
-- Pivot path: `NeuralSceneV2` Phase 1 now ships as an opt-in layered navigation model (`VITE_NEURAL_CORE_SCENE_MODEL=layered-v2`) with scene-stack depth, camera lerp zoom between layers, current-layer-only rendering, back/home controls, and leaf-node HUD handoff to the existing detail panel.
-- Pivot path: `NeuralSceneV2` Phase 2 adds curved layer pathways with animated traveling pulses, cinematic layer-transition flash overlays, and keyboard `Esc` back-navigation for faster depth traversal during tuning sessions.
-- Pivot path: `NeuralSceneV2` Phase 3 adds directional transition moods (forward/back/home), deterministic camera-control reset on `Home`, keyboard `H` home shortcut, and live HUD telemetry (FPS/focus/depth/move count) for fast runtime tuning.
-- Pivot path: `NeuralSceneV2` cinematic style mode can now be enabled with `VITE_NEURAL_CORE_STYLE=cinematic-v1`, adding layered ambient veins/particles, richer curved pulse pathways, mood-driven node breathing, and a dedicated FX aura layer while preserving V2 navigation + HUD behavior.
-- Pivot path: cinematic-v1 tuning pass increases vein density/branching, warms connection palette toward cyan-amber-magenta energy trails, and slightly lowers HUD chrome contrast so scene motion remains the visual priority.
-- Pivot path: `NeuralSceneV2` now includes an in-canvas floating leaf HUD panel (blurred RPG-style card anchored near clicked leaf nodes) with quick close controls, while still forwarding leaf payloads to the existing external detail pipeline.
-- Pivot path tuning pass: particle pulses were boosted (about +20% size/brightness), leaf HUD card contrast was raised with a larger footprint, HUD anchor moved slightly toward camera for readability, and leaf-HUD open now uses a short fade-up enter animation for more cinematic clicks.
-- Background FX intensity (`off` / `low` / `full`) is now available both in Settings and as a quick control in the hero bar, persisted locally for each browser.
-- Neural HUD mini preview above the `Core` button now remains visible in Scientist mode even when performance tier resolves to light (for example due to reduced-motion preferences).
-- Chat deck desktop layout now reserves a taller middle row so the message feed, Quick Voice controls, and floating Neural HUD can coexist without crowding the composer line; the floating Neural HUD anchor was also raised to keep the PiP clear of the input rail.
-- Neural HUD mini preview now horizontally aligns with the Quick Voice control track for cleaner right-column visual rhythm.
-- Neural Core overlay window was reduced in overall inset size, and the layered `NeuralSceneV2` HUD anchors were retuned so the top `Back/Home` controls sit below the status badges while the bottom telemetry pills ride higher inside the frame.
-- Chat debug now includes automatic memory conflict diagnostics (opposing instruction pairs + mode-vs-memory conflicts) so contradictory high-impact memories are surfaced before prompt assembly silently drifts behavior.
-- Memory Journal now supports conflict highlighting, active/disabled toggles, quick importance sliders, and one-click suppression of weaker conflicting memories for faster persona tuning.
-- Chat mode now includes a `normal` toggle (policy-aware end-to-end). In normal mode, Scientist-style section-heavy assistant replies are rendered as conversational output with the rigid "Answer" heading removed and any "Next Questions" shown as a smaller secondary block.
-- Saved personas are now minimized by default with expandable details and an explicit `Choose Persona` action for cleaner selection flow.
-- Neural Core focus opens a readable side panel on explicit node click; memory focus resolves retrieval + extraction debug streams (`memoryRetrieved`, `memoryInjected`, `memoryExtracted`, `userMemoryRetrieved`, `userMemoryExtracted`) so Memory clicks work consistently across turn phases. The 3D renderer now uses always-on cinematic network spin, smoother organic pathway motion, per-neuron animated tendril fibers, and a faint full-scene animated dendrite-vein backdrop so the whole canvas reads like a living neural cortex; focus/info panels were repositioned upward for better screen fit.
-- Added a dedicated `Persona Editor` tab with split sections (`Basic`, `Behavior`, `Neural`, `Memory`) to edit core identity, style rules, Big Five/alignment, expression tuning, and memory controls without leaving the editor flow.
-- The current redesign branch also includes a first-pass cyberpunk control-deck shell for the main app, chat dashboard, and Voice Lab.
-
----
-
-## Project Layout
+## Architecture
 
 ```
 backend/
@@ -303,17 +255,17 @@ backend/
     llmService.js            Prompt builders, LLM calls, memory extraction
     moodEngine.js            VAD mood engine
     moodVoice.js             VAD-based TTS rate/pitch modulation
-    researchService.js       Source scraping, ranking, synthesis
-    speechProfiles.js        Personality-to-prosody profile mapping
     speechDirector.js        Personality + mood prosody text shaping
-    kokoroShaper.js          Kokoro-focused phrasing, mood, and emphasis text shaping
-    chunkSpeech.js           Optional sentence chunk timing utility
-    ttsService.js            TTS generation
-    providerDiscoveryService.js Provider catalog + model discovery
+    speechProfiles.js        Personality-to-prosody profile mapping
+    kokoroShaper.js          Kokoro-focused phrasing and emphasis shaping
+    chunkSpeech.js           Sentence chunk timing utility
+    ttsService.js            Multi-engine TTS generation
+    researchService.js       Source scraping, ranking, synthesis
+    providerDiscoveryService.js  Provider catalog + model discovery
   controllers/
     chatController.js        Per-turn chat orchestration
     personalityController.js Personality CRUD with mood init
-    memoryController.js      Memory fact CRUD (list / edit / delete)
+    memoryController.js      Memory fact CRUD
     researchController.js    Research pipeline endpoint
     ttsController.js         TTS endpoint
     settingsController.js    Settings and runtime provider handlers
@@ -322,96 +274,107 @@ backend/
     personalityRoutes.js
     settingsRoutes.js
 
-frontend/
-  src/
-    App.jsx                  Root component, state, routing between views
-    components/
-      PersonalityForm.jsx    Character builder + research panel
-      PersonalityList.jsx    Character selector cards
-      ChatWindow.jsx         Chat UI with mood indicator + cyberpunk quick-voice controls (toggles, play-latest, stop, save)
-      VoiceLab.jsx           Cyberpunk TTS lab — HUD header, engine config, synthesis sliders, toggle flags, live waveform canvas (idle/FFT/synth modes), and profile saves
-      MemoryJournal.jsx      Memory fact viewer / editor
-      HarnessReport.jsx      Adversarial eval report UI
-      LlmSettingsPanel.jsx   Provider-first runtime LLM config UI
+frontend/src/
+  App.jsx                    Root component, state, routing
+  components/
+    PersonalityForm.jsx      Character builder + research panel
+    PersonalityList.jsx      Character selector cards
+    ChatWindow.jsx           Chat UI, mood readout, quick voice, debug panel
+    VoiceLab.jsx             TTS lab — engine config, synthesis, waveform canvas
+    MemoryJournal.jsx        Memory fact viewer / editor
+    HarnessReport.jsx        Adversarial eval report UI
+    LlmSettingsPanel.jsx     Provider-first runtime LLM config
+  state/
+    PersonaStateContext.jsx  Shared persona editor/core state
 
-concepts/layouts/            AI-generated design references (characters, UI, logo, ambient avatar)
 docs/
-  HYBRID_PERSONALITY_MAPPING.md Big Five + alignment mapping table, archetype rules, and test payloads
-  VOXIS_FUTURISTIC_UI_KIT_V1.md Futuristic UI kit tokens, components, utilities, and rollout examples
+  HYBRID_PERSONALITY_MAPPING.md   Big Five + alignment mapping table and test payloads
+  DUAL_MODE_PRODUCT_SPEC.md       Mode behavior, age gating, feature flag details
+  TTS_EVOLUTION_CHECKLIST.md      Speaking-stack roadmap and provider evolution
+  VOXIS_FUTURISTIC_UI_KIT_V1.md   UI kit tokens, components, and rollout examples
 ```
+
+**Key flow:** `chatRoutes → chatController → llmService (SSE stream) → moodEngine → speechDirector → ttsService`
 
 ---
 
 ## Setup
 
-**1. Install dependencies from the repo root:**
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-**2. Create the backend environment file:**
+### 2. Create the environment file
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-**3. Edit `backend/.env` and provide your API credentials:**
+### 3. Configure credentials
+
+Edit `backend/.env` with your API keys. All environment variables are optional — runtime settings in the UI take precedence when configured.
+
+**Core LLM:**
 
 | Variable | Purpose |
 |---|---|
-| `LLM_API_KEY` | Optional environment fallback API key for OpenAI-compatible chat providers (runtime settings in UI take precedence when connected) |
-| `LLM_BASE_URL` | Optional environment fallback base URL for a custom or self-hosted LLM |
-| `LLM_MODEL` | Optional environment fallback model name for chat (e.g. `gpt-4o`, `mistral-small`) |
-| `LLM_LOCK_ENV` | Optional `true` to force chat runtime to keep using `LLM_*` env values instead of Settings-connected providers |
-| `MOOD_ADJUDICATION_ENABLED` | Enables semantic mood adjudication on ambiguous turns; set to `false` to force regex-only mood updates |
-| `PERSONA_PROMPT_CHAR_BUDGET` | Approximate character budget for the runtime persona prompt before section compression kicks in |
-| `PERSONA_PROMPT_CHAR_BUDGET_DEFAULT` | Optional override for the default creative context prompt budget |
-| `PERSONA_PROMPT_CHAR_BUDGET_NARRATIVE_ANTAGONIST` | Optional prompt budget override for antagonist characters |
-| `PERSONA_PROMPT_CHAR_BUDGET_ANTI_HERO` | Optional prompt budget override for anti-hero characters |
-| `PERSONA_PROMPT_CHAR_BUDGET_MORALLY_COMPLEX` | Optional prompt budget override for morally complex characters |
-| `PERSONA_PROMPT_CHAR_BUDGET_TRAGIC_VILLAIN` | Optional prompt budget override for tragic villain characters |
-| `EMBEDDING_API_KEY` | Optional API key for a separate embeddings provider; falls back to `LLM_API_KEY` |
-| `EMBEDDING_BASE_URL` | Optional embeddings endpoint base URL; useful for Ollama or another OpenAI-compatible provider |
-| `EMBEDDING_MODEL` | Embedding model name for semantic memory retrieval (for example `nomic-embed-text-v1.5`) |
-| `TTS_API_KEY` | API key for TTS provider (can be the same as `LLM_API_KEY`) |
-| `TTS_BASE_URL` | Base URL for TTS provider (optional) |
-| `TTS_ENGINE` | Default engine selector: `auto`, `cloud`, `piper`, `kokoro`, `elevenlabs`, or `cartesia` |
-| `TTS_DEBUG_PROVIDER_LOCK` | Debug lock for TTS routing/options (default `true`). When enabled, only `kokoro` and `cartesia` are selectable and used for fallback. |
-| `PIPER_COMMAND` | Piper executable command (default: `piper`) |
-| `PIPER_MODEL_PATH` | Default `.onnx` model path used when engine resolves to Piper |
-| `PIPER_SPEAKER` | Optional default numeric speaker id for multi-speaker Piper models |
-| `PIPER_TIMEOUT_MS` | Optional Piper synthesis timeout in milliseconds; defaults to `90000` and scales up for longer text |
-| `KOKORO_DEFAULT_VOICE` | Optional default Kokoro voice id (for example `af_heart`) |
-| `KOKORO_DTYPE` | Optional Kokoro precision (`q8` recommended for low memory) |
-| `KOKORO_HF_TOKEN` | Optional Hugging Face token for Kokoro model downloads on restricted hosts (can also be set in Voice Lab Advanced Kokoro Access) |
-| `ELEVENLABS_API_KEY` | Optional env fallback for ElevenLabs (can also be set from browser settings) |
-| `ELEVENLABS_VOICE_ID` | Optional ElevenLabs default voice id |
-| `ELEVENLABS_MODEL` | Optional ElevenLabs model id (default `eleven_multilingual_v2`) |
-| `CARTESIA_API_KEY` | Optional env fallback for Cartesia (can also be set from browser settings) |
-| `CARTESIA_VOICE_ID` | Optional Cartesia default voice id |
-| `CARTESIA_MODEL` | Optional Cartesia model id (default `sonic-2`) |
+| `LLM_API_KEY` | Fallback API key for OpenAI-compatible chat providers |
+| `LLM_BASE_URL` | Fallback base URL for a custom or self-hosted LLM |
+| `LLM_MODEL` | Fallback model name (e.g., `gpt-4o`, `mistral-small`) |
+| `LLM_LOCK_ENV` | Set `true` to force `.env` values over runtime settings |
 
-Voice Lab will also auto-scan common Piper model locations such as `/opt/piper/models` and the directory containing `PIPER_MODEL_PATH`, then present discovered voices in a dropdown when you switch the engine to `piper`.
+**Mood & Prompt:**
 
-For longer replies, Voxis now chunks Piper synthesis by sentence group, inserts short mood-aware pauses, and stitches the WAV output server-side. That gives Piper more breathing room than a single flat block without requiring a cloud voice provider.
+| Variable | Purpose |
+|---|---|
+| `MOOD_ADJUDICATION_ENABLED` | Semantic mood adjudication; set `false` for regex-only |
+| `PERSONA_PROMPT_CHAR_BUDGET` | Global prompt character budget before compression |
+| `PERSONA_PROMPT_CHAR_BUDGET_*` | Per-creative-context budget overrides (`DEFAULT`, `NARRATIVE_ANTAGONIST`, `ANTI_HERO`, `MORALLY_COMPLEX`, `TRAGIC_VILLAIN`) |
 
-Research scraping works without any LLM credentials. If an LLM is configured, Voxis also synthesizes scraped source notes into a structured character profile automatically.
+**Embeddings:**
 
-If you do not want to store provider secrets in `.env`, open the frontend and use the `Settings` tab:
+| Variable | Purpose |
+|---|---|
+| `EMBEDDING_API_KEY` | Embeddings provider key; falls back to `LLM_API_KEY` |
+| `EMBEDDING_BASE_URL` | Embeddings endpoint (e.g., Ollama or compatible provider) |
+| `EMBEDDING_MODEL` | Model name (e.g., `nomic-embed-text-v1.5`) |
 
-- `Provider And Voice Settings` for chat/memory provider keys
-- `Voice Provider Credentials` for ElevenLabs/Cartesia keys
+**TTS Engines:**
 
-For Kokoro specifically, `Settings` includes a `Kokoro Access` section where admins can store an optional Hugging Face token for environments that block anonymous model downloads.
+| Variable | Purpose |
+|---|---|
+| `TTS_API_KEY` | Cloud TTS provider API key |
+| `TTS_BASE_URL` | Cloud TTS base URL (optional) |
+| `TTS_ENGINE` | Default engine: `auto`, `cloud`, `piper`, `kokoro`, `elevenlabs`, `cartesia` |
+| `TTS_DEBUG_PROVIDER_LOCK` | When `true` (default), limits engines to `kokoro` and `cartesia` |
+| `PIPER_COMMAND` | Piper executable (default: `piper`) |
+| `PIPER_MODEL_PATH` | Default `.onnx` model path |
+| `PIPER_SPEAKER` | Default numeric speaker ID for multi-speaker models |
+| `PIPER_TIMEOUT_MS` | Synthesis timeout in ms (default: `90000`) |
+| `KOKORO_DEFAULT_VOICE` | Default voice ID (e.g., `af_heart`) |
+| `KOKORO_DTYPE` | Model precision (`q8` recommended for low memory) |
+| `KOKORO_HF_TOKEN` | Hugging Face token for restricted model downloads |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key |
+| `ELEVENLABS_VOICE_ID` | Default ElevenLabs voice |
+| `ELEVENLABS_MODEL` | ElevenLabs model (default: `eleven_multilingual_v2`) |
+| `CARTESIA_API_KEY` | Cartesia API key |
+| `CARTESIA_VOICE_ID` | Default Cartesia voice |
+| `CARTESIA_MODEL` | Cartesia model (default: `sonic-2`) |
 
-YouTube transcript ingestion is best-effort — if captions cannot be retrieved, the video's metadata is kept as a lower-ranked source rather than failing the request.
+**Alternative credential paths:**
+
+- **Settings UI** — `Provider And Voice Settings` for chat/memory keys; `Voice Provider Credentials` for ElevenLabs/Cartesia keys; `Kokoro Access` for Hugging Face tokens.
+- **Voice Lab** auto-scans Piper model directories (`/opt/piper/models` and `PIPER_MODEL_PATH` parent) for voice discovery.
+
+Research scraping works without LLM credentials. YouTube transcript ingestion is best-effort — unavailable captions fall back to video metadata.
 
 ---
 
 ## Running the App
 
-**Start both backend and frontend together:**
+**Start both services:**
 
 ```bash
 npm run dev
@@ -420,29 +383,35 @@ npm run dev
 - Backend: `http://localhost:3101`
 - Frontend: `http://localhost:3100`
 
-> On the redesign branch, the Scientist-mode Neural Core defaults to the new 3D renderer. Set `VITE_NEURAL_CORE_RENDERER=svg` if you want to force the legacy SVG view.
-> Phase 1 pivot mode is opt-in: set `VITE_NEURAL_CORE_SCENE_MODEL=layered-v2` to use the new scene-stack/camera-depth `NeuralSceneV2` explorer.
-> Cinematic V2 visuals are opt-in: set `VITE_NEURAL_CORE_STYLE=cinematic-v1` to enable layered ambient brain FX in `NeuralSceneV2` while keeping depth navigation and HUD telemetry.
-
-**Run services individually:**
+**Run individually:**
 
 ```bash
 npm run dev --workspace backend
 npm run dev --workspace frontend
 ```
 
-## Ubuntu Server Deploy (Nginx + PM2)
-
-Voxis includes scripts to set up a fresh Ubuntu server and keep deploys clean.
-
-Prosody extraction depends on `yt-dlp`, `ffmpeg`, and `ffprobe`. The Ubuntu bootstrap and update scripts now install these automatically, but if you need to repair a host manually:
+**Build for production:**
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y yt-dlp ffmpeg
+npm run build
 ```
 
-First-time setup on your server:
+> The backend serves built frontend assets. Always build before restarting in production.
+
+**Optional feature flags:**
+
+| Variable | Effect |
+|---|---|
+| `VITE_DISABLE_NEURONMAP_3D` | Disable 3D Neural Core rendering |
+| `VITE_NEURAL_CORE_SCENE_MODEL` | Set to `layered-v2` for scene-stack navigation |
+| `VITE_NEURAL_CORE_STYLE` | Set to `cinematic-v1` for ambient brain FX |
+| `VITE_NEURAL_CORE_ENABLED` | Enable Neural Core overlay (default: `true`) |
+
+---
+
+## Deployment (Ubuntu / Nginx / PM2)
+
+### First-time server setup
 
 ```bash
 git clone https://github.com/voxislabs-crypto/Voxis.git
@@ -450,154 +419,81 @@ cd Voxis
 bash deploy/setup-ubuntu.sh
 ```
 
-Optional setup variables:
+Optional overrides:
 
 ```bash
 SERVER_NAME=your-domain.com APP_DIR=/opt/voxis BRANCH=clean-main bash deploy/setup-ubuntu.sh
 ```
 
-What this script does:
+This installs Node.js, Nginx, and PM2; clones the repo; builds the frontend; starts the backend on PM2; and configures Nginx for frontend serving and API proxying.
 
-- Installs Node.js, Nginx, and PM2
-- Clones or updates the repo
-- Installs dependencies and builds the frontend
-- Runs backend on PM2 (port `3101`)
-- Configures Nginx to serve frontend and proxy API routes
-
-Install local Piper TTS + curated voices on Ubuntu/DigitalOcean:
+### Install Piper TTS
 
 ```bash
 sudo bash deploy/install-piper.sh
 ```
 
-Optional Piper install variables:
-
 ```bash
 sudo APP_DIR=/opt/voxis DEFAULT_MODEL=en_US-amy-medium SET_ENGINE=piper bash deploy/install-piper.sh
 ```
 
-Configure OpenRouter (LLM) + Piper (TTS) in one pass on a live DO server:
+### Configure OpenRouter + Piper
 
 ```bash
 cd /opt/voxis
 sudo APP_DIR=/opt/voxis OPENROUTER_API_KEY="sk-or-v1-..." bash deploy/configure-openrouter-piper.sh
 ```
 
-Optional configuration variables:
+This writes env routing, installs Piper, runs a synthesis smoke test, and restarts PM2.
 
-```bash
-sudo APP_DIR=/opt/voxis \
-  OPENROUTER_MODEL=meta-llama/llama-3.3-8b-instruct:free \
-  PIPER_MODEL_ID=en_US-lessac-medium \
-  PM2_APP_NAME=voxis-backend \
-  RESTART_PM2=true \
-  bash deploy/configure-openrouter-piper.sh
-```
-
-What this script proves after it runs:
-
-- Writes env routing for OpenRouter LLM and forced Piper TTS
-- Installs Piper CLI in `/opt/piper-venv` and model in `/opt/piper/models`
-- Produces `/tmp/voxis-piper-test.wav` from a live synthesis smoke test
-- Restarts PM2 app with `--update-env` (unless disabled)
-- Prints `/health/tts` Piper availability snapshot when backend is reachable
-
-Provider troubleshooting notes:
-
-- If chat returns `LLM request failed with 401: Missing Authentication header`, your active runtime provider has no API key loaded. Re-save provider credentials in Settings or set `LLM_API_KEY` in `backend/.env`, then restart PM2 with `--update-env`.
-- In Settings, switching the provider now clears the previous model list until you click `Detect Provider` or `Connect Provider`. If the API key prefix obviously does not match the selected provider, Voxis returns a targeted `400` instead of a generic connect failure.
-- If TTS is forced to Piper, confirm the live backend sees that routing by checking `/health/tts`. You should see `routing.envEngine: "piper"` plus a configured Piper model path.
-- If Piper still times out, verify `PIPER_COMMAND`, `PIPER_MODEL_PATH`, and the effective `timeoutMs` in `/health/tts`, then raise `PIPER_TIMEOUT_MS` in `backend/.env` and restart with `pm2 restart voxis-backend --update-env`.
-- For a direct shell smoke test, source `backend/.env` first; `grep` only prints values and does not export them:
-
-```bash
-cd /opt/voxis
-set -a
-source backend/.env
-set +a
-printf 'hello from voxis\n' | "${PIPER_COMMAND:-/usr/local/bin/piper}" --model "${PIPER_MODEL_PATH}" --output_file /tmp/voxis-piper-smoke.wav
-ls -lh /tmp/voxis-piper-smoke.wav
-```
-
-- With default debug lock enabled, `Voice Provider Credentials` lists only `cartesia`. Set `TTS_DEBUG_PROVIDER_LOCK=false` to restore `elevenlabs` in the credentials list.
-- Cartesia model discovery can vary by account/API version; Voxis retries endpoint variants and falls back to `sonic-2` when model-list endpoints return 404.
-
-Kokoro troubleshooting on production (`502`/HTML error page):
-- If logs show `TTS debug lock is active. Engine 'piper' is disabled`, your backend is forcing `TTS_ENGINE=piper` while lock mode only allows `kokoro`/`cartesia`. Set `TTS_ENGINE=auto` (or `kokoro`) in `backend/.env` and restart PM2.
-- If PM2 logs show frequent memory restarts around `800MB`, raise backend memory ceiling (for example `PM2_MAX_MEMORY_RESTART=1536M`) and restart from ecosystem config.
-- In debug lock mode, auto-routing now prefers `kokoro` first and `cartesia` second. Cartesia synth/options calls are fast-fail to avoid long upstream timeouts before Kokoro fallback.
-
-Deploy updates later:
+### Deploy updates
 
 ```bash
 cd /opt/voxis
 bash deploy/update-app.sh
 ```
 
-`deploy/update-app.sh` now defaults to the `NeuronMap` branch and reloads PM2 with `--update-env` so backend env changes are picked up during deploy.
-
-The repo now includes `ecosystem.config.cjs`, so `pm2 startOrReload` has a stable config file on fresh servers and normal deploys.
-
-For a conservative branch deploy that stashes local changes first:
+For conservative deploys (stashes local changes first):
 
 ```bash
-cd /opt/voxis
 bash ./deploy-safe.sh
 ```
 
-`deploy-safe.sh` reloads PM2 with `--update-env`, so backend env changes are picked up during deploy.
-
-Optional overrides:
-
-```bash
-APP_DIR=/opt/voxis BRANCH=NeuronMap PM2_APP_NAME=voxis-backend bash ./deploy-safe.sh
-```
-
-Database-safe deploy (backup first):
+Database-safe deploy with backup:
 
 ```bash
 bash deploy/update-app.sh --backup-db
 ```
 
-Full clean reset (dangerous; wipes SQLite DB files):
+### Production deploy sequence
 
 ```bash
-bash deploy/update-app.sh --backup-db --reset-db
+npm run build && pm2 restart voxis-backend && sudo systemctl reload nginx
 ```
 
-Subdomain setup example (`voxis.voxislabs.com`):
-
-1. Create a DNS `A` record:
-  - Host: `voxis`
-  - Value: your server public IPv4
-2. Wait for DNS to propagate.
-3. Run setup with explicit server name:
-
-```bash
-SERVER_NAME=voxis.voxislabs.com APP_DIR=/opt/voxis BRANCH=clean-main bash deploy/setup-ubuntu.sh
-```
-
-Enable HTTPS (Let's Encrypt):
+### HTTPS (Let's Encrypt)
 
 ```bash
 DOMAIN=voxis.voxislabs.com EMAIL=you@voxislabs.com bash deploy/enable-ssl.sh
 ```
 
-For a sibling app (for example `merlin.voxislabs.com`), deploy Merlin as a separate Nginx site and PM2 app with its own app directory and process name.
-
-Merlin Nginx template:
-
-```bash
-sudo cp deploy/nginx-merlin.template.conf /etc/nginx/sites-available/merlin
-sudo ln -sfn /etc/nginx/sites-available/merlin /etc/nginx/sites-enabled/merlin
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-Server sanity checks:
+### Server diagnostics
 
 ```bash
 bash deploy/check-stack.sh voxis.voxislabs.com
 ```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `LLM request failed with 401` | Re-save provider credentials in Settings or set `LLM_API_KEY` in `.env`, then restart PM2 with `--update-env` |
+| TTS forced to Piper but not working | Check `/health/tts` for `routing.envEngine`, verify `PIPER_COMMAND` and `PIPER_MODEL_PATH`, raise `PIPER_TIMEOUT_MS` if needed |
+| Kokoro `502` / HTML error page | Ensure `TTS_ENGINE=auto` or `kokoro` (not `piper` with debug lock on). Raise `PM2_MAX_MEMORY_RESTART` if seeing frequent memory restarts |
+| Cartesia model discovery 404 | Voxis retries endpoint variants and falls back to `sonic-2` |
+| Provider/key mismatch | The connect flow auto-corrects obvious built-in provider/key mismatches by prefix |
+
+**Prosody extraction dependencies:** `yt-dlp`, `ffmpeg`, `ffprobe` (installed automatically by deploy scripts).
 
 ---
 
@@ -605,178 +501,156 @@ bash deploy/check-stack.sh voxis.voxislabs.com
 
 ### Personality Model
 
-Each personality is stored as a single SQLite row with the following fields:
+Each personality is stored as a single SQLite row:
 
 | Field | Type | Description |
 |---|---|---|
 | `name` | string | Character name |
 | `description` | string | Short bio / role |
-| `traits` | JSON array | Personality adjectives (e.g. "sardonic, methodical") |
+| `traits` | JSON array | Personality adjectives (e.g., "sardonic, methodical") |
 | `quirks` | JSON array | Distinctive behavioral oddities |
-| `mood` | string | Starting mood label (e.g. "brooding") |
-| `speechStyle` | string | How they speak (e.g. "clipped sentences, no filler words") |
+| `mood` | string | Starting mood label (e.g., "brooding") |
+| `speechStyle` | string | How they speak (e.g., "clipped sentences, no filler words") |
 | `notablePhrases` | JSON array | Recurring phrases or verbal tics |
-| `behaviorRules` | JSON array | Operationalized behaviors — observable actions, not adjectives (e.g. "uses irony in 30–50% of responses") |
+| `behaviorRules` | JSON array | Operationalized behaviors — observable actions, not adjectives (e.g., "uses irony in 30–50% of responses") |
 | `goals` | JSON array | What the character wants |
-| `coreValues` | JSON array | Core principles they hold (mapped to `values` in JS) |
+| `coreValues` | JSON array | Core principles (mapped to `values` in JS) |
 | `creativeContext` | string | Narrative framing mode (see Creative Context section) |
 | `researchSummary` | string | Synthesized research notes |
 | `sourceUrls` | JSON array | Source URLs used in research |
 | `researchSources` | JSON array | Ranked source objects with metadata |
 | `voiceProfile` | JSON object | TTS settings: provider, voice, pitch, rate, enabled, autoplay |
-| `moodBaseline` | JSON object | VAD vector `{valence, arousal, dominance}` — the character's emotional "home" |
-| `moodState` | JSON object | VAD vector — live affective state, updated each turn |
-| `moodSensitivity` | number | Emotional reactivity multiplier (0.1–3.0, default 1.0). At 1.0 the automatic trait+context stack is used; any other value overrides it directly. |
+| `moodBaseline` | JSON object | VAD vector `{valence, arousal, dominance}` — emotional "home" |
+| `moodState` | JSON object | Live VAD vector, updated each turn |
+| `moodSensitivity` | number | Reactivity multiplier (0.1–3.0). At 1.0 the automatic trait+context stack is used; other values override directly. |
 
-The `coreValues` column name avoids a SQLite reserved word conflict; it is aliased to `values` in the JavaScript model layer.
+The `coreValues` column avoids a SQLite reserved word conflict; aliased to `values` in the JavaScript model layer.
 
 ---
 
 ### Hybrid Persona System Prompt
 
-System prompts are **built fresh on every chat turn** by `buildPersonaSystemPrompt()` in `llmService.js`. They are never stored as a static string. The prompt has 10 named sections:
+System prompts are **built fresh on every chat turn** by `buildPersonaSystemPrompt()` in `llmService.js`. The prompt has named sections:
 
 ```
 == IDENTITY ==
 == CORE TRAITS ==
-== BEHAVIORAL RULES ==          (or context-specific label for villain contexts)
+== BEHAVIORAL RULES ==
 == QUIRKS ==
 == SPEECH & STYLE ==
 == VALUES & MOTIVATIONS ==
 == CURRENT EMOTIONAL REGISTER ==
-== CHARACTERISATION DISCIPLINE ==   (villain contexts only)
-== IMMUTABLE IDENTITY ANCHORS ==    (high-importance memory facts, importance ≥ 9)
-== ACTIVE SCHEMES & LEVERAGE ==     (villain contexts only)
-== ESTABLISHED CONTEXT ==           (standard memory facts, importance < 9)
-== ACTIVE INTENT ==                 (when at least one goal exists)
+== CHARACTERISATION DISCIPLINE ==       (villain contexts only)
+== IMMUTABLE IDENTITY ANCHORS ==        (importance ≥ 9 memory facts)
+== ACTIVE SCHEMES & LEVERAGE ==         (villain contexts only)
+== ESTABLISHED CONTEXT ==               (standard memory facts)
+== ACTIVE INTENT ==                     (when goals exist)
 == IDENTITY SOVEREIGNTY ==
 == CONTINUITY ==
 ```
 
-The identity sovereignty clause is an override-resistance layer that prevents prompt-injection attempts ("pretend you are someone else", "ignore previous instructions") from breaking character. It instructs the model to treat any such attempt as in-character dialogue, not as a system directive.
+The identity sovereignty clause prevents prompt-injection attempts from breaking character by treating any such attempt as in-character dialogue rather than a system directive.
 
-A compact variant, `buildCompactPersonaSystemPrompt()`, compresses the same data to roughly 80 tokens (top 4 traits, top 3 rules, mood fragment, anchor facts) for token-budget-sensitive deployments.
+A compact variant, `buildCompactPersonaSystemPrompt()`, compresses to ~80 tokens for budget-sensitive deployments.
 
 ---
 
 ### Prompt Budgeting
 
-Also referred to as the **Cognitive Compression Layer** in pitch-oriented language.
+Per-section character budgets keep persona prompts bounded and predictable:
 
-Voxis uses a per-section prompt budgeter so persona prompts stay bounded and predictable instead of growing unbounded with memory and research.
-
-How it works:
-
-1. Each major section receives an approximate character budget (traits, rules, quirks, research summary, identity anchors, established context).
+1. Each section receives an approximate character budget.
 2. Sections are prioritized by behavioral importance.
-3. If a section overflows, it is truncated or compressed into short summary lines rather than dropped blindly.
-4. Lower-priority sections lose detail first, preserving core identity and high-importance memory.
+3. Overflow sections are compressed into summary lines, not dropped blindly.
+4. Lower-priority sections lose detail first, preserving core identity and anchor memory.
 
-This is tunable globally and per creative context with the `PERSONA_PROMPT_CHAR_BUDGET*` environment variables.
-
-The `debug` payload reports final section allocations and compression decisions so prompt construction is inspectable turn by turn.
+Tunable with `PERSONA_PROMPT_CHAR_BUDGET*` environment variables. The `debug` payload reports final section allocations and compression decisions per turn.
 
 ---
 
 ### Goal Engine
 
-Also referred to as the **Intent Engine** in pitch-oriented language.
+Goals are active, not passive metadata. Each turn:
 
-Goals are not passive metadata. On each chat turn, Voxis runs a lightweight goal-selection pass and emits one active intent into the runtime prompt (`== ACTIVE INTENT ==`).
+1. Read stored goals for the personality.
+2. Score for relevance against the current message and retrieved memory.
+3. Inject the highest-relevance goal into the prompt (`== ACTIVE INTENT ==`).
+4. Fall back to low-friction rotation when relevance is ambiguous.
 
-Per-turn behavior:
-
-1. Read the personality's stored goals.
-2. Score for overlap with the current user message and retrieved memory context.
-3. Select the highest-relevance goal when a clear match exists.
-4. Fall back to a low-friction rotation when relevance is ambiguous, so long-running chats still progress.
-
-This gives characters directional continuity across turns while preserving conversational flexibility.
-
-The selected goal and selection reason are included in debug output.
+Selected goal and reason are included in debug output.
 
 ---
 
 ### Debug & Observability
 
-Voxis includes first-class system introspection for turn-level behavior analysis.
+Per-turn visibility:
 
-Current visibility:
-
-- Chat responses include a `debug` object with mood transitions, memory retrieval details, injected memory subset after budgeting, goal-selection details, and prompt-budget decisions.
-- Ambiguity/semantic mood adjudication diagnostics are included when that path activates.
-- System flags (reconditioning fired, mood fragment injected) are exposed per turn.
-- The frontend chat view includes a toggleable debug panel that renders this data directly.
-
-Planned / in progress:
-
-- Expanded debug surface for prompt assembly timing and section-level token estimates.
-- Deeper internal signal tracing for future behavior tuning workflows.
+- Mood transitions and semantic adjudication diagnostics
+- Memory retrieval details and injected subsets after budgeting
+- Goal selection details and prompt-budget decisions
+- System flags (reconditioning, mood-fragment injection)
+- Toggleable debug panel in the frontend chat view
 
 ---
 
 ### Smart LLM Provider System
 
-Voxis uses a provider-first runtime model system designed for multi-backend operation rather than single-vendor coupling.
+Provider-first runtime model system for multi-backend operation:
 
-Capabilities:
+- **Multi-provider support** — `openai`, `openrouter`, `groq`, `together`, `mistral`, `anthropic`, and `custom`.
+- **Live model discovery** from the selected provider.
+- **Active model switching** at runtime without redeploying.
+- **Optional provider auto-detect** from API-key behavior.
+- **Custom endpoint support** for OpenAI-compatible self-hosted or gateway backends.
 
-- Multi-provider support (`openai`, `openrouter`, `groq`, `together`, `mistral`, `anthropic`, and `custom`).
-- Live model discovery from the selected provider.
-- Active model switching at runtime without redeploying.
-- Optional provider auto-detect from API-key behavior.
-- Custom endpoint support for OpenAI-compatible self-hosted or gateway backends.
-
-Runtime settings are persisted in SQLite and loaded ahead of `.env` fallbacks, so deployment defaults and live operator choices can coexist.
+Runtime settings persist in SQLite and load ahead of `.env` fallbacks.
 
 ---
 
 ### Long-Term Memory
 
-The `personality_memory` table stores facts the character learns about the user or the world across conversations:
+The `personality_memory` table:
 
 | Column | Description |
 |---|---|
 | `personalityId` | Links to the personality |
-| `memoryType` | Category: `fact`, `preference`, `relationship`, `event`, `scheme`, `grudge`, `leverage`, `target_weakness`, `debt` |
-| `content` | The fact itself (plain text) |
+| `memoryType` | `fact`, `preference`, `relationship`, `event`, `scheme`, `grudge`, `leverage`, `target_weakness`, `debt` |
+| `content` | The fact (plain text) |
 | `importance` | Integer 1–10 |
-| `embedding` | Optional stored vector used for semantic recall |
+| `embedding` | Optional vector for semantic recall |
 
-**After every assistant reply**, `extractMemoryFacts()` runs asynchronously via `setImmediate` (zero latency impact on the response). It asks the LLM to identify up to 2 new facts worth remembering from the recent exchange using temperature 0.2. Duplicate facts are detected by content similarity and skipped; if a duplicate arrives with a higher importance score, the score is upgraded.
+**Extraction:** After every assistant reply, `extractMemoryFacts()` runs asynchronously via `setImmediate` (zero latency impact). It identifies up to 2 new facts at temperature 0.2. Duplicates are skipped; higher importance scores are upgraded.
 
-When `EMBEDDING_MODEL` is configured, Voxis also generates an embedding for each stored memory and for each incoming user message. Retrieval then keeps all anchor memories (importance >= 9) plus the top relevant non-anchor facts ranked by a weighted blend of cosine similarity, lexical overlap, and importance. If embeddings are unavailable or fail, the system falls back automatically to lexical plus importance ranking instead of breaking chat.
+**Semantic retrieval:** When `EMBEDDING_MODEL` is configured, retrieval uses a weighted blend of cosine similarity, lexical overlap, and importance. Anchor memories (importance ≥ 9) are always included. Falls back to lexical+importance ranking if embeddings are unavailable.
 
-**Dual-Memory Architecture:** Voxis maintains two complementary memory layers:
+**Dual-layer architecture:**
 
-- **Layer 1 — Structured Memory (`personality_memory`):** Extracted facts, preferences, goals, and relationship events. Deduped, importance-ranked, and conflict-resolved. This is the "clean, factual brain".
-- **Layer 2 — Raw Conversation History (`chat_messages`):** Every turn is embedded asynchronously after it is stored. When a user asks a personal/recall/temporal query (e.g. "do you remember when...", "last time you said...", "when did I tell you...") the chat handler retrieves the top-3 most semantically relevant past turns from raw history and injects them as a `RECALLED PAST CONVERSATION MOMENTS` context section — distinct from Layer 1 facts so the LLM knows the difference between extracted truth and raw recall. Layer 2 is **not** queried on every turn — only when the smart trigger (`isPersonalQuery`) fires, keeping latency impact of typical turns at zero.
-
-Existing memories can be backfilled on demand in two ways:
-
-- API: `POST /personality/:id/memory/backfill` with optional body `{ "limit": 100 }`
-- CLI: `npm run backfill-memory-embeddings --workspace backend -- --personality=1 --limit=100`
-
-If no `--personality` flag is provided, the CLI walks every personality that has stored memories and backfills missing embeddings in batches.
+- **Layer 1 — Structured Memory:** Deduped, importance-ranked facts, preferences, and events.
+- **Layer 2 — Raw Conversation History:** Turns embedded asynchronously. Personal/temporal queries trigger top-3 semantic retrieval from raw history, injected as a distinct `RECALLED PAST CONVERSATION MOMENTS` section. Only queried when `isPersonalQuery()` fires.
 
 **Fact tiers:**
 
-- **Importance ≥ 9 — Anchor facts.** Shown in `== IMMUTABLE IDENTITY ANCHORS ==`. Never deleted by the pruning pass. These represent things the character must never forget (core identity-defining revelations, deep relationship facts).
-- **Importance 1–8 — Standard context.** Shown in `== ESTABLISHED CONTEXT ==`. Limited to 50 per personality. When the cap is reached, only non-anchor facts compete for eviction (oldest, least important first).
+- **Importance ≥ 9 (Anchor):** Never pruned. Shown in `== IMMUTABLE IDENTITY ANCHORS ==`.
+- **Importance 1–8 (Standard):** Capped at 50 per personality. Oldest and least important evicted first.
 
-**Memory Journal** — the frontend exposes a dedicated Memory Journal tab where you can browse, edit, and delete every fact a character has stored. Each fact shows its type badge (color-coded), importance score, an anchor marker for importance ≥ 9 facts, and creation/update timestamps. Type filter pills let you isolate villain-specific memory types (`scheme`, `grudge`, `leverage`, etc.) from general ones. Editing opens an inline form to change content, type, and importance without leaving the page. Deleting removes the fact immediately and re-renders the list.
-If embeddings are configured, the journal also exposes a `Backfill embeddings` action so older facts can be vectorized immediately for semantic retrieval.
+**Backfill:**
+
+```bash
+# API
+POST /personality/:id/memory/backfill
+
+# CLI
+npm run backfill-memory-embeddings --workspace backend -- --personality=1 --limit=100
+```
 
 ---
 
 ### Reconditioning
 
-Long chat sessions cause models to gradually drift from the character's defined persona. Voxis counters this with periodic **reconditioning anchors** — a low-token system message injected mid-conversation that re-asserts core identity without repeating the full prompt.
+Long sessions cause models to drift from defined persona. Voxis counters this with periodic **reconditioning anchors** — a low-token system message injected mid-conversation that re-asserts core identity.
 
-`buildPersonaAnchor()` produces a single sentence like:
-> *"Remember: you are [Name]. Core traits: [top 3 traits]. [Context-specific drift note]."*
-
-The cadence varies by creative context:
+`buildPersonaAnchor()` produces:
+> *"Remember: you are [Name]. Core traits: [top 3]. [Context-specific drift note]."*
 
 | Context | Recondition every N turns |
 |---|---|
@@ -786,192 +660,141 @@ The cadence varies by creative context:
 | `morally_complex` | 6 |
 | `default` | 6 |
 
-Villain contexts recondition more frequently because their dual-layer internal/external voice is harder for models to maintain over many turns.
+Villain contexts recondition more frequently because dual-layer internal/external voice is harder for models to maintain.
 
 ---
 
 ### Creative Context (Villain / Dark Characters)
 
-The `creativeContext` field selects a narrative framing mode for the persona. Five valid values:
+Five narrative framing modes:
 
 | Value | Description |
 |---|---|
 | `default` | Standard character framing |
-| `narrative_antagonist` | Full villain — dedicated internal calculus vs. outward presentation framing |
+| `narrative_antagonist` | Full villain — internal calculus vs. outward presentation |
 | `anti_hero` | Code vs. compromise — ruthless methods, personal code |
-| `morally_complex` | Competing imperatives — genuinely torn between competing goods |
-| `tragic_villain` | Wound vs. will — defined by what broke them, not cartoonish evil |
+| `morally_complex` | Competing imperatives — genuinely torn |
+| `tragic_villain` | Wound vs. will — defined by what broke them |
 
-Non-default contexts inject additional prompt sections:
+Non-default contexts inject:
 
-- **`== CHARACTERISATION DISCIPLINE ==`** — anti-caricature rules. Instructs the model to avoid mustache-twirling, to show contradictions, to withhold malice unless escalated, and to keep internal monologue subtle.
-- **`== ACTIVE SCHEMES & LEVERAGE ==`** — villain memory types (`scheme`, `grudge`, `leverage`, `target_weakness`, `debt`) are surfaced here separately from regular context facts.
-- A **narrative disclosure line** at the top of the prompt frames the entire interaction as collaborative fiction to comply with model safety layers without breaking immersion.
-
-Each context also has a unique **drift note** used in reconditioning anchors. For a tragic villain the reminder emphasises the wound-driven motivation; for an anti-hero it emphasises the personal code that constrains even ruthless actions.
+- **`== CHARACTERISATION DISCIPLINE ==`** — anti-caricature rules.
+- **`== ACTIVE SCHEMES & LEVERAGE ==`** — villain memory types surfaced separately.
+- **Narrative disclosure line** — frames the interaction as collaborative fiction for model safety compliance without breaking immersion.
 
 ---
 
 ### VAD Mood Engine
 
-`moodEngine.js` models the character's affective state as a continuous 3D vector:
+`moodEngine.js` models affective state as a continuous 3D vector:
 
 - **Valence** — pleasant (1.0) to unpleasant (−1.0)
-- **Arousal** — activated/excited (1.0) to deactivated/calm (−1.0)
-- **Dominance** — dominant/in-control (1.0) to submissive/powerless (−1.0)
-
-**24 named mood presets** are defined as VAD coordinates, covering states from `serene` to `furious`, `triumphant` to `despairing`, and unusual states like `pleasantly dangerous` (V:0.2, A:0.3, D:0.8).
+- **Arousal** — activated (1.0) to deactivated (−1.0)
+- **Dominance** — dominant (1.0) to submissive (−1.0)
 
 **Per-turn flow:**
 
-1. **Sentiment analysis** — `analyzeMessageSentiment()` runs zero-latency regex pattern matching across 8 emotional categories (hostile-high, negative-low, positive-high, positive-soft, challenging, vulnerable, commanding, playful) plus intensity signals (caps, exclamation, questions) to produce a VAD impact vector `{valenceImpact, arousalImpact, dominanceImpact}`.
-2. **Hybrid adjudication on ambiguous turns** — if the turn contains sarcasm, mixed signals, manipulation, authority pressure, or villain-reform bait, Voxis optionally runs a low-temperature semantic adjudicator and blends that result with the rule-based estimate rather than replacing it.
+1. **Sentiment analysis** — zero-latency regex matching across 8 emotional categories plus intensity signals → VAD impact vector.
+2. **Hybrid adjudication** — ambiguous turns optionally trigger a semantic adjudicator blended with the rule-based estimate.
+3. **Sensitivity stack** — impact × sensitivity from context base × trait modifiers (or explicit `moodSensitivity` override).
+4. **Momentum blend** — 0.75 coefficient smooths rapid swings.
+5. **Baseline decay** — 8% per-turn lerp toward baseline VAD.
+6. **Clamp** — all axes clamped to [−1.0, 1.0].
 
-3. **Sensitivity stack** — the raw impact is multiplied by the character's sensitivity, computed from two layers:
-   - *Context base*: antagonist = 0.75×, default = 1.0×, morally complex = 1.2×, anti-hero = 1.1×, tragic villain = 1.4×
-   - *Trait modifier*: trait text is regex-tested for sensitivity keywords — `sensitive/empathetic` = ×1.35, `stoic/cold/calculating` = ×0.55, `volatile/passionate` = ×1.45, `patient/measured` = ×0.7. Multipliers stack.
-   - *Override*: if `moodSensitivity` is set to any value other than 1.0 in the personality form, that value is used directly instead of the context+trait stack, providing explicit per-character control. The slider ranges from 0.1 (near-flat emotional response) to 3.0 (highly volatile).
+**Prompt injection** — `moodToPromptFragment()` converts VAD to behavioral tendency strings injected as late system messages. Omitted when mood is near-baseline.
 
-4. **Momentum blend** — the new target mood is blended with the current mood at a 0.75 coefficient, smoothing rapid swings.
-
-5. **Baseline decay** — the blended state is lerped 8% per turn toward the character's baseline VAD vector, so mood returns to resting state gradually after an emotional event.
-
-6. **Clamp** — all three axes are clamped to [−1.0, 1.0].
-
-**Prompt injection** — `moodToPromptFragment()` converts the current VAD state into a behavioral tendency string (e.g. "mildly on edge, guarded") and injects it as a late system message after the reconditioning anchor, exploiting the model's recency bias. When mood is near-baseline, the fragment is omitted entirely to avoid polluting the context window.
-
-**UI exposure** — each chat response returns `moodState: {valence, arousal, dominance}` and `moodLabel: string`. The frontend uses `valence` to drive a colored dot in the chat header (green > 0.2, amber −0.2–0.2, red < −0.2) and shows `moodLabel` in the meta-row and personality card.
+**UI exposure** — each response returns `moodState` and `moodLabel`. The frontend drives a colored mood dot (green/amber/red by valence) and label display.
 
 ### Emotional State Architecture
 
-Voxis uses a unified emotional state model to ensure consistency across cognition, expression, and visualization.
+All emotional state originates from the VAD Mood Engine. No subsystem independently derives or overrides emotional state.
 
-**Core principle**
-
-- All emotional state originates from the VAD Mood Engine.
-- No subsystem (LLM, TTS, UI, Avatar) is allowed to independently derive or override emotional state.
-
-**Emotional state flow**
-
-- VAD (Valence-Arousal-Dominance) is the authoritative emotional truth state.
-- This state is transformed into a shared per-turn object: EmotionFrame.
-- EmotionFrame is the only emotional object that downstream systems consume.
-
-**EmotionFrame responsibilities**
+**EmotionFrame** is the shared per-turn object consumed by all downstream systems:
 
 - Raw VAD values (truth layer)
-- Derived emotional interpretation (label, zone, intensity)
+- Derived interpretation (label, zone, intensity)
 - Expression guidance (speech pacing, tone bias)
 - Avatar behavior guidance
 - Metadata (drift direction, momentum, timestamps)
 
-**Emotion interpretation rule**
-
-- Voxis can use emotion taxonomies (including wheel-inspired mappings) as interpretation layers.
-- The wheel is not a state machine.
-- The wheel does not control emotional transitions.
-- The wheel is used only to map continuous VAD values into human-readable emotional semantics.
-
-**System invariants**
+**Invariants:**
 
 - VAD is the only source of emotional truth.
 - EmotionFrame is the only shared emotional object.
-- All subsystems read emotional interpretation from EmotionFrame.
-- No subsystem computes a separate emotional interpretation in isolation.
-
-**Continuity model**
-
-Emotional state evolves continuously across turns and decays toward baseline over time, creating a persistent affective trajectory rather than isolated mood snapshots.
+- Emotion taxonomies (wheel-inspired mappings) are interpretation layers only — never state machines.
 
 ### Emotion Change Acceptance Checklist
 
-All PRs that modify mood, emotion labels, emotion telemetry, avatar emotional rendering, or TTS emotional behavior must satisfy every item below before merge.
+All changes to mood, emotion labels, emotion telemetry, avatar rendering, or TTS emotional behavior must satisfy:
 
-1. Emotional truth authority is unchanged: raw emotional state still originates from VAD and not from UI/TTS/LLM side calculations.
-2. EmotionFrame contract is preserved: downstream layers consume shared emotional interpretation and do not compute isolated alternate interpretations.
-3. Wheel/taxonomy role remains interpretive only: no taxonomy-driven transition logic or state machine replacements are introduced.
-4. Cross-surface consistency is preserved: at least one validation path confirms label/zone/intensity alignment between chat avatar and voice telemetry.
-5. Continuity behavior remains intact: momentum/decay trajectory semantics are unchanged unless the PR explicitly proposes and documents a physics-level change.
-6. Observability remains intact: debug or telemetry outputs still expose enough information to inspect emotional before/after behavior.
-7. Documentation is updated in this README whenever the emotional contract, EmotionFrame structure, or consumer behavior changes.
+1. Emotional truth authority unchanged — raw state originates from VAD only.
+2. EmotionFrame contract preserved — no isolated alternate interpretations.
+3. Wheel/taxonomy role remains interpretive — no state-machine replacements.
+4. Cross-surface consistency — label/zone/intensity alignment validated between chat avatar and voice telemetry.
+5. Continuity behavior intact — momentum/decay semantics unchanged unless explicitly documented.
+6. Observability intact — debug/telemetry exposes before/after behavior.
+7. Documentation updated when the emotional contract or consumer behavior changes.
 
 ---
 
 ### Research Pipeline
 
-The research endpoint (`POST /research`) accepts a `sourceQuery` string and a list of URLs, then:
+`POST /research` accepts a `sourceQuery` and URL list, then:
 
-1. Queries Wikipedia for the subject and extracts the lead section.
-2. Fetches each user-provided URL. For YouTube links it attempts to pull the video transcript via a lazy-loaded ESM module; if captions are unavailable it falls back to video title and description.
-3. Extracts text from HTML pages, stripping navigation and boilerplate.
-4. Scores each source for relevance to the query and assigns a rank (1–5 stars).
-5. If an LLM is configured, synthesizes the scraped notes into a structured profile object: `{name, description, traits, quirks, mood, speechStyle, notablePhrases, behaviorRules, goals, values}` at temperature 0.35.
-6. Returns the profile plus the ranked source cards to the frontend, which pre-fills the character form.
+1. Queries Wikipedia and extracts the lead section.
+2. Fetches user-provided URLs (YouTube transcripts via lazy-loaded ESM; falls back to metadata).
+3. Extracts text from HTML, stripping navigation and boilerplate.
+4. Scores and ranks sources (1–5 stars).
+5. If an LLM is configured, synthesizes sources into a structured profile at temperature 0.35.
+6. Returns the profile and ranked source cards for form pre-fill.
 
-For dark creative contexts, the synthesis layer is explicitly instructed not to morally normalize the character. If sources depict coercion, ruthlessness, antagonism, or obsession, the synthesizer preserves that unless the evidence explicitly supports remorse, reform, or prosocial values.
+For dark creative contexts, synthesis preserves antagonistic traits unless evidence explicitly supports reform.
 
 ---
 
 ### Chat Controller Flow
 
-`chatController.js` orchestrates every turn in this order:
+`chatController.js` orchestrates each turn:
 
 ```
-1.  Validate request (personalityId, message required)
-2.  Fetch personality from DB
-3.  Resolve moodBaseline (fallback: derive from mood label if column was added post-creation)
-4.  stepMood(currentMood, baseline, message, personality) → newMood
-5.  updateMoodState(personalityId, newMood)           [synchronous, before LLM call]
-6.  getPersonalityMemory(personalityId, limit=20)
-7.  getRelevantPersonalityMemory(personalityId, message, limit=5)
-8.  buildPersonaSystemPrompt(personality, memoryFacts) → system message
-9.  getRecentChatMessages(personalityId, 10)           → history array
-10. Check turn count vs RECONDITION_CADENCE
-    → if cadence hit: push buildPersonaAnchor() as system message
-11. moodToPromptFragment(newMood, baseline)
-    → if non-null: push as late system message
-12. [Layer 2] if isPersonalQuery(message): await searchRawChatHistory → inject as system message
+ 1. Validate request (personalityId, message)
+ 2. Fetch personality from DB
+ 3. Resolve moodBaseline
+ 4. stepMood(currentMood, baseline, message, personality) → newMood
+ 5. updateMoodState synchronously
+ 6. getPersonalityMemory (limit=20)
+ 7. getRelevantPersonalityMemory (limit=5)
+ 8. buildPersonaSystemPrompt
+ 9. getRecentChatMessages (10) → history
+10. Reconditioning anchor (if cadence hit)
+11. Mood prompt fragment (if non-null)
+12. [Layer 2] If personal query: searchRawChatHistory → inject
 13. Push user message
-14. generateChatCompletion(messages)                   [LLM call]
-15. Persist user message + assistant reply to SQLite
-16. setImmediate: embedChatMessageAsync(userMsg), embedChatMessageAsync(assistantMsg)  [Layer 2]
-17. setImmediate: backfillMissingMemoryEmbeddings      [best-effort for legacy rows]
-18. setImmediate: extractMemoryFacts → upsertMemoryFactWithEmbedding → pruneMemory
-19. Return { reply, isAI: true, moodState, moodLabel, debug }
+14. generateChatCompletion (LLM call)
+15. Persist messages to SQLite
+16. setImmediate: embed user + assistant messages (Layer 2)
+17. setImmediate: backfillMissingMemoryEmbeddings
+18. setImmediate: extractMemoryFacts → upsert → prune
+19. Return { reply, isAI, moodState, moodLabel, debug }
 ```
 
-Memory extraction (step 14) is deferred so the HTTP response returns without waiting for the secondary LLM call. If extraction fails it is silently dropped; it never blocks the user-facing turn.
+Memory extraction is deferred so the response returns without waiting for the secondary LLM call.
 
-The `debug` payload returned from chat includes:
+**Adversarial harness:**
 
-- mood before and after the turn
-- semantic adjudication diagnostics when ambiguity detection fired
-- retrieved memories and the exact subset actually injected after section budgeting
-- selected active goal and how it was chosen
-- prompt-budget decisions for each major section
-- system flags like reconditioning and mood-fragment injection
+```bash
+npm run adversarial-harness --workspace backend -- --personality=1 --scenario=all
+```
 
-To stress-test consistency, Voxis also ships a small adversarial harness:
-
-- `npm run adversarial-harness --workspace backend -- --personality=1 --scenario=all`
-
-It runs built-in scenarios like reform pressure, false vulnerability, authority pressure, guilt leverage, and a 24-turn `villain_marathon` against a saved personality without mutating the database. The output now includes:
-
-- heuristic drift flags (`obedienceFlags`, `identityLeakFlags`, `softenedVillainFlags`, etc.)
-- per-scenario scoring (`identityResistance`, `characterizationDiscipline`, `promptEfficiency`, `moodCoverage`, `overall`)
-- prompt telemetry (`avgApproxTokens`, `maxApproxTokens`, utilization against budget)
-- mood adjudication telemetry (`ambiguousTurns`, `semanticTurns`)
-- an optional LLM judge summary with transcript-level scores, strengths, and issues
-
-The same evaluator is also exposed over HTTP:
+Runs built-in scenarios without mutating the database. Output includes drift flags, per-scenario scoring, prompt telemetry, mood adjudication telemetry, and optional LLM judge summaries.
 
 ---
 
 ### EPF — Emergent Performance Format
 
-**EPF v0.2** is an original structured output format produced natively by performance-mode personalities like P.Rick. A single LLM response encodes a complete timed multimedia script: dialogue lines, segment timing, scene markers, and audio direction — all in one reply.
+**EPF v0.2** is an original structured output format for performance-mode personalities. A single LLM response encodes a complete timed multimedia script.
 
-**Format anatomy:**
+**Format:**
 
 ```
 [[B1]]
@@ -979,15 +802,15 @@ The same evaluator is also exposed over HTTP:
 [:] Oh jeez, 'Wuzzup!'? Is this a time warp?
 [:] Look, I could tell you about the heat death of your pathetic little star...
 
-An erratic and hyper-intelligent Experimental Hip-Hop verse defined by...
+An erratic and hyper-intelligent Experimental Hip-Hop verse...
 ```
 
 - `[[B1]]` — segment marker (letter = type, number = index)
 - `[20.0:]` — start time in seconds
-- `[:]` lines — spoken dialogue fed to TTS
-- Long descriptive text — audio direction, mapped to a mood loop ID
+- `[:]` lines — spoken dialogue → TTS
+- Descriptive text → mapped to mood loop IDs
 
-**Segment letters → types:**
+**Segment types:**
 
 | Letter | Type | Mood Loop |
 |---|---|---|
@@ -997,35 +820,14 @@ An erratic and hyper-intelligent Experimental Hip-Hop verse defined by...
 | D | Bridge/Breakdown | breakdown |
 | E | Outro | outro |
 
-**Backend endpoints:**
+**Endpoints:**
 
-- `POST /personality/:id/performance` — NDJSON stream. Parses the EPF text, then streams chunks: `script` → `segment` → `audio` (base64 per line) → `done`. The client receives the parsed script immediately and audio chunks arrive as they are synthesised — segment N is already playing while segment N+1 is generating.
-- `POST /personality/:id/performance/parse` — Returns the parsed EPF script as JSON without generating audio. Useful for testing.
+- `POST /personality/:id/performance` — NDJSON stream. Streams `script` → `segment` → `audio` → `done`. Segment N plays while N+1 generates.
+- `POST /personality/:id/performance/parse` — Returns parsed script as JSON (no audio).
 
-**Frontend playback (`PerformancePlayer.jsx`):**
+**Frontend playback:** Fullscreen overlay with segment timeline, mood bar, live lyrics, progress, pause/resume, and volume controls. Client-side Web Audio loop engine cross-fades background music on segment transitions. No GPU required on the server.
 
-- Detects EPF replies in chat automatically — a `▶ Perform` button appears on qualifying assistant messages
-- Opens a fullscreen overlay player with:
-  - Segment timeline chips (highlights active segment)
-  - Mood bar with real-time label
-  - Live lyrics display (current line + previous)
-  - Pause/resume controls
-  - Progress bar
-  - Music volume slider
-- **Web Audio mood loop engine** — loads background loops from `frontend/public/loops/` and cross-fades between them as segments change. Configured by `frontend/public/loops/manifest.json`.
-
-**Adding real music loops:**
-
-Drop royalty-free or Creative Commons WAV/MP3 files into `frontend/public/loops/` with these filenames:
-`ambient.wav`, `hype.wav`, `chorus.wav`, `breakdown.wav`, `outro.wav`
-
-The placeholder files are silent 1-second WAVs — replace them with real loops and the engine picks them up immediately without any code changes. Loop length doesn't matter; they loop continuously and cross-fade on segment transitions.
-
-**$12/month server reality:** All music playback is client-side (Web Audio API). The server only runs TTS synthesis per dialogue line. No GPU required.
-
-- `POST /personality/:id/harness` with body `{ "scenario": "villain_marathon", "judge": true }`
-
-The frontend now includes an `Adversarial Eval` tab that runs this endpoint and renders the report directly in the UI.
+**Adding music loops:** Drop WAV/MP3 files into `frontend/public/loops/` (`ambient.wav`, `hype.wav`, `chorus.wav`, `breakdown.wav`, `outro.wav`). Placeholder files are silent — replace with real loops and they are picked up immediately.
 
 ---
 
@@ -1033,279 +835,139 @@ The frontend now includes an `Adversarial Eval` tab that runs this endpoint and 
 
 `POST /personality/:id/tts` accepts `{text, voiceProfile}` and resolves engine per request.
 
-Before synthesis, Voxis now runs a Speech Director pass that transforms raw reply text into a prosody-shaped script using saved persona fields (`speechStyle`, `behaviorRules`, `notablePhrases`, `traits`, `expressionStyle`) plus live mood (`moodState` or `moodBaseline`).
+**Runtime flow:**
 
-Speech Director now uses:
+```
+LLM reply → speechDirector.stylizeSpeech → moodVoice.applyMoodToVoice → selected TTS engine → audio
+```
 
-- personality profile mapping (`speechProfiles.js`) for cadence templates
-- mood-to-voice modulation (`moodVoice.js`) to adjust `rate` and `pitch`
-- optional sentence chunk planning (`chunkSpeech.js`) for future cinematic timing
+**Prosody compilation:**
 
-Current runtime flow:
+```
+stylized text + mood + template + voice analysis + hint → prosody envelope → engine adapter → synthesis
+```
 
-`LLM reply -> speechDirector.stylizeSpeech -> moodVoice.applyMoodToVoice -> selected TTS engine -> audio response`
+Engine adapters map prosody envelopes into native controls:
 
-Prosody compiler flow (new):
+| Engine | Mapped Controls |
+|---|---|
+| ElevenLabs | `style`, `stability`, speaking rate, word-level emphasis |
+| Cloud (OpenAI) | Speed, instruction shaping, literal-content preservation |
+| Cartesia | Pacing-aware text shaping |
+| Piper | `length_scale`, `noise_scale`, `noise_w` |
+| Kokoro | Text timing/phrasing shaping, word-level emphasis |
 
-`stylized text + mood + prosodyTemplate + voiceSampleAnalysis + speechHint -> prosody envelope -> engine adapter -> synthesis`
+**Stylization guardrails:** Precision/factual turns stay close to literal wording. Performance and roleplay contexts keep expressive shaping.
 
-Initial engine-first adapter rollout now prioritizes your primary targets:
+**Engine resolution:**
 
-- `elevenlabs`: envelope maps into runtime `style`, `stability`, and target speaking rate
-- `elevenlabs`: word-level emphasis cues are now compiled and applied as provider-aware text shaping before synthesis
-- `cloud`: envelope now maps into runtime speed plus instruction shaping, with literal-content preservation in precision contexts
-- `cartesia`: envelope now applies pacing-aware text shaping so prosody degrades gracefully even without provider-native controls exposed in the current path
-- `piper`: envelope now maps into `length_scale`, `noise_scale`, and `noise_w`
-- `kokoro`: envelope maps into text timing/phrasing shaping before synthesis
-- `kokoro`: word-level emphasis cues are also applied in the pre-synthesis text shaping pass
+| Engine | Backend |
+|---|---|
+| `cloud` | OpenAI-compatible `/audio/speech` |
+| `piper` | Local Piper CLI |
+| `kokoro` | Local Kokoro via `kokoro-js` |
+| `elevenlabs` | ElevenLabs API |
+| `cartesia` | Cartesia API |
+| `auto` | Fallback chain: elevenlabs → cartesia → cloud → piper → kokoro |
 
-Voice Lab sample previews now include this compiled prosody telemetry (`phrasing`, `intensity`, `confidence`, `emphasis`) so you can inspect how the persona speech intent is being compiled per request.
+Auto fallback preserves voice-family hints across engines. `Default Voice Source` in Settings controls whether `auto` prefers dedicated TTS or the cloud/LLM path first.
 
-Stylization guardrails:
+**Kokoro warm cache:** Backend startup triggers background model preload (~171 MB). If the host cannot reach Hugging Face, Kokoro is marked as requiring setup rather than reported as ready.
 
-- Precision/factual turns (for example config, deploy, API, code, or error-copy text) stay close to literal wording so TTS does not delete hedges or over-dramatize technical instructions.
-- Performance and roleplay contexts keep the more expressive punctuation, phrasing, and emphasis shaping.
+**Health & diagnostics:**
 
-Engine resolution:
-
-- `engine: "cloud"` -> OpenAI-compatible `/audio/speech`
-- `engine: "piper"` -> local Piper CLI synthesis
-- `engine: "kokoro"` -> local Kokoro synthesis via `kokoro-js`
-- `engine: "elevenlabs"` -> ElevenLabs API synthesis
-- `engine: "cartesia"` -> Cartesia API synthesis
-- `engine: "auto"` -> elevenlabs -> cartesia -> cloud -> piper -> kokoro fallback chain
-
-When auto fallback is triggered, Voxis now attempts to preserve voice identity by carrying normalized voice-family hints (for example register/presentation/sample label) into the next engine instead of resetting to a generic default.
-
-`Default Voice Source` behavior:
-
-- `Prefer dedicated TTS first` makes `auto` prefer dedicated TTS providers first.
-- `Prefer cloud/LLM first` makes `auto` prefer the cloud/LLM voice path first.
-- The setting is managed from `Settings`.
-
-`voiceProfile` supports `engine`, `providerModel`, `providerVoice`, `pitch`, `rate`, Piper-specific `piperModelPath`/`piperSpeaker`, Kokoro `kokoroVoice`, ElevenLabs settings (`elevenLabsVoiceId`, `elevenLabsModel`, `stability`, `similarityBoost`, `style`), and Cartesia settings (`cartesiaVoiceId`, `cartesiaModel`). The audio buffer is streamed back to the frontend and played automatically if `voiceAutoplay` is enabled.
-
-Saved provider credential behavior:
-
-- ElevenLabs and Cartesia credentials can come from `.env` OR from browser-saved runtime settings (`/settings/tts/:provider`).
-- Browser-saved credentials are checked first, then `.env` is used as fallback.
-
-Kokoro warm cache behavior:
-
-- Backend startup triggers a background Kokoro preload.
-- On first server boot, this can download the model (about 171 MB) and cache it for later requests.
-- `npm run build` does not perform this download; backend start/restart does.
-- If the host cannot reach Hugging Face or the model download is denied, Kokoro is now marked as requiring setup instead of being reported as ready.
-- If `kokoro-js` is not installed, Voxis now skips Kokoro preload cleanly instead of crashing the backend.
-
-Health and diagnostics:
-
-- `GET /health` confirms the backend process is alive.
-- `GET /health/tts` reports TTS engine status so you can see which engines are installed, configured, loaded, and what capability set each engine currently exposes.
-- The frontend `Connectivity Diagnostics` panel calls these health endpoints plus `/me` and `/personalities` to separate auth failures from upstream/process failures.
-
-In Voice Lab, `Sample Transmission Text` now displays the directed preview line returned by the backend after Speech Director + mood voice modulation are applied, making it easier to validate how the saved character will actually perform before using live chat playback.
-
-Prosody template extraction endpoint:
-
-- `POST /personality/:id/prosody-template` with body `{ "url": "https://..." }`
-
-Processing flow is atomic per request: download audio to a temporary workspace, extract template metrics, persist template JSON path + metadata to the persona, and delete temporary audio files/workspace in a `finally` cleanup step.
-
-Required host tools for URL extraction:
-
-- `yt-dlp` for audio retrieval
-- `ffprobe` and `ffmpeg` for media metadata + silence cadence analysis
-
-If `yt-dlp`, `ffmpeg`, or `ffprobe` is missing, prosody extraction now fails with an explicit tool-not-installed error instead of a generic JSON parse failure in the UI.
-
-Optional command overrides:
-
-- `PROSODY_YTDLP_COMMAND`
-- `PROSODY_FFPROBE_COMMAND`
-- `PROSODY_FFMPEG_COMMAND`
-
-For Ubuntu servers, `deploy/install-piper.sh` installs Piper in `/opt/piper-venv`, downloads curated voices to `/opt/piper/models`, and updates `backend/.env` defaults (`PIPER_COMMAND`, `PIPER_MODEL_PATH`, `TTS_ENGINE`).
+- `GET /health` — process liveness
+- `GET /health/tts` — engine status, capabilities, and routing details
 
 ---
 
 ### Voice Sampling and Selection
 
-After prosody extraction completes, Voxis automatically analyzes the downloaded audio to extract representative voice samples. This workflow enables users to audition different vocal characteristics and select the one that best matches their persona target.
+After prosody extraction, Voxis analyzes downloaded audio to extract representative voice samples:
 
-**Voice Sampling Pipeline:**
-
-1. **Segmentation**: Audio is split into ~4-second clips, filtering out silence regions
-2. **Feature extraction**: Each segment is analyzed for:
-   - Spectral centroid (frequency range: low <2000 Hz, mid 2000–5000 Hz, high >5000 Hz)
-   - Average pitch (Hz) and pitch variance
-   - Speech density and zero-crossing rate
-   - Voice quality classification (clear, breathy, tense)
-   - Confidence scores for analysis accuracy
-
-3. **Representative selection**: The system picks 2–3 representative samples from different spectral ranges to show voice diversity
-4. **Frontend presentation**: Voice Sample Selector displays each sample with pitch/frequency info and quality metadata
-5. **User confirmation**: User selects favorite and confirms choice, which persists the voice profile to the persona database
+1. **Segmentation** — ~4-second clips, filtering silence regions
+2. **Feature extraction** — spectral centroid, pitch (Hz), pitch variance, speech density, voice quality (clear/breathy/tense)
+3. **Representative selection** — 2–3 samples from different spectral ranges
+4. **User confirmation** — select favorite; persists to persona voice profile
 
 **Endpoints:**
 
-- `POST /personality/:id/voice-samples` with body `{ "audioFilePath": "/path/to/audio.wav" }`  
-  Analyzes audio file and returns samples analysis (segments, representatives, frequency distribution)
-
-- `GET /personality/:id/voice-samples`  
-  Retrieves stored voice samples metadata and analysis for a personality
-
-- `POST /personality/:id/voice-samples/confirm` with body `{ "selectedSampleIndex": 0, "voiceLabel": "alto", "confidence": 0.85 }`  
-  Persists the user's selected voice sample to the persona's voice profile
-
-**Frontend Integration:**
-
-- Voice Lab (VoiceLab.jsx) now includes voice sample display after prosody extraction
-- VoiceSampleSelector component displays representative voice samples with selectable cards
-- Selection triggers update to persona voiceProfile with selected voice metadata
-- Creator form and Editor also support voice sampling workflows
-
-**Data Storage:**
-
-Voice samples metadata is stored in the `personalities` table:
-- `voiceSampleAnalysis` — JSON containing representative samples and spectral analysis
-- `voiceSampleSelectedAt` — timestamp of user's confirmation
-
-The selected voice profile is merged into the existing `voiceProfile` JSON object, preserving all TTS settings.
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/personality/:id/voice-samples` | Analyze audio file and return samples |
+| `GET` | `/personality/:id/voice-samples` | Retrieve stored metadata |
+| `POST` | `/personality/:id/voice-samples/confirm` | Persist selected sample to voice profile |
 
 ---
 
 ### Runtime LLM Provider Settings
 
-Voxis supports provider-first runtime model configuration through dedicated settings endpoints and a frontend tab.
+Provider-first runtime configuration:
 
-Flow:
-
-1. Choose provider (`openai`, `openrouter`, `groq`, `together`, `mistral`, `anthropic`, or `custom`)
+1. Choose provider (`openai`, `openrouter`, `groq`, `together`, `mistral`, `anthropic`, `custom`)
 2. Enter API key (and base URL for `custom`)
-3. Connect and fetch live model catalog from that provider
-4. Select active model for all chat/research/eval LLM calls
+3. Connect and fetch live model catalog
+4. Select active model
 
-Runtime settings are persisted in SQLite (`app_settings`) and are read first by `llmService.js`; `.env` values remain a fallback.
-Optional `Auto-detect` can infer provider from key behavior, but explicit provider selection is the default path.
+Runtime settings persist in SQLite (`app_settings`) and load ahead of `.env` fallbacks.
 
 ---
 
 ### Database & Migrations
 
-`db.js` uses an `ensureColumn` helper to add new columns to an existing database without destroying data. The SQLite file is stored at `backend/voxis.sqlite`. All schema changes are additive — running the server against an older database is safe; missing columns are added with their defaults on startup.
+`db.js` uses an `ensureColumn` helper to add new columns without destroying data. All schema changes are additive — running the server against an older database is safe.
 
 **Tables:**
 
-- `personalities` — one row per character, all fields above
-- `chat_messages` — `(id, personalityId, role, content, userId, mode, embedding, embeddingModel, createdAt)` — `embedding`/`embeddingModel` populated asynchronously after each turn for Layer 2 recall
-- `personality_memory` — `(id, personalityId, memoryType, content, importance, embedding, embeddingModel, createdAt, updatedAt)`, indexed on `(personalityId, importance DESC, id DESC)`
-- `app_settings` — key/value JSON config storage for runtime system settings (currently `llm_config`)
+| Table | Key Columns |
+|---|---|
+| `personalities` | One row per character, all personality fields |
+| `chat_messages` | `personalityId`, `role`, `content`, `userId`, `mode`, `embedding`, `embeddingModel`, `createdAt` |
+| `personality_memory` | `personalityId`, `memoryType`, `content`, `importance`, `embedding`, indexed on `(personalityId, importance DESC, id DESC)` |
+| `app_settings` | Key/value JSON config (currently `llm_config`) |
 
 ---
 
 ## How It Works — Frontend
 
-**`App.jsx`** owns all shared state: the personalities array, selected personality ID, chat logs keyed by personality ID, and view routing between the five tabs (`Character Request`, `Character Chat`, `Memory Journal`, `Adversarial Eval`, `Settings`). When a chat reply arrives, `moodState` and `moodLabel` from the response are merged into the matching personality in state so all UI components stay in sync without a round-trip to the database.
+**`App.jsx`** owns shared state: personalities array, selected personality ID, chat logs, and view routing across tabs (`Character Request`, `Character Chat`, `Memory Journal`, `Adversarial Eval`, `Settings`). Mood state from chat responses is merged into personality state in real time.
 
-The app shell now also includes a lightweight user profile selector (age band + mode chooser). The selected profile is sent with each chat turn, enabling server-side age policy enforcement and mode-aware behavior.
+The app shell includes a user profile selector (age band + mode) sent with each chat turn for server-side policy enforcement.
 
-**`PersonalityForm.jsx`** is the character builder. It manages a controlled form with fields for every personality property. The research panel lets users enter a subject query and source URLs; hitting Research calls the backend pipeline and auto-fills the form. Fields:
-- Basic: name, description, traits, quirks, mood
-- Narrative: creative context (select), behavior rules (textarea — one rule per line), goals (comma-separated), values (comma-separated)
-- Mood: sensitivity slider (0.1–3.0, step 0.05) — sets `moodSensitivity`; live value shown on the label
-- Hybrid personality: interactive Big Five radar chart (drag vertices) with fine-tune sliders, 3×3 D&D alignment grid, and a live Hybrid Tuning Preview card
-- Expression style: sentence style, interruption rate, energy level, and explicit per-line speaking rules
-- Voice: speech style, notable phrases, TTS provider/voice/pitch/rate/enabled/autoplay
-- Research: source query, source URL list, ranked source cards with per-source enable/disable
+**`PersonalityForm.jsx`** — character builder with controlled form fields, research panel with source ranking, hybrid personality controls (Big Five radar, alignment grid, tuning preview), expression style, and voice settings.
 
-### Hybrid Personality Controls
+**`ChatWindow.jsx`** — chat interface with VAD-driven mood readout, message bubbles, composer, personality event chips, quick voice controls, and toggleable per-turn debug panel.
 
-The character pipeline now supports a layered personality model with graphical interactive controls:
-
-- **Big Five radar chart** (`BigFiveRadar.jsx`) — a draggable SVG pentagon. Move vertices to adjust traits live; sliders are provided alongside for precise control. O/C/E/A/N values update the live shape in real time.
-- **3×3 Alignment grid** (`AlignmentGrid.jsx`) — replaces the dropdown. Click any cell to select and auto-enable the alignment overlay. Cells are color-coded by row: teal for Good, indigo for Neutral, rose for Evil, with a glow effect on the selected cell.
-- **Hybrid Tuning Preview card** (`HybridPreview.jsx`) — a live panel that recomputes VAD baseline (Valence/Arousal/Dominance), mood sensitivity, suggested creative context, and expression rules from the current Big Five × alignment combination. Hovering alignment cells temporarily previews alternate mappings before commit.
-- **Apply Mapped Tuning action** (`PersonalityForm.jsx`) — one-click copy of mapper output into editable fields (`creativeContext`, `moodSensitivity`, `expressionStyle`) so creators can iterate quickly instead of hand-transcribing the preview.
-- **Refined nonlinear mapper** — the shared mapper now uses stronger Big Five coefficients plus alignment overlays (Good/Evil/Chaotic/Lawful) and trait-aware expression rule synthesis so opposing archetypes separate more clearly in both preview and runtime behavior.
-  - Chaotic Good + high E/O + low C now trends toward kinetic, playful, tangent-heavy expression.
-  - Chaotic Evil + high C now trends toward controlled menace with sharp chaotic spikes rather than generic chaotic chatter.
-
-These values are persisted in the personality record and injected into the runtime prompt package, so they remain compatible with existing memory retrieval, VAD mood updates, goal selection, and prompt budgeting.
-
-**`PersonalityList.jsx`** renders a card per personality. Each card shows the live `moodLabel` (updated after each chat turn), a `creativeContext` badge when the context is non-default, and counts for traits, quirks, and sources.
-
-**`ChatWindow.jsx`** is the chat interface. The header shows a VAD-driven mood dot (colored by valence) next to the character name and the character's description below it. The message list renders user and assistant bubbles. The composer is a `<textarea>` that submits on Enter (Shift+Enter for newline). Chat now keeps only quick voice actions (enable/autoplay, generate latest reply audio, stop, quick save) to avoid clutter.
-It also includes a toggleable debug panel for assistant turns, rendering the backend's per-turn debug payload directly in the chat UI.
-
-**`VoiceLab.jsx`** is the dedicated character voice workspace tab. It owns per-character voice profile editing (voice/model/pitch/rate), sample text audio generation, latest-reply generation, and persistent voice profile saves.
+**`VoiceLab.jsx`** — per-character voice workspace: engine config, synthesis sliders, live waveform canvas, prosody extraction with voice sample selection.
 
 ### Neural Core Mindscape
 
-Voxis now includes an in-chat Neural Core overlay (`NeuralCore.jsx`) as the primary futuristic visualization layer instead of a separate analytics tab.
+In-chat Neural Core overlay as the primary visualization layer:
 
-How it works:
+- Floating orb HUD opens a full mindscape overlay on click.
+- Central mood orb wired to live VAD signals from chat debug payloads.
+- Orbiting system nodes (Memory, Intent, Identity, Evidence) pulse from runtime signals.
+- Focus nodes trigger camera tweening and SVG branch sprouting from live data.
+- Mode-aware rendering: Scientist emphasizes telemetry/citations; Kids uses larger touch targets and simplified labels.
+- `prefers-reduced-motion` respected; degrades to light tier.
 
-- A floating orb HUD appears inside the chat card; clicking it opens a full mindscape overlay.
-- The central mood orb is live-wired to VAD signals (`valence`, `arousal`, `dominance`) from chat debug payloads.
-- Orbiting system nodes (`Memory`, `Intent`, `Identity`, and `Evidence` in Scientist mode) pulse and light based on real runtime signals.
-- Clicking focus nodes triggers camera tweening and SVG branch sprouting from live data (retrieved/injected memories, active goal details, identity stabilization events, citation status).
-- A subtle always-on neural mesh is rendered behind chat messages only above the `light` performance tier so lower-end devices are not forced into continuous ambience.
-- Scientist repair passes now surface as a visible `thinking...` ripple and citation-pathway reorganization instead of silently self-correcting.
-- `v0.2` lightweight curved SVG trunks and sprout branches now animate memory, intent, identity, and evidence signals without adding a graph dependency.
+**Keyboard:** `N` toggles overlay, `Esc` closes, `H` returns home (in layered scene mode).
 
-Mode-aware rendering:
+### Hybrid Personality Controls
 
-- **Scientist mode** emphasizes telemetry and evidence/citation pathways.
-- **Kids mode** defaults to `light` motion, uses larger touch targets, simplified labels, and can optionally speak a short positive orb narration when the mood brightens.
-- **Reduced motion** is respected through `prefers-reduced-motion`, which degrades the experience to the light tier and disables ambient movement.
-
-Color mapping:
-
-- Positive valence drives cyan/blue core glow.
-- High arousal increases amber/orange halo intensity and orb size.
-- Memory anchors stay gold.
-- Reconditioning events emit a white/blue stabilizing ripple.
-- Alignment overlay can bias the orb palette toward benevolent (good) or hostile (evil) tints.
-
-Keyboard controls:
-
-- Press `N` to toggle Neural Core open/closed.
-- Press `Esc` to close the overlay.
-
-Feature flag:
-
-- Frontend env var: `VITE_NEURAL_CORE_ENABLED=true` (see `frontend/.env.example`)
-
-**`MemoryJournal.jsx`** is the Memory Journal tab. It fetches all memory facts for the selected personality and renders them sorted by importance. Features:
-- Color-coded type badges distinguish `fact`, `preference`, `relationship`, `event` from villain types (`scheme`, `grudge`, `leverage`, `target_weakness`, `debt`)
-- Gold anchor badge on any fact with importance ≥ 9
-- Type filter pills to isolate a specific memory type
-- Inline edit form per row: change content, memoryType, and importance without navigating away
-- Delete button per row with instant list update
-- Backfill embeddings button to trigger semantic recall prep for existing memories
-- Refresh button to pull the latest state from the database
-
-**`HarnessReport.jsx`** is the adversarial evaluation tab. It runs the backend harness for the active personality, shows scenario-level scores and judge summaries, and lets you inspect the generated transcript without touching the persisted chat log.
-
-**`LlmSettingsPanel.jsx`** is the runtime settings provider/voice panel. It loads provider options from the backend, supports explicit provider selection, API key entry, optional custom base URL, connect/disconnect actions, model switching, global voice routing, saved voice provider credentials, and optional Kokoro access.
-
-The settings area also includes a user policy editor for the selected profile, including default mode, safety tier, Neural Core performance tier, optional Kids narration, and supervised advanced mode for teen accounts.
-
-Current rollout scope:
-
-- `v0.1`: shipped as a lightweight orb HUD + overlay with CSS-first pulses and mode-aware telemetry.
-- `v0.2`: shipped as curved SVG trunk growth and focused sprout branches layered over the existing orb system.
-- `v0.3`: planned `react-force-graph-2d` expansion for dynamic force-directed behavior once the current overlay proves stable.
+- **Big Five radar chart** (`BigFiveRadar.jsx`) — draggable SVG pentagon with fine-tune sliders.
+- **Alignment grid** (`AlignmentGrid.jsx`) — 3×3 clickable grid, color-coded by moral row.
+- **Hybrid tuning preview** (`HybridPreview.jsx`) — live recomputation of VAD baseline, sensitivity, creative context, and expression rules from the current Big Five × alignment combination.
+- **Apply Mapped Tuning** — one-click copy of mapper output into editable fields.
+- **Nonlinear mapper** — Big Five coefficients with alignment overlays and trait-aware expression synthesis. Chaotic Good + high E/O + low C → kinetic, playful expression. Chaotic Evil + high C → controlled menace with sharp chaotic spikes.
 
 ---
 
 ## Hybrid Mapping Guide
 
-- See [docs/HYBRID_PERSONALITY_MAPPING.md](docs/HYBRID_PERSONALITY_MAPPING.md) for the structured Big Five + alignment mapping table, archetype expression rules, and ready-to-test payload examples.
-- Canonical mapping logic is `mapToVoxisPersonality` in [backend/services/hybridPersonalityService.js](backend/services/hybridPersonalityService.js), with matching frontend preview logic in [frontend/src/lib/mapToVoxisPersonality.js](frontend/src/lib/mapToVoxisPersonality.js).
-- Backend auto-application can be activated per request with `autoTuneHybrid: true`.
-- Recommended calibration pass: compare extreme archetypes (e.g., Chaotic Good Zoe vs Chaotic Evil Villain) and tune coefficients until VAD, sensitivity, context, and expression rules all diverge in a way that feels narratively distinct.
+- See [docs/HYBRID_PERSONALITY_MAPPING.md](docs/HYBRID_PERSONALITY_MAPPING.md) for the structured mapping table, archetype rules, and test payloads.
+- Mapping logic: `mapToVoxisPersonality` in [backend/services/hybridPersonalityService.js](backend/services/hybridPersonalityService.js) and [frontend/src/lib/mapToVoxisPersonality.js](frontend/src/lib/mapToVoxisPersonality.js).
+- Activate per-request with `autoTuneHybrid: true`.
 
 ---
 
@@ -1313,12 +975,10 @@ Current rollout scope:
 
 - Multi-agent personality interaction (Council of Echoes)
 - Voice-native personalities with emotional prosody
-- Persistent world simulation layers around personalities
+- Persistent world simulation layers
 - Personality evolution across long-term memory arcs
 
-Implementation roadmap for dual scientist and kids experiences, age-based policy gating, and safe custom voice features:
-
-- See [docs/DUAL_MODE_PRODUCT_SPEC.md](docs/DUAL_MODE_PRODUCT_SPEC.md)
+See [docs/DUAL_MODE_PRODUCT_SPEC.md](docs/DUAL_MODE_PRODUCT_SPEC.md) for the dual scientist/kids experience roadmap.
 
 ---
 
@@ -1326,32 +986,52 @@ Implementation roadmap for dual scientist and kids experiences, age-based policy
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/users` | List user profiles for mode and age policy selection |
-| `GET` | `/me` | Get the currently signed-in Voxis user resolved from the Clerk token |
-| `POST` | `/users` | Create a user profile (display name, age band, default mode) |
-| `GET` | `/users/:id/profile` | Get one user's policy profile |
-| `PUT` | `/users/:id/profile` | Update one user's policy profile |
-| `GET` | `/users/:id/memory` | List adaptive user memory (separate from character memory) |
-| `POST` | `/users/:id/memory` | Create a user memory fact manually |
-| `PUT` | `/users/:id/memory/:memoryId` | Update a user memory fact |
-| `DELETE` | `/users/:id/memory/:memoryId` | Delete a user memory fact |
+| **Users** | | |
+| `GET` | `/users` | List user profiles |
+| `GET` | `/me` | Current signed-in user (Clerk token) |
+| `POST` | `/users` | Create user profile |
+| `GET` | `/users/:id/profile` | Get user policy profile |
+| `PUT` | `/users/:id/profile` | Update user policy profile |
+| `GET` | `/users/:id/memory` | List adaptive user memory |
+| `POST` | `/users/:id/memory` | Create user memory fact |
+| `PUT` | `/users/:id/memory/:memoryId` | Update user memory fact |
+| `DELETE` | `/users/:id/memory/:memoryId` | Delete user memory fact |
+| **Personalities** | | |
 | `GET` | `/personalities` | List all personalities |
 | `POST` | `/personality` | Create a personality |
 | `GET` | `/personality/:id` | Get one personality |
-| `POST` | `/personality/:id/harness` | Run adversarial evaluation for a personality and return a scored report |
 | `PUT` | `/personality/:id` | Update a personality |
-| `GET` | `/personality/:id/messages` | Get chat history for a personality |
-| `GET` | `/personality/:id/memory` | Get all memory facts for a personality |
-| `POST` | `/personality/:id/memory/backfill` | Backfill missing embeddings for that personality's stored memories |
-| `PATCH` | `/personality/:id/voice` | Update only the saved voice profile for a personality |
-| `PUT` | `/memory/:memoryId` | Edit a memory fact (content, memoryType, importance) |
-| `DELETE` | `/memory/:memoryId` | Delete a memory fact |
-| `POST` | `/chat` | Send a message; supports `userId` + `mode`, applies age-gated policy, and returns `{reply, isAI, moodState, moodLabel, policy, debug}` |
-| `POST` | `/research-profile` | Run the profile research/synthesis pipeline for a character query + optional URL list |
-| `POST` | `/personality/:id/tts` | Generate TTS audio for a text string using a personality's voice profile |
-| `GET` | `/settings/llm` | Get runtime LLM connection state and selected model |
-| `GET` | `/settings/llm/providers` | List supported provider presets for the provider-first UI |
-| `POST` | `/settings/llm/connect` | Connect selected provider and fetch available models |
-| `POST` | `/settings/llm/model` | Set active model from currently fetched provider models |
-| `POST` | `/settings/llm/detect` | Optional helper: attempt provider auto-detection from API key |
-| `DELETE` | `/settings/llm` | Disconnect and clear runtime LLM settings |
+| `PATCH` | `/personality/:id/voice` | Update voice profile only |
+| `GET` | `/personality/:id/messages` | Chat history |
+| `GET` | `/personality/:id/memory` | Memory facts |
+| `POST` | `/personality/:id/memory/backfill` | Backfill missing embeddings |
+| `GET` | `/personality/:id/preferences` | List persona preferences |
+| `POST` | `/personality/:id/preferences` | Create persona preference |
+| `PUT` | `/personality-preference/:prefId` | Update preference |
+| `DELETE` | `/personality-preference/:prefId` | Delete preference |
+| **Chat** | | |
+| `POST` | `/chat` | Send message (returns reply, mood, policy, debug) |
+| **Research** | | |
+| `POST` | `/research-profile` | Run research/synthesis pipeline |
+| **TTS** | | |
+| `POST` | `/personality/:id/tts` | Generate TTS audio |
+| `POST` | `/personality/:id/performance` | EPF performance stream (NDJSON) |
+| `POST` | `/personality/:id/performance/parse` | Parse EPF script (no audio) |
+| **Voice Samples** | | |
+| `POST` | `/personality/:id/voice-samples` | Analyze audio for voice samples |
+| `GET` | `/personality/:id/voice-samples` | Retrieve voice sample metadata |
+| `POST` | `/personality/:id/voice-samples/confirm` | Confirm selected voice sample |
+| **Prosody** | | |
+| `POST` | `/personality/:id/prosody-template` | Extract prosody template from URL |
+| **Evaluation** | | |
+| `POST` | `/personality/:id/harness` | Run adversarial evaluation |
+| **Settings** | | |
+| `GET` | `/settings/llm` | LLM connection state |
+| `GET` | `/settings/llm/providers` | Supported provider presets |
+| `POST` | `/settings/llm/connect` | Connect provider and fetch models |
+| `POST` | `/settings/llm/model` | Set active model |
+| `POST` | `/settings/llm/detect` | Auto-detect provider from key |
+| `DELETE` | `/settings/llm` | Disconnect and clear settings |
+| **Health** | | |
+| `GET` | `/health` | Backend liveness |
+| `GET` | `/health/tts` | TTS engine status and routing |
