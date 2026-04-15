@@ -79,6 +79,68 @@ function resolveSegmentMood(segmentLetter, audioDirectionText) {
   return SEGMENT_MOOD_MAP[String(segmentLetter || "A").toUpperCase()] || "ambient";
 }
 
+function looksLikeAudioDirection(text) {
+  const line = String(text || "").trim();
+  if (!line) {
+    return false;
+  }
+
+  return line.length > 80 || /\b(?:segment|anchored|rhythm|vocal performance|instrument|instrumentation|atmosphere|melodic|tempo|bass|beat|genre|hip-hop|hyperpop|wonky|experimental|synth|piano|guitar|cello|breakbeat|timbre|staccato|anthemic|distorted|acoustic|electronic)\b/i.test(line);
+}
+
+function mergeDuplicateSegments(segments) {
+  const merged = [];
+  const segmentIndexById = new Map();
+
+  for (const rawSegment of Array.isArray(segments) ? segments : []) {
+    if (!rawSegment || !rawSegment.id) {
+      continue;
+    }
+
+    const existingIndex = segmentIndexById.get(rawSegment.id);
+    if (existingIndex === undefined) {
+      const nextSegment = {
+        ...rawSegment,
+        dialogueLines: Array.isArray(rawSegment.dialogueLines) ? [...rawSegment.dialogueLines] : [],
+      };
+      nextSegment.moodLoop = resolveSegmentMood(nextSegment.segmentLetter, nextSegment.audioDirection);
+      merged.push(nextSegment);
+      segmentIndexById.set(rawSegment.id, merged.length - 1);
+      continue;
+    }
+
+    const existing = merged[existingIndex];
+    const nextDialogueLines = Array.isArray(rawSegment.dialogueLines) ? rawSegment.dialogueLines.filter(Boolean) : [];
+    if (existing.dialogueLines.length === 0 && nextDialogueLines.length > 0) {
+      existing.dialogueLines = [...nextDialogueLines];
+    }
+
+    const existingAudioDirection = String(existing.audioDirection || "").trim();
+    const nextAudioDirection = String(rawSegment.audioDirection || "").trim();
+    if (nextAudioDirection && nextAudioDirection.length > existingAudioDirection.length) {
+      existing.audioDirection = nextAudioDirection;
+    }
+
+    if (!Number.isFinite(Number(existing.startTime)) || Number(existing.startTime) === 0) {
+      existing.startTime = Number(rawSegment.startTime) || existing.startTime;
+    }
+
+    if (!existing.type && rawSegment.type) {
+      existing.type = rawSegment.type;
+    }
+
+    existing.moodLoop = resolveSegmentMood(existing.segmentLetter, existing.audioDirection);
+
+    const existingDuration = Number(existing._parsedTotalDuration);
+    const nextDuration = Number(rawSegment._parsedTotalDuration);
+    if (!Number.isFinite(existingDuration) && Number.isFinite(nextDuration)) {
+      existing._parsedTotalDuration = nextDuration;
+    }
+  }
+
+  return merged;
+}
+
 /**
  * parseEPF(rawOutput) → EPFScript
  *
@@ -148,13 +210,14 @@ export function parseEPF(rawOutput) {
       current.startTime = parseFloat(timeMatch[1]);
       const trailingText = stripInlineMetadataTokens(timeMatch[2]);
       if (trailingText) {
-        // Short text = spoken dialogue lyric; long text = audio direction prose.
-        if (trailingText.length < 200) {
-          current.dialogueLines.push(trailingText);
-          inAudioDirection = false;
-        } else {
+        // Mirrored second-pass EPF can repeat the segment id and put the
+        // music-description prose directly on the timestamp line.
+        if (current.dialogueLines.length === 0 && looksLikeAudioDirection(trailingText)) {
           inAudioDirection = true;
           audioDirectionBuffer.push(trailingText);
+        } else {
+          current.dialogueLines.push(trailingText);
+          inAudioDirection = false;
         }
       }
       continue;
@@ -186,7 +249,7 @@ export function parseEPF(rawOutput) {
     if (current && !blockMatch) {
       // Only collect audio direction text if it looks like a description
       // (contains music-related keywords or is a long descriptive sentence)
-      if (line.length > 40 || /\b(?:segment|anchored|rhythm|vocal|instrument|atmosphere|melodic|tempo|bass|beat|genre|hip-hop|rap|synth|piano|guitar)\b/i.test(line)) {
+      if (looksLikeAudioDirection(line)) {
         inAudioDirection = true;
         audioDirectionBuffer.push(line);
       }
@@ -200,11 +263,13 @@ export function parseEPF(rawOutput) {
     segments.push(current);
   }
 
+  const normalizedSegments = mergeDuplicateSegments(segments);
+
   // Sort segments by startTime (they should already be in order, but be safe)
-  segments.sort((a, b) => a.startTime - b.startTime);
+  normalizedSegments.sort((a, b) => a.startTime - b.startTime);
 
   // Estimate total duration
-  const lastSegment = segments[segments.length - 1];
+  const lastSegment = normalizedSegments[normalizedSegments.length - 1];
   const parsedDuration = lastSegment?._parsedTotalDuration;
   const estimatedDuration = lastSegment
     ? lastSegment.startTime + (lastSegment.dialogueLines.length * 4)
@@ -212,14 +277,14 @@ export function parseEPF(rawOutput) {
   const totalDuration = parsedDuration || estimatedDuration;
 
   // Clean up internal fields
-  for (const seg of segments) {
+  for (const seg of normalizedSegments) {
     delete seg._parsedTotalDuration;
   }
 
   return {
     version: "0.2",
     totalDuration,
-    segments,
+    segments: normalizedSegments,
   };
 }
 
@@ -231,8 +296,11 @@ export function parseEPF(rawOutput) {
  */
 export function isPerformanceOutput(text) {
   const raw = String(text || "");
-  // Must have at least one segment marker AND at least one dialogue line
-  return /\[\[[A-Za-z]+\d+\]\]/.test(raw) && /^\[:\]/m.test(raw);
+  const hasSegmentMarker = /\[\[[A-Za-z]+\d+\]\]/.test(raw);
+  const hasBracketDialogueLine = /^\[:\]/m.test(raw);
+  const hasInlineTimestampDialogue = /^\[\d+(?:\.\d+)?:\]\s+[^\n]+/m.test(raw);
+  // Accept either classic [:] dialogue lines or timestamp lines with inline spoken text.
+  return hasSegmentMarker && (hasBracketDialogueLine || hasInlineTimestampDialogue);
 }
 
 /**

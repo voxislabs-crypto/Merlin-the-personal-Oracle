@@ -810,6 +810,8 @@ An erratic and hyper-intelligent Experimental Hip-Hop verse...
 - `[:]` lines — spoken dialogue → TTS
 - Descriptive text → mapped to mood loop IDs
 
+Voxis also accepts a mirrored two-pass EPF shape where the first pass contains lyric/dialogue segments and a second repeated segment pass carries longer audio-direction descriptions for the same IDs. Duplicate segment IDs are merged so the music-description pass enriches the original spoken segment instead of creating a second playback segment.
+
 **Segment types:**
 
 | Letter | Type | Mood Loop |
@@ -825,7 +827,11 @@ An erratic and hyper-intelligent Experimental Hip-Hop verse...
 - `POST /personality/:id/performance` — NDJSON stream. Streams `script` → `segment` → `audio` → `done`. Segment N plays while N+1 generates.
 - `POST /personality/:id/performance/parse` — Returns parsed script as JSON (no audio).
 
+Mirrored dual-pass EPF is supported on both endpoints: the parser merges repeated segment IDs before the NDJSON stream is generated, so segment-level TTS receives the enriched audio-direction prose as its synthesis hint.
+
 **Frontend playback:** Fullscreen overlay with segment timeline, mood bar, live lyrics, progress, pause/resume, and volume controls. Client-side Web Audio loop engine cross-fades background music on segment transitions. No GPU required on the server.
+
+**Accessing performance playback:** EPF replies expose a `Perform` action directly from chat. That path is what drives timed background music, queued SFX events, and multi-segment playback. Normal `POST /personality/:id/tts` chat replay remains a single-line TTS path and only plays one-shot SFX metadata returned with that line.
 
 **Adding music loops:** Drop WAV/MP3 files into `frontend/public/loops/` (`ambient.wav`, `hype.wav`, `chorus.wav`, `breakdown.wav`, `outro.wav`). Placeholder files are silent — replace with real loops and they are picked up immediately.
 
@@ -871,6 +877,8 @@ Engine adapters map prosody envelopes into native controls:
 | `auto` | Fallback chain: elevenlabs → cartesia → cloud → piper → kokoro |
 
 Auto fallback preserves voice-family hints across engines. `Default Voice Source` in Settings controls whether `auto` prefers dedicated TTS or the cloud/LLM path first.
+
+**Quick Voice note:** The in-chat Quick Voice controls now preserve Cartesia-specific voice/model fields when replaying or saving from chat, so Cartesia previews do not depend on reopening Voice Lab first.
 
 **Kokoro warm cache:** Backend startup triggers background model preload (~171 MB). If the host cannot reach Hugging Face, Kokoro is marked as requiring setup rather than reported as ready.
 

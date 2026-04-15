@@ -30,7 +30,7 @@ const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
 const DEFAULT_TTS_FORMAT = "mp3";
 const DEFAULT_FETCH_TIMEOUT_MS = 9000;
-const DEFAULT_CARTESIA_TIMEOUT_MS = 5000;
+const DEFAULT_CARTESIA_TIMEOUT_MS = 12000;
 const DEFAULT_PIPER_TIMEOUT_MS = 90_000;
 const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
@@ -1450,7 +1450,7 @@ function isCartesiaConfigured() {
 
 async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   const config = getCartesiaConfig();
-  const voiceId = String(voiceProfile?.cartesiaVoiceId || config.voiceId).trim();
+  const voiceId = String(voiceProfile?.cartesiaVoiceId || voiceProfile?.providerVoice || config.voiceId).trim();
   const model = String(voiceProfile?.cartesiaModel || config.model).trim();
 
   if (!config.apiKey) {
@@ -1477,7 +1477,11 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
     const error = new Error(`Cartesia TTS failed with ${response.status}: ${errText}`);
-    error.statusCode = 502;
+    error.statusCode = response.status === 401 || response.status === 403 || response.status === 429
+      ? response.status
+      : 502;
+    error.providerStatus = response.status;
+    error.ttsProvider = "cartesia";
     throw error;
   }
 

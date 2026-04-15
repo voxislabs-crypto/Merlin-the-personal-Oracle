@@ -217,4 +217,58 @@ describe("ttsService Piper voice discovery", () => {
       else process.env.PIPER_TIMEOUT_MS = previousTimeout;
     }
   });
+
+  it("uses providerVoice as a Cartesia voice fallback when chat state omits cartesiaVoiceId", async () => {
+    const previousApiKey = process.env.CARTESIA_API_KEY;
+    const previousEngine = process.env.TTS_ENGINE;
+    const originalFetch = global.fetch;
+    const fetchCalls = [];
+
+    process.env.CARTESIA_API_KEY = "test-cartesia-key";
+    process.env.TTS_ENGINE = "cartesia";
+
+    global.fetch = async (url, options = {}) => {
+      fetchCalls.push({ url, options });
+      return {
+        ok: true,
+        headers: new Headers({ "content-type": "audio/mpeg" }),
+        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      };
+    };
+
+    try {
+      const { generateSpeechAudio } = await import("../services/ttsService.js");
+      const result = await generateSpeechAudio({
+        personality: {
+          name: "Cartesia Persona",
+          moodState: { arousal: 0.1, dominance: 0.2 },
+          expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+        },
+        text: "Keep the pacing deliberate.",
+        voiceProfile: {
+          engine: "cartesia",
+          providerVoice: "voice-from-provider-field",
+          cartesiaVoiceId: "",
+          cartesiaModel: "sonic-2",
+          rate: 1,
+          pitch: 1,
+        },
+      });
+
+      expect(result.engine).toBe("cartesia");
+      expect(fetchCalls).toHaveLength(1);
+
+      const payload = JSON.parse(String(fetchCalls[0].options?.body || "{}"));
+      expect(payload.voice).toEqual({ mode: "id", id: "voice-from-provider-field" });
+      expect(payload.model_id).toBe("sonic-2");
+    } finally {
+      global.fetch = originalFetch;
+
+      if (previousApiKey === undefined) delete process.env.CARTESIA_API_KEY;
+      else process.env.CARTESIA_API_KEY = previousApiKey;
+
+      if (previousEngine === undefined) delete process.env.TTS_ENGINE;
+      else process.env.TTS_ENGINE = previousEngine;
+    }
+  });
 });

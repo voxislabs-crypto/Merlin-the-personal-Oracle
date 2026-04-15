@@ -20,7 +20,8 @@ function normalizeVoiceEngineForDebug(engine) {
 
 // Lightweight EPF detection — mirrors backend isPerformanceOutput
 function isEPF(text) {
-  return /\[\[[A-Za-z]+\d+\]\]/.test(text) && /^\[:\]/m.test(text);
+  const raw = String(text || "");
+  return /\[\[[A-Za-z]+\d+\]\]/.test(raw) && (/^\[:\]/m.test(raw) || /^\[\d+(?:\.\d+)?:\]\s+[^\n]+/m.test(raw));
 }
 
 function stripInlineMetadataTokens(text) {
@@ -1448,6 +1449,8 @@ export default function ChatWindow({
     providerVoice: "alloy",
     kokoroVoice: "af_heart",
     providerModel: "gpt-4o-mini-tts",
+    cartesiaVoiceId: "",
+    cartesiaModel: "sonic-2",
     piperModelPath: "",
     piperSpeaker: null,
   });
@@ -1677,6 +1680,8 @@ export default function ChatWindow({
         personality.voiceProfile?.providerVoice || personality.voiceProfile?.preferredVoice || "alloy",
       kokoroVoice: personality.voiceProfile?.kokoroVoice || "af_heart",
       providerModel: personality.voiceProfile?.providerModel || "gpt-4o-mini-tts",
+      cartesiaVoiceId: personality.voiceProfile?.cartesiaVoiceId || personality.voiceProfile?.providerVoice || "",
+      cartesiaModel: personality.voiceProfile?.cartesiaModel || "sonic-2",
       piperModelPath: personality.voiceProfile?.piperModelPath || "",
       piperSpeaker: personality.voiceProfile?.piperSpeaker ?? null,
     });
@@ -2105,9 +2110,28 @@ export default function ChatWindow({
 
       for (const sfxName of parsedSfx) {
         const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxName)}`;
-        fetch(sfxUrl).catch(() => {
-          // SFX not yet cached (will be downloaded on next startup)
-        });
+        fetch(sfxUrl)
+          .then(async (sfxResponse) => {
+            if (!sfxResponse.ok) {
+              return;
+            }
+
+            const sfxBlob = await sfxResponse.blob();
+            const sfxObjectUrl = URL.createObjectURL(sfxBlob);
+            const sfxAudio = new Audio(sfxObjectUrl);
+            sfxAudio.volume = 0.88;
+
+            const cleanup = () => {
+              URL.revokeObjectURL(sfxObjectUrl);
+            };
+
+            sfxAudio.addEventListener("ended", cleanup, { once: true });
+            sfxAudio.addEventListener("error", cleanup, { once: true });
+            void sfxAudio.play().catch(cleanup);
+          })
+          .catch(() => {
+            // SFX not yet cached (will be downloaded on next startup)
+          });
       }
     }
 
@@ -2359,6 +2383,8 @@ export default function ChatWindow({
         providerVoice: voiceProfile.providerVoice || voiceProfile.preferredVoice,
         kokoroVoice: voiceProfile.kokoroVoice || "af_heart",
         providerModel: voiceProfile.providerModel,
+        cartesiaVoiceId: voiceProfile.cartesiaVoiceId || voiceProfile.providerVoice || "",
+        cartesiaModel: voiceProfile.cartesiaModel || "sonic-2",
         piperModelPath: voiceProfile.piperModelPath,
         piperSpeaker: voiceProfile.piperSpeaker,
       });
@@ -2565,6 +2591,9 @@ export default function ChatWindow({
                 onChange={(event) => {
                   if (voiceProfile.engine === "kokoro") {
                     updateVoiceField("kokoroVoice", event.target.value);
+                  } else if (voiceProfile.engine === "cartesia") {
+                    updateVoiceField("providerVoice", event.target.value);
+                    updateVoiceField("cartesiaVoiceId", event.target.value);
                   } else {
                     updateVoiceField("providerVoice", event.target.value);
                   }
@@ -2806,7 +2835,7 @@ export default function ChatWindow({
                     ) : message.role === "assistant" ? (
                       (() => {
                         const formatted = getAssistantDisplayContent(message, activeMode);
-                        const canPerform = activeMode === "scientist" && !message.live && Boolean(message.isPerformanceOutput || isEPF(message.content));
+                        const canPerform = !message.live && Boolean(message.isPerformanceOutput || isEPF(message.content));
                         return (
                           <>
                             <div className="assistant-normal-main">{formatted.main}</div>
