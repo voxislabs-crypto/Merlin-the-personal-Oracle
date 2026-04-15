@@ -31,6 +31,7 @@ const DEFAULT_TTS_VOICE = "alloy";
 const DEFAULT_TTS_FORMAT = "mp3";
 const DEFAULT_FETCH_TIMEOUT_MS = 9000;
 const DEFAULT_CARTESIA_TIMEOUT_MS = 12000;
+const MAX_CARTESIA_TIMEOUT_MS = 45000;
 const DEFAULT_PIPER_TIMEOUT_MS = 90_000;
 const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
@@ -198,6 +199,18 @@ function getPiperTimeoutMs(text = "") {
 
   const scaledTimeout = 20_000 + (textLength * 120);
   return Math.min(MAX_PIPER_TIMEOUT_MS, Math.max(safeConfiguredTimeout, scaledTimeout));
+}
+
+function getCartesiaTimeoutMs(text = "") {
+  const normalizedText = String(text || "").trim();
+  const textLength = normalizedText.length;
+
+  if (textLength <= 120) {
+    return DEFAULT_CARTESIA_TIMEOUT_MS;
+  }
+
+  const scaledTimeout = DEFAULT_CARTESIA_TIMEOUT_MS + ((textLength - 120) * 40);
+  return Math.min(MAX_CARTESIA_TIMEOUT_MS, Math.max(DEFAULT_CARTESIA_TIMEOUT_MS, scaledTimeout));
 }
 
 function clampPiperPauseMs(pauseMs, voiceProfile = {}) {
@@ -810,13 +823,13 @@ function getRequestedEngine(voiceProfile) {
 export function getAutoEngineOrder(voiceProfile) {
   const allowed = new Set(getAllowedTtsEngines());
   if (TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
-    const lockedOrder = ["kokoro", "cartesia"];
+    const lockedOrder = ["cartesia", "kokoro"];
     return lockedOrder.filter((engine) => {
       if (!allowed.has(engine)) {
         return false;
       }
-      if (engine === "kokoro") return isKokoroAvailable();
-      return isCartesiaConfigured();
+      if (engine === "cartesia") return isCartesiaConfigured();
+      return isKokoroAvailable();
     });
   }
 
@@ -1536,6 +1549,7 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   const config = getCartesiaConfig();
   const voiceId = String(voiceProfile?.cartesiaVoiceId || voiceProfile?.providerVoice || config.voiceId).trim();
   const model = String(voiceProfile?.cartesiaModel || config.model).trim();
+  const timeoutMs = getCartesiaTimeoutMs(text);
 
   if (!config.apiKey) {
     const error = new Error("Cartesia TTS requires CARTESIA_API_KEY to be set.");
@@ -1543,20 +1557,31 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
     throw error;
   }
 
-  const response = await fetchWithTimeoutRetry("https://api.cartesia.ai/tts/bytes", {
-    method: "POST",
-    headers: {
-      "X-API-Key": config.apiKey,
-      "Cartesia-Version": "2024-06-10",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      transcript: text,
-      model_id: model,
-      voice: { mode: "id", id: voiceId },
-      output_format: { container: "mp3", bit_rate: 128000, sample_rate: 44100 },
-    }),
-  }, { retries: 0, timeoutMs: DEFAULT_CARTESIA_TIMEOUT_MS });
+  let response;
+  try {
+    response = await fetchWithTimeoutRetry("https://api.cartesia.ai/tts/bytes", {
+      method: "POST",
+      headers: {
+        "X-API-Key": config.apiKey,
+        "Cartesia-Version": "2024-06-10",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        transcript: text,
+        model_id: model,
+        voice: { mode: "id", id: voiceId },
+        output_format: { container: "mp3", bit_rate: 128000, sample_rate: 44100 },
+      }),
+    }, { retries: 0, timeoutMs });
+  } catch (error) {
+    if (/timed out/i.test(String(error?.message || ""))) {
+      error.statusCode = 504;
+      error.providerStatus = 504;
+      error.ttsProvider = "cartesia";
+      error.ttsProviderCode = "timeout";
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
@@ -1575,7 +1600,7 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
     arrayBuffer = await readResponseBodyWithTimeout(
       response,
       () => response.arrayBuffer(),
-      DEFAULT_CARTESIA_TIMEOUT_MS,
+      timeoutMs,
       "Cartesia audio bytes",
     );
   } catch (error) {
@@ -2085,9 +2110,8 @@ async function fetchCartesiaOptions() {
       modelCatalogSource = "fallback";
     }
   } catch (fetchError) {
-    if (!error) {
-      error = `Unable to fetch Cartesia models: ${fetchError.message || fetchError}`;
-    }
+    // Model discovery is optional. Keep fallback models available without
+    // surfacing a noisy error when the catalog endpoint is unavailable.
     modelCatalogSource = "fallback";
   }
 

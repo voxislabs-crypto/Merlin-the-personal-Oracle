@@ -413,4 +413,41 @@ describe("ttsService Piper voice discovery", () => {
       else process.env.CARTESIA_API_KEY = previousApiKey;
     }
   });
+
+  it("falls back quietly when Cartesia model discovery throws", async () => {
+    const previousApiKey = process.env.CARTESIA_API_KEY;
+    const originalFetch = global.fetch;
+
+    process.env.CARTESIA_API_KEY = "test-cartesia-key";
+
+    global.fetch = async (url) => {
+      if (String(url).includes("/voices")) {
+        return {
+          ok: true,
+          json: async () => ({
+            voices: [{ id: "voice-1", name: "Voice One" }],
+          }),
+        };
+      }
+
+      throw new Error("fetch failed");
+    };
+
+    try {
+      const { listProviderOptions } = await import("../services/ttsService.js");
+      const result = await listProviderOptions("cartesia");
+
+      expect(result.connected).toBe(true);
+      expect(result.catalog.models.source).toBe("fallback");
+      expect(result.models.map((entry) => entry.id)).toEqual(
+        expect.arrayContaining(["sonic-3", "sonic-3-latest", "sonic-2", "sonic-turbo"]),
+      );
+      expect(result.error).toBe("");
+    } finally {
+      global.fetch = originalFetch;
+
+      if (previousApiKey === undefined) delete process.env.CARTESIA_API_KEY;
+      else process.env.CARTESIA_API_KEY = previousApiKey;
+    }
+  });
 });

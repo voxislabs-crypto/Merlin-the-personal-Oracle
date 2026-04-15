@@ -116,18 +116,18 @@ describe("performanceController", () => {
     const segmentEvents = events.filter((event) => event.type === "segment");
     expect(segmentEvents).toEqual([
       expect.objectContaining({ segmentId: "B1", startTime: 20, totalLines: 2, moodLoop: "hype" }),
-      expect.objectContaining({ segmentId: "C2", startTime: 50, totalLines: 2, moodLoop: "chorus" }),
+      expect.objectContaining({ segmentId: "C2", startTime: 50, totalLines: 1, moodLoop: "chorus" }),
     ]);
 
     const sfxEvents = events.filter((event) => event.type === "sfx");
-    expect(sfxEvents).toHaveLength(3);
+    expect(sfxEvents).toHaveLength(2);
     expect(sfxEvents.every((event) => event.sound === "burp")).toBe(true);
 
     const audioEvents = events.filter((event) => event.type === "audio");
-    expect(audioEvents).toHaveLength(4);
-    expect(audioEvents.map((event) => event.segmentId)).toEqual(["B1", "B1", "C2", "C2"]);
+    expect(audioEvents).toHaveLength(3);
+    expect(audioEvents.map((event) => event.segmentId)).toEqual(["B1", "B1", "C2"]);
 
-    expect(mockGenerateSpeechAudio).toHaveBeenCalledTimes(4);
+    expect(mockGenerateSpeechAudio).toHaveBeenCalledTimes(3);
     expect(mockGenerateSpeechAudio.mock.calls[0][0]).toMatchObject({
       text: "Oh jeez, 'Wuzzup!'? Is this a time warp?",
       speechHint: expect.stringContaining("Hyperpop-influenced verse"),
@@ -137,6 +137,6 @@ describe("performanceController", () => {
       speechHint: expect.stringContaining("Wonky Rap chorus"),
     });
 
-    expect(events.at(-1)).toEqual({ type: "done", totalSegments: 2, totalLines: 4 });
+    expect(events.at(-1)).toEqual({ type: "done", totalSegments: 2, totalLines: 3 });
   });
 });

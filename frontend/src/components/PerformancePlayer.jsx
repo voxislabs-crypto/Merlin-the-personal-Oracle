@@ -286,6 +286,11 @@ class MoodLoopEngine {
     this.masterGain = null;
     this.volume = 0.55;
     this.ready = false;
+    this.activeSources = new Set();
+    this.activeGains = new Set();
+    this.pendingStopTimers = new Set();
+    this.pendingSfxResolvers = new Set(); // settle fns tracked so stop() can flush them
+    this.currentMoodToken = null;         // Symbol guard against stale async mood loads
   }
 
   async init() {
@@ -326,19 +331,31 @@ class MoodLoopEngine {
     const buffer = this.sfxBuffers[name];
     if (!this.ctx || !buffer) return Promise.resolve();
     return new Promise((resolve) => {
+      let source, gain;
+      // settle is idempotent — onended and stop() can both fire without double-resolving
+      const settle = () => {
+        if (!this.pendingSfxResolvers.has(settle)) return;
+        this.pendingSfxResolvers.delete(settle);
+        if (source) this.activeSources.delete(source);
+        if (gain) this.activeGains.delete(gain);
+        resolve();
+      };
       try {
         if (this.ctx.state === "suspended") this.ctx.resume();
-        const source = this.ctx.createBufferSource();
+        source = this.ctx.createBufferSource();
         source.buffer = buffer;
-        const gain = this.ctx.createGain();
+        gain = this.ctx.createGain();
         gain.gain.setValueAtTime(volume, this.ctx.currentTime);
         // SFX bypass the music masterGain — goes straight to destination
         source.connect(gain);
         gain.connect(this.ctx.destination);
-        source.onended = resolve;
+        this.activeSources.add(source);
+        this.activeGains.add(gain);
+        this.pendingSfxResolvers.add(settle);
+        source.onended = settle;
         source.start();
       } catch {
-        resolve();
+        settle();
       }
     });
   }
@@ -406,12 +423,16 @@ class MoodLoopEngine {
   async switchMood(mood, fadeDurationMs = 800, audioDirection = null) {
     if (!this.ready || !this.ctx) return;
     if (this.currentMood === mood) return;
+    const prevMood = this.currentMood;
     this.currentMood = mood;
 
     const entry = this._pickLoop(mood, audioDirection);
-    if (!entry) return;
+    if (!entry) { this.currentMood = prevMood; return; }
 
+    const token = Symbol();
+    this.currentMoodToken = token;
     const buffer = await this._loadBuffer(entry.file);
+    if (this.currentMoodToken !== token) return; // superseded by a newer switchMood call
 
     const fadeSecs = (fadeDurationMs || 800) / 1000;
     const now = this.ctx.currentTime;
@@ -421,13 +442,17 @@ class MoodLoopEngine {
       this.currentGain.gain.setTargetAtTime(0, now, fadeSecs / 3);
       const oldGain = this.currentGain;
       const oldSource = this.currentSource;
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        this.pendingStopTimers.delete(timer);
         try { oldSource?.stop(); } catch {}
         try { oldGain?.disconnect(); } catch {}
+        this.activeSources.delete(oldSource);
+        this.activeGains.delete(oldGain);
       }, fadeDurationMs + 100);
+      this.pendingStopTimers.add(timer);
     }
 
-    if (!buffer) return;
+    if (!buffer) { this.currentMood = prevMood; return; }
 
     // BPM normalisation — adjust playbackRate so tempo transitions feel smooth.
     // Clamped to ±8% to avoid audible pitch artefacts.
@@ -450,6 +475,12 @@ class MoodLoopEngine {
     source.playbackRate.value = playbackRate;
     source.connect(gain);
     source.start();
+    this.activeSources.add(source);
+    this.activeGains.add(gain);
+    source.onended = () => {
+      this.activeSources.delete(source);
+      this.activeGains.delete(gain);
+    };
 
     this.currentGain = gain;
     this.currentSource = source;
@@ -463,11 +494,41 @@ class MoodLoopEngine {
   }
 
   stop() {
-    try { this.currentSource?.stop(); } catch {}
-    try { this.currentGain?.disconnect(); } catch {}
+    for (const timer of this.pendingStopTimers) {
+      clearTimeout(timer);
+    }
+    this.pendingStopTimers.clear();
+
+    for (const source of this.activeSources) {
+      try { source?.stop(); } catch {}
+    }
+    for (const gain of this.activeGains) {
+      try { gain?.disconnect(); } catch {}
+    }
+
+    this.activeSources.clear();
+    this.activeGains.clear();
+    // Flush pending SFX promises so processQueue never hangs on a stalled onended
+    for (const settle of this.pendingSfxResolvers) settle();
+    this.pendingSfxResolvers.clear();
     this.currentSource = null;
     this.currentGain = null;
     this.currentMood = null;
+    this.currentMoodToken = null;
+  }
+
+  pause() {
+    if (!this.ctx || this.ctx.state !== "running") {
+      return;
+    }
+    void this.ctx.suspend().catch(() => {});
+  }
+
+  resume() {
+    if (!this.ctx || this.ctx.state !== "suspended") {
+      return;
+    }
+    void this.ctx.resume().catch(() => {});
   }
 
   destroy() {
@@ -475,6 +536,229 @@ class MoodLoopEngine {
     try { this.ctx?.close(); } catch {}
     this.ctx = null;
     this.ready = false;
+  }
+}
+
+// ── Performance Scheduler ─────────────────────────────────────────────────────
+// Single authority that owns all playback timing: queue, mood, audio, and
+// cancellation state. Nothing executes unless the scheduler permits it.
+class PerformanceScheduler {
+  constructor({
+    loopEngine,
+    onCurrentLine,
+    onPrevLine,
+    onMoodChange,
+    onSegmentChange,
+    onSegmentDone,
+    onProgress,
+    onDone,
+    onError,
+  }) {
+    this.loopEngine = loopEngine;
+    this.onCurrentLine = onCurrentLine;
+    this.onPrevLine = onPrevLine;
+    this.onMoodChange = onMoodChange;
+    this.onSegmentChange = onSegmentChange;
+    this.onSegmentDone = onSegmentDone;
+    this.onProgress = onProgress;
+    this.onDone = onDone;
+    this.onError = onError;
+
+    this.mounted = true;
+    this.paused = false;
+    this.processing = false;
+    this.streamDone = false;
+
+    this.queue = [];
+    this.totalLines = 0;
+    this.playedLines = 0;
+    this.currentSegmentId = null;
+    this.currentMood = "ambient";
+
+    this._audio = null;
+    this._audioUrl = "";
+    this._audioSettle = null;
+  }
+
+  // ── Public API ──────────────────────────────────────────────
+
+  setTotalLines(n) {
+    this.totalLines = n;
+  }
+
+  markStreamDone() {
+    this.streamDone = true;
+    this._finalizeIfIdle();
+  }
+
+  enqueue(item) {
+    if (!this.mounted) return;
+    this.queue.push(item);
+    void this._drain();
+  }
+
+  setMood(mood, audioDirection = null) {
+    if (!this.mounted) return;
+    const normalized = mood || "ambient";
+    if (this.currentMood === normalized) return;
+    this.currentMood = normalized;
+    this.onMoodChange?.(normalized);
+    this.loopEngine?.switchMood(normalized, 800, audioDirection);
+  }
+
+  pause() {
+    if (this.paused) return;
+    this.paused = true;
+    if (this._audio) {
+      try { this._audio.pause(); } catch { /* best-effort */ }
+    }
+    this.loopEngine?.pause();
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.loopEngine?.resume();
+    // Restart background loop if it fell silent while paused
+    if (this.currentMood && !this.loopEngine?.currentSource) {
+      this.loopEngine?.switchMood(this.currentMood);
+    }
+    if (this._audio && this._audio.paused && !this._audio.ended) {
+      this._audio.play().catch(() => {});
+    } else {
+      void this._drain();
+    }
+  }
+
+  stop() {
+    this._stopCurrentAudio({ resolve: true });
+    this.queue = [];
+    this.processing = false;
+    this.loopEngine?.stop();
+  }
+
+  destroy() {
+    this.mounted = false;
+    this.stop();
+  }
+
+  // ── Internal ────────────────────────────────────────────────
+
+  async _drain() {
+    if (this.processing || this.paused || !this.mounted) return;
+    this.processing = true;
+
+    try {
+      while (this.queue.length > 0) {
+        if (!this.mounted || this.paused) break;
+
+        const item = this.queue.shift();
+        if (!item || typeof item !== "object") continue;
+
+        if (item.type === "segment_start") {
+          const prev = this.currentSegmentId;
+          if (prev && prev !== item.segmentId) {
+            this.onSegmentDone?.(prev);
+          }
+          this.currentSegmentId = item.segmentId || null;
+          this.onSegmentChange?.(item.segmentId || null);
+          this.setMood(item.mood || "ambient", item.audioDirection ?? null);
+          continue;
+        }
+
+        if (item.type === "sfx") {
+          await (this.loopEngine?.playSfx(item.sound) ?? Promise.resolve());
+          continue;
+        }
+
+        if (item.type === "audio") {
+          await this._playAudio(item);
+          continue;
+        }
+      }
+    } finally {
+      this.processing = false;
+      this._finalizeIfIdle();
+    }
+  }
+
+  _playAudio(item) {
+    return new Promise((resolve) => {
+      if (!this.mounted) { resolve(); return; }
+
+      const blob = base64ToBlob(item.audioBase64, item.contentType);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      let settled = false;
+
+      const settle = ({ advance = false } = {}) => {
+        if (settled) return;
+        settled = true;
+
+        if (this._audio === audio) this._audio = null;
+        if (this._audioUrl === url) {
+          URL.revokeObjectURL(url);
+          this._audioUrl = "";
+        }
+        if (this._audioSettle === settle) this._audioSettle = null;
+
+        if (advance) {
+          this.playedLines += 1;
+          const p = this.totalLines > 0 ? this.playedLines / this.totalLines : 0;
+          this.onProgress?.(isFinite(p) ? p : 0);
+          this.onPrevLine?.(item.text || "");
+        }
+
+        resolve();
+      };
+
+      this._audio = audio;
+      this._audioUrl = url;
+      this._audioSettle = settle;
+
+      this.onCurrentLine?.(item.text || "");
+
+      audio.onended = () => settle({ advance: true });
+      audio.onerror = () => settle({ advance: false });
+      audio.play().catch((err) => {
+        if (err?.name === "NotAllowedError") {
+          this.onError?.("Browser blocked audio autoplay. Click anywhere on the page first, then reopen.");
+          this.queue = [];
+        }
+        settle({ advance: false });
+      });
+    });
+  }
+
+  _stopCurrentAudio({ resolve: shouldResolve = false } = {}) {
+    const audio = this._audio;
+    const url = this._audioUrl;
+    const settle = this._audioSettle;
+
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      try { audio.pause(); } catch { /* best-effort */ }
+    }
+
+    this._audio = null;
+    this._audioSettle = null;
+
+    if (url) {
+      URL.revokeObjectURL(url);
+      this._audioUrl = "";
+    }
+
+    if (shouldResolve && typeof settle === "function") {
+      settle();
+    }
+  }
+
+  _finalizeIfIdle() {
+    if (!this.streamDone) return;
+    if (this.paused || this.processing || this._audio || this.queue.length > 0) return;
+    this.loopEngine?.stop();
+    this.onDone?.();
   }
 }
 
@@ -494,13 +778,8 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
   const [error, setError] = useState(null);
 
   const loopEngineRef = useRef(null);
-  const audioQueueRef = useRef([]);   // { audioBase64, contentType, segmentId, lineIndex, text }
-  const isPlayingRef = useRef(false);
-  const pausedRef = useRef(false);
-  const currentAudioRef = useRef(null); // HTMLAudioElement
-  const abortRef = useRef(null);
-  const totalLinesRef = useRef(0);
-  const playedLinesRef = useRef(0);
+  const schedulerRef = useRef(null);
+  const scriptRef = useRef(null);
 
   // ── Init loop engine ─────────────────────────────────────────
   useEffect(() => {
@@ -509,70 +788,54 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
     return () => loopEngineRef.current?.destroy();
   }, []);
 
-  // ── Audio queue player ───────────────────────────────────────
-  const playNext = useCallback(() => {
-    if (pausedRef.current) return;
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
-      return;
-    }
-
-    const item = audioQueueRef.current.shift();
-
-    // SFX queue items: play the effect then immediately advance to the next item
-    if (item.type === "sfx") {
-      const sfxDone = loopEngineRef.current?.playSfx(item.sound) ?? Promise.resolve();
-      sfxDone.then(() => {
-        isPlayingRef.current = true;
-        playNext();
-      });
-      return;
-    }
-
-    setActiveSegmentId(item.segmentId);
-    setCurrentLine(item.text || "");
-
-    const blob = base64ToBlob(item.audioBase64, item.contentType);
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudioRef.current = audio;
-
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      playedLinesRef.current += 1;
-      setProgress(totalLinesRef.current > 0 ? playedLinesRef.current / totalLinesRef.current : 0);
-      setPrevLine(item.text || "");
-      playNext();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      playedLinesRef.current += 1;
-      playNext();
-    };
-    audio.play().catch(() => {
-      URL.revokeObjectURL(url);
-      playNext();
-    });
-  }, []);
-
-  const enqueue = useCallback((item) => {
-    audioQueueRef.current.push(item);
-    if (!isPlayingRef.current && !pausedRef.current) {
-      isPlayingRef.current = true;
-      playNext();
-    }
-  }, [playNext]);
-
   // ── Stream fetch ─────────────────────────────────────────────
   useEffect(() => {
     if (!text || !personalityId) return;
 
     const abortController = new AbortController();
-    abortRef.current = abortController;
+
+    const scheduler = new PerformanceScheduler({
+      loopEngine: loopEngineRef.current,
+      onCurrentLine: setCurrentLine,
+      onPrevLine: setPrevLine,
+      onMoodChange: setCurrentMood,
+      onSegmentChange: setActiveSegmentId,
+      onSegmentDone: (id) =>
+        setDoneSegmentIds((prev) => {
+          if (prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.add(id);
+          return next;
+        }),
+      onProgress: setProgress,
+      onDone: () => {
+        const scriptData = scriptRef.current;
+        if (scriptData?.segments?.length) {
+          setDoneSegmentIds(new Set(scriptData.segments.map((s) => s.id)));
+        }
+        setStatus("done");
+      },
+      onError: (msg) => {
+        setError(msg);
+        setStatus("error");
+      },
+    });
+
+    schedulerRef.current = scheduler;
 
     (async () => {
       try {
+        setError(null);
+        setScript(null);
+        scriptRef.current = null;
+        setActiveSegmentId(null);
+        setDoneSegmentIds(new Set());
+        setCurrentMood("ambient");
+        setCurrentLine("");
+        setPrevLine("");
+        setProgress(0);
         setStatus("loading");
+
         const resp = await authFetch(`/personality/${personalityId}/performance`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -606,15 +869,55 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
             if (!trimmed) continue;
             try {
               const msg = JSON.parse(trimmed);
-              handleStreamMessage(msg);
+              switch (msg.type) {
+                case "script": {
+                  scriptRef.current = msg.script;
+                  setScript(msg.script);
+                  const total = msg.script.segments.reduce((acc, s) => acc + s.dialogueLines.length, 0);
+                  scheduler.setTotalLines(total);
+                  break;
+                }
+                case "segment": {
+                  scheduler.enqueue({
+                    type: "segment_start",
+                    segmentId: msg.segmentId,
+                    mood: msg.moodLoop || "ambient",
+                    audioDirection: msg.audioDirection || null,
+                  });
+                  break;
+                }
+                case "sfx": {
+                  scheduler.enqueue({ type: "sfx", sound: msg.sound });
+                  break;
+                }
+                case "audio": {
+                  scheduler.enqueue({
+                    type: "audio",
+                    audioBase64: msg.audioBase64,
+                    contentType: msg.contentType,
+                    segmentId: msg.segmentId,
+                    lineIndex: msg.lineIndex,
+                    text: msg.text || "",
+                  });
+                  break;
+                }
+                case "done": {
+                  scheduler.markStreamDone();
+                  break;
+                }
+                case "error":
+                case "audio_error": {
+                  console.warn("[EPF]", msg.error);
+                  break;
+                }
+              }
             } catch {
               // Malformed chunk — skip
             }
           }
         }
 
-        setStatus((s) => s === "playing" ? "done" : s);
-        loopEngineRef.current?.stop();
+        scheduler.markStreamDone();
       } catch (err) {
         if (err.name === "AbortError") return;
         setError(err.message || "Playback failed.");
@@ -623,84 +926,25 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
     })();
 
     return () => {
+      scheduler.destroy();
+      schedulerRef.current = null;
       abortController.abort();
-      currentAudioRef.current?.pause();
-      loopEngineRef.current?.stop();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, personalityId]);
-
-  function handleStreamMessage(msg) {
-    switch (msg.type) {
-      case "script": {
-        setScript(msg.script);
-        const total = msg.script.segments.reduce((acc, s) => acc + s.dialogueLines.length, 0);
-        totalLinesRef.current = total;
-        break;
-      }
-      case "segment": {
-        setCurrentMood(msg.moodLoop || "ambient");
-        loopEngineRef.current?.switchMood(msg.moodLoop || "ambient", undefined, msg.audioDirection || null);
-        setActiveSegmentId(msg.segmentId);
-        break;
-      }
-      case "sfx": {
-        // Queue the SFX item — it plays in order just before its paired audio line
-        enqueue({ type: "sfx", sound: msg.sound });
-        break;
-      }
-      case "audio": {
-        enqueue({
-          type: "audio",
-          audioBase64: msg.audioBase64,
-          contentType: msg.contentType,
-          segmentId: msg.segmentId,
-          lineIndex: msg.lineIndex,
-          text: msg.text || "",
-        });
-        break;
-      }
-      case "done": {
-        // Mark the last segment done once queue drains
-        const drainChecker = setInterval(() => {
-          if (audioQueueRef.current.length === 0 && !isPlayingRef.current) {
-            clearInterval(drainChecker);
-            setStatus("done");
-            setDoneSegmentIds((prev) => {
-              if (!script) return prev;
-              const all = new Set(script.segments.map((s) => s.id));
-              return all;
-            });
-          }
-        }, 200);
-        break;
-      }
-      case "error":
-      case "audio_error": {
-        console.warn("[EPF]", msg.error);
-        break;
-      }
-    }
-  }
+  }, [authFetch, personalityId, text, voiceProfile]);
 
   // ── Controls ─────────────────────────────────────────────────
   const togglePause = useCallback(() => {
+    const scheduler = schedulerRef.current;
+    if (!scheduler) return;
     if (status === "playing") {
-      pausedRef.current = true;
-      currentAudioRef.current?.pause();
-      loopEngineRef.current?.stop();
+      scheduler.pause();
       setStatus("paused");
     } else if (status === "paused") {
-      pausedRef.current = false;
-      currentAudioRef.current?.play().catch(() => {});
-      if (currentMood) loopEngineRef.current?.switchMood(currentMood);
+      scheduler.resume();
       setStatus("playing");
-      if (audioQueueRef.current.length > 0 && !isPlayingRef.current) {
-        isPlayingRef.current = true;
-        playNext();
-      }
     }
-  }, [status, currentMood, playNext]);
+  }, [status]);
 
   const handleVolumeChange = useCallback((e) => {
     const vol = Number(e.target.value);

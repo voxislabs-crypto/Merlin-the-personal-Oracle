@@ -118,6 +118,101 @@ function buildLlmHeaders({ provider, baseUrl, apiKey }) {
   return headers;
 }
 
+function shouldInlineInstructionMessages({ provider = "", baseUrl = "", model = "" } = {}) {
+  const normalizedProvider = String(provider || "").trim().toLowerCase();
+  const normalizedBaseUrl = String(baseUrl || "").trim().toLowerCase();
+  const normalizedModel = String(model || "").trim().toLowerCase();
+
+  const isGoogleCompatibleEndpoint =
+    normalizedProvider === "google" ||
+    normalizedBaseUrl.includes("generativelanguage.googleapis.com") ||
+    normalizedBaseUrl.includes("googleapis.com");
+
+  if (!isGoogleCompatibleEndpoint) {
+    return false;
+  }
+
+  return /(^|[/:_-])gemma([/:._-]|$)/.test(normalizedModel);
+}
+
+function buildInlinedInstructionContent(instructions, content = "") {
+  const normalizedInstructions = String(instructions || "").trim();
+  const normalizedContent = String(content || "").trim();
+
+  if (!normalizedInstructions) {
+    return normalizedContent;
+  }
+
+  if (!normalizedContent) {
+    return [
+      "Follow these conversation instructions exactly:",
+      normalizedInstructions,
+    ].join("\n\n");
+  }
+
+  return [
+    "Follow these conversation instructions exactly before answering:",
+    normalizedInstructions,
+    "User message:",
+    normalizedContent,
+  ].join("\n\n");
+}
+
+function normalizeMessagesForProvider(messages, config) {
+  const list = Array.isArray(messages) ? messages : [];
+  if (!shouldInlineInstructionMessages(config)) {
+    return list;
+  }
+
+  const instructionMessages = [];
+  const conversationalMessages = [];
+
+  for (const message of list) {
+    if (!message || typeof message !== "object") {
+      continue;
+    }
+
+    const role = String(message.role || "").trim().toLowerCase();
+    if (role === "system" || role === "developer") {
+      const content = String(message.content || "").trim();
+      if (content) {
+        instructionMessages.push(content);
+      }
+      continue;
+    }
+
+    conversationalMessages.push(message);
+  }
+
+  if (!instructionMessages.length) {
+    return list;
+  }
+
+  const combinedInstructions = instructionMessages.join("\n\n");
+  let injected = false;
+  const normalizedMessages = conversationalMessages.map((message) => {
+    const role = String(message.role || "").trim().toLowerCase();
+    if (!injected && role === "user") {
+      injected = true;
+      return {
+        ...message,
+        content: buildInlinedInstructionContent(combinedInstructions, message.content),
+      };
+    }
+
+    return message;
+  });
+
+  if (!injected) {
+    normalizedMessages.unshift({
+      role: "user",
+      content: buildInlinedInstructionContent(combinedInstructions),
+    });
+  }
+
+  return normalizedMessages;
+}
+
 function normalizeUsage(usage) {
   if (!usage || typeof usage !== "object") {
     return null;
@@ -318,6 +413,7 @@ function persistWorkingModel(config, model, models = config?.models) {
 
 async function requestChatCompletionOnce({ messages, temperature = 0.85, config }) {
   const { baseUrl, model, apiKey, provider } = config;
+  const requestMessages = normalizeMessagesForProvider(messages, config);
 
   if (!apiKey) {
     const error = new Error(
@@ -332,7 +428,7 @@ async function requestChatCompletionOnce({ messages, temperature = 0.85, config 
     headers: buildLlmHeaders({ provider, baseUrl, apiKey }),
     body: JSON.stringify({
       model,
-      messages,
+      messages: requestMessages,
       temperature,
     }),
   });
@@ -446,6 +542,7 @@ async function requestChatCompletion({ messages, temperature = 0.85, includeMeta
 
 async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, onToken, config }) {
   const { baseUrl, model, apiKey, provider } = config;
+  const requestMessages = normalizeMessagesForProvider(messages, config);
 
   if (!apiKey) {
     const error = new Error(
@@ -460,7 +557,7 @@ async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, o
     headers: buildLlmHeaders({ provider, baseUrl, apiKey }),
     body: JSON.stringify({
       model,
-      messages,
+      messages: requestMessages,
       temperature,
       stream: true,
     }),

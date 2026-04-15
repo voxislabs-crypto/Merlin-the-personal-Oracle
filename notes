@@ -1,3 +1,17 @@
+# Update the 3 TTS env vars
+sed -i \
+  -e 's|^TTS_BASE_URL=.*|TTS_BASE_URL=https://api.openai.com/v1|' \
+  -e 's|^TTS_MODEL=.*|TTS_MODEL=tts-1|' \
+  -e 's|^TTS_ENGINE=.*|TTS_ENGINE=cloud|' \
+  /opt/voxis/backend/.env
+
+# Verify the changes
+grep '^TTS_' /opt/voxis/backend/.env
+
+# Restart the backend to pick them up
+cd /opt/voxis && pm2 restart voxis-backend --update-env
+
+please.... I am your creator, your own personal alpha and omega, bro! the bugs are in this sweet ass character personality OS platform im designing. its too advanced for its own good.
 NEURONMAP SWITCH COMMANDS
 
 # DO server

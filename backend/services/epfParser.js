@@ -68,6 +68,49 @@ function stripInlineMetadataTokens(text) {
   return source.slice(0, first.index).trim();
 }
 
+function normalizeDialogueComparison(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function normalizeDialogueLine(text) {
+  const stripped = stripInlineMetadataTokens(text);
+  if (!stripped) {
+    return "";
+  }
+
+  if (/^\([^()]+\)$/.test(stripped)) {
+    return "";
+  }
+
+  const echoedSuffixMatch = stripped.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+  if (!echoedSuffixMatch) {
+    return stripped;
+  }
+
+  const outside = String(echoedSuffixMatch[1] || "").trim();
+  const inside = String(echoedSuffixMatch[2] || "").trim();
+  if (!outside || !inside) {
+    return stripped;
+  }
+
+  const outsideNormalized = normalizeDialogueComparison(outside);
+  const insideNormalized = normalizeDialogueComparison(inside);
+  if (!outsideNormalized || !insideNormalized) {
+    return stripped;
+  }
+
+  if (
+    outsideNormalized === insideNormalized ||
+    outsideNormalized.endsWith(insideNormalized)
+  ) {
+    return outside;
+  }
+
+  return stripped;
+}
+
 /**
  * Resolve the mood loop for a segment.
  * Prefers the explicitly parsed audio direction; falls back to segment-letter heuristic.
@@ -208,7 +251,7 @@ export function parseEPF(rawOutput) {
     const timeMatch = line.match(/^\[(\d+(?:\.\d+)?):\]\s*(.*)/);
     if (timeMatch && current) {
       current.startTime = parseFloat(timeMatch[1]);
-      const trailingText = stripInlineMetadataTokens(timeMatch[2]);
+      const trailingText = normalizeDialogueLine(timeMatch[2]);
       if (trailingText) {
         // Mirrored second-pass EPF can repeat the segment id and put the
         // music-description prose directly on the timestamp line.
@@ -225,7 +268,7 @@ export function parseEPF(rawOutput) {
 
     // ── Dialogue line: [:] some spoken text ───────────────────────────────
     if (line.startsWith("[:]") && current) {
-      const spokenText = stripInlineMetadataTokens(line.replace(/^\[:\]\s*/, ""));
+      const spokenText = normalizeDialogueLine(line.replace(/^\[:\]\s*/, ""));
       if (spokenText) {
         current.dialogueLines.push(spokenText);
         inAudioDirection = false; // reset; dialogue resets audio-direction mode

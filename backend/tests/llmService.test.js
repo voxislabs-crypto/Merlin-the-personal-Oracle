@@ -302,4 +302,53 @@ describe("llmService model fallback", () => {
       ],
     });
   });
+
+  it("inlines system instructions for Google-compatible Gemma models", async () => {
+    mockGetLlmRuntimeConfig.mockReturnValue({
+      provider: "custom",
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+      apiKey: "google-test-key",
+      model: "gemma-3-12b-it",
+      models: [
+        { id: "gemma-3-12b-it", name: "Gemma 3 12B IT", isFree: false },
+      ],
+    });
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "Gemma reply",
+            },
+          },
+        ],
+      }),
+    });
+
+    const { generateChatCompletion } = await import("../services/llmService.js");
+    const result = await generateChatCompletion([
+      { role: "system", content: "Stay in character." },
+      { role: "assistant", content: "Previous assistant turn." },
+      { role: "user", content: "Hello there" },
+    ]);
+
+    expect(result).toBe("Gemma reply");
+
+    const payload = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(payload.model).toBe("gemma-3-12b-it");
+    expect(payload.messages).toEqual([
+      { role: "assistant", content: "Previous assistant turn." },
+      {
+        role: "user",
+        content: [
+          "Follow these conversation instructions exactly before answering:",
+          "Stay in character.",
+          "User message:",
+          "Hello there",
+        ].join("\n\n"),
+      },
+    ]);
+  });
 });

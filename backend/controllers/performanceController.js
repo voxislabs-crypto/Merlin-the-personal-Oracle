@@ -102,6 +102,7 @@ export async function performanceHandler(req, res, next) {
         segmentId: segment.id,
         startTime: segment.startTime,
         moodLoop: segment.moodLoop,
+        audioDirection: segment.audioDirection || "",
         segmentType: segment.type,
         lineIndex: 0,
         totalLines: segment.dialogueLines.length,

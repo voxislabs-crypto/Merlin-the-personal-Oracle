@@ -70,7 +70,23 @@ describe("epfParser", () => {
     });
     expect(script.segments[2].dialogueLines).toEqual([
       "Wuzzup! Really? That's your plan?",
-      "(Wuzzup!)",
+    ]);
+  });
+
+  it("strips repeated parenthetical echoes from spoken dialogue", () => {
+    const raw = [
+      "[[A0]]",
+      "[0.0:] Hello, Ara? (Hello, Ara?)",
+      "[:] Careful now, you might like where this goes (where this goes)",
+      "[:] (crowd chant)",
+    ].join("\n");
+
+    const script = parseEPF(raw);
+
+    expect(script.segments).toHaveLength(1);
+    expect(script.segments[0].dialogueLines).toEqual([
+      "Hello, Ara?",
+      "Careful now, you might like where this goes",
     ]);
   });
 
