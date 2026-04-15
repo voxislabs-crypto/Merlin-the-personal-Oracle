@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 function createTestWav(sampleCount = 8, sampleRate = 16000) {
   const pcm = Buffer.alloc(sampleCount * 2);
@@ -262,6 +262,59 @@ describe("ttsService Piper voice discovery", () => {
       expect(payload.voice).toEqual({ mode: "id", id: "voice-from-provider-field" });
       expect(payload.model_id).toBe("sonic-2");
     } finally {
+      global.fetch = originalFetch;
+
+      if (previousApiKey === undefined) delete process.env.CARTESIA_API_KEY;
+      else process.env.CARTESIA_API_KEY = previousApiKey;
+
+      if (previousEngine === undefined) delete process.env.TTS_ENGINE;
+      else process.env.TTS_ENGINE = previousEngine;
+    }
+  });
+
+  it("times out cleanly if Cartesia stalls while streaming audio bytes", async () => {
+    const previousApiKey = process.env.CARTESIA_API_KEY;
+    const previousEngine = process.env.TTS_ENGINE;
+    const originalFetch = global.fetch;
+
+    vi.useFakeTimers();
+    process.env.CARTESIA_API_KEY = "test-cartesia-key";
+    process.env.TTS_ENGINE = "cartesia";
+
+    global.fetch = async () => ({
+      ok: true,
+      headers: new Headers({ "content-type": "audio/mpeg" }),
+      arrayBuffer: () => new Promise(() => {}),
+    });
+
+    try {
+      const { generateSpeechAudio } = await import("../services/ttsService.js");
+      const pending = generateSpeechAudio({
+        personality: {
+          name: "Cartesia Persona",
+          moodState: { arousal: 0.1, dominance: 0.2 },
+          expressionStyle: { energy: "medium", sentenceStyle: "balanced", rules: [] },
+        },
+        text: "Keep the pacing deliberate.",
+        voiceProfile: {
+          engine: "cartesia",
+          providerVoice: "voice-from-provider-field",
+          cartesiaVoiceId: "voice-from-provider-field",
+          cartesiaModel: "sonic-2",
+          rate: 1,
+          pitch: 1,
+        },
+      });
+      const assertion = expect(pending).rejects.toMatchObject({
+        statusCode: 504,
+        ttsProvider: "cartesia",
+        ttsProviderCode: "timeout",
+      });
+
+      await vi.advanceTimersByTimeAsync(12_100);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
       global.fetch = originalFetch;
 
       if (previousApiKey === undefined) delete process.env.CARTESIA_API_KEY;

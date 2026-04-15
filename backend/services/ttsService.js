@@ -123,6 +123,25 @@ async function fetchWithTimeoutRetry(url, options = {}, { timeoutMs = DEFAULT_FE
   throw lastError || new Error("Request failed.");
 }
 
+async function readResponseBodyWithTimeout(response, reader, timeoutMs, label = "response body") {
+  let timer = null;
+
+  try {
+    return await Promise.race([
+      reader(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`Request timed out while reading ${label} after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 function getCloudConfig() {
   const ttsBaseUrl = (process.env.TTS_BASE_URL || "").replace(/\/$/, "");
   const llmBaseUrl = (process.env.LLM_BASE_URL || "").replace(/\/$/, "");
@@ -1485,7 +1504,25 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
     throw error;
   }
 
-  const arrayBuffer = await response.arrayBuffer();
+  let arrayBuffer;
+
+  try {
+    arrayBuffer = await readResponseBodyWithTimeout(
+      response,
+      () => response.arrayBuffer(),
+      DEFAULT_CARTESIA_TIMEOUT_MS,
+      "Cartesia audio bytes",
+    );
+  } catch (error) {
+    if (/timed out/i.test(String(error?.message || ""))) {
+      error.statusCode = 504;
+      error.providerStatus = 504;
+      error.ttsProvider = "cartesia";
+      error.ttsProviderCode = "timeout";
+    }
+    throw error;
+  }
+
   return { buffer: Buffer.from(arrayBuffer), contentType: "audio/mpeg", engine: "cartesia" };
 }
 

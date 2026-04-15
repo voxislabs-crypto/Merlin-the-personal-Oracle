@@ -176,6 +176,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 - **Auto fallback chain** — engine failures cascade gracefully with voice-family hints preserved across engines. Status toasts surface which engine failed and which was selected for recovery.
 - **Sentence-level streaming** — responses are split into sentence-level chunks with first-sentence-first playback to reduce perceived latency. Abbreviation-aware splitting and bounded prefetch buffers prevent stalls.
 - **Voice Lab** — dedicated cyberpunk-styled TTS workspace with live waveform canvas, per-character voice tuning, prosody source extraction, and voice sample analysis/selection.
+- **Voice Lab provider catalogs** — when ElevenLabs or Cartesia voice/model discovery fails or times out, Voice Lab falls back to its built-in presets instead of leaving the selector empty. Custom voice/model IDs remain editable directly in the panel.
 - **Quick Voice controls** — compact in-chat toggles for enable, autoplay, play-latest, stop, and save without leaving the conversation.
 - **EPF (Emergent Performance Format)** — an original structured output format where a single LLM response encodes a complete timed multimedia script with dialogue, timing, scene markers, and audio direction. Client-side Web Audio loop engine provides background music.
 - **SFX extraction** — markers like `[BURP]` are extracted before synthesis and emitted as metadata, keeping the sound-effects chain engine-independent.
@@ -879,6 +880,8 @@ Engine adapters map prosody envelopes into native controls:
 Auto fallback preserves voice-family hints across engines. `Default Voice Source` in Settings controls whether `auto` prefers dedicated TTS or the cloud/LLM path first.
 
 **Quick Voice note:** The in-chat Quick Voice controls now preserve Cartesia-specific voice/model fields when replaying or saving from chat, so Cartesia previews do not depend on reopening Voice Lab first.
+
+**Cartesia timeout note:** Voxis now bounds the full Cartesia byte-generation request, including response body reads, so stalled audio generations fail fast with a JSON timeout instead of sitting long enough for a reverse-proxy `524` page.
 
 **Kokoro warm cache:** Backend startup triggers background model preload (~171 MB). If the host cannot reach Hugging Face, Kokoro is marked as requiring setup rather than reported as ready.
 

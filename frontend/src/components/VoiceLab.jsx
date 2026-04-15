@@ -1015,6 +1015,8 @@ export default function VoiceLab({
   const selectedModelOption = activeProviderOptions.models.some((model) => model.id === activeModelValue)
     ? activeModelValue
     : CUSTOM_OPTION;
+  const activeVoiceFieldId = selectedVoiceOption === CUSTOM_OPTION ? "vlab-voice-custom" : "vlab-voice";
+  const activeModelFieldId = selectedModelOption === CUSTOM_OPTION ? "vlab-model-custom" : "vlab-model";
 
   const activeProviderUpdatedAt = selectedProviderId ? Number(providerLastUpdatedAt[selectedProviderId] || 0) : 0;
   const showProviderUpdated = !isLoadingProviderOptions && activeProviderUpdatedAt > 0;
@@ -1236,10 +1238,32 @@ export default function VoiceLab({
       } catch (error) {
         if (ignore) return;
 
+        const fallbackVoices = selectedProviderId === "elevenlabs"
+          ? ELEVENLABS_VOICE_PRESETS.filter((voice) => voice.id)
+          : CARTESIA_VOICE_PRESETS.filter((voice) => voice.id);
+        const fallbackModels = selectedProviderId === "elevenlabs"
+          ? ELEVENLABS_MODEL_PRESETS
+          : CARTESIA_MODEL_PRESETS;
+
         setProviderOptions((cur) => ({
           ...cur,
           [selectedProviderId]: {
             ...(cur[selectedProviderId] || { voices: [], builtinVoices: [], customVoices: [], models: [] }),
+            voices:
+              Array.isArray(cur[selectedProviderId]?.voices) && cur[selectedProviderId].voices.length
+                ? cur[selectedProviderId].voices
+                : fallbackVoices,
+            builtinVoices:
+              Array.isArray(cur[selectedProviderId]?.builtinVoices) && cur[selectedProviderId].builtinVoices.length
+                ? cur[selectedProviderId].builtinVoices
+                : fallbackVoices,
+            customVoices: Array.isArray(cur[selectedProviderId]?.customVoices)
+              ? cur[selectedProviderId].customVoices
+              : [],
+            models:
+              Array.isArray(cur[selectedProviderId]?.models) && cur[selectedProviderId].models.length
+                ? cur[selectedProviderId].models
+                : fallbackModels,
             error: error.message || "Failed to load provider options.",
           },
         }));
@@ -1792,7 +1816,7 @@ export default function VoiceLab({
 
               <div className="vlab-field">
                 <div className="vlab-label-row">
-                  <label>
+                  <label htmlFor={activeVoiceFieldId}>
                     {voiceFieldLabel}
                   </label>
                   {(voiceProfile.engine === "elevenlabs" || voiceProfile.engine === "cartesia") ? (
@@ -1812,6 +1836,8 @@ export default function VoiceLab({
                 {voiceProfile.engine === "piper" ? (
                   <>
                     <select
+                      id="vlab-voice"
+                      name="vlabPiperVoice"
                       className="vlab-select"
                       value={selectedPiperVoice?.path || voiceProfile.piperModelPath || ""}
                       onChange={(e) => handlePiperVoiceChange(e.target.value)}
@@ -1916,12 +1942,16 @@ export default function VoiceLab({
                 ) : voiceProfile.engine === "elevenlabs" ? (
                   <>
                     <select
+                      id="vlab-voice"
+                      name="vlabElevenLabsVoice"
                       className="vlab-select"
                       value={selectedVoiceOption}
                       onChange={(e) => {
                         const next = e.target.value;
                         if (next === CUSTOM_OPTION) {
                           updateVoiceField("elevenLabsVoiceId", "");
+                          updateVoiceField("providerVoice", "");
+                          updateVoiceField("preferredVoice", "");
                           return;
                         }
                         updateVoiceField("elevenLabsVoiceId", next);
@@ -1945,6 +1975,8 @@ export default function VoiceLab({
                     </select>
                     {selectedVoiceOption === CUSTOM_OPTION ? (
                       <input
+                        id="vlab-voice-custom"
+                        name="vlabElevenLabsVoiceCustom"
                         className="vlab-input"
                         value={voiceProfile.elevenLabsVoiceId || voiceProfile.providerVoice || ""}
                         onChange={(e) => {
@@ -1962,12 +1994,16 @@ export default function VoiceLab({
                 ) : voiceProfile.engine === "cartesia" ? (
                   <>
                     <select
+                      id="vlab-voice"
+                      name="vlabCartesiaVoice"
                       className="vlab-select"
                       value={selectedVoiceOption}
                       onChange={(e) => {
                         const next = e.target.value;
                         if (next === CUSTOM_OPTION) {
                           updateVoiceField("cartesiaVoiceId", "");
+                          updateVoiceField("providerVoice", "");
+                          updateVoiceField("preferredVoice", "");
                           return;
                         }
                         updateVoiceField("cartesiaVoiceId", next);
@@ -1985,6 +2021,8 @@ export default function VoiceLab({
                     </select>
                     {selectedVoiceOption === CUSTOM_OPTION ? (
                       <input
+                        id="vlab-voice-custom"
+                        name="vlabCartesiaVoiceCustom"
                         className="vlab-input"
                         value={voiceProfile.cartesiaVoiceId || voiceProfile.providerVoice || ""}
                         onChange={(e) => {
@@ -2002,6 +2040,8 @@ export default function VoiceLab({
                 ) : (
                   <>
                     <select
+                      id="vlab-voice"
+                      name="vlabCloudVoice"
                       className="vlab-select"
                       value={selectedCloudVoiceOption}
                       onChange={(e) => {
@@ -2022,6 +2062,8 @@ export default function VoiceLab({
                     </select>
                     {selectedCloudVoiceOption === CUSTOM_OPTION ? (
                       <input
+                        id="vlab-voice-custom"
+                        name="vlabCloudVoiceCustom"
                         className="vlab-input"
                         value={voiceProfile.providerVoice || voiceProfile.preferredVoice || ""}
                         onChange={(e) => {
@@ -2042,7 +2084,7 @@ export default function VoiceLab({
 
               <div className="vlab-field">
                 <div className="vlab-label-row">
-                  <label htmlFor="vlab-model">{modelFieldLabel}</label>
+                  <label htmlFor={activeModelFieldId}>{modelFieldLabel}</label>
                   {(selectedProviderId || supportsCloudModelCatalog) ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {selectedProviderId && showProviderUpdated ? (
@@ -2072,6 +2114,7 @@ export default function VoiceLab({
                   <>
                     <select
                       id="vlab-model"
+                      name="vlabProviderModel"
                       className="vlab-select"
                       value={selectedModelOption}
                       onChange={(e) => {
@@ -2102,6 +2145,8 @@ export default function VoiceLab({
                     </select>
                     {selectedModelOption === CUSTOM_OPTION ? (
                       <input
+                        id="vlab-model-custom"
+                        name={selectedProviderId === "elevenlabs" ? "vlabElevenLabsModelCustom" : "vlabCartesiaModelCustom"}
                         className="vlab-input"
                         value={activeModelValue}
                         onChange={(e) => {
@@ -2122,6 +2167,7 @@ export default function VoiceLab({
                   <>
                     <select
                       id="vlab-model"
+                      name="vlabProviderModel"
                       className="vlab-select"
                       value={selectedCloudModelOption}
                       onChange={(e) => {
@@ -2144,6 +2190,8 @@ export default function VoiceLab({
                     </select>
                     {selectedCloudModelOption === CUSTOM_OPTION ? (
                       <input
+                        id="vlab-model-custom"
+                        name="vlabProviderModelCustom"
                         className="vlab-input"
                         value={voiceProfile.providerModel || ""}
                         onChange={(e) => updateVoiceField("providerModel", e.target.value)}
@@ -2159,6 +2207,7 @@ export default function VoiceLab({
                 ) : (
                   <input
                     id="vlab-model"
+                    name="vlabProviderModel"
                     className="vlab-input"
                     value={voiceProfile.providerModel}
                     onChange={(e) => updateVoiceField("providerModel", e.target.value)}
@@ -2177,6 +2226,7 @@ export default function VoiceLab({
                     <label htmlFor="vlab-piper-path">Model Path (advanced)</label>
                     <input
                       id="vlab-piper-path"
+                      name="vlabPiperPath"
                       className="vlab-input"
                       value={voiceProfile.piperModelPath}
                       onChange={(e) => updateVoiceField("piperModelPath", e.target.value)}
@@ -2185,11 +2235,13 @@ export default function VoiceLab({
                   </div>
 
                   <div className="vlab-field">
-                    <label>
+                    <label htmlFor="vlab-piper-speaker">
                       {selectedPiperVoice?.speakers?.length > 1 ? "Speaker" : "Speaker ID (optional)"}
                     </label>
                     {selectedPiperVoice?.speakers?.length > 1 ? (
                       <select
+                        id="vlab-piper-speaker"
+                        name="vlabPiperSpeaker"
                         className="vlab-select"
                         value={String(voiceProfile.piperSpeaker ?? "")}
                         onChange={(e) => updateVoiceField("piperSpeaker", e.target.value)}
@@ -2203,6 +2255,8 @@ export default function VoiceLab({
                       </select>
                     ) : (
                       <input
+                        id="vlab-piper-speaker"
+                        name="vlabPiperSpeaker"
                         className="vlab-input"
                         value={voiceProfile.piperSpeaker ?? ""}
                         onChange={(e) => updateVoiceField("piperSpeaker", e.target.value)}
@@ -2216,9 +2270,11 @@ export default function VoiceLab({
               {voiceProfile.engine === "elevenlabs" && (
                 <>
                   <div className="vlab-field">
-                    <label>Stability</label>
+                    <label htmlFor="vlab-stability">Stability</label>
                     <div className="vlab-slider-row">
                       <input
+                        id="vlab-stability"
+                        name="vlabStability"
                         type="range"
                         className="vlab-slider"
                         min="0" max="1" step="0.01"
@@ -2230,9 +2286,11 @@ export default function VoiceLab({
                     </div>
                   </div>
                   <div className="vlab-field">
-                    <label>Similarity Boost</label>
+                    <label htmlFor="vlab-similarity">Similarity Boost</label>
                     <div className="vlab-slider-row">
                       <input
+                        id="vlab-similarity"
+                        name="vlabSimilarityBoost"
                         type="range"
                         className="vlab-slider"
                         min="0" max="1" step="0.01"
@@ -2244,9 +2302,11 @@ export default function VoiceLab({
                     </div>
                   </div>
                   <div className="vlab-field">
-                    <label>Style</label>
+                    <label htmlFor="vlab-style">Style</label>
                     <div className="vlab-slider-row">
                       <input
+                        id="vlab-style"
+                        name="vlabStyle"
                         type="range"
                         className="vlab-slider"
                         min="0" max="1" step="0.01"
@@ -2267,9 +2327,11 @@ export default function VoiceLab({
             <div className="vlab-section-label">◈ SYNTHESIS PARAMETERS</div>
             <div className="vlab-grid">
               <div className="vlab-field">
-                <label>Pitch Modifier</label>
+                <label htmlFor="vlab-pitch">Pitch Modifier</label>
                 <div className="vlab-slider-row">
                   <input
+                    id="vlab-pitch"
+                    name="vlabPitch"
                     type="range"
                     className="vlab-slider"
                     min="0.5" max="1.6" step="0.05"
@@ -2281,9 +2343,11 @@ export default function VoiceLab({
                 </div>
               </div>
               <div className="vlab-field">
-                <label>Rate Modifier</label>
+                <label htmlFor="vlab-rate">Rate Modifier</label>
                 <div className="vlab-slider-row">
                   <input
+                    id="vlab-rate"
+                    name="vlabRate"
                     type="range"
                     className="vlab-slider"
                     min="0.6" max="1.6" step="0.05"
@@ -2303,6 +2367,7 @@ export default function VoiceLab({
             <div className="vlab-toggle-row">
               <label className="vlab-toggle">
                 <input
+                  name="vlabVoiceEnabled"
                   type="checkbox"
                   checked={voiceProfile.enabled}
                   onChange={(e) => updateVoiceField("enabled", e.target.checked)}
@@ -2312,6 +2377,7 @@ export default function VoiceLab({
               </label>
               <label className="vlab-toggle">
                 <input
+                  name="vlabVoiceAutoplay"
                   type="checkbox"
                   checked={voiceProfile.autoplay}
                   onChange={(e) => updateVoiceField("autoplay", e.target.checked)}
