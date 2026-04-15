@@ -16,8 +16,13 @@ export default defineConfig({
   server: {
     port: 3100,
     proxy: {
+      "/api": "http://localhost:3101",
       "/health": "http://localhost:3101",
+      "/me": "http://localhost:3101",
+      "/users": "http://localhost:3101",
+      "/memory": "http://localhost:3101",
       "/personality": "http://localhost:3101",
+      "/personality-preference": "http://localhost:3101",
       "/personalities": "http://localhost:3101",
       "/research-profile": "http://localhost:3101",
       "/chat": "http://localhost:3101",

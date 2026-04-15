@@ -16,6 +16,7 @@ import ExpressionSamplingSettings from "./components/ExpressionSamplingSettings.
 import ApiDiagnosticsPanel from "./components/ApiDiagnosticsPanel.jsx";
 import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
+import { getApiErrorMessage, readApiResponsePayload } from "./lib/apiResponse.js";
 import "./styles/futuristic-ui-kit.css";
 
 const DEFAULT_DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
@@ -1537,10 +1538,10 @@ export default function App() {
   async function loadCurrentUser() {
     try {
       const response = await authFetch("/me");
-      const data = await response.json();
+      const data = await readApiResponsePayload(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to load current user.");
+        throw new Error(getApiErrorMessage(response, data, "Failed to load current user."));
       }
 
       const me = data?.user || data;
@@ -1552,9 +1553,9 @@ export default function App() {
       setSelectedUserId(Number(me.id));
 
       const profileResponse = await authFetch(`/users/${Number(me.id)}/profile`);
-      const profileData = await profileResponse.json();
+      const profileData = await readApiResponsePayload(profileResponse);
       if (!profileResponse.ok) {
-        throw new Error(profileData.error || "Failed to load user profile.");
+        throw new Error(getApiErrorMessage(profileResponse, profileData, "Failed to load user profile."));
       }
 
       setUserProfiles({ [Number(me.id)]: profileData.profile });
@@ -2155,11 +2156,11 @@ export default function App() {
           }
         }
       } else {
-        data = await response.json();
+          data = await readApiResponsePayload(response);
       }
 
       if (!response.ok) {
-        throw new Error(data?.error || "Failed to send chat message.");
+          throw new Error(getApiErrorMessage(response, data, "Failed to send chat message."));
       }
 
       if (!data) {
