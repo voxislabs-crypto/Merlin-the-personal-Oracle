@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  claimLegacyPersonalitiesHandler,
   createPersonalityHandler,
   deletePersonalityHandler,
   getPersonalityHandler,
@@ -51,6 +52,7 @@ const router = Router();
 router.post("/personality", requireAuth, createPersonalityHandler);
 router.post("/research-profile", requireAuth, researchProfileHandler);
 router.get("/personalities", requireAuth, listPersonalitiesHandler);
+router.post("/personalities/claim-legacy", requireAuth, claimLegacyPersonalitiesHandler);
 router.get("/voice-presets", requireAuth, getVoicePresetsHandler);
 router.get("/personality/:id", requireAuth, getPersonalityHandler);
 router.get("/personality/:id/voice-preset", requireAuth, getRecommendedVoicePresetHandler);

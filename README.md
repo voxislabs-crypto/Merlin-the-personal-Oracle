@@ -929,7 +929,7 @@ Runtime settings persist in SQLite (`app_settings`) and load ahead of `.env` fal
 
 | Table | Key Columns |
 |---|---|
-| `personalities` | One row per character, all personality fields |
+| `personalities` | One row per character, all personality fields, including nullable `ownerId` for legacy rows created before per-user ownership |
 | `chat_messages` | `personalityId`, `role`, `content`, `userId`, `mode`, `embedding`, `embeddingModel`, `createdAt` |
 | `personality_memory` | `personalityId`, `memoryType`, `content`, `importance`, `embedding`, indexed on `(personalityId, importance DESC, id DESC)` |
 | `app_settings` | Key/value JSON config (currently `llm_config`) |
@@ -1005,7 +1005,8 @@ See [docs/DUAL_MODE_PRODUCT_SPEC.md](docs/DUAL_MODE_PRODUCT_SPEC.md) for the dua
 | `PUT` | `/users/:id/memory/:memoryId` | Update user memory fact |
 | `DELETE` | `/users/:id/memory/:memoryId` | Delete user memory fact |
 | **Personalities** | | |
-| `GET` | `/personalities` | List all personalities |
+| `GET` | `/personalities` | List the signed-in user's personalities plus `legacyPersonaCount` |
+| `POST` | `/personalities/claim-legacy` | Claim all legacy `ownerId IS NULL` personas into the current signed-in account |
 | `POST` | `/personality` | Create a personality |
 | `GET` | `/personality/:id` | Get one personality |
 | `PUT` | `/personality/:id` | Update a personality |

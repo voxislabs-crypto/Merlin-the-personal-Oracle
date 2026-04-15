@@ -1,7 +1,9 @@
 import {
+  claimLegacyPersonalities,
   createPersonality,
   deletePersonality,
   getAllPersonalities,
+  getLegacyPersonalityCount,
   getPersonalityById,
   resetPersonalityState,
   updatePersonality,
@@ -504,7 +506,30 @@ export function updatePersonalityHandler(req, res, next) {
 export function listPersonalitiesHandler(req, res, next) {
   try {
     const ownerId = req.voxisUser?.id ?? null;
-    return res.json(getAllPersonalities(ownerId));
+    return res.json({
+      personalities: getAllPersonalities(ownerId),
+      legacyPersonaCount: getLegacyPersonalityCount(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function claimLegacyPersonalitiesHandler(req, res, next) {
+  try {
+    const ownerId = Number(req.voxisUser?.id);
+
+    if (!Number.isInteger(ownerId) || ownerId <= 0) {
+      return res.status(400).json({ error: "A valid authenticated user is required to claim legacy personas." });
+    }
+
+    const claimedCount = claimLegacyPersonalities(ownerId);
+
+    return res.json({
+      claimedCount,
+      personalities: getAllPersonalities(ownerId),
+      legacyPersonaCount: getLegacyPersonalityCount(),
+    });
   } catch (error) {
     return next(error);
   }

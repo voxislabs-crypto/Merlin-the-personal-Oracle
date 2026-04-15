@@ -226,6 +226,26 @@ export function getAllPersonalities(ownerId = null) {
   return rows.map(normalizeRow);
 }
 
+export function getLegacyPersonalityCount() {
+  const row = db.prepare(`SELECT COUNT(*) AS count FROM personalities WHERE ownerId IS NULL`).get();
+  return Number(row?.count || 0);
+}
+
+export function claimLegacyPersonalities(ownerId) {
+  const numericOwnerId = Number(ownerId);
+  if (!Number.isInteger(numericOwnerId) || numericOwnerId <= 0) {
+    return 0;
+  }
+
+  const result = db.prepare(`
+    UPDATE personalities
+    SET ownerId = ?
+    WHERE ownerId IS NULL
+  `).run(numericOwnerId);
+
+  return Number(result?.changes || 0);
+}
+
 export function getPersonalityById(id, ownerId = null) {
   const statement = ownerId
     ? db.prepare(`

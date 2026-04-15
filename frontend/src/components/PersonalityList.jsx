@@ -5,8 +5,32 @@ const listStyles = `
   .list-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     font-weight: 700;
     color: var(--text);
+  }
+
+  .list-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legacy-claim-btn {
+    border: 1px solid rgba(255, 210, 126, 0.38);
+    background: linear-gradient(135deg, rgba(255, 194, 84, 0.18), rgba(130, 76, 14, 0.28));
+    color: #fff3cb;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .legacy-claim-btn:disabled {
+    opacity: 0.6;
   }
 
   .personality-expand {
@@ -338,7 +362,10 @@ export default function PersonalityList({
   personalities = [],
   activeId,
   isLoading,
+  legacyPersonaCount = 0,
+  isClaimingLegacyPersonas = false,
   onRefresh,
+  onClaimLegacyPersonas,
   onSelect,
   onOpenChat,
   onResetPersona,
@@ -400,9 +427,23 @@ export default function PersonalityList({
       <div ref={listRootRef}>
       <div className="list-header">
         <h2>Saved Personas</h2>
-        <button type="button" onClick={onRefresh}>
-          Refresh
-        </button>
+        <div className="list-header-actions">
+          {legacyPersonaCount > 0 ? (
+            <button
+              type="button"
+              className="legacy-claim-btn"
+              onClick={onClaimLegacyPersonas}
+              disabled={isClaimingLegacyPersonas}
+            >
+              {isClaimingLegacyPersonas
+                ? "Claiming..."
+                : `Claim ${legacyPersonaCount} Legacy Persona${legacyPersonaCount === 1 ? "" : "s"}`}
+            </button>
+          ) : null}
+          <button type="button" onClick={onRefresh}>
+            Refresh
+          </button>
+        </div>
       </div>
       <p className="list-copy">
         Pick an active character for chat. Voxis now stores messages in SQLite and can save a

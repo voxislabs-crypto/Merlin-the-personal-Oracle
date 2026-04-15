@@ -939,6 +939,7 @@ export default function App() {
       : null;
 
   const [personalities, setPersonalities] = useState([]);
+  const [legacyPersonaCount, setLegacyPersonaCount] = useState(0);
   const [users, setUsers] = useState([]);
   const [userProfiles, setUserProfiles] = useState({});
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -959,6 +960,7 @@ export default function App() {
   const [chatLogs, setChatLogs] = useState({});
   const [personaMemoryById, setPersonaMemoryById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isClaimingLegacyPersonas, setIsClaimingLegacyPersonas] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [liveChatState, setLiveChatState] = useState({});
@@ -1614,6 +1616,7 @@ export default function App() {
         : [];
 
       setPersonalities(personalityList);
+      setLegacyPersonaCount(Math.max(0, Number(data?.legacyPersonaCount) || 0));
 
       if (!selectedId && personalityList.length) {
         setSelectedId(personalityList[0].id);
@@ -1625,6 +1628,50 @@ export default function App() {
       });
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleClaimLegacyPersonalities() {
+    if (isClaimingLegacyPersonas) {
+      return;
+    }
+
+    setIsClaimingLegacyPersonas(true);
+
+    try {
+      const response = await authFetch("/personalities/claim-legacy", {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to claim legacy personas.");
+      }
+
+      const claimedPersonalities = Array.isArray(data?.personalities) ? data.personalities : [];
+      const claimedCount = Math.max(0, Number(data?.claimedCount) || 0);
+
+      setPersonalities(claimedPersonalities);
+      setLegacyPersonaCount(Math.max(0, Number(data?.legacyPersonaCount) || 0));
+
+      if (claimedPersonalities.length) {
+        setSelectedId((current) => current || claimedPersonalities[0].id);
+      }
+
+      setStatus({
+        type: "success",
+        message:
+          claimedCount > 0
+            ? `Claimed ${claimedCount} legacy persona${claimedCount === 1 ? "" : "s"} into your account.`
+            : "No legacy personas were waiting to be claimed.",
+      });
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Failed to claim legacy personas.",
+      });
+    } finally {
+      setIsClaimingLegacyPersonas(false);
     }
   }
 
@@ -2291,7 +2338,10 @@ export default function App() {
                 personalities={personalities}
                 activeId={selectedId}
                 isLoading={isLoading}
+                legacyPersonaCount={legacyPersonaCount}
+                isClaimingLegacyPersonas={isClaimingLegacyPersonas}
                 onRefresh={loadPersonalities}
+                onClaimLegacyPersonas={handleClaimLegacyPersonalities}
                 onSelect={handleSelectPersonality}
                 onOpenChat={() => setActiveView("chat")}
                 onResetPersona={handleResetPersonality}
