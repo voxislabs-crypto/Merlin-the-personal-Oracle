@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AvatarCore from "./AvatarCore.jsx";
 
 const listStyles = `
@@ -348,6 +348,29 @@ export default function PersonalityList({
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmName, setConfirmName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const listRootRef = useRef(null);
+  const previousTopIdRef = useRef(null);
+
+  const sortedPersonalities = useMemo(() => {
+    const list = Array.isArray(personalities) ? [...personalities] : [];
+    return list.sort((left, right) => Number(right?.id || 0) - Number(left?.id || 0));
+  }, [personalities]);
+
+  useEffect(() => {
+    const nextTopId = sortedPersonalities[0]?.id ?? null;
+    if (!nextTopId || previousTopIdRef.current === nextTopId) {
+      previousTopIdRef.current = nextTopId;
+      return;
+    }
+
+    previousTopIdRef.current = nextTopId;
+
+    const root = listRootRef.current;
+    const scrollContainer = root?.closest(".sidebar") || root;
+    if (scrollContainer && typeof scrollContainer.scrollTo === "function") {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [sortedPersonalities]);
 
   async function handleConfirmAction() {
     if (!confirmAction?.personality || isSubmitting) {
@@ -374,6 +397,7 @@ export default function PersonalityList({
   return (
     <>
       <style>{listStyles}</style>
+      <div ref={listRootRef}>
       <div className="list-header">
         <h2>Saved Personas</h2>
         <button type="button" onClick={onRefresh}>
@@ -387,9 +411,9 @@ export default function PersonalityList({
 
       {isLoading ? (
         <div className="empty-list">Loading personalities...</div>
-      ) : personalities.length ? (
+      ) : sortedPersonalities.length ? (
         <div className="personality-stack">
-          {personalities.map((personality) => {
+          {sortedPersonalities.map((personality) => {
             const isActive = personality.id === activeId;
             const traitCount = Array.isArray(personality.traits) ? personality.traits.length : 0;
             const quirkCount = Array.isArray(personality.quirks) ? personality.quirks.length : 0;
@@ -572,6 +596,7 @@ export default function PersonalityList({
           </div>
         </div>
       ) : null}
+      </div>
     </>
   );
 }
