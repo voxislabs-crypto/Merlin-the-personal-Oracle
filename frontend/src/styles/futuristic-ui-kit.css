@@ -400,8 +400,14 @@
 	background: radial-gradient(circle at 28% 28%, #fff, var(--fx-neon-magenta) 40%, #6b0047 82%);
 }
 
-/* Bridge layer: skin existing Voxis class names so the kit is visible
-   across tabs even before each component is migrated to FuturisticUIKit JSX. */
+/* ═══════════════════════════════════════════════════════════════════════
+   BRIDGE LAYER — skins all existing Voxis component class names so the
+   futuristic kit is visible across every tab without touching component
+   files. Covers: App shell, ChatWindow, PersonalityForm, PersonalityList,
+   VoiceLab, LlmSettingsPanel, MemoryJournal, PersonaEditor.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── App shell panels ──────────────────────────────────────────────── */
 .voxis-futuristic-root .panel {
 	background: linear-gradient(170deg, rgba(20, 28, 44, 0.7), rgba(8, 12, 22, 0.85)) !important;
 	border: 1px solid rgba(0, 245, 255, 0.16) !important;
@@ -554,4 +560,447 @@
 	to {
 		transform: translateX(190%);
 	}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BRIDGE LAYER — EXTENDED: all major component class names
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Hero / app header ─────────────────────────────────────────────── */
+.voxis-futuristic-root .hero {
+	border-color: rgba(0, 245, 255, 0.2) !important;
+	background: linear-gradient(135deg, rgba(8, 16, 34, 0.94), rgba(4, 10, 22, 0.9)) !important;
+	box-shadow: var(--fx-shadow-soft), 0 0 40px rgba(0, 245, 255, 0.06) !important;
+}
+
+.voxis-futuristic-root .hero h1 {
+	background: linear-gradient(135deg, #ffffff 30%, var(--fx-electric-cyan) 100%) !important;
+	-webkit-background-clip: text !important;
+	-webkit-text-fill-color: transparent !important;
+	background-clip: text !important;
+}
+
+.voxis-futuristic-root .eyebrow {
+	background: rgba(0, 245, 255, 0.08) !important;
+	border-color: rgba(0, 245, 255, 0.3) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .profile-select {
+	border-color: rgba(0, 245, 255, 0.22) !important;
+	background: rgba(2, 8, 18, 0.88) !important;
+	color: var(--fx-text) !important;
+}
+
+.voxis-futuristic-root .hero-callout {
+	background: rgba(0, 245, 255, 0.04) !important;
+	border-color: rgba(0, 245, 255, 0.16) !important;
+}
+
+/* ── Sidebar toggle / mini rail ────────────────────────────────────── */
+.voxis-futuristic-root .sidebar-toggle {
+	border: 1px solid rgba(0, 245, 255, 0.2) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+	color: var(--fx-electric-cyan) !important;
+	border-radius: 14px !important;
+}
+
+.voxis-futuristic-root .sidebar-toggle:hover {
+	background: rgba(0, 245, 255, 0.12) !important;
+	box-shadow: 0 0 18px rgba(0, 245, 255, 0.16) !important;
+}
+
+/* ── ChatWindow ────────────────────────────────────────────────────── */
+.voxis-futuristic-root .chat-card,
+.voxis-futuristic-root .chat-placeholder {
+	background: linear-gradient(170deg, rgba(16, 24, 42, 0.82), rgba(6, 10, 20, 0.9)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.14) !important;
+	backdrop-filter: blur(14px) !important;
+	-webkit-backdrop-filter: blur(14px) !important;
+	box-shadow: var(--fx-shadow-soft) !important;
+}
+
+.voxis-futuristic-root .chat-header {
+	background: rgba(0, 245, 255, 0.04) !important;
+	border-bottom-color: rgba(0, 245, 255, 0.1) !important;
+}
+
+.voxis-futuristic-root .chat-header h3 {
+	color: var(--fx-text) !important;
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+}
+
+.voxis-futuristic-root .debug-toggle,
+.voxis-futuristic-root .debug-btn {
+	border-color: rgba(0, 245, 255, 0.22) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .message-bubble.user {
+	background: linear-gradient(135deg, rgba(0, 245, 255, 0.16), rgba(0, 100, 240, 0.18)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.24) !important;
+}
+
+.voxis-futuristic-root .message-bubble.assistant {
+	background: rgba(14, 20, 38, 0.9) !important;
+	border: 1px solid rgba(0, 245, 255, 0.1) !important;
+}
+
+.voxis-futuristic-root .message-bubble.live {
+	border-color: rgba(0, 245, 255, 0.36) !important;
+	background: linear-gradient(135deg, rgba(0, 245, 255, 0.08), rgba(139, 0, 255, 0.1)), rgba(8, 14, 30, 0.94) !important;
+	box-shadow: 0 0 32px rgba(0, 245, 255, 0.14) !important;
+}
+
+.voxis-futuristic-root .chat-input-wrap,
+.voxis-futuristic-root .chat-input-area {
+	border-top-color: rgba(0, 245, 255, 0.12) !important;
+	background: rgba(4, 8, 18, 0.72) !important;
+}
+
+.voxis-futuristic-root .chat-text-input,
+.voxis-futuristic-root .chat-input {
+	border-color: rgba(0, 245, 255, 0.22) !important;
+	background: rgba(1, 5, 14, 0.82) !important;
+	color: var(--fx-text) !important;
+}
+
+.voxis-futuristic-root .chat-send-btn,
+.voxis-futuristic-root .send-btn {
+	background: linear-gradient(135deg, var(--fx-electric-cyan), #0080ff) !important;
+	border: 0 !important;
+	box-shadow: 0 0 22px rgba(0, 245, 255, 0.32) !important;
+	color: #050a14 !important;
+	font-weight: 800 !important;
+}
+
+.voxis-futuristic-root .chat-send-btn:hover,
+.voxis-futuristic-root .send-btn:hover {
+	box-shadow: 0 0 34px rgba(0, 245, 255, 0.48) !important;
+	transform: translateY(-1px) !important;
+}
+
+.voxis-futuristic-root .replay-btn,
+.voxis-futuristic-root .replay-button {
+	border-color: rgba(0, 245, 255, 0.22) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+/* ── PersonalityForm / Character Request ───────────────────────────── */
+.voxis-futuristic-root .primary-button,
+.voxis-futuristic-root .research-btn,
+.voxis-futuristic-root .save-btn {
+	background: linear-gradient(135deg, var(--fx-electric-cyan), #005fe0) !important;
+	border: 0 !important;
+	color: #040c1a !important;
+	font-weight: 800 !important;
+	box-shadow: 0 4px 22px rgba(0, 245, 255, 0.32) !important;
+	letter-spacing: 0.02em !important;
+}
+
+.voxis-futuristic-root .primary-button:hover:not(:disabled),
+.voxis-futuristic-root .research-btn:hover:not(:disabled),
+.voxis-futuristic-root .save-btn:hover:not(:disabled) {
+	box-shadow: 0 6px 32px rgba(0, 245, 255, 0.46) !important;
+	transform: translateY(-1px) !important;
+}
+
+.voxis-futuristic-root .secondary-button,
+.voxis-futuristic-root .ghost-btn {
+	border-color: rgba(0, 245, 255, 0.3) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .field input,
+.voxis-futuristic-root .field textarea,
+.voxis-futuristic-root .field select {
+	border-color: rgba(0, 245, 255, 0.2) !important;
+	background: rgba(2, 6, 16, 0.86) !important;
+	color: var(--fx-text) !important;
+}
+
+.voxis-futuristic-root .field input:focus,
+.voxis-futuristic-root .field textarea:focus,
+.voxis-futuristic-root .field select:focus {
+	border-color: rgba(0, 245, 255, 0.7) !important;
+	box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.18), 0 0 18px rgba(0, 245, 255, 0.2) !important;
+}
+
+.voxis-futuristic-root .field label {
+	color: var(--fx-muted) !important;
+}
+
+.voxis-futuristic-root .preset-btn {
+	border-color: rgba(0, 245, 255, 0.26) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+}
+
+.voxis-futuristic-root .creator-note {
+	color: var(--fx-muted) !important;
+}
+
+/* ── PersonalityList / Saved Personas ──────────────────────────────── */
+.voxis-futuristic-root .personality-card {
+	background: linear-gradient(170deg, rgba(14, 22, 38, 0.78), rgba(6, 10, 20, 0.88)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.14) !important;
+	border-radius: 18px !important;
+	backdrop-filter: blur(12px) !important;
+	-webkit-backdrop-filter: blur(12px) !important;
+	transition: border-color 220ms var(--fx-ease), box-shadow 220ms var(--fx-ease) !important;
+}
+
+.voxis-futuristic-root .personality-card.active {
+	border-color: rgba(0, 245, 255, 0.48) !important;
+	box-shadow: 0 0 22px rgba(0, 245, 255, 0.18), var(--fx-shadow-soft) !important;
+}
+
+.voxis-futuristic-root .choose-persona {
+	background: linear-gradient(135deg, var(--fx-electric-cyan), #005ae0) !important;
+	border: 0 !important;
+	color: #030c1c !important;
+	font-weight: 800 !important;
+	box-shadow: 0 4px 18px rgba(0, 245, 255, 0.28) !important;
+}
+
+.voxis-futuristic-root .persona-icon-btn {
+	border-color: rgba(0, 245, 255, 0.24) !important;
+	background: rgba(4, 10, 22, 0.8) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .persona-icon-btn:hover {
+	border-color: rgba(0, 245, 255, 0.5) !important;
+	box-shadow: 0 0 16px rgba(0, 245, 255, 0.2) !important;
+}
+
+.voxis-futuristic-root .persona-modal {
+	background: linear-gradient(160deg, rgba(14, 22, 38, 0.94), rgba(6, 10, 20, 0.96)) !important;
+	border-color: rgba(0, 245, 255, 0.22) !important;
+	backdrop-filter: blur(20px) !important;
+	-webkit-backdrop-filter: blur(20px) !important;
+}
+
+/* ── VoiceLab ──────────────────────────────────────────────────────── */
+.voxis-futuristic-root .vlab-shell {
+	gap: 18px !important;
+}
+
+.voxis-futuristic-root .vlab-header {
+	background: linear-gradient(170deg, rgba(14, 22, 40, 0.82), rgba(6, 10, 22, 0.9)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.16) !important;
+	border-radius: 20px !important;
+	backdrop-filter: blur(14px) !important;
+	-webkit-backdrop-filter: blur(14px) !important;
+}
+
+.voxis-futuristic-root .vlab-eyebrow-dot {
+	background: var(--fx-electric-cyan) !important;
+	box-shadow: 0 0 10px rgba(0, 245, 255, 0.7) !important;
+}
+
+.voxis-futuristic-root .vlab-title {
+	color: var(--fx-text) !important;
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+}
+
+.voxis-futuristic-root .vlab-meta-pill {
+	background: rgba(0, 245, 255, 0.08) !important;
+	border: 1px solid rgba(0, 245, 255, 0.22) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .vlab-section {
+	background: linear-gradient(170deg, rgba(14, 22, 40, 0.72), rgba(6, 10, 20, 0.82)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.12) !important;
+	border-radius: 18px !important;
+	backdrop-filter: blur(12px) !important;
+	-webkit-backdrop-filter: blur(12px) !important;
+}
+
+.voxis-futuristic-root .vlab-section-label {
+	color: var(--fx-electric-cyan) !important;
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+	letter-spacing: 0.06em !important;
+	text-transform: uppercase !important;
+	font-size: 0.76rem !important;
+}
+
+.voxis-futuristic-root .vlab-field input,
+.voxis-futuristic-root .vlab-field select,
+.voxis-futuristic-root .vlab-field textarea {
+	border-color: rgba(0, 245, 255, 0.2) !important;
+	background: rgba(2, 6, 16, 0.86) !important;
+	color: var(--fx-text) !important;
+}
+
+/* ── LlmSettingsPanel / Settings ───────────────────────────────────── */
+.voxis-futuristic-root .llm-settings,
+.voxis-futuristic-root .settings-shell {
+	gap: 18px !important;
+}
+
+.voxis-futuristic-root .settings-section {
+	background: linear-gradient(170deg, rgba(14, 22, 40, 0.72), rgba(6, 10, 20, 0.82)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.12) !important;
+	border-radius: 20px !important;
+	backdrop-filter: blur(12px) !important;
+	-webkit-backdrop-filter: blur(12px) !important;
+}
+
+.voxis-futuristic-root .settings-section-header {
+	border-bottom: 1px solid rgba(0, 245, 255, 0.1) !important;
+}
+
+.voxis-futuristic-root .settings-section h3,
+.voxis-futuristic-root .settings-section-tag {
+	color: var(--fx-electric-cyan) !important;
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+}
+
+.voxis-futuristic-root .llm-field input,
+.voxis-futuristic-root .llm-field select,
+.voxis-futuristic-root .llm-field textarea {
+	border-color: rgba(0, 245, 255, 0.2) !important;
+	background: rgba(2, 6, 16, 0.86) !important;
+	color: var(--fx-text) !important;
+}
+
+.voxis-futuristic-root .llm-field input:focus,
+.voxis-futuristic-root .llm-field select:focus {
+	border-color: rgba(0, 245, 255, 0.7) !important;
+	box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.18) !important;
+}
+
+.voxis-futuristic-root .llm-toggle-row {
+	border-color: rgba(0, 245, 255, 0.1) !important;
+}
+
+.voxis-futuristic-root .llm-connected {
+	color: var(--fx-emerald) !important;
+}
+
+/* ── MemoryJournal ─────────────────────────────────────────────────── */
+.voxis-futuristic-root .journal-shell {
+	gap: 16px !important;
+}
+
+.voxis-futuristic-root .journal-header {
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+	color: var(--fx-text) !important;
+}
+
+.voxis-futuristic-root .memory-row {
+	background: linear-gradient(170deg, rgba(14, 22, 40, 0.7), rgba(6, 10, 20, 0.8)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.1) !important;
+	border-radius: 14px !important;
+	backdrop-filter: blur(10px) !important;
+	-webkit-backdrop-filter: blur(10px) !important;
+	transition: border-color 200ms var(--fx-ease) !important;
+}
+
+.voxis-futuristic-root .memory-row:hover {
+	border-color: rgba(0, 245, 255, 0.28) !important;
+	box-shadow: 0 0 18px rgba(0, 245, 255, 0.1) !important;
+}
+
+.voxis-futuristic-root .filter-pill {
+	border: 1px solid rgba(0, 245, 255, 0.2) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+	color: var(--fx-muted) !important;
+	border-radius: 999px !important;
+}
+
+.voxis-futuristic-root .filter-pill.active {
+	background: rgba(0, 245, 255, 0.14) !important;
+	border-color: rgba(0, 245, 255, 0.46) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .memory-type-badge,
+.voxis-futuristic-root .importance-badge,
+.voxis-futuristic-root .anchor-badge {
+	border: 1px solid rgba(0, 245, 255, 0.22) !important;
+	background: rgba(0, 245, 255, 0.1) !important;
+	color: var(--fx-electric-cyan) !important;
+	border-radius: 999px !important;
+}
+
+.voxis-futuristic-root .conflict-badge {
+	border-color: rgba(255, 0, 170, 0.36) !important;
+	background: rgba(255, 0, 170, 0.1) !important;
+	color: var(--fx-neon-magenta) !important;
+}
+
+/* ── PersonaEditor ─────────────────────────────────────────────────── */
+.voxis-futuristic-root .editor-shell,
+.voxis-futuristic-root .editor-panel {
+	background: linear-gradient(170deg, rgba(14, 22, 40, 0.78), rgba(6, 10, 20, 0.88)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.14) !important;
+	border-radius: 20px !important;
+	backdrop-filter: blur(14px) !important;
+	-webkit-backdrop-filter: blur(14px) !important;
+}
+
+.voxis-futuristic-root .editor-section-label,
+.voxis-futuristic-root .editor-label {
+	color: var(--fx-electric-cyan) !important;
+	font-family: "Space Grotesk", Inter, system-ui, sans-serif !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.07em !important;
+	font-size: 0.76rem !important;
+}
+
+/* ── Global button catch-all within .voxis-futuristic-root ─────────── */
+.voxis-futuristic-root button:not([class]) {
+	border: 1px solid rgba(0, 245, 255, 0.22);
+	background: rgba(0, 245, 255, 0.06);
+	color: var(--fx-text);
+	border-radius: 12px;
+}
+
+/* ── Quick-voice / action buttons in ChatWindow ────────────────────── */
+.voxis-futuristic-root .quick-voice-btn,
+.voxis-futuristic-root .tts-action-btn,
+.voxis-futuristic-root .voice-action {
+	border-color: rgba(0, 245, 255, 0.24) !important;
+	background: rgba(0, 245, 255, 0.06) !important;
+	color: var(--fx-electric-cyan) !important;
+}
+
+.voxis-futuristic-root .quick-voice-btn.active,
+.voxis-futuristic-root .tts-action-btn.active {
+	background: rgba(0, 245, 255, 0.16) !important;
+	border-color: rgba(0, 245, 255, 0.5) !important;
+	box-shadow: 0 0 14px rgba(0, 245, 255, 0.22) inset !important;
+}
+
+/* ── Global toast ──────────────────────────────────────────────────── */
+.voxis-futuristic-root .global-toast {
+	background: linear-gradient(160deg, rgba(14, 22, 40, 0.94), rgba(6, 10, 20, 0.96)) !important;
+	border: 1px solid rgba(0, 245, 255, 0.26) !important;
+	backdrop-filter: blur(20px) !important;
+	-webkit-backdrop-filter: blur(20px) !important;
+	box-shadow: 0 0 30px rgba(0, 245, 255, 0.16) !important;
+}
+
+/* ── Scrollbars (WebKit) ───────────────────────────────────────────── */
+.voxis-futuristic-root ::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+.voxis-futuristic-root ::-webkit-scrollbar-track {
+	background: rgba(0, 0, 0, 0.2);
+}
+
+.voxis-futuristic-root ::-webkit-scrollbar-thumb {
+	background: rgba(0, 245, 255, 0.28);
+	border-radius: 999px;
+}
+
+.voxis-futuristic-root ::-webkit-scrollbar-thumb:hover {
+	background: rgba(0, 245, 255, 0.5);
 }

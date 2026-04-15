@@ -39,22 +39,23 @@ function normalizeChatMessage(message) {
 const appStyles = `
   :root {
     color-scheme: dark;
-    --bg: #060c18;
-    --bg-strong: #0a1220;
-    --panel: rgba(10, 18, 34, 0.80);
-    --panel-strong: rgba(12, 22, 42, 0.96);
-    --border: rgba(0, 180, 255, 0.14);
-    --text: #dde6f2;
-    --muted: #6d80a0;
-    --accent: #00c8ff;
+    /* ── Point old tokens at futuristic-kit values ─── */
+    --bg: var(--fx-space-black);
+    --bg-strong: #0b1020;
+    --panel: rgba(14, 22, 38, 0.80);
+    --panel-strong: rgba(10, 16, 32, 0.96);
+    --border: var(--fx-border);
+    --text: var(--fx-text);
+    --muted: var(--fx-muted);
+    --accent: var(--fx-electric-cyan);
     --accent-deep: #0050e0;
-    --accent-soft: rgba(0, 200, 255, 0.10);
+    --accent-soft: rgba(0, 245, 255, 0.10);
     --accent-warm: #ff7a38;
-    --accent-magenta: #b83cf8;
+    --accent-magenta: var(--fx-neon-magenta);
     --shadow: 0 24px 64px rgba(0, 40, 120, 0.40);
-    --glass-bg: linear-gradient(180deg, rgba(198, 242, 255, 0.14), rgba(18, 42, 76, 0.24));
-    --glass-border: rgba(135, 228, 255, 0.34);
-    --glass-specular: rgba(255, 255, 255, 0.28);
+    --glass-bg: linear-gradient(180deg, rgba(0, 245, 255, 0.10), rgba(18, 42, 76, 0.22));
+    --glass-border: rgba(0, 245, 255, 0.30);
+    --glass-specular: rgba(255, 255, 255, 0.22);
     --glass-shadow: 0 10px 28px rgba(0, 18, 42, 0.4);
   }
 
@@ -220,7 +221,7 @@ const appStyles = `
 
   .workspace {
     display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-columns: 380px minmax(0, 1fr);
     gap: 20px;
   }
 
@@ -578,7 +579,7 @@ const appStyles = `
   }
 
   .workspace {
-    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-columns: 380px minmax(0, 1fr);
     gap: 14px;
     align-items: start;
   }
