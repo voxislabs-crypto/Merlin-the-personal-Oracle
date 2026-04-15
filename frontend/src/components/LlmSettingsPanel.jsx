@@ -25,8 +25,13 @@ const ELEVENLABS_MODEL_PRESETS = [
 ];
 
 const CARTESIA_MODEL_PRESETS = [
+  { id: "sonic-3", label: "sonic-3" },
+  { id: "sonic-3-latest", label: "sonic-3-latest" },
   { id: "sonic-2", label: "sonic-2" },
+  { id: "sonic-turbo", label: "sonic-turbo" },
 ];
+
+const CARTESIA_MODEL_QUICK_PICKS = ["sonic-3", "sonic-3-latest", "sonic-turbo"];
 
 const settingsStyles = `
   .llm-settings {
@@ -201,6 +206,22 @@ const settingsStyles = `
     color: #8fdfff;
   }
 
+  .llm-quick-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .llm-quick-picks button {
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 180, 255, 0.2);
+    background: rgba(0, 180, 255, 0.06);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
   @media (max-width: 900px) {
     .llm-grid {
       grid-template-columns: 1fr;
@@ -219,6 +240,42 @@ function fallbackProviders() {
     { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1" },
     { id: "custom", name: "Custom OpenAI-Compatible", baseUrl: "" },
   ];
+}
+
+function getCatalogMeta(options) {
+  return options?.catalog && typeof options.catalog === "object"
+    ? options.catalog
+    : { voices: { source: "unavailable", count: 0 }, models: { source: "unavailable", count: 0 } };
+}
+
+function getTtsVoiceHelpText(providerId, options, providerName) {
+  if (providerId === "cartesia") {
+    const catalog = getCatalogMeta(options);
+    if (options?.error) {
+      return options.error;
+    }
+    if (catalog.voices?.source === "api") {
+      return `Loaded ${catalog.voices.count || 0} Cartesia voices from your API key.`;
+    }
+    return "Cartesia voice discovery is unavailable right now. Use a saved voice or enter a Custom voice id.";
+  }
+
+  return options?.error || `Auto-loaded from your ${providerName || "provider"} key when available.`;
+}
+
+function getTtsModelHelpText(providerId, options, providerName) {
+  if (providerId === "cartesia") {
+    const catalog = getCatalogMeta(options);
+    if (options?.error) {
+      return options.error;
+    }
+    if (catalog.models?.source === "api") {
+      return `Loaded ${catalog.models.count || 0} Cartesia models from live discovery.`;
+    }
+    return "Showing fallback Cartesia models because live discovery returned no model catalog. Use Custom model id for snapshots or newly released IDs.";
+  }
+
+  return options?.error || `Auto-loaded from your ${providerName || "provider"} key when available.`;
 }
 
 export default function LlmSettingsPanel({ onStatus }) {
@@ -253,6 +310,10 @@ export default function LlmSettingsPanel({ onStatus }) {
       builtinVoices: CARTESIA_VOICE_PRESETS,
       customVoices: [],
       models: CARTESIA_MODEL_PRESETS,
+      catalog: {
+        voices: { source: "fallback", count: CARTESIA_VOICE_PRESETS.length },
+        models: { source: "fallback", count: CARTESIA_MODEL_PRESETS.length },
+      },
       error: "",
     },
   });
@@ -306,6 +367,7 @@ export default function LlmSettingsPanel({ onStatus }) {
     builtinVoices: [],
     customVoices: [],
     models: [],
+    catalog: {},
     error: "",
   };
 
@@ -397,6 +459,12 @@ export default function LlmSettingsPanel({ onStatus }) {
               : voices,
             customVoices: Array.isArray(data.customVoices) ? data.customVoices : [],
             models,
+            catalog: data.catalog && typeof data.catalog === "object"
+              ? data.catalog
+              : {
+                  voices: { source: "fallback", count: voices.length },
+                  models: { source: ttsProvider === "cartesia" ? "fallback" : "unavailable", count: models.length },
+                },
             error: String(data.error || "").trim(),
           },
         }));
@@ -406,6 +474,13 @@ export default function LlmSettingsPanel({ onStatus }) {
             ...current,
             [ttsProvider]: {
               ...(current[ttsProvider] || { voices: [], builtinVoices: [], customVoices: [], models: [] }),
+              catalog:
+                current[ttsProvider]?.catalog && typeof current[ttsProvider].catalog === "object"
+                  ? current[ttsProvider].catalog
+                  : {
+                      voices: { source: "fallback", count: (ttsProvider === "elevenlabs" ? ELEVENLABS_VOICE_PRESETS : CARTESIA_VOICE_PRESETS).length },
+                      models: { source: ttsProvider === "cartesia" ? "fallback" : "unavailable", count: (ttsProvider === "elevenlabs" ? ELEVENLABS_MODEL_PRESETS : CARTESIA_MODEL_PRESETS).length },
+                    },
               error: error.message || "Failed to load provider options.",
             },
           }));
@@ -1090,7 +1165,7 @@ export default function LlmSettingsPanel({ onStatus }) {
               disabled={isLoading || isSavingTts}
             />
           ) : null}
-          <p className="llm-field-helper">{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
+          <p className="llm-field-helper">{getTtsVoiceHelpText(ttsProvider, activeTtsProviderOptions, selectedTtsProvider?.name)}</p>
         </div>
 
         <div className="llm-field">
@@ -1125,7 +1200,30 @@ export default function LlmSettingsPanel({ onStatus }) {
               disabled={isLoading || isSavingTts}
             />
           ) : null}
-          <p className="llm-field-helper">{activeTtsProviderOptions.error || `Auto-loaded from your ${selectedTtsProvider?.name || "provider"} key when available.`}</p>
+          {ttsProvider === "cartesia" ? (
+            <div className="llm-quick-picks">
+              {CARTESIA_MODEL_QUICK_PICKS.map((modelId) => (
+                <button
+                  key={modelId}
+                  type="button"
+                  className="secondary"
+                  onClick={() => setTtsModel(modelId)}
+                  disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+                >
+                  {modelId}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setTtsModel("")}
+                disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+              >
+                Custom model id
+              </button>
+            </div>
+          ) : null}
+          <p className="llm-field-helper">{getTtsModelHelpText(ttsProvider, activeTtsProviderOptions, selectedTtsProvider?.name)}</p>
         </div>
         </div>
 

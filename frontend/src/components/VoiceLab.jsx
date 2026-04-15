@@ -840,8 +840,13 @@ const ELEVENLABS_MODEL_PRESETS = [
 ];
 
 const CARTESIA_MODEL_PRESETS = [
+  { id: "sonic-3", label: "sonic-3" },
+  { id: "sonic-3-latest", label: "sonic-3-latest" },
   { id: "sonic-2", label: "sonic-2" },
+  { id: "sonic-turbo", label: "sonic-turbo" },
 ];
+
+const CARTESIA_MODEL_QUICK_PICKS = ["sonic-3", "sonic-3-latest", "sonic-turbo"];
 
 const CLOUD_MODEL_PRESETS = [
   { id: "gpt-4o-mini-tts", label: "gpt-4o-mini-tts" },
@@ -878,6 +883,42 @@ function normalizeVoiceEngineForDebug(engine) {
   return ["auto", "kokoro", "cartesia"].includes(normalized) ? normalized : "auto";
 }
 
+function getProviderCatalogMeta(options) {
+  return options?.catalog && typeof options.catalog === "object"
+    ? options.catalog
+    : { voices: { source: "unavailable", count: 0 }, models: { source: "unavailable", count: 0 } };
+}
+
+function getProviderVoiceHelpText(providerId, options) {
+  if (providerId === "cartesia") {
+    const catalog = getProviderCatalogMeta(options);
+    if (options?.error) {
+      return options.error;
+    }
+    if (catalog.voices?.source === "api") {
+      return `Loaded ${catalog.voices.count || 0} Cartesia voices from your API key.`;
+    }
+    return "Cartesia voice discovery is unavailable right now. Use a saved voice, or switch to Custom voice id.";
+  }
+
+  return options?.error || "Auto-loaded from your configured ElevenLabs API key.";
+}
+
+function getProviderModelHelpText(providerId, options) {
+  if (providerId === "cartesia") {
+    const catalog = getProviderCatalogMeta(options);
+    if (options?.error) {
+      return options.error;
+    }
+    if (catalog.models?.source === "api") {
+      return `Loaded ${catalog.models.count || 0} Cartesia models from live discovery.`;
+    }
+    return "Showing fallback Cartesia models because live discovery returned no model catalog. Use Custom model id for snapshots or newly released IDs.";
+  }
+
+  return options?.error || "Auto-loaded from your configured provider API key.";
+}
+
 export default function VoiceLab({
   personality,
   messages,
@@ -907,7 +948,7 @@ export default function VoiceLab({
     similarityBoost: 0.75,
     style: 0.5,
     cartesiaVoiceId: "",
-    cartesiaModel: "sonic-2",
+    cartesiaModel: "sonic-3",
   });
   const [sampleText, setSampleText] = useState("");
   const [prosodyUrl, setProsodyUrl] = useState("");
@@ -940,6 +981,10 @@ export default function VoiceLab({
       builtinVoices: CARTESIA_VOICE_PRESETS.filter((voice) => voice.id),
       customVoices: [],
       models: CARTESIA_MODEL_PRESETS,
+      catalog: {
+        voices: { source: "fallback", count: CARTESIA_VOICE_PRESETS.filter((voice) => voice.id).length },
+        models: { source: "fallback", count: CARTESIA_MODEL_PRESETS.length },
+      },
       error: "",
     },
   });
@@ -986,8 +1031,8 @@ export default function VoiceLab({
     : "";
 
   const activeProviderOptions = selectedProviderId
-    ? providerOptions[selectedProviderId] || { voices: [], builtinVoices: [], customVoices: [], models: [], error: "" }
-    : { voices: [], builtinVoices: [], customVoices: [], models: [], error: "" };
+    ? providerOptions[selectedProviderId] || { voices: [], builtinVoices: [], customVoices: [], models: [], catalog: {}, error: "" }
+    : { voices: [], builtinVoices: [], customVoices: [], models: [], catalog: {}, error: "" };
 
   const activeBuiltinVoices = Array.isArray(activeProviderOptions.builtinVoices)
     ? activeProviderOptions.builtinVoices
@@ -1073,7 +1118,7 @@ export default function VoiceLab({
       similarityBoost: Number(personality.voiceProfile?.similarityBoost ?? 0.75),
       style: Number(personality.voiceProfile?.style ?? 0.5),
       cartesiaVoiceId: personality.voiceProfile?.cartesiaVoiceId || "",
-      cartesiaModel: personality.voiceProfile?.cartesiaModel || "sonic-2",
+      cartesiaModel: personality.voiceProfile?.cartesiaModel || "sonic-3",
     });
     setProsodyUrl(personality.prosodySourceUrl || "");
     setVoiceSamples(personality.voiceSampleAnalysis || null);
@@ -1204,6 +1249,12 @@ export default function VoiceLab({
                 : fallbackVoices,
             customVoices: Array.isArray(data.customVoices) ? data.customVoices : [],
             models,
+            catalog: data.catalog && typeof data.catalog === "object"
+              ? data.catalog
+              : {
+                  voices: { source: "fallback", count: voices.length },
+                  models: { source: selectedProviderId === "cartesia" ? "fallback" : "unavailable", count: models.length },
+                },
             error: String(data.error || "").trim(),
           },
         }));
@@ -1226,7 +1277,7 @@ export default function VoiceLab({
           }
 
           const nextVoice = cur.cartesiaVoiceId || cur.providerVoice || data.defaults?.voiceId || voices[0]?.id || "";
-          const nextModel = cur.cartesiaModel || data.defaults?.model || models[0]?.id || "sonic-2";
+          const nextModel = cur.cartesiaModel || data.defaults?.model || models[0]?.id || "sonic-3";
           return {
             ...cur,
             cartesiaVoiceId: nextVoice,
@@ -1264,6 +1315,13 @@ export default function VoiceLab({
               Array.isArray(cur[selectedProviderId]?.models) && cur[selectedProviderId].models.length
                 ? cur[selectedProviderId].models
                 : fallbackModels,
+            catalog:
+              cur[selectedProviderId]?.catalog && typeof cur[selectedProviderId].catalog === "object"
+                ? cur[selectedProviderId].catalog
+                : {
+                    voices: { source: "fallback", count: fallbackVoices.length },
+                    models: { source: selectedProviderId === "cartesia" ? "fallback" : "unavailable", count: fallbackModels.length },
+                  },
             error: error.message || "Failed to load provider options.",
           },
         }));
@@ -2034,7 +2092,7 @@ export default function VoiceLab({
                       />
                     ) : null}
                     <small className="vlab-small">
-                      {activeProviderOptions.error || "Auto-loaded from your configured Cartesia API key."}
+                      {getProviderVoiceHelpText("cartesia", activeProviderOptions)}
                     </small>
                   </>
                 ) : (
@@ -2156,11 +2214,32 @@ export default function VoiceLab({
                             updateVoiceField("cartesiaModel", e.target.value);
                           }
                         }}
-                        placeholder={selectedProviderId === "elevenlabs" ? "eleven_multilingual_v2" : "sonic-2"}
+                        placeholder={selectedProviderId === "elevenlabs" ? "eleven_multilingual_v2" : "sonic-3"}
                       />
                     ) : null}
+                    {selectedProviderId === "cartesia" ? (
+                      <div className="vlab-inline-actions" style={{ marginTop: 4 }}>
+                        {CARTESIA_MODEL_QUICK_PICKS.map((modelId) => (
+                          <button
+                            key={modelId}
+                            type="button"
+                            className="vlab-reload-btn"
+                            onClick={() => updateVoiceField("cartesiaModel", modelId)}
+                          >
+                            {modelId}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className="vlab-reload-btn"
+                          onClick={() => updateVoiceField("cartesiaModel", "")}
+                        >
+                          Custom model id
+                        </button>
+                      </div>
+                    ) : null}
                     <small className="vlab-small">
-                      {activeProviderOptions.error || "Auto-loaded from your configured provider API key."}
+                      {getProviderModelHelpText(selectedProviderId, activeProviderOptions)}
                     </small>
                   </>
                 ) : supportsCloudModelCatalog ? (

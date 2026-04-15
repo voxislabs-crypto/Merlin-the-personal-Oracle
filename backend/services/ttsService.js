@@ -38,6 +38,12 @@ const DEFAULT_KOKORO_LOAD_TIMEOUT_MS = 25_000;
 const DEFAULT_KOKORO_GENERATE_TIMEOUT_MS = 30_000;
 const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 const LOCKED_TTS_ENGINES = Object.freeze(["kokoro", "cartesia"]);
+const CARTESIA_MODEL_FALLBACKS = Object.freeze([
+  { id: "sonic-3", label: "sonic-3" },
+  { id: "sonic-3-latest", label: "sonic-3-latest" },
+  { id: "sonic-2", label: "sonic-2" },
+  { id: "sonic-turbo", label: "sonic-turbo" },
+]);
 
 export const TTS_ENGINE_CAPABILITIES = Object.freeze({
   elevenlabs: Object.freeze({
@@ -341,6 +347,65 @@ function toTitleCase(value) {
   return String(value || "")
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function uniqueOptions(options = []) {
+  const seen = new Set();
+  const result = [];
+
+  for (const option of Array.isArray(options) ? options : []) {
+    const id = String(option?.id || "").trim();
+    if (!id || seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    result.push({
+      id,
+      label: String(option?.label || id).trim() || id,
+    });
+  }
+
+  return result.sort(sortByLabel);
+}
+
+function normalizeCartesiaModelList(payload) {
+  const candidateLists = [
+    payload,
+    payload?.models,
+    payload?.data,
+    payload?.results,
+    payload?.items,
+    payload?.snapshots,
+    payload?.model_snapshots,
+  ];
+
+  const candidates = candidateLists.flatMap((entry) => (Array.isArray(entry) ? entry : []));
+
+  return uniqueOptions(
+    candidates.map((model) => {
+      const rawId =
+        model?.id ||
+        model?.model_id ||
+        model?.modelId ||
+        model?.base_model_id ||
+        model?.baseModelId ||
+        model?.name ||
+        "";
+      const rawLabel =
+        model?.name ||
+        model?.label ||
+        model?.display_name ||
+        model?.displayName ||
+        model?.model_id ||
+        model?.id ||
+        rawId;
+
+      return {
+        id: String(rawId || "").trim(),
+        label: normalizeOptionName(rawLabel, rawId),
+      };
+    }),
+  );
 }
 
 function formatPiperVoiceLabel(voiceId) {
@@ -1459,7 +1524,7 @@ function getCartesiaConfig() {
   return {
     apiKey: dbCred?.apiKey || process.env.CARTESIA_API_KEY || "",
     voiceId: dbCred?.voiceId || process.env.CARTESIA_VOICE_ID || "a0e99841-438c-4a64-b679-ae501e7d6091",
-    model: dbCred?.model || process.env.CARTESIA_MODEL || "sonic-2",
+    model: dbCred?.model || process.env.CARTESIA_MODEL || "sonic-3",
   };
 }
 
@@ -1935,10 +2000,12 @@ async function fetchCartesiaOptions() {
     "Content-Type": "application/json",
   };
 
-  const defaultModels = [{ id: "sonic-2", label: "sonic-2" }];
+  const defaultModels = [...CARTESIA_MODEL_FALLBACKS];
   let voices = [];
   let models = [...defaultModels];
   let error = "";
+  let voiceCatalogSource = "unavailable";
+  let modelCatalogSource = "fallback";
 
   try {
     const voicesResponse = await fetchWithTimeoutRetry(
@@ -1963,6 +2030,7 @@ async function fetchCartesiaOptions() {
       }))
       .filter((voice) => voice.id)
       .sort(sortByLabel);
+    voiceCatalogSource = voices.length ? "api" : "unavailable";
   } catch (fetchError) {
     error = `Unable to fetch Cartesia voices: ${fetchError.message || fetchError}`;
   }
@@ -1971,11 +2039,13 @@ async function fetchCartesiaOptions() {
     const modelEndpoints = [
       "https://api.cartesia.ai/models",
       "https://api.cartesia.ai/2024-06-10/models",
+      "https://api.cartesia.ai/2024-11-13/models",
     ];
 
     let payload = null;
     let lastModelFetchError = null;
     let onlyNotFound = true;
+    let usedFallbackModelCatalog = false;
 
     for (const endpoint of modelEndpoints) {
       const modelsResponse = await fetchWithTimeoutRetry(
@@ -2002,27 +2072,23 @@ async function fetchCartesiaOptions() {
 
     if (!payload && onlyNotFound) {
       payload = defaultModels;
+      usedFallbackModelCatalog = true;
     }
 
-    const list = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.models)
-        ? payload.models
-        : [];
+    const discoveredModels = normalizeCartesiaModelList(payload);
 
-    const discoveredModels = list
-      .map((model) => ({
-        id: String(model?.id || model?.model_id || "").trim(),
-        label: normalizeOptionName(model?.name, model?.id || model?.model_id),
-      }))
-      .filter((model) => model.id)
-      .sort(sortByLabel);
-
-    models = discoveredModels.length ? discoveredModels : [...defaultModels];
+    if (discoveredModels.length && !usedFallbackModelCatalog) {
+      models = discoveredModels;
+      modelCatalogSource = "api";
+    } else {
+      models = [...defaultModels];
+      modelCatalogSource = "fallback";
+    }
   } catch (fetchError) {
     if (!error) {
       error = `Unable to fetch Cartesia models: ${fetchError.message || fetchError}`;
     }
+    modelCatalogSource = "fallback";
   }
 
   return {
@@ -2033,6 +2099,17 @@ async function fetchCartesiaOptions() {
     defaults: {
       voiceId: config.voiceId,
       model: config.model,
+    },
+    catalog: {
+      voices: {
+        source: voiceCatalogSource,
+        count: voices.length,
+      },
+      models: {
+        source: modelCatalogSource,
+        count: models.length,
+        fallbackModels: defaultModels,
+      },
     },
     error,
   };

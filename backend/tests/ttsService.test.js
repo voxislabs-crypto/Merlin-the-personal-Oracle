@@ -324,4 +324,93 @@ describe("ttsService Piper voice discovery", () => {
       else process.env.TTS_ENGINE = previousEngine;
     }
   });
+
+  it("discovers Cartesia models from newer API payload shapes", async () => {
+    const previousApiKey = process.env.CARTESIA_API_KEY;
+    const originalFetch = global.fetch;
+
+    process.env.CARTESIA_API_KEY = "test-cartesia-key";
+
+    global.fetch = async (url) => {
+      if (String(url).includes("/voices")) {
+        return {
+          ok: true,
+          json: async () => ({
+            voices: [{ id: "voice-1", name: "Voice One" }],
+          }),
+        };
+      }
+
+      if (String(url).includes("/models")) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [
+              { model_id: "sonic-3-latest", name: "Sonic 3 Latest" },
+              { base_model_id: "sonic-3", name: "Sonic 3" },
+            ],
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected fetch url: ${url}`);
+    };
+
+    try {
+      const { listProviderOptions } = await import("../services/ttsService.js");
+      const result = await listProviderOptions("cartesia");
+
+      expect(result.connected).toBe(true);
+      expect(result.catalog.models.source).toBe("api");
+      expect(result.models).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "sonic-3", label: "Sonic 3" }),
+          expect.objectContaining({ id: "sonic-3-latest", label: "Sonic 3 Latest" }),
+        ]),
+      );
+    } finally {
+      global.fetch = originalFetch;
+
+      if (previousApiKey === undefined) delete process.env.CARTESIA_API_KEY;
+      else process.env.CARTESIA_API_KEY = previousApiKey;
+    }
+  });
+
+  it("returns fallback Cartesia models when discovery endpoints do not provide a catalog", async () => {
+    const previousApiKey = process.env.CARTESIA_API_KEY;
+    const originalFetch = global.fetch;
+
+    process.env.CARTESIA_API_KEY = "test-cartesia-key";
+
+    global.fetch = async (url) => {
+      if (String(url).includes("/voices")) {
+        return {
+          ok: true,
+          json: async () => ({ voices: [] }),
+        };
+      }
+
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+      };
+    };
+
+    try {
+      const { listProviderOptions } = await import("../services/ttsService.js");
+      const result = await listProviderOptions("cartesia");
+
+      expect(result.connected).toBe(true);
+      expect(result.catalog.models.source).toBe("fallback");
+      expect(result.models.map((entry) => entry.id)).toEqual(
+        expect.arrayContaining(["sonic-3", "sonic-3-latest", "sonic-2", "sonic-turbo"]),
+      );
+    } finally {
+      global.fetch = originalFetch;
+
+      if (previousApiKey === undefined) delete process.env.CARTESIA_API_KEY;
+      else process.env.CARTESIA_API_KEY = previousApiKey;
+    }
+  });
 });

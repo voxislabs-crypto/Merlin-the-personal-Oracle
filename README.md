@@ -176,7 +176,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 - **Auto fallback chain** — engine failures cascade gracefully with voice-family hints preserved across engines. Status toasts surface which engine failed and which was selected for recovery.
 - **Sentence-level streaming** — responses are split into sentence-level chunks with first-sentence-first playback to reduce perceived latency. Abbreviation-aware splitting and bounded prefetch buffers prevent stalls.
 - **Voice Lab** — dedicated cyberpunk-styled TTS workspace with live waveform canvas, per-character voice tuning, prosody source extraction, and voice sample analysis/selection.
-- **Voice Lab provider catalogs** — when ElevenLabs or Cartesia voice/model discovery fails or times out, Voice Lab falls back to its built-in presets instead of leaving the selector empty. Custom voice/model IDs remain editable directly in the panel.
+- **Voice Lab provider catalogs** — when ElevenLabs or Cartesia voice/model discovery fails or times out, Voice Lab falls back to its built-in presets instead of leaving the selector empty. Cartesia surfaces whether the catalog is live-discovered or fallback-only, and custom voice/model IDs remain editable directly in the panel.
 - **Quick Voice controls** — compact in-chat toggles for enable, autoplay, play-latest, stop, and save without leaving the conversation.
 - **EPF (Emergent Performance Format)** — an original structured output format where a single LLM response encodes a complete timed multimedia script with dialogue, timing, scene markers, and audio direction. Client-side Web Audio loop engine provides background music.
 - **SFX extraction** — markers like `[BURP]` are extracted before synthesis and emitted as metadata, keeping the sound-effects chain engine-independent.
@@ -362,7 +362,7 @@ Edit `backend/.env` with your API keys. All environment variables are optional �
 | `ELEVENLABS_MODEL` | ElevenLabs model (default: `eleven_multilingual_v2`) |
 | `CARTESIA_API_KEY` | Cartesia API key |
 | `CARTESIA_VOICE_ID` | Default Cartesia voice |
-| `CARTESIA_MODEL` | Cartesia model (default: `sonic-2`) |
+| `CARTESIA_MODEL` | Cartesia model (default: `sonic-3`) |
 
 **Alternative credential paths:**
 
@@ -491,7 +491,7 @@ bash deploy/check-stack.sh voxis.voxislabs.com
 | `LLM request failed with 401` | Re-save provider credentials in Settings or set `LLM_API_KEY` in `.env`, then restart PM2 with `--update-env` |
 | TTS forced to Piper but not working | Check `/health/tts` for `routing.envEngine`, verify `PIPER_COMMAND` and `PIPER_MODEL_PATH`, raise `PIPER_TIMEOUT_MS` if needed |
 | Kokoro `502` / HTML error page | Ensure `TTS_ENGINE=auto` or `kokoro` (not `piper` with debug lock on). Raise `PM2_MAX_MEMORY_RESTART` if seeing frequent memory restarts |
-| Cartesia model discovery 404 | Voxis retries endpoint variants and falls back to `sonic-2` |
+| Cartesia model discovery 404 | Voxis retries endpoint variants and falls back to the built-in Cartesia catalog (`sonic-3`, `sonic-3-latest`, `sonic-2`, `sonic-turbo`) |
 | Provider/key mismatch | The connect flow auto-corrects obvious built-in provider/key mismatches by prefix |
 
 **Prosody extraction dependencies:** `yt-dlp`, `ffmpeg`, `ffprobe` (installed automatically by deploy scripts).
