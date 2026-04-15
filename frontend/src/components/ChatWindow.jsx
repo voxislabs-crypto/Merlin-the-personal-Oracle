@@ -2585,47 +2585,49 @@ export default function ChatWindow({
                 )}
               </select>
               <label htmlFor="voice-quick-select">Voice:</label>
-              <select
-                id="voice-quick-select"
-                value={voiceProfile.engine === "kokoro" ? (voiceProfile.kokoroVoice || "af_heart") : (voiceProfile.providerVoice || "alloy")}
-                onChange={(event) => {
-                  if (voiceProfile.engine === "kokoro") {
-                    updateVoiceField("kokoroVoice", event.target.value);
-                  } else if (voiceProfile.engine === "cartesia") {
-                    updateVoiceField("providerVoice", event.target.value);
-                    updateVoiceField("cartesiaVoiceId", event.target.value);
-                  } else {
-                    updateVoiceField("providerVoice", event.target.value);
-                  }
-                }}
-              >
-                {voiceProfile.engine === "kokoro" ? (
-                  <>
-                    <option value="af_heart">af_heart — warm female</option>
-                    <option value="af_nova">af_nova — energetic female</option>
-                    <option value="af_sarah">af_sarah — casual female</option>
-                    <option value="af_sky">af_sky — light female</option>
-                    <option value="am_adam">am_adam — warm male</option>
-                    <option value="am_onyx">am_onyx — deep male</option>
-                    <option value="am_michael">am_michael — mid male</option>
-                    <option value="bf_alice">bf_alice — British female</option>
-                    <option value="bf_emma">bf_emma — expressive British female</option>
-                    <option value="bm_george">bm_george — engaging British male</option>
-                    <option value="bm_lewis">bm_lewis — calm British male</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="alloy">Alloy — neutral, balanced</option>
-                    <option value="echo">Echo — steady, expressive</option>
-                    <option value="fable">Fable — warm, engaging</option>
-                    <option value="onyx">Onyx — deep, authoritative</option>
-                    <option value="nova">Nova — bright, dynamic</option>
-                    <option value="shimmer">Shimmer — crisp, energetic</option>
-                    <option value="ash">Ash — measured</option>
-                    <option value="sage">Sage — calm female</option>
-                  </>
-                )}
-              </select>
+              {voiceProfile.engine === "kokoro" ? (
+                <select
+                  id="voice-quick-select"
+                  value={voiceProfile.kokoroVoice || "af_heart"}
+                  onChange={(event) => updateVoiceField("kokoroVoice", event.target.value)}
+                >
+                  <option value="af_heart">af_heart — warm female</option>
+                  <option value="af_nova">af_nova — energetic female</option>
+                  <option value="af_sarah">af_sarah — casual female</option>
+                  <option value="af_sky">af_sky — light female</option>
+                  <option value="am_adam">am_adam — warm male</option>
+                  <option value="am_onyx">am_onyx — deep male</option>
+                  <option value="am_michael">am_michael — mid male</option>
+                  <option value="bf_alice">bf_alice — British female</option>
+                  <option value="bf_emma">bf_emma — expressive British female</option>
+                  <option value="bm_george">bm_george — engaging British male</option>
+                  <option value="bm_lewis">bm_lewis — calm British male</option>
+                </select>
+              ) : voiceProfile.engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && voiceProfile.engine === "auto") ? (
+                <input
+                  id="voice-quick-select"
+                  type="text"
+                  placeholder="Cartesia voice ID (UUID)"
+                  value={voiceProfile.cartesiaVoiceId || ""}
+                  onChange={(event) => updateVoiceField("cartesiaVoiceId", event.target.value)}
+                  style={{ fontFamily: "monospace", fontSize: "0.78rem", padding: "4px 8px", borderRadius: "6px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,234,255,0.2)", color: "#88ecff", width: "100%", boxSizing: "border-box" }}
+                />
+              ) : (
+                <select
+                  id="voice-quick-select"
+                  value={voiceProfile.providerVoice || "alloy"}
+                  onChange={(event) => updateVoiceField("providerVoice", event.target.value)}
+                >
+                  <option value="alloy">Alloy — neutral, balanced</option>
+                  <option value="echo">Echo — steady, expressive</option>
+                  <option value="fable">Fable — warm, engaging</option>
+                  <option value="onyx">Onyx — deep, authoritative</option>
+                  <option value="nova">Nova — bright, dynamic</option>
+                  <option value="shimmer">Shimmer — crisp, energetic</option>
+                  <option value="ash">Ash — measured</option>
+                  <option value="sage">Sage — calm female</option>
+                </select>
+              )}
             </div>
 
             <div className="voice-actions">
