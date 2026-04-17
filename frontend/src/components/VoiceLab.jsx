@@ -964,6 +964,7 @@ export default function VoiceLab({
   const [audioUrl, setAudioUrl] = useState("");
   const [directedPreview, setDirectedPreview] = useState("");
   const [previewTelemetry, setPreviewTelemetry] = useState(null);
+  const [cartesiaPreviewPlaying, setCartesiaPreviewPlaying] = useState(false);
   const [piperVoices, setPiperVoices] = useState([]);
   const [isLoadingPiperVoices, setIsLoadingPiperVoices] = useState(false);
   const [piperVoiceError, setPiperVoiceError] = useState("");
@@ -1011,6 +1012,7 @@ export default function VoiceLab({
 
   // Refs
   const audioRef = useRef(null);
+  const voiceSampleAudioRef = useRef(null);
   const canvasRef = useRef(null);
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
@@ -1055,6 +1057,10 @@ export default function VoiceLab({
     : selectedProviderId === "cartesia"
       ? voiceProfile.cartesiaVoiceId || voiceProfile.providerVoice || ""
       : "";
+
+  const cartesiaVoicePreviewUrl = selectedProviderId === "cartesia" && activeVoiceValue
+    ? (activeProviderOptions.voices.find((v) => v.id === activeVoiceValue)?.previewUrl || "")
+    : "";
 
   const activeModelValue = selectedProviderId === "elevenlabs"
     ? voiceProfile.elevenLabsModel || ""
@@ -2316,32 +2322,71 @@ export default function VoiceLab({
                   </>
                 ) : voiceProfile.engine === "cartesia" ? (
                   <>
-                    <select
-                      id="vlab-voice"
-                      name="vlabCartesiaVoice"
-                      className="vlab-select"
-                      value={selectedVoiceOption}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        if (next === CUSTOM_OPTION) {
-                          updateVoiceField("cartesiaVoiceId", "");
-                          updateVoiceField("providerVoice", "");
-                          updateVoiceField("preferredVoice", "");
-                          return;
-                        }
-                        updateVoiceField("cartesiaVoiceId", next);
-                        updateVoiceField("providerVoice", next);
-                        updateVoiceField("preferredVoice", next);
-                      }}
-                    >
-                      <option value="" disabled>
-                        {isLoadingProviderOptions ? "LOADING PROVIDER VOICES..." : "Select a Cartesia voice"}
-                      </option>
-                      {activeProviderOptions.voices.map((voice) => (
-                        <option key={voice.id} value={voice.id}>{voice.label}</option>
-                      ))}
-                      <option value={CUSTOM_OPTION}>Custom voice id</option>
-                    </select>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      <select
+                        id="vlab-voice"
+                        name="vlabCartesiaVoice"
+                        className="vlab-select"
+                        style={{ flex: 1 }}
+                        value={selectedVoiceOption}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          // Stop any playing sample when switching voices
+                          if (voiceSampleAudioRef.current) {
+                            voiceSampleAudioRef.current.pause();
+                            voiceSampleAudioRef.current.currentTime = 0;
+                          }
+                          setCartesiaPreviewPlaying(false);
+                          if (next === CUSTOM_OPTION) {
+                            updateVoiceField("cartesiaVoiceId", "");
+                            updateVoiceField("providerVoice", "");
+                            updateVoiceField("preferredVoice", "");
+                            return;
+                          }
+                          updateVoiceField("cartesiaVoiceId", next);
+                          updateVoiceField("providerVoice", next);
+                          updateVoiceField("preferredVoice", next);
+                        }}
+                      >
+                        <option value="" disabled>
+                          {isLoadingProviderOptions ? "LOADING PROVIDER VOICES..." : "Select a Cartesia voice"}
+                        </option>
+                        {activeProviderOptions.voices.map((voice) => (
+                          <option key={voice.id} value={voice.id}>{voice.label}</option>
+                        ))}
+                        <option value={CUSTOM_OPTION}>Custom voice id</option>
+                      </select>
+                      {cartesiaVoicePreviewUrl ? (
+                        <button
+                          type="button"
+                          title={cartesiaPreviewPlaying ? "Stop sample" : "Play voice sample (free — no tokens)"}
+                          className="vlab-btn sec"
+                          style={{ flexShrink: 0, padding: "0 11px", fontSize: "1rem", minHeight: "36px" }}
+                          onClick={() => {
+                            if (cartesiaPreviewPlaying) {
+                              if (voiceSampleAudioRef.current) {
+                                voiceSampleAudioRef.current.pause();
+                                voiceSampleAudioRef.current.currentTime = 0;
+                              }
+                              setCartesiaPreviewPlaying(false);
+                              return;
+                            }
+                            if (voiceSampleAudioRef.current) {
+                              voiceSampleAudioRef.current.pause();
+                            }
+                            const audio = new Audio(cartesiaVoicePreviewUrl);
+                            voiceSampleAudioRef.current = audio;
+                            audio.onended = () => setCartesiaPreviewPlaying(false);
+                            audio.onerror = () => setCartesiaPreviewPlaying(false);
+                            audio.play()
+                              .then(() => setCartesiaPreviewPlaying(true))
+                              .catch(() => setCartesiaPreviewPlaying(false));
+                          }}
+                        >
+                          {cartesiaPreviewPlaying ? "■" : "▶"}
+                        </button>
+                      ) : null}
+                    </div>
                     {selectedVoiceOption === CUSTOM_OPTION ? (
                       <input
                         id="vlab-voice-custom"

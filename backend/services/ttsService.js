@@ -2169,6 +2169,7 @@ async function fetchCartesiaOptions() {
       .map((voice) => ({
         id: String(voice?.id || voice?.voice_id || "").trim(),
         label: normalizeOptionName(voice?.name, voice?.id || voice?.voice_id),
+        previewUrl: String(voice?.preview_url || "").trim(),
       }))
       .filter((voice) => voice.id)
       .sort(sortByLabel);
