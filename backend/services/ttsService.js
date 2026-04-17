@@ -15,6 +15,7 @@ import { shapeForKokoro } from "./kokoroShaper.js";
 import { interpretEmotionSpectrum } from "./emotionSpectrum.js";
 import { splitIntoChunks } from "./chunkSpeech.js";
 import { getKokoroHfToken, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
+import { cleanLyricsForTts } from "./singingEngine.js";
 
 const require = createRequire(import.meta.url);
 
@@ -1550,6 +1551,38 @@ async function generateElevenLabsSpeechAudio({ text, voiceProfile }) {
 // === CARTESIA TTS ===
 // Pricing: ~$0.65/million chars (Sonic-2). Free tier + API key at https://cartesia.ai
 
+// Maps voiceAdjustments deltas to Cartesia's __experimental_controls object.
+// Returns null when no meaningful adjustments apply (cleaner API payload).
+function buildCartesiaExperimentalControls(adj) {
+  if (!adj) return null;
+
+  const { rateDelta = 0, style = "neutral", energyBoost = 0 } = adj;
+
+  // Map rate delta to Cartesia speed string
+  let speed = null;
+  if (rateDelta >= 0.12) speed = "fast";
+  else if (rateDelta >= 0.06) speed = "slightly_fast";
+  else if (rateDelta <= -0.10) speed = "slow";
+  else if (rateDelta <= -0.05) speed = "slightly_slow";
+
+  // Map style label to Cartesia emotion tag
+  const STYLE_TO_EMOTION = {
+    assertive:  [{ name: "anger",      level: "low"    }],
+    angry:      [{ name: "anger",      level: "high"   }],
+    excited:    [{ name: "positivity", level: "high"   }],
+    cheerful:   [{ name: "positivity", level: "medium" }],
+    warm:       [{ name: "positivity", level: "low"    }],
+    curious:    [{ name: "curiosity",  level: "medium" }],
+  };
+  const emotion = energyBoost !== 0 ? (STYLE_TO_EMOTION[style] || null) : null;
+
+  if (!speed && !emotion) return null;
+  const controls = {};
+  if (speed) controls.speed = speed;
+  if (emotion) controls.emotion = emotion;
+  return controls;
+}
+
 function getCartesiaConfig() {
   // DB credential (BYOK from browser) takes priority over .env
   let dbCred = null;
@@ -1570,7 +1603,10 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   const providerVoiceCandidate = String(voiceProfile?.providerVoice || "").trim();
   const voiceId = String(voiceProfile?.cartesiaVoiceId || providerVoiceCandidate || config.voiceId).trim();
   const model = String(voiceProfile?.cartesiaModel || config.model).trim();
-  const timeoutMs = getCartesiaTimeoutMs(text);
+
+  // Clean lyrics before synthesis: strip parenthetical echoes, smooth commas
+  const synthesisText = voiceProfile?.singingActive ? cleanLyricsForTts(text) : text;
+  const timeoutMs = getCartesiaTimeoutMs(synthesisText);
 
   if (!config.apiKey) {
     const error = new Error("Cartesia TTS requires CARTESIA_API_KEY to be set.");
@@ -1578,8 +1614,17 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
     throw error;
   }
 
+  // Build optional emotion/speed controls from voiceAdjustments
+  const adj = voiceProfile?.voiceAdjustments || null;
+  const experimentalControls = buildCartesiaExperimentalControls(adj);
+
   let response;
   try {
+    // Build voice object — add __experimental_controls only when available
+    const voicePayload = experimentalControls
+      ? { mode: "id", id: voiceId, __experimental_controls: experimentalControls }
+      : { mode: "id", id: voiceId };
+
     response = await fetchWithTimeoutRetry("https://api.cartesia.ai/tts/bytes", {
       method: "POST",
       headers: {
@@ -1588,9 +1633,9 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        transcript: text,
+        transcript: synthesisText,
         model_id: model,
-        voice: { mode: "id", id: voiceId },
+        voice: voicePayload,
         output_format: { container: "mp3", bit_rate: 128000, sample_rate: 44100 },
       }),
     }, { retries: 0, timeoutMs });

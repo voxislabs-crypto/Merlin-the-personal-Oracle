@@ -2130,6 +2130,8 @@ export default function App() {
                     debug: payload.debug || current[personalityId]?.debug || null,
                     reply: "",
                     usage: payload.usage || current[personalityId]?.usage || null,
+                    voiceAdjustments: payload.voiceAdjustments || null,
+                    singingActive: payload.singingActive || false,
                     finalReceived: true,
                     seq: (current[personalityId]?.seq || 0) + 1,
                   },
@@ -2722,6 +2724,8 @@ export default function App() {
                     liveSeq={liveChatState[selectedId]?.seq || 0}
                     liveReply={liveChatState[selectedId]?.reply || ""}
                     liveUsage={liveChatState[selectedId]?.usage || null}
+                    liveVoiceAdjustments={liveChatState[selectedId]?.voiceAdjustments || null}
+                    liveSingingActive={liveChatState[selectedId]?.singingActive || false}
                     activeMode={chatPolicy?.activeMode || selectedMode}
                     neuralProfile={selectedUserProfile || chatPolicy}
                     disableNeuronMap3d={disableNeuronMap3d}

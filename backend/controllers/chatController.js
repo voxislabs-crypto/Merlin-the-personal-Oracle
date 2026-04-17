@@ -1194,6 +1194,10 @@ export async function chatHandler(req, res, next) {
       moodLabel,
       policy,
       usage,
+      // Forward voice params so the frontend can apply them to the TTS request
+      // without needing to parse the debug event stream.
+      voiceAdjustments: streamedDebugData.voiceAdjustments || null,
+      singingActive: singingActive || false,
       debug: debugData,
     };
 

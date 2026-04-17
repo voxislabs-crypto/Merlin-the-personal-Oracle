@@ -1479,6 +1479,8 @@ export default function ChatWindow({
   liveSeq,
   liveReply,
   liveUsage,
+  liveVoiceAdjustments = null,
+  liveSingingActive = false,
   activeMode,
   neuralProfile,
   disableNeuronMap3d = DEFAULT_DISABLE_NEURONMAP_3D,
@@ -1538,6 +1540,9 @@ export default function ChatWindow({
   const streamPlaybackActiveRef = useRef(false);
   const streamAutoplayUsedRef = useRef(false);
   const prevZoneKeyRef = useRef("");
+  // Tracks the latest voice adjustments from the chat pipeline — applied to TTS requests
+  const pendingVoiceAdjustmentsRef = useRef(null);
+  const pendingSingingActiveRef = useRef(false);
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const latestAssistantMessage = useMemo(
@@ -1626,6 +1631,16 @@ export default function ChatWindow({
   }, [voiceProfile.cartesiaVoiceId]);
 
   const displayDebug = liveDebug || latestAssistantDebug;
+
+  // Keep voice adjustment refs in sync with incoming live props so they're
+  // available inside requestSpeechAudio without needing a re-render.
+  useEffect(() => {
+    pendingVoiceAdjustmentsRef.current = liveVoiceAdjustments;
+  }, [liveVoiceAdjustments]);
+
+  useEffect(() => {
+    pendingSingingActiveRef.current = liveSingingActive;
+  }, [liveSingingActive]);
   const pendingAssistantMessage = useMemo(() => {
     if (!isSending && !liveReply) {
       return null;
@@ -2165,17 +2180,7 @@ export default function ChatWindow({
         telemetry: null,
       };
     }
-    const response = await authFetch(`/personality/${personality.id}/tts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        text,
-        voiceProfile,
-      }),
-    });
+    const response = await authFetch(`/personality/${personality.id}/tts`, {\n      method: \"POST\",\n      headers: {\n        \"Content-Type\": \"application/json\",\n      },\n      signal: controller.signal,\n      body: JSON.stringify({\n        text,\n        voiceProfile: {\n          ...voiceProfile,\n          // Merge emotion-graph voice adjustments so Cartesia receives speed/emotion controls\n          voiceAdjustments: pendingVoiceAdjustmentsRef.current || undefined,\n          singingActive: pendingSingingActiveRef.current || false,\n        },\n      }),\n    });
 
     if (!response.ok) {
       const payload = await readApiResponsePayload(response);

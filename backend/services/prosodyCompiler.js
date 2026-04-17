@@ -88,6 +88,10 @@ function applyWordLevelEmphasis(text, emphasisWords = [], { punctuation = "comma
       if (punctuation === "ellipses") {
         return `... ${match.toUpperCase()} ...`;
       }
+      if (punctuation === "uppercase") {
+        // uppercase-only — no trailing comma (safe for neural TTS like Cartesia)
+        return match.toUpperCase();
+      }
       return `${match.toUpperCase()},`;
     });
   }
@@ -208,7 +212,9 @@ export function compileProsodyEnvelope({
   const cartesia = {
     targetRate: Number(targetRate.toFixed(3)),
     phrasing,
-    emphasisMode: precisionMode ? "commas" : phrasing === "bursty" ? "ellipses" : "commas",
+    // Use uppercase-only emphasis for Cartesia — never inject trailing commas,
+    // because Cartesia's neural model pauses on every comma it encounters.
+    emphasisMode: "uppercase",
   };
 
   const piper = {

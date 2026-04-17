@@ -280,7 +280,49 @@ export function buildSingingInstruction(singingProfile, emotionLabel, singingAct
     "minimal":           "a near-whispered single idea — barely there",
   }[profile.lyricalStyle] || "a brief lyrical moment";
 
-  return `This turn: let a natural lyrical moment surface — ${styleHint}. Max ${maxLines} line${maxLines === 1 ? "" : "s"}. No music descriptions. Return to dialogue immediately after.`;
+  return `This turn: let a natural lyrical moment surface — ${styleHint}. Max ${maxLines} line${maxLines === 1 ? "" : "s"}. Write entirely new lines that respond to the current message — never copy or echo lyrics from earlier in this conversation. No music descriptions. Return to dialogue immediately after.`;
+}
+
+// ---------------------------------------------------------------------------
+// Lyric Text Cleaner — runs before TTS on singing turns
+//
+// Strips parenthetical backing-vocal echoes like "(where this goes)",
+// smooths mid-phrase commas in lyric lines (Cartesia pauses on every comma),
+// and removes empty parenthetical fragments.
+// ---------------------------------------------------------------------------
+
+export function cleanLyricsForTts(text) {
+  if (!text) return text;
+  let out = String(text);
+
+  // Remove parenthetical backing vocals / echo annotations: "(where this goes)"
+  out = out.replace(/\s*\([^)]{2,60}\)/g, "");
+
+  // Strip square-bracket stage directions that leak into TTS: [music: ...] [sfx: ...]
+  out = out.replace(/\[(?:music|sfx|beat|loop|fx)[^\]]*\]/gi, "");
+
+  // Remove EPF segment markers [[A0]] etc.
+  out = out.replace(/\[\[[A-Za-z]+\d+\]\]/g, "");
+
+  // Remove EPF timestamp markers [12.0:] or [:]
+  out = out.replace(/\[(?:\d+(?:\.\d+)?)?:\]\s*/g, "");
+
+  // Smooth mid-phrase commas in lyric lines:
+  // A lyric line is short (≤ 80 chars) and doesn't end with sentence punctuation.
+  // For these, replace internal commas with a single space so Cartesia doesn't
+  // insert breath pauses on every beat.
+  const lines = out.split(/\r?\n/);
+  const cleaned = lines.map((line) => {
+    const trimmed = line.trim();
+    // Only apply to short lyric-style lines (not prose sentences)
+    const isLyricLine = trimmed.length > 0 && trimmed.length <= 80 && !/[.?!;]$/.test(trimmed);
+    if (isLyricLine) {
+      return trimmed.replace(/,\s*/g, " ");
+    }
+    return trimmed;
+  });
+
+  return cleaned.filter(Boolean).join("\n").trim();
 }
 
 // ---------------------------------------------------------------------------
