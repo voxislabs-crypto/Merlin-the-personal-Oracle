@@ -2180,7 +2180,22 @@ export default function ChatWindow({
         telemetry: null,
       };
     }
-    const response = await authFetch(`/personality/${personality.id}/tts`, {\n      method: \"POST\",\n      headers: {\n        \"Content-Type\": \"application/json\",\n      },\n      signal: controller.signal,\n      body: JSON.stringify({\n        text,\n        voiceProfile: {\n          ...voiceProfile,\n          // Merge emotion-graph voice adjustments so Cartesia receives speed/emotion controls\n          voiceAdjustments: pendingVoiceAdjustmentsRef.current || undefined,\n          singingActive: pendingSingingActiveRef.current || false,\n        },\n      }),\n    });
+    const response = await authFetch(`/personality/${personality.id}/tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        text,
+        voiceProfile: {
+          ...voiceProfile,
+          // Merge emotion-graph voice adjustments so Cartesia receives speed/emotion controls
+          voiceAdjustments: pendingVoiceAdjustmentsRef.current || undefined,
+          singingActive: pendingSingingActiveRef.current || false,
+        },
+      }),
+    });
 
     if (!response.ok) {
       const payload = await readApiResponsePayload(response);
