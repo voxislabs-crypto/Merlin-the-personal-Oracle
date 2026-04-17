@@ -1736,6 +1736,8 @@ export default function NeuralCore({
   liveSeq = 0,
   performanceTier: requestedPerformanceTier,
   voiceNarrationEnabled = false,
+  allowThreeD = true,
+  defaultLayoutView = false,
   onActivityUpdate,
   onUpdateMemory,
   onOpenPersonaEditor,
@@ -1743,7 +1745,7 @@ export default function NeuralCore({
   const personaState = usePersonaState();
   const enabled = import.meta.env.VITE_NEURAL_CORE_ENABLED !== "false";
   const [expanded, setExpanded] = useState(false);
-  const [layoutView, setLayoutView] = useState(false);
+  const [layoutView, setLayoutView] = useState(Boolean(defaultLayoutView) || !allowThreeD);
   const [focusNode, setFocusNode] = useState("core");
   const [selectedLeafNode, setSelectedLeafNode] = useState(null);
   const [sceneDepth, setSceneDepth] = useState(0);
@@ -1813,6 +1815,18 @@ export default function NeuralCore({
       }
     };
   }, [enabled, performanceTier]);
+
+  useEffect(() => {
+    if (!allowThreeD) {
+      setLayoutView(true);
+    }
+  }, [allowThreeD]);
+
+  useEffect(() => {
+    if (defaultLayoutView) {
+      setLayoutView(true);
+    }
+  }, [defaultLayoutView]);
 
   useEffect(() => {
     if (!livePhase) {
@@ -2162,7 +2176,7 @@ export default function NeuralCore({
 
       {!expanded ? (
         <div className="neural-hud">
-          {!kidsMode && (
+          {!kidsMode && allowThreeD && (
             <div
               className="neural-mini-preview"
               onClick={() => setExpanded(true)}
@@ -2227,14 +2241,18 @@ export default function NeuralCore({
               </span>
             </h4>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                type="button"
-                className={`neural-layout-toggle${layoutView ? " active" : ""}`}
-                onClick={() => setLayoutView((v) => !v)}
-                title={layoutView ? "Switch to 3D view" : "Switch to data layout view"}
-              >
-                {layoutView ? "⬡ 3D" : "⊞ Layout"}
-              </button>
+              {allowThreeD ? (
+                <button
+                  type="button"
+                  className={`neural-layout-toggle${layoutView ? " active" : ""}`}
+                  onClick={() => setLayoutView((v) => !v)}
+                  title={layoutView ? "Switch to 3D view" : "Switch to data layout view"}
+                >
+                  {layoutView ? "⬡ 3D" : "⊞ Layout"}
+                </button>
+              ) : (
+                <span className="neural-pill">Layout view</span>
+              )}
               <button type="button" className="neural-close" onClick={() => setExpanded(false)}>
                 Close
               </button>
@@ -2244,7 +2262,7 @@ export default function NeuralCore({
           <div
             className="neural-scene"
           >
-            {layoutView ? (
+            {layoutView || !allowThreeD ? (
               <NeuralLayoutView
                 personality={personality}
                 memoryRows={memoryRows}

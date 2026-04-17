@@ -1,4 +1,7 @@
 import {
+  listSavedVoiceMaps,
+  upsertSavedVoiceMap,
+  deleteSavedVoiceMap,
   clearLlmRuntimeConfig,
   getLlmRuntimeConfig,
   getSavedLlmCredential,
@@ -22,6 +25,7 @@ import {
   getExpressionSamplingConfig,
   setExpressionSamplingConfig,
 } from "../models/settingsModel.js";
+import { randomUUID } from "node:crypto";
 import {
   detectProviderByApiKey,
   fetchProviderModels,
@@ -411,4 +415,51 @@ export function saveExpressionSamplingSettingsHandler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const updated = setExpressionSamplingConfig(body);
   return res.json(updated);
+}
+
+export function getVoiceMapsHandler(req, res) {
+  const userId = req.voxisUser?.id ?? null;
+  return res.json({ maps: listSavedVoiceMaps({ userId }) });
+}
+
+export function saveVoiceMapHandler(req, res) {
+  const userId = req.voxisUser?.id ?? null;
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const voiceName = String(body.voiceName || body.name || "").trim();
+  if (!voiceName) {
+    return res.status(400).json({ error: "voiceName is required." });
+  }
+
+  if (!body.voiceProfile || typeof body.voiceProfile !== "object") {
+    return res.status(400).json({ error: "voiceProfile is required." });
+  }
+
+  const id = String(body.id || "").trim() || randomUUID();
+  const maps = upsertSavedVoiceMap({
+    userId,
+    map: {
+      id,
+      voiceName,
+      linkedPersonalityId: body.linkedPersonalityId,
+      linkedPersonalityName: body.linkedPersonalityName,
+      voiceProfile: body.voiceProfile,
+      createdAt: body.createdAt,
+    },
+  });
+
+  return res.json({
+    savedId: id,
+    maps,
+  });
+}
+
+export function deleteVoiceMapHandler(req, res) {
+  const userId = req.voxisUser?.id ?? null;
+  const id = String(req.params.id || "").trim();
+  if (!id) {
+    return res.status(400).json({ error: "voice map id is required." });
+  }
+
+  const maps = deleteSavedVoiceMap({ userId, id });
+  return res.json({ maps });
 }

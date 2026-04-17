@@ -110,6 +110,21 @@ export async function generateSpeechHandler(req, res, next) {
     setEncodedJsonHeader(res, "X-Voxis-Tts-Sfx", Array.isArray(audio.sfx) ? audio.sfx : [], { maxBytes: 800 });
     return res.send(audio.buffer);
   } catch (error) {
+    if (error?.ttsProvider) {
+      const provider = String(error.ttsProvider || "unknown").trim().toLowerCase();
+      const providerCode = String(error.ttsProviderCode || "").trim().toLowerCase();
+      const providerStatus = Number(error.providerStatus || 0);
+
+      return res.status(Number(error.statusCode || 502)).json({
+        error: String(error.message || "Speech generation failed."),
+        details: {
+          provider,
+          providerCode,
+          providerStatus,
+        },
+      });
+    }
+
     return next(error);
   }
 }

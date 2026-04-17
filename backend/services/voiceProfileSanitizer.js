@@ -5,13 +5,19 @@ function clampNumber(value, min, max, fallback) {
 }
 
 const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const TTS_DISABLE_KOKORO = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 
 function isAllowedVoiceEngine(engine) {
   const normalized = String(engine || "").trim().toLowerCase();
   if (!TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
-    return ["auto", "cloud", "openai", "piper", "kokoro", "elevenlabs", "cartesia"].includes(normalized);
+    const openEngines = TTS_DISABLE_KOKORO
+      ? ["auto", "cloud", "openai", "piper", "elevenlabs", "cartesia"]
+      : ["auto", "cloud", "openai", "piper", "kokoro", "elevenlabs", "cartesia"];
+    return openEngines.includes(normalized);
   }
-  return ["auto", "kokoro", "cartesia"].includes(normalized);
+  return TTS_DISABLE_KOKORO
+    ? ["auto", "cartesia"].includes(normalized)
+    : ["auto", "kokoro", "cartesia"].includes(normalized);
 }
 
 export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
@@ -44,7 +50,7 @@ export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
     similarityBoost: clampNumber(source.similarityBoost ?? fallback.similarityBoost, 0, 1, 0.75),
     style: clampNumber(source.style ?? fallback.style, 0, 1, 0.5),
     cartesiaVoiceId: String(source.cartesiaVoiceId || fallback.cartesiaVoiceId || "").trim(),
-    cartesiaModel: String(source.cartesiaModel || fallback.cartesiaModel || "sonic-2").trim(),
+    cartesiaModel: String(source.cartesiaModel || fallback.cartesiaModel || "sonic-3").trim(),
     voiceSourceType: String(source.voiceSourceType || fallback.voiceSourceType || "").trim(),
     selectedSampleIndex: Number.isFinite(selectedSampleIndex) && selectedSampleIndex >= 0 ? Math.floor(selectedSampleIndex) : null,
     selectedVoiceLabel: String(source.selectedVoiceLabel || fallback.selectedVoiceLabel || "").trim(),

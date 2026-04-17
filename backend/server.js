@@ -34,7 +34,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "30mb" }));
 
 // Clerk JWT verification runs on every request (no-op when no token present).
 // Individual routes call requireAuth() to enforce sign-in.

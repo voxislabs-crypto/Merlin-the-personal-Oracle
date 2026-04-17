@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 import { getApiErrorMessage, readApiResponsePayload } from "../lib/apiResponse.js";
+import { buildTtsCacheKey, getTtsCache, setTtsCache } from "../utils/ttsCache.js";
 import { interpretEmotionSpectrum } from "../lib/emotionSpectrum.js";
 import VoiceSampleSelector from "./VoiceSampleSelector.jsx";
 
@@ -952,6 +953,7 @@ export default function VoiceLab({
   });
   const [sampleText, setSampleText] = useState("");
   const [prosodyUrl, setProsodyUrl] = useState("");
+  const [prosodyFile, setProsodyFile] = useState(null);
   const [isExtractingProsody, setIsExtractingProsody] = useState(false);
   const [voiceSamples, setVoiceSamples] = useState(null);
   const [isProsodyModalOpen, setIsProsodyModalOpen] = useState(false);
@@ -999,6 +1001,13 @@ export default function VoiceLab({
   // Provider ID of the currently-connected LLM (e.g. "openrouter", "openai").  
   // Used to warn the user when their LLM provider can't handle TTS audio requests.
   const [llmProvider, setLlmProvider] = useState("");
+  const [savedVoiceMaps, setSavedVoiceMaps] = useState([]);
+  const [selectedVoiceMapId, setSelectedVoiceMapId] = useState("");
+  const [voiceMapName, setVoiceMapName] = useState("");
+  const [isLoadingVoiceMaps, setIsLoadingVoiceMaps] = useState(false);
+  const [isSavingVoiceMap, setIsSavingVoiceMap] = useState(false);
+  const [isDeletingVoiceMap, setIsDeletingVoiceMap] = useState(false);
+  const [syncMapOnProfileSave, setSyncMapOnProfileSave] = useState(true);
 
   // Refs
   const audioRef = useRef(null);
@@ -1090,6 +1099,73 @@ export default function VoiceLab({
           : voiceProfile.engine === "cloud"
             ? "Cloud Voice"
             : "Cloud/Fallback Voice";
+  const hasProsodyFile = Boolean(prosodyFile && typeof prosodyFile.name === "string" && prosodyFile.name.trim());
+
+  const recommendedVoiceMapId = useMemo(() => {
+    if (!savedVoiceMaps.length) {
+      return "";
+    }
+
+    const currentEngine = String(voiceProfile.engine || "auto").trim().toLowerCase();
+    const currentModel = currentEngine === "elevenlabs"
+      ? String(voiceProfile.elevenLabsModel || "").trim().toLowerCase()
+      : currentEngine === "cartesia"
+        ? String(voiceProfile.cartesiaModel || "").trim().toLowerCase()
+        : String(voiceProfile.providerModel || "").trim().toLowerCase();
+
+    const currentVoiceKey = currentEngine === "elevenlabs"
+      ? String(voiceProfile.elevenLabsVoiceId || voiceProfile.providerVoice || "").trim().toLowerCase()
+      : currentEngine === "cartesia"
+        ? String(voiceProfile.cartesiaVoiceId || voiceProfile.providerVoice || "").trim().toLowerCase()
+        : currentEngine === "kokoro"
+          ? String(voiceProfile.kokoroVoice || voiceProfile.providerVoice || "").trim().toLowerCase()
+          : currentEngine === "piper"
+            ? String(voiceProfile.piperModelPath || voiceProfile.providerVoice || "").trim().toLowerCase()
+            : String(voiceProfile.providerVoice || voiceProfile.preferredVoice || "").trim().toLowerCase();
+
+    let bestId = "";
+    let bestScore = -1;
+
+    for (const map of savedVoiceMaps) {
+      const profile = map?.voiceProfile && typeof map.voiceProfile === "object" ? map.voiceProfile : {};
+      const mapEngine = String(profile.engine || "auto").trim().toLowerCase();
+      const mapModel = mapEngine === "elevenlabs"
+        ? String(profile.elevenLabsModel || "").trim().toLowerCase()
+        : mapEngine === "cartesia"
+          ? String(profile.cartesiaModel || "").trim().toLowerCase()
+          : String(profile.providerModel || "").trim().toLowerCase();
+      const mapVoiceKey = mapEngine === "elevenlabs"
+        ? String(profile.elevenLabsVoiceId || profile.providerVoice || "").trim().toLowerCase()
+        : mapEngine === "cartesia"
+          ? String(profile.cartesiaVoiceId || profile.providerVoice || "").trim().toLowerCase()
+          : mapEngine === "kokoro"
+            ? String(profile.kokoroVoice || profile.providerVoice || "").trim().toLowerCase()
+            : mapEngine === "piper"
+              ? String(profile.piperModelPath || profile.providerVoice || "").trim().toLowerCase()
+              : String(profile.providerVoice || profile.preferredVoice || "").trim().toLowerCase();
+
+      let score = 0;
+      if (Number(map.linkedPersonalityId) === Number(personality?.id)) {
+        score += 100;
+      }
+      if (mapEngine && currentEngine && mapEngine === currentEngine) {
+        score += 10;
+      }
+      if (mapVoiceKey && currentVoiceKey && mapVoiceKey === currentVoiceKey) {
+        score += 12;
+      }
+      if (mapModel && currentModel && mapModel === currentModel) {
+        score += 4;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestId = String(map.id || "");
+      }
+    }
+
+    return bestScore > 0 ? bestId : "";
+  }, [personality?.id, savedVoiceMaps, voiceProfile]);
 
   // ── Effects ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1122,7 +1198,38 @@ export default function VoiceLab({
     });
     setProsodyUrl(personality.prosodySourceUrl || "");
     setVoiceSamples(personality.voiceSampleAnalysis || null);
+    setVoiceMapName((current) => current || `${personality.name} Voice`);
   }, [personality]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadVoiceMaps() {
+      setIsLoadingVoiceMaps(true);
+      try {
+        const response = await authFetch("/settings/voice-maps");
+        const payload = await readApiResponsePayload(response);
+        if (!response.ok) {
+          throw new Error(getApiErrorMessage(response, payload, "Failed to load saved voice maps."));
+        }
+
+        if (ignore) return;
+        setSavedVoiceMaps(Array.isArray(payload?.maps) ? payload.maps : []);
+      } catch (error) {
+        if (!ignore) {
+          setSavedVoiceMaps([]);
+          onStatus?.({ type: "error", message: error.message || "Failed to load saved voice maps." });
+        }
+      } finally {
+        if (!ignore) setIsLoadingVoiceMaps(false);
+      }
+    }
+
+    void loadVoiceMaps();
+    return () => {
+      ignore = true;
+    };
+  }, [authFetch, onStatus, personality?.id]);
 
   useEffect(() => {
     setDirectedPreview("");
@@ -1551,8 +1658,22 @@ export default function VoiceLab({
     setIsGeneratingAudio(true);
 
     const effectiveVoiceProfile = voiceOverride ? { ...voiceProfile, ...voiceOverride } : voiceProfile;
+    const cacheKey = buildTtsCacheKey(personality.id, text, effectiveVoiceProfile);
 
     try {
+      const cachedBlob = getTtsCache(cacheKey);
+      if (cachedBlob) {
+        const next = URL.createObjectURL(cachedBlob);
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        setAudioUrl(next);
+        requestAnimationFrame(() => {
+          const audio = audioRef.current;
+          if (audio instanceof HTMLAudioElement) void audio.play().catch(() => {});
+        });
+        setIsGeneratingAudio(false);
+        return;
+      }
+
       const response = await authFetch(`/personality/${personality.id}/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1637,6 +1758,7 @@ export default function VoiceLab({
       }
 
       const blob = await response.blob();
+      setTtsCache(cacheKey, blob);
       const next = URL.createObjectURL(blob);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       setAudioUrl(next);
@@ -1675,13 +1797,47 @@ export default function VoiceLab({
         cartesiaVoiceId: voiceProfile.cartesiaVoiceId,
         cartesiaModel: voiceProfile.cartesiaModel,
       });
+
+      if (syncMapOnProfileSave && selectedVoiceMapId) {
+        const selectedMap = savedVoiceMaps.find((entry) => entry.id === selectedVoiceMapId) || null;
+        const response = await authFetch("/settings/voice-maps", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: selectedVoiceMapId,
+            createdAt: selectedMap?.createdAt || undefined,
+            voiceName: String(selectedMap?.voiceName || voiceMapName || "").trim() || `${personality?.name || "Voice"} Voice`,
+            linkedPersonalityId: personality?.id || null,
+            linkedPersonalityName: personality?.name || "",
+            voiceProfile,
+          }),
+        });
+        const payload = await readApiResponsePayload(response);
+        if (response.ok) {
+          setSavedVoiceMaps(Array.isArray(payload?.maps) ? payload.maps : []);
+          onStatus?.({ type: "success", message: "Profile saved and selected voice map updated." });
+        }
+      }
     } finally {
       setIsSavingVoice(false);
     }
   }
 
-  async function extractProsodyTemplate() {
-    if (!personality?.id || !prosodyUrl.trim()) {
+  async function extractProsodyTemplate({ useFile = false } = {}) {
+    if (!personality?.id) {
+      return;
+    }
+
+    if (useFile) {
+      if (!hasProsodyFile) {
+        onStatus?.({ type: "error", message: "Select an audio file first." });
+        return;
+      }
+      if (Number(prosodyFile?.size || 0) > 20 * 1024 * 1024) {
+        onStatus?.({ type: "error", message: "Audio file too large (max 20MB)." });
+        return;
+      }
+    } else if (!prosodyUrl.trim()) {
       return;
     }
 
@@ -1694,10 +1850,24 @@ export default function VoiceLab({
     }, 1600);
 
     try {
+      let requestBody;
+      if (useFile) {
+        onStatus?.({ type: "info", message: `Extracting prosody from '${prosodyFile.name}'...` });
+        const dataUrl = await fileToDataUrl(prosodyFile);
+        requestBody = {
+          audioBase64: dataUrl,
+          fileName: prosodyFile.name || "uploaded-audio",
+        };
+      } else {
+        requestBody = {
+          url: prosodyUrl.trim(),
+        };
+      }
+
       const response = await authFetch(`/personality/${personality.id}/prosody-template`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: prosodyUrl.trim() }),
+        body: JSON.stringify(requestBody),
       });
 
       const payload = await readApiResponsePayload(response);
@@ -1725,6 +1895,94 @@ export default function VoiceLab({
   function sliderStyle(val, min, max) {
     const pct = ((val - min) / (max - min)) * 100;
     return { background: `linear-gradient(90deg, var(--accent) ${pct}%, rgba(0,180,255,0.14) ${pct}%)` };
+  }
+
+  async function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Failed to read selected audio file."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function saveVoiceMap() {
+    const normalizedName = String(voiceMapName || "").trim();
+    if (!normalizedName) {
+      onStatus?.({ type: "error", message: "Voice map name is required." });
+      return;
+    }
+
+    setIsSavingVoiceMap(true);
+    try {
+      const existing = savedVoiceMaps.find((entry) => entry.id === selectedVoiceMapId) || null;
+      const response = await authFetch("/settings/voice-maps", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: existing?.id || undefined,
+          createdAt: existing?.createdAt || undefined,
+          voiceName: normalizedName,
+          linkedPersonalityId: personality?.id || null,
+          linkedPersonalityName: personality?.name || "",
+          voiceProfile,
+        }),
+      });
+      const payload = await readApiResponsePayload(response);
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, payload, "Failed to save voice map."));
+      }
+
+      const maps = Array.isArray(payload?.maps) ? payload.maps : [];
+      setSavedVoiceMaps(maps);
+      if (payload?.savedId) {
+        setSelectedVoiceMapId(payload.savedId);
+      }
+      onStatus?.({ type: "success", message: `Saved voice map '${normalizedName}'.` });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save voice map." });
+    } finally {
+      setIsSavingVoiceMap(false);
+    }
+  }
+
+  function applyVoiceMap(id) {
+    const map = savedVoiceMaps.find((entry) => entry.id === id);
+    if (!map?.voiceProfile || typeof map.voiceProfile !== "object") {
+      return;
+    }
+
+    const incoming = map.voiceProfile;
+    setVoiceProfile((current) => ({
+      ...current,
+      ...incoming,
+      engine: normalizeVoiceEngineForDebug(incoming.engine || current.engine || "auto"),
+    }));
+    setSelectedVoiceMapId(id);
+    setVoiceMapName(String(map.voiceName || ""));
+    onStatus?.({ type: "info", message: `Applied voice map '${map.voiceName}'.` });
+  }
+
+  async function deleteVoiceMap() {
+    if (!selectedVoiceMapId) return;
+    setIsDeletingVoiceMap(true);
+    try {
+      const response = await authFetch(`/settings/voice-maps/${encodeURIComponent(selectedVoiceMapId)}`, {
+        method: "DELETE",
+      });
+      const payload = await readApiResponsePayload(response);
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, payload, "Failed to delete voice map."));
+      }
+
+      setSavedVoiceMaps(Array.isArray(payload?.maps) ? payload.maps : []);
+      setSelectedVoiceMapId("");
+      onStatus?.({ type: "success", message: "Deleted saved voice map." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to delete voice map." });
+    } finally {
+      setIsDeletingVoiceMap(false);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────
@@ -2483,10 +2741,30 @@ export default function VoiceLab({
                 <button
                   type="button"
                   className="vlab-btn sec"
-                  onClick={() => void extractProsodyTemplate()}
+                  onClick={() => void extractProsodyTemplate({ useFile: false })}
                   disabled={isExtractingProsody || !prosodyUrl.trim()}
                 >
                   {isExtractingProsody ? "EXTRACTING…" : "EXTRACT PROSODY"}
+                </button>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(event) => {
+                    const nextFile = event.target.files?.[0] || null;
+                    setProsodyFile(nextFile);
+                    if (nextFile) {
+                      onStatus?.({ type: "info", message: `Selected audio file: ${nextFile.name}` });
+                    }
+                  }}
+                  style={{ maxWidth: 280 }}
+                />
+                <button
+                  type="button"
+                  className="vlab-btn sec"
+                  onClick={() => void extractProsodyTemplate({ useFile: true })}
+                  disabled={isExtractingProsody || !hasProsodyFile}
+                >
+                  {isExtractingProsody ? "EXTRACTING…" : "EXTRACT FROM FILE"}
                 </button>
                 {Array.isArray(voiceSamples?.representatives) && voiceSamples.representatives.length > 0 ? (
                   <button
@@ -2504,6 +2782,11 @@ export default function VoiceLab({
               <div className="vlab-small">
                 Downloads source audio, extracts cadence/rhythm template, attaches it to this persona, and removes temp audio.
               </div>
+              {prosodyFile ? (
+                <div className="vlab-small">
+                  Selected file: <strong>{prosodyFile.name}</strong> ({Math.round(prosodyFile.size / 1024)} KB)
+                </div>
+              ) : null}
             </div>
             <div className="vlab-field">
               <label htmlFor="vlab-sample">Sample Transmission Text</label>
@@ -2646,7 +2929,85 @@ export default function VoiceLab({
           {/* ── Controls ── */}
           <div className="vlab-section">
             <div className="vlab-section-label">◈ CONTROLS</div>
+            <div className="vlab-grid" style={{ marginBottom: 8 }}>
+              <div className="vlab-field">
+                <label htmlFor="vlab-voice-map-name">Saved Voice Map Name</label>
+                <input
+                  id="vlab-voice-map-name"
+                  className="vlab-input"
+                  value={voiceMapName}
+                  onChange={(event) => setVoiceMapName(event.target.value)}
+                  placeholder="e.g. Dark Ara Whisper"
+                />
+              </div>
+              <div className="vlab-field">
+                <label htmlFor="vlab-voice-map-select">Saved Voice Maps (sorted by name)</label>
+                <select
+                  id="vlab-voice-map-select"
+                  className="vlab-select"
+                  value={selectedVoiceMapId}
+                  onChange={(event) => {
+                    const nextId = String(event.target.value || "");
+                    setSelectedVoiceMapId(nextId);
+                    if (nextId) {
+                      const map = savedVoiceMaps.find((entry) => entry.id === nextId);
+                      if (map?.voiceName) {
+                        setVoiceMapName(map.voiceName);
+                      }
+                    }
+                  }}
+                  disabled={isLoadingVoiceMaps}
+                >
+                  <option value="">{isLoadingVoiceMaps ? "Loading maps..." : "Select a saved voice map"}</option>
+                  {savedVoiceMaps.map((map) => (
+                    <option key={map.id} value={map.id}>
+                      {map.voiceName}
+                      {String(map.id || "") === recommendedVoiceMapId ? " ★" : ""}
+                      {map.linkedPersonalityName ? ` - ${map.linkedPersonalityName}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {recommendedVoiceMapId ? (
+                  <div className="vlab-small">★ Recommended for current voice/persona</div>
+                ) : null}
+              </div>
+            </div>
+            <div className="vlab-toggle-row" style={{ marginBottom: 8 }}>
+              <label className="vlab-toggle">
+                <input
+                  type="checkbox"
+                  checked={syncMapOnProfileSave}
+                  onChange={(event) => setSyncMapOnProfileSave(event.target.checked)}
+                />
+                <span className="vlab-toggle-track" />
+                <span className="vlab-toggle-label">When saving profile, also update selected voice map</span>
+              </label>
+            </div>
             <div className="vlab-actions">
+              <button
+                type="button"
+                className="vlab-btn sec"
+                onClick={() => void saveVoiceMap()}
+                disabled={isSavingVoiceMap || !voiceMapName.trim()}
+              >
+                {isSavingVoiceMap ? "SAVING MAP…" : "SAVE VOICE MAP"}
+              </button>
+              <button
+                type="button"
+                className="vlab-btn sec"
+                onClick={() => applyVoiceMap(selectedVoiceMapId)}
+                disabled={!selectedVoiceMapId}
+              >
+                APPLY VOICE MAP
+              </button>
+              <button
+                type="button"
+                className="vlab-btn sec"
+                onClick={() => void deleteVoiceMap()}
+                disabled={!selectedVoiceMapId || isDeletingVoiceMap}
+              >
+                {isDeletingVoiceMap ? "DELETING…" : "DELETE VOICE MAP"}
+              </button>
               <button
                 type="button"
                 className="vlab-btn"

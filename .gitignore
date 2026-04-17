@@ -13,3 +13,4 @@ build/
 backend/.env_bak
 *.bak
 *key*.txt
+/dont commit

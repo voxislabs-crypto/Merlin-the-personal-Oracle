@@ -1297,12 +1297,6 @@ export default function App() {
   }, [isSignedIn]);
 
   useEffect(() => {
-    if (disableNeuronMap3d && activeView === "brain") {
-      setActiveView("builder");
-    }
-  }, [activeView, disableNeuronMap3d]);
-
-  useEffect(() => {
     if (!selectedId) {
       return;
     }
@@ -2015,7 +2009,7 @@ export default function App() {
           mode: selectedMode,
           message,
           streamDebug: true,
-          streamBrain: !disableNeuronMap3d && activeView === "brain",
+          streamBrain: activeView === "brain",
         }),
       });
 
@@ -2407,15 +2401,13 @@ export default function App() {
               >
                 Adversarial Eval
               </button>
-              {!disableNeuronMap3d ? (
-                <button
-                  type="button"
-                  className={`tab ${activeView === "brain" ? "active" : ""}`}
-                  onClick={() => setActiveView("brain")}
-                >
-                  Brain
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className={`tab ${activeView === "brain" ? "active" : ""}`}
+                onClick={() => setActiveView("brain")}
+              >
+                Brain
+              </button>
             </div>
 
             <div className="main-content">
@@ -2481,7 +2473,7 @@ export default function App() {
                     onPersonalityUpdated={handlePersonalityUpdated}
                   />
                 </>
-              ) : activeView === "brain" && !disableNeuronMap3d ? (
+              ) : activeView === "brain" ? (
                 <BrainTab
                   brainEvents={liveChatState[selectedId]?.brainEvents || []}
                   personality={selectedPersonality}
@@ -2531,7 +2523,7 @@ export default function App() {
                       Disable NeuronMap 3D (form-first mode)
                     </label>
                     <p className="fx-option-note">
-                      Turn this off to re-enable the Brain tab and in-chat NeuronMap visualizer.
+                      Keeps Brain tab and in-chat Brain button available, while forcing layout/list mode and hiding 3D rendering.
                     </p>
                   </div>
                   <div className="panel" style={{ padding: 16, marginBottom: 16 }}>

@@ -4,6 +4,7 @@ const LLM_CONFIG_KEY = "llm_config";
 const LLM_SAVED_CREDENTIALS_KEY = "llm_saved_credentials";
 const TTS_CREDENTIALS_KEY = "tts_credentials";
 const VOICE_DEFAULTS_KEY = "voice_defaults";
+const VOICE_MAPS_KEY = "voice_maps";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
@@ -94,6 +95,136 @@ function sanitizeVoiceSource(source) {
   return ["tts", "llm"].includes(String(source || "").trim().toLowerCase())
     ? String(source).trim().toLowerCase()
     : "tts";
+}
+
+function sanitizeVoiceMapProfile(profile) {
+  const source = profile && typeof profile === "object" ? profile : {};
+  return {
+    enabled: source.enabled !== false,
+    autoplay: Boolean(source.autoplay),
+    engine: String(source.engine || "auto").trim().toLowerCase() || "auto",
+    pitch: Number(source.pitch) || 1,
+    rate: Number(source.rate) || 1,
+    preferredVoice: String(source.preferredVoice || "").trim(),
+    providerVoice: String(source.providerVoice || "").trim(),
+    providerModel: String(source.providerModel || "").trim(),
+    piperModelPath: String(source.piperModelPath || "").trim(),
+    piperSpeaker: source.piperSpeaker == null ? null : Number(source.piperSpeaker),
+    kokoroVoice: String(source.kokoroVoice || "").trim(),
+    elevenLabsVoiceId: String(source.elevenLabsVoiceId || "").trim(),
+    elevenLabsModel: String(source.elevenLabsModel || "").trim(),
+    stability: Number(source.stability ?? 0.5),
+    similarityBoost: Number(source.similarityBoost ?? 0.75),
+    style: Number(source.style ?? 0.5),
+    cartesiaVoiceId: String(source.cartesiaVoiceId || "").trim(),
+    cartesiaModel: String(source.cartesiaModel || "").trim(),
+  };
+}
+
+function sanitizeVoiceMaps(maps) {
+  if (!Array.isArray(maps)) {
+    return [];
+  }
+
+  return maps
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const voiceName = String(entry.voiceName || entry.name || "").trim();
+      const id = String(entry.id || "").trim();
+      if (!id || !voiceName) {
+        return null;
+      }
+
+      const linkedPersonalityId = Number(entry.linkedPersonalityId);
+      return {
+        id,
+        voiceName,
+        linkedPersonalityId: Number.isInteger(linkedPersonalityId) ? linkedPersonalityId : null,
+        linkedPersonalityName: String(entry.linkedPersonalityName || "").trim(),
+        voiceProfile: sanitizeVoiceMapProfile(entry.voiceProfile),
+        createdAt: String(entry.createdAt || "").trim(),
+        updatedAt: String(entry.updatedAt || "").trim(),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.voiceName.localeCompare(right.voiceName))
+    .slice(0, 500);
+}
+
+function getVoiceMapsStore() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(VOICE_MAPS_KEY);
+  return parseJsonObject(row?.value || "") || {};
+}
+
+function saveVoiceMapsStore(store) {
+  writeAppSetting(VOICE_MAPS_KEY, store && typeof store === "object" ? store : {});
+}
+
+function getVoiceMapsForUser(userId = null) {
+  const store = getVoiceMapsStore();
+  const mapsByUser = store.mapsByUser && typeof store.mapsByUser === "object" ? store.mapsByUser : {};
+  const legacyMaps = Array.isArray(store.maps) ? store.maps : [];
+  const key = String(userId || "global");
+  const scoped = Array.isArray(mapsByUser[key]) ? mapsByUser[key] : [];
+  const source = scoped.length ? scoped : legacyMaps;
+  return sanitizeVoiceMaps(source);
+}
+
+export function listSavedVoiceMaps({ userId = null } = {}) {
+  return getVoiceMapsForUser(userId);
+}
+
+export function upsertSavedVoiceMap({ userId = null, map }) {
+  const input = map && typeof map === "object" ? map : {};
+  const id = String(input.id || "").trim();
+  const voiceName = String(input.voiceName || input.name || "").trim();
+  if (!id || !voiceName) {
+    return listSavedVoiceMaps({ userId });
+  }
+
+  const current = getVoiceMapsForUser(userId).filter((entry) => entry.id !== id);
+  const now = new Date().toISOString();
+  const createdAt = String(input.createdAt || "").trim() || now;
+
+  current.push({
+    id,
+    voiceName,
+    linkedPersonalityId: Number.isInteger(Number(input.linkedPersonalityId))
+      ? Number(input.linkedPersonalityId)
+      : null,
+    linkedPersonalityName: String(input.linkedPersonalityName || "").trim(),
+    voiceProfile: sanitizeVoiceMapProfile(input.voiceProfile),
+    createdAt,
+    updatedAt: now,
+  });
+
+  const sorted = sanitizeVoiceMaps(current);
+  const store = getVoiceMapsStore();
+  const mapsByUser = store.mapsByUser && typeof store.mapsByUser === "object" ? store.mapsByUser : {};
+  const key = String(userId || "global");
+  mapsByUser[key] = sorted;
+  saveVoiceMapsStore({ mapsByUser });
+
+  return sorted;
+}
+
+export function deleteSavedVoiceMap({ userId = null, id }) {
+  const target = String(id || "").trim();
+  if (!target) {
+    return listSavedVoiceMaps({ userId });
+  }
+
+  const filtered = getVoiceMapsForUser(userId).filter((entry) => entry.id !== target);
+  const store = getVoiceMapsStore();
+  const mapsByUser = store.mapsByUser && typeof store.mapsByUser === "object" ? store.mapsByUser : {};
+  const key = String(userId || "global");
+  mapsByUser[key] = filtered;
+  saveVoiceMapsStore({ mapsByUser });
+
+  return sanitizeVoiceMaps(filtered);
 }
 
 export function getLlmRuntimeConfig() {

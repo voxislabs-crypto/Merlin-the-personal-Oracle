@@ -32,12 +32,15 @@ const DEFAULT_TTS_FORMAT = "mp3";
 const DEFAULT_FETCH_TIMEOUT_MS = 9000;
 const DEFAULT_CARTESIA_TIMEOUT_MS = 12000;
 const MAX_CARTESIA_TIMEOUT_MS = 45000;
+const DEFAULT_CARTESIA_VOICE_ID = "694f9389-aac1-45b6-b726-9d9369183238";
+const DEFAULT_CARTESIA_MODEL = "sonic-3";
 const DEFAULT_PIPER_TIMEOUT_MS = 90_000;
 const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
 const DEFAULT_KOKORO_LOAD_TIMEOUT_MS = 25_000;
 const DEFAULT_KOKORO_GENERATE_TIMEOUT_MS = 30_000;
 const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const TTS_DISABLE_KOKORO = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 const LOCKED_TTS_ENGINES = Object.freeze(["kokoro", "cartesia"]);
 const CARTESIA_MODEL_FALLBACKS = Object.freeze([
   { id: "sonic-3", label: "sonic-3" },
@@ -85,8 +88,15 @@ export const TTS_ENGINE_CAPABILITIES = Object.freeze({
 });
 
 function getAllowedTtsEngines() {
-  return TTS_DEBUG_PROVIDER_LOCK_ENABLED
-    ? LOCKED_TTS_ENGINES
+  if (TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
+    if (TTS_DISABLE_KOKORO) {
+      return ["cartesia"];
+    }
+    return LOCKED_TTS_ENGINES;
+  }
+
+  return TTS_DISABLE_KOKORO
+    ? ["cartesia", "elevenlabs", "cloud", "piper"]
     : ["kokoro", "cartesia", "elevenlabs", "cloud", "piper"];
 }
 
@@ -806,7 +816,13 @@ function resolveEngine(voiceProfile) {
   if ((requested === "cloud" || requested === "openai") && isAllowedTtsEngine("cloud")) return "cloud";
 
   const autoOrder = getAutoEngineOrder(voiceProfile);
-  return autoOrder[0] || "kokoro";
+  if (autoOrder[0]) {
+    return autoOrder[0];
+  }
+  if (isAllowedTtsEngine("kokoro")) {
+    return "kokoro";
+  }
+  return "cartesia";
 }
 
 function getRequestedEngine(voiceProfile) {
@@ -1286,6 +1302,10 @@ function isKokoroPackageInstalled() {
 }
 
 function isKokoroAvailable() {
+  if (TTS_DISABLE_KOKORO) {
+    return false;
+  }
+
   return isKokoroPackageInstalled() && !_kokoroLoadError;
 }
 
@@ -1536,8 +1556,8 @@ function getCartesiaConfig() {
   try { dbCred = getTtsCredential("cartesia"); } catch { /* db may not be ready */ }
   return {
     apiKey: dbCred?.apiKey || process.env.CARTESIA_API_KEY || "",
-    voiceId: dbCred?.voiceId || process.env.CARTESIA_VOICE_ID || "a0e99841-438c-4a64-b679-ae501e7d6091",
-    model: dbCred?.model || process.env.CARTESIA_MODEL || "sonic-3",
+    voiceId: dbCred?.voiceId || process.env.CARTESIA_VOICE_ID || DEFAULT_CARTESIA_VOICE_ID,
+    model: dbCred?.model || process.env.CARTESIA_MODEL || DEFAULT_CARTESIA_MODEL,
   };
 }
 
@@ -1547,7 +1567,11 @@ function isCartesiaConfigured() {
 
 async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   const config = getCartesiaConfig();
-  const voiceId = String(voiceProfile?.cartesiaVoiceId || voiceProfile?.providerVoice || config.voiceId).trim();
+  const providerVoiceCandidate = String(voiceProfile?.providerVoice || "").trim();
+  const providerVoiceAsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(providerVoiceCandidate)
+    ? providerVoiceCandidate
+    : "";
+  const voiceId = String(voiceProfile?.cartesiaVoiceId || providerVoiceAsUuid || config.voiceId).trim();
   const model = String(voiceProfile?.cartesiaModel || config.model).trim();
   const timeoutMs = getCartesiaTimeoutMs(text);
 
@@ -1579,18 +1603,50 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
       error.providerStatus = 504;
       error.ttsProvider = "cartesia";
       error.ttsProviderCode = "timeout";
+      error.message = `Cartesia TTS timed out after ${timeoutMs}ms. Try a shorter sentence, then verify your Cartesia model/voice settings.`;
+    } else {
+      error.statusCode = Number(error?.statusCode || 502);
+      error.providerStatus = Number(error?.providerStatus || 0);
+      error.ttsProvider = "cartesia";
+      error.ttsProviderCode = String(error?.ttsProviderCode || "network_error");
+      error.message = `Cartesia TTS request failed before audio generation: ${String(error?.message || "Unknown error")}`;
     }
     throw error;
   }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
-    const error = new Error(`Cartesia TTS failed with ${response.status}: ${errText}`);
+    let errPayload = null;
+    try {
+      errPayload = JSON.parse(errText);
+    } catch {
+      errPayload = null;
+    }
+
+    const providerCode = String(
+      errPayload?.error?.code || errPayload?.code || errPayload?.type || "",
+    ).trim().toLowerCase();
+    const providerMessage = String(
+      errPayload?.error?.message || errPayload?.message || errPayload?.detail || "",
+    ).trim();
+    const baseMessage = providerMessage || errText || response.statusText || "Unknown provider error.";
+
+    const hint = response.status === 401 || response.status === 403
+      ? "Check your Cartesia API key in Voice Provider Credentials."
+      : response.status === 429
+        ? "Cartesia rate limit reached; retry shortly."
+        : response.status === 400
+          ? "Validate Cartesia voice ID (UUID) and model selection."
+          : "Verify Cartesia provider settings and network access.";
+
+    const error = new Error(`Cartesia TTS failed (${response.status}${providerCode ? `/${providerCode}` : ""}): ${baseMessage} ${hint}`.trim());
     error.statusCode = response.status === 401 || response.status === 403 || response.status === 429
       ? response.status
       : 502;
     error.providerStatus = response.status;
     error.ttsProvider = "cartesia";
+    error.ttsProviderCode = providerCode;
+    error.ttsProviderPayload = errPayload;
     throw error;
   }
 
@@ -1874,6 +1930,7 @@ export function listProviderStatus() {
     kokoro: {
       available: allowed.has("kokoro") && isKokoroAvailable(),
       disabledByDebugLock: !allowed.has("kokoro"),
+      disabledByEnv: TTS_DISABLE_KOKORO,
       installed: isKokoroPackageInstalled(),
       loaded: Boolean(_kokoroTts),
       requiresSetup: Boolean(_kokoroLoadError),

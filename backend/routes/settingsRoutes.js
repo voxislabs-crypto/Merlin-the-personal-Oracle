@@ -19,6 +19,9 @@ import {
   saveMoodRuntimeSettingsHandler,
   getExpressionSamplingSettingsHandler,
   saveExpressionSamplingSettingsHandler,
+  getVoiceMapsHandler,
+  saveVoiceMapHandler,
+  deleteVoiceMapHandler,
 } from "../controllers/settingsController.js";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth.js";
 
@@ -44,5 +47,8 @@ router.get("/settings/mood-runtime", requireAuth, getMoodRuntimeSettingsHandler)
 router.put("/settings/mood-runtime", requireAuth, requireAdmin, saveMoodRuntimeSettingsHandler);
 router.get("/settings/expression-sampling", requireAuth, getExpressionSamplingSettingsHandler);
 router.put("/settings/expression-sampling", requireAuth, requireAdmin, saveExpressionSamplingSettingsHandler);
+router.get("/settings/voice-maps", requireAuth, getVoiceMapsHandler);
+router.put("/settings/voice-maps", requireAuth, saveVoiceMapHandler);
+router.delete("/settings/voice-maps/:id", requireAuth, deleteVoiceMapHandler);
 
 export default router;

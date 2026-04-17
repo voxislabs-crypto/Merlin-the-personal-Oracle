@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 import { getApiErrorMessage, readApiResponsePayload } from "../lib/apiResponse.js";
+import { buildTtsCacheKey, getTtsCache, setTtsCache } from "../utils/ttsCache.js";
 import NeuralCore from "./NeuralCore.jsx";
 import AvatarCore from "./AvatarCore.jsx";
 import PerformancePlayer from "./PerformancePlayer.jsx";
@@ -8,13 +9,28 @@ import usePrefersReducedMotion from "../hooks/usePrefersReducedMotion.js";
 import { interpretEmotionSpectrum } from "../lib/emotionSpectrum.js";
 
 const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const TTS_DISABLE_KOKORO = String(import.meta.env.VITE_TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 const DEFAULT_DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
+const CUSTOM_CARTESIA_VOICE_OPTION = "__custom_cartesia_voice__";
+const CARTESIA_QUICK_VOICE_OPTIONS = [
+  { id: "a0e99841-438c-4a64-b679-ae501e7d6091", label: "Sonic default" },
+  { id: "694f9389-aac1-45b6-b726-9d9369183238", label: "Warm Narrator" },
+  { id: "2ee87190-8f84-4925-97da-e52547f9462c", label: "Balanced Voice" },
+];
 
 function normalizeVoiceEngineForDebug(engine) {
   const normalized = String(engine || "auto").trim().toLowerCase();
   if (!TTS_DEBUG_PROVIDER_LOCK) {
+    if (TTS_DISABLE_KOKORO && normalized === "kokoro") {
+      return "auto";
+    }
     return normalized || "auto";
   }
+
+  if (TTS_DISABLE_KOKORO) {
+    return ["auto", "cartesia"].includes(normalized) ? normalized : "auto";
+  }
+
   return ["auto", "kokoro", "cartesia"].includes(normalized) ? normalized : "auto";
 }
 
@@ -164,7 +180,7 @@ const chatStyles = `
   }
 
   .message-bubble {
-    max-width: min(85%, 720px);
+    max-width: 100%;
     padding: 13px 16px;
     border-radius: 18px;
     line-height: 1.7;
@@ -174,6 +190,7 @@ const chatStyles = `
 
   .message-bubble.user {
     align-self: flex-end;
+    max-width: min(85%, 720px);
     background: linear-gradient(135deg, rgba(0, 160, 255, 0.22), rgba(0, 80, 220, 0.20));
     border: 1px solid rgba(0, 180, 255, 0.24);
     color: var(--text);
@@ -181,7 +198,10 @@ const chatStyles = `
   }
 
   .message-bubble.assistant {
-    align-self: flex-start;
+    align-self: stretch;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     background: rgba(16, 24, 44, 0.88);
     border: 1px solid rgba(0, 180, 255, 0.08);
     color: var(--text);
@@ -345,6 +365,41 @@ const chatStyles = `
     justify-content: space-between;
     gap: 10px;
     margin-bottom: 12px;
+  }
+
+  .voice-provider-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 180, 255, 0.2);
+    background: rgba(0, 180, 255, 0.06);
+    color: rgba(140, 224, 255, 0.9);
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .voice-provider-badge.pending {
+    border-color: rgba(255, 210, 120, 0.35);
+    background: rgba(255, 190, 60, 0.12);
+    color: rgba(255, 222, 152, 0.95);
+  }
+
+  .voice-provider-badge.ok {
+    border-color: rgba(62, 216, 164, 0.42);
+    background: rgba(22, 190, 132, 0.16);
+    color: rgba(144, 244, 210, 0.95);
+  }
+
+  .voice-provider-badge.alert {
+    border-color: rgba(255, 115, 115, 0.55);
+    background: rgba(255, 96, 96, 0.16);
+    color: rgba(255, 188, 188, 0.98);
+    box-shadow: 0 0 12px rgba(255, 96, 96, 0.2);
   }
 
   .voice-panel-label {
@@ -1450,7 +1505,7 @@ export default function ChatWindow({
     kokoroVoice: "af_heart",
     providerModel: "gpt-4o-mini-tts",
     cartesiaVoiceId: "",
-    cartesiaModel: "sonic-2",
+    cartesiaModel: "sonic-3",
     piperModelPath: "",
     piperSpeaker: null,
   });
@@ -1527,6 +1582,48 @@ export default function ChatWindow({
   const usageSourceLabel = useMemo(() => {
     return activeUsage?.source === "provider" ? "Provider-reported" : "Live estimate";
   }, [activeUsage]);
+
+  const providerBadge = useMemo(() => {
+    const chosenEngine = String(
+      voiceTelemetry?.chosenEngine || voiceTelemetry?.requested || voiceProfile.engine || "auto",
+    ).trim().toLowerCase() || "auto";
+
+    if (!voiceProfile.enabled) {
+      return {
+        tone: "",
+        label: "Voice Off",
+      };
+    }
+
+    if (voiceTelemetry?.fallbackUsed) {
+      return {
+        tone: "alert",
+        label: `Fallback -> ${chosenEngine}`,
+      };
+    }
+
+    if (isGeneratingAudio) {
+      return {
+        tone: "pending",
+        label: `Generating ${chosenEngine}`,
+      };
+    }
+
+    return {
+      tone: voiceTelemetry ? "ok" : "",
+      label: `Provider ${chosenEngine}`,
+    };
+  }, [isGeneratingAudio, voiceProfile.enabled, voiceProfile.engine, voiceTelemetry]);
+
+  const selectedCartesiaVoiceOption = useMemo(() => {
+    const currentVoiceId = String(voiceProfile.cartesiaVoiceId || "").trim();
+    if (!currentVoiceId) {
+      return CARTESIA_QUICK_VOICE_OPTIONS[0]?.id || CUSTOM_CARTESIA_VOICE_OPTION;
+    }
+
+    const knownVoice = CARTESIA_QUICK_VOICE_OPTIONS.some((voice) => voice.id === currentVoiceId);
+    return knownVoice ? currentVoiceId : CUSTOM_CARTESIA_VOICE_OPTION;
+  }, [voiceProfile.cartesiaVoiceId]);
 
   const displayDebug = liveDebug || latestAssistantDebug;
   const pendingAssistantMessage = useMemo(() => {
@@ -1680,8 +1777,8 @@ export default function ChatWindow({
         personality.voiceProfile?.providerVoice || personality.voiceProfile?.preferredVoice || "alloy",
       kokoroVoice: personality.voiceProfile?.kokoroVoice || "af_heart",
       providerModel: personality.voiceProfile?.providerModel || "gpt-4o-mini-tts",
-      cartesiaVoiceId: personality.voiceProfile?.cartesiaVoiceId || personality.voiceProfile?.providerVoice || "",
-      cartesiaModel: personality.voiceProfile?.cartesiaModel || "sonic-2",
+      cartesiaVoiceId: personality.voiceProfile?.cartesiaVoiceId || "",
+      cartesiaModel: personality.voiceProfile?.cartesiaModel || "sonic-3",
       piperModelPath: personality.voiceProfile?.piperModelPath || "",
       piperSpeaker: personality.voiceProfile?.piperSpeaker ?? null,
     });
@@ -2060,6 +2157,14 @@ export default function ChatWindow({
 
   async function requestSpeechAudio(text, controller, meta = {}) {
     const requestStartedAt = performance.now();
+    const cacheKey = buildTtsCacheKey(personality.id, text, voiceProfile);
+    const cachedBlob = getTtsCache(cacheKey);
+    if (cachedBlob) {
+      return {
+        url: URL.createObjectURL(cachedBlob),
+        telemetry: null,
+      };
+    }
     const response = await authFetch(`/personality/${personality.id}/tts`, {
       method: "POST",
       headers: {
@@ -2074,12 +2179,21 @@ export default function ChatWindow({
 
     if (!response.ok) {
       const payload = await readApiResponsePayload(response);
-      const errorMessage = getApiErrorMessage(
+      const baseError = getApiErrorMessage(
         response,
         payload,
         "Failed to generate speech.",
       );
-      throw new Error(errorMessage);
+
+      const provider = String(payload?.details?.provider || "").trim().toLowerCase();
+      const providerCode = String(payload?.details?.providerCode || "").trim().toLowerCase();
+      const providerStatus = Number(payload?.details?.providerStatus || 0);
+
+      const suffix = provider
+        ? ` [provider=${provider}${providerCode ? ` code=${providerCode}` : ""}${providerStatus ? ` status=${providerStatus}` : ""}]`
+        : "";
+
+      throw new Error(`${baseError}${suffix}`.trim());
     }
 
     const ttsTelemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
@@ -2136,6 +2250,7 @@ export default function ChatWindow({
     }
 
     const blob = await response.blob();
+    setTtsCache(cacheKey, blob);
     const nextAudioUrl = URL.createObjectURL(blob);
     const requestMs = Math.round(performance.now() - requestStartedAt);
 
@@ -2383,8 +2498,8 @@ export default function ChatWindow({
         providerVoice: voiceProfile.providerVoice || voiceProfile.preferredVoice,
         kokoroVoice: voiceProfile.kokoroVoice || "af_heart",
         providerModel: voiceProfile.providerModel,
-        cartesiaVoiceId: voiceProfile.cartesiaVoiceId || voiceProfile.providerVoice || "",
-        cartesiaModel: voiceProfile.cartesiaModel || "sonic-2",
+        cartesiaVoiceId: voiceProfile.cartesiaVoiceId || "",
+        cartesiaModel: voiceProfile.cartesiaModel || "sonic-3",
         piperModelPath: voiceProfile.piperModelPath,
         piperSpeaker: voiceProfile.piperSpeaker,
       });
@@ -2473,20 +2588,20 @@ export default function ChatWindow({
       )}
       <div className="chat-shell">
         <div className={`chat-card${!disableNeuronMap3d && neuralActivity > 0.4 ? " neural-active" : ""}`}>
-          {!disableNeuronMap3d ? (
-            <NeuralCore
-              personality={personality}
-              mode={activeMode || "scientist"}
-              latestDebug={displayDebug}
-              livePhase={livePhase}
-              liveSeq={liveSeq}
-              performanceTier={performanceTier}
-              voiceNarrationEnabled={Boolean(neuralProfile?.voiceNarrationEnabled)}
-              onActivityUpdate={handleBrainActivity}
-              onUpdateMemory={handleNeuralMemoryUpdate}
-              onOpenPersonaEditor={handleOpenEditorTarget}
-            />
-          ) : null}
+          <NeuralCore
+            personality={personality}
+            mode={activeMode || "scientist"}
+            latestDebug={displayDebug}
+            livePhase={livePhase}
+            liveSeq={liveSeq}
+            performanceTier={performanceTier}
+            voiceNarrationEnabled={Boolean(neuralProfile?.voiceNarrationEnabled)}
+            allowThreeD={!disableNeuronMap3d}
+            defaultLayoutView={disableNeuronMap3d}
+            onActivityUpdate={handleBrainActivity}
+            onUpdateMemory={handleNeuralMemoryUpdate}
+            onOpenPersonaEditor={handleOpenEditorTarget}
+          />
           <div className="chat-header">
             <div className="chat-header-top">
               <h3>
@@ -2533,6 +2648,7 @@ export default function ChatWindow({
                 <span className="voice-panel-dot" />
                 QUICK VOICE
               </div>
+              <span className={`voice-provider-badge ${providerBadge.tone}`.trim()}>{providerBadge.label}</span>
               <button type="button" className="voice-open-lab" onClick={onOpenVoiceLab}>
                 ⚗ Full Voice Lab
               </button>
@@ -2569,8 +2685,8 @@ export default function ChatWindow({
               >
                 {TTS_DEBUG_PROVIDER_LOCK ? (
                   <>
-                    <option value="auto">Auto (cartesia -&gt; kokoro)</option>
-                    <option value="kokoro">Kokoro (local, free)</option>
+                    <option value="auto">{TTS_DISABLE_KOKORO ? "Auto (cartesia only)" : "Auto (cartesia -&gt; kokoro)"}</option>
+                    {TTS_DISABLE_KOKORO ? null : <option value="kokoro">Kokoro (local, free)</option>}
                     <option value="cartesia">Cartesia</option>
                   </>
                 ) : (
@@ -2604,14 +2720,36 @@ export default function ChatWindow({
                   <option value="bm_lewis">bm_lewis — calm British male</option>
                 </select>
               ) : voiceProfile.engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && voiceProfile.engine === "auto") ? (
-                <input
-                  id="voice-quick-select"
-                  type="text"
-                  placeholder="Cartesia voice ID (UUID)"
-                  value={voiceProfile.cartesiaVoiceId || ""}
-                  onChange={(event) => updateVoiceField("cartesiaVoiceId", event.target.value)}
-                  style={{ fontFamily: "monospace", fontSize: "0.78rem", padding: "4px 8px", borderRadius: "6px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,234,255,0.2)", color: "#88ecff", width: "100%", boxSizing: "border-box" }}
-                />
+                <>
+                  <select
+                    id="voice-quick-select"
+                    value={selectedCartesiaVoiceOption}
+                    onChange={(event) => {
+                      const nextValue = String(event.target.value || "");
+                      if (nextValue === CUSTOM_CARTESIA_VOICE_OPTION) {
+                        if (!String(voiceProfile.cartesiaVoiceId || "").trim()) {
+                          updateVoiceField("cartesiaVoiceId", "");
+                        }
+                        return;
+                      }
+                      updateVoiceField("cartesiaVoiceId", nextValue);
+                    }}
+                  >
+                    {CARTESIA_QUICK_VOICE_OPTIONS.map((voice) => (
+                      <option key={voice.id} value={voice.id}>{voice.label}</option>
+                    ))}
+                    <option value={CUSTOM_CARTESIA_VOICE_OPTION}>Custom voice ID...</option>
+                  </select>
+                  {selectedCartesiaVoiceOption === CUSTOM_CARTESIA_VOICE_OPTION ? (
+                    <input
+                      type="text"
+                      placeholder="Cartesia voice ID (UUID)"
+                      value={voiceProfile.cartesiaVoiceId || ""}
+                      onChange={(event) => updateVoiceField("cartesiaVoiceId", event.target.value)}
+                      style={{ marginTop: 8, fontFamily: "monospace", fontSize: "0.78rem", padding: "4px 8px", borderRadius: "6px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,234,255,0.2)", color: "#88ecff", width: "100%", boxSizing: "border-box" }}
+                    />
+                  ) : null}
+                </>
               ) : (
                 <select
                   id="voice-quick-select"
