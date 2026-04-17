@@ -1,3 +1,110 @@
+============================================================
+VOXIS REBOOT HANDOFF (saved Apr 17, 2026)
+============================================================
+
+Context:
+- You asked whether external repos/tools could make Voxis voices more realistic.
+- We reviewed viability and chose pragmatic improvements over adding complex new dependencies.
+- We also implemented UI/telemetry fixes so Cartesia behavior is easier to verify.
+
+What was discussed (decision summary):
+1) Prompting-techniques repo:
+  - Good inspiration, low direct code value.
+  - Use as prompt ideas only, not as dependency.
+
+2) pydub:
+  - Useful, but not first move for Voxis right now.
+  - Better to use existing ffmpeg path in Node first to avoid Python service complexity.
+
+3) web-voice-changer vite config:
+  - Low impact for realism itself.
+  - Optional frontend/dev quality-of-life only.
+
+4) VoiceIt / So-VITS style conversion:
+  - Potentially high realism gain.
+  - Watch GPL/licensing and ops complexity.
+  - If attempted, run as optional sidecar with strict boundary.
+
+Best near-term strategy for realism:
+- Improve engine-capability alignment and observability (already started).
+- Add post-TTS realism filters in backend pipeline (ffmpeg-based), not a new stack.
+- Add A/B voice realism harness for measurable tuning.
+- Add Voice Lab realism presets (Cinematic, Conversational, Intimate, Energetic).
+
+------------------------------------------------------------
+Implemented in this session
+------------------------------------------------------------
+
+A) Cartesia preview + telemetry clarity (backend + frontend)
+
+Changed files:
+- backend/services/ttsService.js
+- backend/controllers/ttsController.js
+- frontend/src/components/VoiceLab.jsx
+
+What changed:
+1) Backend now returns synthesis text header (real engine input after shaping):
+  - X-Voxis-Synthesis-Text
+
+2) ttsService telemetry now exposes:
+  - synthesisText
+  - synthesisTextChanged
+  - engineControls (when available)
+
+3) Cartesia path now derives rateDelta from effective rate when not explicitly set,
+  then maps into Cartesia experimental controls.
+
+4) Voice Lab now displays:
+  - Engine input text (post-prosody shaping)
+  - Cartesia controls JSON when present
+
+5) Voice Lab now explicitly warns:
+  - Cartesia voice dropdown ▶ plays provider demo sample (not full Voxis modulation path)
+  - Cartesia pitch limitation is shown under Pitch slider
+  - Cartesia pitch limitation is also shown under Engine selector
+
+------------------------------------------------------------
+Why this matters
+------------------------------------------------------------
+- You can now verify if prosody/text-shaping actually changed what the engine received.
+- You can now see when Cartesia speed controls are being applied.
+- UI now explains why some “preview” actions may sound unchanged.
+
+------------------------------------------------------------
+Exact next implementation candidates (recommended order)
+------------------------------------------------------------
+
+1) Add post-TTS realism filter stage (high ROI, low risk)
+  - In backend/services/ttsService.js after synthesis:
+    - loudness normalization
+    - gentle compression
+    - subtle de-esser/high-frequency taming
+    - optional tiny room ambience
+
+2) Add realism presets in Voice Lab (Cinematic/Conversational/Intimate/Energetic)
+  - Map presets to concrete filter/prosody params.
+
+3) Add A/B compare in Voice Lab
+  - Generate A (raw) and B (processed) from same text for quick listening tests.
+
+4) Optional advanced track
+  - Sidecar voice-conversion service (only if needed), with licensing review first.
+
+------------------------------------------------------------
+Quick reminder for testing after reboot
+------------------------------------------------------------
+
+Use GENERATE SAMPLE (not provider demo ▶ button) to validate real path:
+- Confirm Engine shown in telemetry
+- Confirm Rate/Pitch values in adjusted voice
+- Confirm Phrasing/Intensity/Confidence/Emphasis
+- Confirm Engine input text changes when prosody is active
+- Confirm Cartesia controls appear when Cartesia is selected
+
+============================================================
+END HANDOFF
+============================================================
+
 Alright—this is the point where Voxis stops being “a system” and starts acting like a **creature you can watch think**.
 
 We’ll connect everything into a live loop:
@@ -245,3 +352,4 @@ If you want, next step I can help you:
 👉 or build a “personality save file system” so characters persist forever
 
 Just say the word and we go deeper.
+

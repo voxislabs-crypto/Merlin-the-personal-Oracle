@@ -103,10 +103,13 @@ export async function generateSpeechHandler(req, res, next) {
     res.setHeader("Content-Type", audio.contentType);
     res.setHeader("Cache-Control", "no-store");
     setEncodedHeader(res, "X-Voxis-Directed-Text", encodeURIComponent(audio.directedText || text), { maxBytes: 1200 });
+    setEncodedHeader(res, "X-Voxis-Synthesis-Text", encodeURIComponent(audio.synthesisText || audio.directedText || text), { maxBytes: 1200 });
     res.setHeader("X-Voxis-Tts-Engine", audio.engine || "unknown");
     setEncodedJsonHeader(res, "X-Voxis-Adjusted-Voice", audio.adjustedVoiceProfile || voiceProfile, { maxBytes: 1400 });
     setEncodedJsonHeader(res, "X-Voxis-Prosody", audio.prosodyEnvelope || {}, { maxBytes: 1400 });
     setEncodedJsonHeader(res, "X-Voxis-Tts-Telemetry", audio.telemetry || {}, { maxBytes: 1400 });
+    setEncodedHeader(res, "X-Voxis-Tts-Realism-Chain", encodeURIComponent(String(audio?.realism?.chain || "disabled")), { maxBytes: 1200 });
+    setEncodedJsonHeader(res, "X-Voxis-Tts-Realism", audio.realism || {}, { maxBytes: 1400 });
     setEncodedJsonHeader(res, "X-Voxis-Tts-Sfx", Array.isArray(audio.sfx) ? audio.sfx : [], { maxBytes: 800 });
     return res.send(audio.buffer);
   } catch (error) {

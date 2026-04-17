@@ -20,6 +20,13 @@ function isAllowedVoiceEngine(engine) {
     : ["auto", "kokoro", "cartesia"].includes(normalized);
 }
 
+function normalizeRealismPreset(value, fallback = "conversational") {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return ["cinematic", "conversational", "intimate", "energetic"].includes(normalized)
+    ? normalized
+    : fallback;
+}
+
 export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
   const source = input && typeof input === "object" ? input : fallbackProfile;
   const fallback = fallbackProfile && typeof fallbackProfile === "object" ? fallbackProfile : {};
@@ -51,6 +58,8 @@ export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
     style: clampNumber(source.style ?? fallback.style, 0, 1, 0.5),
     cartesiaVoiceId: String(source.cartesiaVoiceId || fallback.cartesiaVoiceId || "").trim(),
     cartesiaModel: String(source.cartesiaModel || fallback.cartesiaModel || "sonic-3").trim(),
+    realismEnabled: Boolean(source.realismEnabled ?? fallback.realismEnabled),
+    realismPreset: normalizeRealismPreset(source.realismPreset, normalizeRealismPreset(fallback.realismPreset, "conversational")),
     voiceSourceType: String(source.voiceSourceType || fallback.voiceSourceType || "").trim(),
     selectedSampleIndex: Number.isFinite(selectedSampleIndex) && selectedSampleIndex >= 0 ? Math.floor(selectedSampleIndex) : null,
     selectedVoiceLabel: String(source.selectedVoiceLabel || fallback.selectedVoiceLabel || "").trim(),

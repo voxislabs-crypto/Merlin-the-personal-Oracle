@@ -176,6 +176,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 - **Auto fallback chain** — engine failures cascade gracefully with voice-family hints preserved across engines. Status toasts surface which engine failed and which was selected for recovery.
 - **Sentence-level streaming** — responses are split into sentence-level chunks with first-sentence-first playback to reduce perceived latency. Abbreviation-aware splitting and bounded prefetch buffers prevent stalls.
 - **Voice Lab** — dedicated cyberpunk-styled TTS workspace with live waveform canvas, per-character voice tuning, prosody source extraction, and voice sample analysis/selection.
+- **Post-TTS realism chain** — optional ffmpeg stage with Voice Lab presets (`Conversational`, `Cinematic`, `Intimate`, `Energetic`) adding loudness normalization, gentle compression, de-essing/high-frequency taming, and optional tiny room ambience.
 - **Local audio prosody extraction** — Voice Lab can extract cadence/rhythm from uploaded audio files (not only URLs), useful when YouTube blocks automated scraping.
 - **Saved Voice Maps** — save named voice profiles, sorted by voice name, then apply/delete them across personas without re-tuning each time.
 - **Voice Lab provider catalogs** — when ElevenLabs or Cartesia voice/model discovery fails or times out, Voice Lab falls back to its built-in presets instead of leaving the selector empty. Cartesia surfaces whether the catalog is live-discovered or fallback-only, and custom voice/model IDs remain editable directly in the panel.

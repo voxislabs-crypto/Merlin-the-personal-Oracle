@@ -867,6 +867,29 @@ const CLOUD_VOICE_PRESETS = [
   { id: "__custom__", label: "Custom voice id" },
 ];
 
+const REALISM_PRESETS = [
+  {
+    id: "conversational",
+    label: "Conversational",
+    description: "Balanced cleanup for everyday dialogue.",
+  },
+  {
+    id: "cinematic",
+    label: "Cinematic",
+    description: "Polished body with a tiny room tail.",
+  },
+  {
+    id: "intimate",
+    label: "Intimate",
+    description: "Soft de-essing and close-mic presence.",
+  },
+  {
+    id: "energetic",
+    label: "Energetic",
+    description: "Punchier compression with brighter edge.",
+  },
+];
+
 const CUSTOM_OPTION = "__custom__";
 const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 const PROSODY_PROGRESS_STEPS = [
@@ -950,6 +973,8 @@ export default function VoiceLab({
     style: 0.5,
     cartesiaVoiceId: "",
     cartesiaModel: "sonic-3",
+    realismEnabled: false,
+    realismPreset: "conversational",
   });
   const [sampleText, setSampleText] = useState("");
   const [prosodyUrl, setProsodyUrl] = useState("");
@@ -1204,6 +1229,8 @@ export default function VoiceLab({
       style: Number(personality.voiceProfile?.style ?? 0.5),
       cartesiaVoiceId: personality.voiceProfile?.cartesiaVoiceId || "",
       cartesiaModel: personality.voiceProfile?.cartesiaModel || "sonic-3",
+      realismEnabled: Boolean(personality.voiceProfile?.realismEnabled),
+      realismPreset: String(personality.voiceProfile?.realismPreset || "conversational"),
     });
     setProsodyUrl(personality.prosodySourceUrl || "");
     setVoiceSamples(personality.voiceSampleAnalysis || null);
@@ -1696,14 +1723,18 @@ export default function VoiceLab({
       }
 
       const directedHeader = response.headers.get("X-Voxis-Directed-Text");
+      const synthesisHeader = response.headers.get("X-Voxis-Synthesis-Text");
       const engineHeader = response.headers.get("X-Voxis-Tts-Engine");
       const adjustedVoiceHeader = response.headers.get("X-Voxis-Adjusted-Voice");
       const prosodyHeader = response.headers.get("X-Voxis-Prosody");
       const telemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
+      const realismChainHeader = response.headers.get("X-Voxis-Tts-Realism-Chain");
+      const realismHeader = response.headers.get("X-Voxis-Tts-Realism");
       const sfxHeader = response.headers.get("X-Voxis-Tts-Sfx");
       let adjustedVoice = null;
       let prosodyEnvelope = null;
       let ttsTelemetry = null;
+      let realismTelemetry = null;
       let ttsSfx = [];
 
       if (adjustedVoiceHeader) {
@@ -1730,6 +1761,14 @@ export default function VoiceLab({
         }
       }
 
+      if (realismHeader) {
+        try {
+          realismTelemetry = JSON.parse(decodeURIComponent(realismHeader));
+        } catch {
+          realismTelemetry = null;
+        }
+      }
+
       if (sfxHeader) {
         try {
           ttsSfx = JSON.parse(decodeURIComponent(sfxHeader));
@@ -1744,10 +1783,13 @@ export default function VoiceLab({
       setDirectedPreview(directedHeader ? decodeURIComponent(directedHeader) : text);
       setPreviewTelemetry({
         engine: engineHeader || voiceProfile.engine || "auto",
+        synthesisText: synthesisHeader ? decodeURIComponent(synthesisHeader) : null,
         adjustedVoice,
         prosodyEnvelope,
         emotionFrame,
         ttsTelemetry,
+        realismChain: realismChainHeader ? decodeURIComponent(realismChainHeader) : null,
+        realismTelemetry: realismTelemetry || ttsTelemetry?.realism || null,
       });
 
       if (ttsTelemetry?.fallbackUsed) {
@@ -1805,6 +1847,8 @@ export default function VoiceLab({
         style: Number(voiceProfile.style),
         cartesiaVoiceId: voiceProfile.cartesiaVoiceId,
         cartesiaModel: voiceProfile.cartesiaModel,
+        realismEnabled: Boolean(voiceProfile.realismEnabled),
+        realismPreset: String(voiceProfile.realismPreset || "conversational"),
       });
 
       if (syncMapOnProfileSave && selectedVoiceMapId) {
@@ -2036,6 +2080,11 @@ export default function VoiceLab({
             <span className="vlab-meta-pill">ENG:{voiceProfile.engine.toUpperCase()}</span>
             <span className="vlab-meta-pill">PITCH:{Number(voiceProfile.pitch).toFixed(2)}</span>
             <span className="vlab-meta-pill">RATE:{Number(voiceProfile.rate).toFixed(2)}</span>
+            {voiceProfile.realismEnabled ? (
+              <span className="vlab-meta-pill on">REALISM:{String(voiceProfile.realismPreset || "conversational").toUpperCase()}</span>
+            ) : (
+              <span className="vlab-meta-pill">REALISM:OFF</span>
+            )}
             {voiceProfile.autoplay && <span className="vlab-meta-pill on">AUTOPLAY</span>}
           </div>
         </div>
@@ -2072,6 +2121,11 @@ export default function VoiceLab({
                     </>
                   )}
                 </select>
+                {voiceProfile.engine === "cartesia" ? (
+                  <small className="vlab-small">
+                    Note: Cartesia on this path does not expose native numeric pitch control. Pitch slider is kept for cross-engine consistency.
+                  </small>
+                ) : null}
               </div>
 
               {/* ── Warning: LLM provider doesn't support audio ── */}
@@ -2404,6 +2458,9 @@ export default function VoiceLab({
                     <small className="vlab-small">
                       {getProviderVoiceHelpText("cartesia", activeProviderOptions)}
                     </small>
+                    <small className="vlab-small">
+                      The ▶ sample button plays Cartesia's provider demo clip for that voice id only. Use GENERATE SAMPLE below to test your saved rate/prosody path.
+                    </small>
                   </>
                 ) : (
                   <>
@@ -2730,6 +2787,11 @@ export default function VoiceLab({
                   />
                   <span className="vlab-slider-readout">{Number(voiceProfile.pitch).toFixed(2)}×</span>
                 </div>
+                {voiceProfile.engine === "cartesia" ? (
+                  <small className="vlab-small">
+                    Cartesia currently does not expose native numeric pitch control in this path. Use voice selection, model, prosody shaping, and rate changes for audible tuning.
+                  </small>
+                ) : null}
               </div>
               <div className="vlab-field">
                 <label htmlFor="vlab-rate">Rate Modifier</label>
@@ -2746,6 +2808,41 @@ export default function VoiceLab({
                   />
                   <span className="vlab-slider-readout">{Number(voiceProfile.rate).toFixed(2)}×</span>
                 </div>
+              </div>
+              <div className="vlab-field">
+                <label htmlFor="vlab-realism-enabled">Realism Post-Processing</label>
+                <label className="vlab-toggle" htmlFor="vlab-realism-enabled" style={{ marginTop: 4 }}>
+                  <input
+                    id="vlab-realism-enabled"
+                    name="vlabRealismEnabled"
+                    type="checkbox"
+                    checked={Boolean(voiceProfile.realismEnabled)}
+                    onChange={(e) => updateVoiceField("realismEnabled", e.target.checked)}
+                  />
+                  <span className="vlab-toggle-track" />
+                  <span className="vlab-toggle-label">Enable ffmpeg realism chain</span>
+                </label>
+                <small className="vlab-small">
+                  Adds loudness normalization, compression, and high-frequency taming after TTS synthesis.
+                </small>
+              </div>
+              <div className="vlab-field">
+                <label htmlFor="vlab-realism-preset">Realism Preset</label>
+                <select
+                  id="vlab-realism-preset"
+                  name="vlabRealismPreset"
+                  className="vlab-select"
+                  value={voiceProfile.realismPreset || "conversational"}
+                  onChange={(e) => updateVoiceField("realismPreset", e.target.value)}
+                  disabled={!voiceProfile.realismEnabled}
+                >
+                  {REALISM_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>{preset.label}</option>
+                  ))}
+                </select>
+                <small className="vlab-small">
+                  {REALISM_PRESETS.find((preset) => preset.id === (voiceProfile.realismPreset || "conversational"))?.description || "Balanced cleanup for everyday dialogue."}
+                </small>
               </div>
             </div>
           </div>
@@ -2870,6 +2967,32 @@ export default function VoiceLab({
                       {` ${Number(previewTelemetry.prosodyEnvelope.intensity ?? 0.5).toFixed(2)}`} | Confidence:
                       {` ${Number(previewTelemetry.prosodyEnvelope.confidence ?? 0).toFixed(2)}`} | Emphasis:
                       {` ${(previewTelemetry.prosodyEnvelope.emphasis?.words || []).map((item) => item.term).join(", ") || "none"}`}
+                    </>
+                  ) : null}
+                  {previewTelemetry?.synthesisText ? (
+                    <>
+                      {" "}
+                      | Engine input: <strong>{String(previewTelemetry.synthesisText)}</strong>
+                    </>
+                  ) : null}
+                  {previewTelemetry?.ttsTelemetry?.engineControls?.experimentalControls ? (
+                    <>
+                      {" "}
+                      | Cartesia controls: {JSON.stringify(previewTelemetry.ttsTelemetry.engineControls.experimentalControls)}
+                    </>
+                  ) : null}
+                  {previewTelemetry?.realismTelemetry ? (
+                    <>
+                      {" "}
+                      | Realism: {String(previewTelemetry.realismTelemetry.chain || previewTelemetry.realismChain || "disabled")}
+                      {previewTelemetry.realismTelemetry.applied === false && previewTelemetry.realismTelemetry.error
+                        ? ` (${String(previewTelemetry.realismTelemetry.error)})`
+                        : ""}
+                    </>
+                  ) : previewTelemetry?.realismChain ? (
+                    <>
+                      {" "}
+                      | Realism: {String(previewTelemetry.realismChain)}
                     </>
                   ) : null}
                   {previewTelemetry?.emotionFrame ? (

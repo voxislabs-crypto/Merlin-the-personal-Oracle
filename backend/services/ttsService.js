@@ -40,6 +40,7 @@ const MIN_PIPER_TIMEOUT_MS = 30_000;
 const MAX_PIPER_TIMEOUT_MS = 180_000;
 const DEFAULT_KOKORO_LOAD_TIMEOUT_MS = 25_000;
 const DEFAULT_KOKORO_GENERATE_TIMEOUT_MS = 30_000;
+const DEFAULT_REALISM_FFMPEG_TIMEOUT_MS = 15_000;
 const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 const TTS_DISABLE_KOKORO = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 const LOCKED_TTS_ENGINES = Object.freeze(["kokoro", "cartesia"]);
@@ -49,6 +50,9 @@ const CARTESIA_MODEL_FALLBACKS = Object.freeze([
   { id: "sonic-2", label: "sonic-2" },
   { id: "sonic-turbo", label: "sonic-turbo" },
 ]);
+const REALISM_PRESETS = Object.freeze(["cinematic", "conversational", "intimate", "energetic"]);
+
+let _ffmpegAvailable = null;
 
 export const TTS_ENGINE_CAPABILITIES = Object.freeze({
   elevenlabs: Object.freeze({
@@ -1028,6 +1032,224 @@ function getContentType(format) {
   }
 }
 
+function getAudioExtensionForContentType(contentType) {
+  const normalized = String(contentType || "").toLowerCase();
+  if (normalized.includes("wav")) return "wav";
+  if (normalized.includes("ogg")) return "ogg";
+  if (normalized.includes("aac")) return "aac";
+  if (normalized.includes("flac")) return "flac";
+  if (normalized.includes("mp3") || normalized.includes("mpeg")) return "mp3";
+  return "wav";
+}
+
+function createRealismProfile(voiceProfile = {}) {
+  const presetCandidate = String(voiceProfile?.realismPreset || "conversational").trim().toLowerCase();
+  const preset = REALISM_PRESETS.includes(presetCandidate) ? presetCandidate : "conversational";
+  const enabled = voiceProfile?.realismEnabled === true
+    || String(voiceProfile?.realismEnabled || "").trim().toLowerCase() === "true";
+  return {
+    enabled,
+    preset,
+  };
+}
+
+function buildRealismChain(preset) {
+  switch (preset) {
+    case "cinematic": {
+      return {
+        chain: "realism-v1-cinematic",
+        stages: ["highpass", "hf-taming", "gentle-compression", "tiny-room", "loudnorm"],
+        filterGraph: [
+          "highpass=f=50",
+          "equalizer=f=6800:t=h:width=1.1:g=-2.8",
+          "acompressor=threshold=-19dB:ratio=2.3:attack=10:release=140:makeup=2",
+          "aecho=0.72:0.26:42:0.045",
+          "loudnorm=I=-17:TP=-1.7:LRA=10",
+        ].join(","),
+      };
+    }
+    case "intimate": {
+      return {
+        chain: "realism-v1-intimate",
+        stages: ["highpass", "de-ess", "gentle-compression", "loudnorm"],
+        filterGraph: [
+          "highpass=f=55",
+          "equalizer=f=6200:t=h:width=1.4:g=-3.6",
+          "acompressor=threshold=-21dB:ratio=2.0:attack=7:release=110:makeup=1.8",
+          "loudnorm=I=-18:TP=-1.9:LRA=9",
+        ].join(","),
+      };
+    }
+    case "energetic": {
+      return {
+        chain: "realism-v1-energetic",
+        stages: ["highpass", "hf-taming", "compression", "loudnorm"],
+        filterGraph: [
+          "highpass=f=45",
+          "equalizer=f=7600:t=h:width=1.0:g=-1.2",
+          "acompressor=threshold=-17dB:ratio=2.5:attack=6:release=95:makeup=2.5",
+          "loudnorm=I=-15.5:TP=-1.3:LRA=11",
+        ].join(","),
+      };
+    }
+    case "conversational":
+    default: {
+      return {
+        chain: "realism-v1-conversational",
+        stages: ["highpass", "de-ess", "gentle-compression", "loudnorm"],
+        filterGraph: [
+          "highpass=f=50",
+          "equalizer=f=7000:t=h:width=1.2:g=-2.2",
+          "acompressor=threshold=-19dB:ratio=2.1:attack=8:release=120:makeup=2",
+          "loudnorm=I=-16:TP=-1.5:LRA=10",
+        ].join(","),
+      };
+    }
+  }
+}
+
+function runFfmpeg(args, { timeoutMs = DEFAULT_REALISM_FFMPEG_TIMEOUT_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("ffmpeg", args, {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+
+    let settled = false;
+    let stderr = "";
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill("SIGKILL");
+      reject(new Error(`ffmpeg post-processing timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk || "");
+    });
+
+    child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+
+    child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`ffmpeg exited with code ${code}. ${stderr.trim()}`.trim()));
+    });
+  });
+}
+
+async function ensureFfmpegAvailable() {
+  if (_ffmpegAvailable != null) {
+    return _ffmpegAvailable;
+  }
+
+  try {
+    await runFfmpeg(["-version"], { timeoutMs: 5000 });
+    _ffmpegAvailable = true;
+  } catch {
+    _ffmpegAvailable = false;
+  }
+
+  return _ffmpegAvailable;
+}
+
+async function applyRealismPostProcessing(audio, profile) {
+  if (!profile?.enabled) {
+    return {
+      ...audio,
+      realism: {
+        enabled: false,
+        preset: profile?.preset || "conversational",
+        applied: false,
+        chain: "disabled",
+        stages: [],
+      },
+    };
+  }
+
+  const ffmpegAvailable = await ensureFfmpegAvailable();
+  const chain = buildRealismChain(profile.preset);
+
+  if (!ffmpegAvailable) {
+    return {
+      ...audio,
+      realism: {
+        enabled: true,
+        preset: profile.preset,
+        applied: false,
+        chain: "ffmpeg-unavailable",
+        stages: chain.stages,
+        filterGraph: chain.filterGraph,
+        error: "ffmpeg not available on server",
+      },
+    };
+  }
+
+  const inputExt = getAudioExtensionForContentType(audio?.contentType);
+  const inputFile = path.join(os.tmpdir(), `voxis-realism-in-${randomUUID()}.${inputExt}`);
+  const outputFile = path.join(os.tmpdir(), `voxis-realism-out-${randomUUID()}.mp3`);
+
+  try {
+    await fs.writeFile(inputFile, audio.buffer);
+    await runFfmpeg([
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-i",
+      inputFile,
+      "-af",
+      chain.filterGraph,
+      "-c:a",
+      "libmp3lame",
+      "-b:a",
+      "160k",
+      outputFile,
+    ]);
+
+    const processed = await fs.readFile(outputFile);
+    return {
+      ...audio,
+      buffer: processed,
+      contentType: "audio/mpeg",
+      realism: {
+        enabled: true,
+        preset: profile.preset,
+        applied: true,
+        chain: chain.chain,
+        stages: chain.stages,
+        filterGraph: chain.filterGraph,
+      },
+    };
+  } catch (error) {
+    return {
+      ...audio,
+      realism: {
+        enabled: true,
+        preset: profile.preset,
+        applied: false,
+        chain: `${chain.chain}:failed`,
+        stages: chain.stages,
+        filterGraph: chain.filterGraph,
+        error: String(error?.message || error || "Realism post-processing failed."),
+      },
+    };
+  } finally {
+    await fs.unlink(inputFile).catch(() => {});
+    await fs.unlink(outputFile).catch(() => {});
+  }
+}
+
 async function generateCloudSpeechAudio({ personality, text, voiceProfile, speechHint }) {
   const config = getCloudConfig();
   const mood = resolveMood(personality);
@@ -1632,8 +1854,18 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
     throw error;
   }
 
-  // Build optional emotion/speed controls from voiceAdjustments
-  const adj = voiceProfile?.voiceAdjustments || null;
+  // Build optional emotion/speed controls from voiceAdjustments and effective
+  // speaking rate so Cartesia previews can reflect user/prosody speed changes.
+  const effectiveRate = Math.min(1.6, Math.max(0.6, Number(voiceProfile?.rate) || 1));
+  const baseAdj = voiceProfile?.voiceAdjustments && typeof voiceProfile.voiceAdjustments === "object"
+    ? voiceProfile.voiceAdjustments
+    : {};
+  const adj = {
+    ...baseAdj,
+    rateDelta: Number.isFinite(Number(baseAdj.rateDelta))
+      ? Number(baseAdj.rateDelta)
+      : Number((effectiveRate - 1).toFixed(3)),
+  };
   const experimentalControls = buildCartesiaExperimentalControls(adj);
 
   let response;
@@ -1729,7 +1961,15 @@ async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
     throw error;
   }
 
-  return { buffer: Buffer.from(arrayBuffer), contentType: "audio/mpeg", engine: "cartesia" };
+  return {
+    buffer: Buffer.from(arrayBuffer),
+    contentType: "audio/mpeg",
+    engine: "cartesia",
+    engineControls: {
+      experimentalControls,
+      effectiveRate: Number(effectiveRate.toFixed(3)),
+    },
+  };
 }
 
 export async function generateSpeechAudio({ personality, text, voiceProfile, speechHint }) {
@@ -1809,24 +2049,39 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
       voiceProfile: profileOverride,
       prosodyEnvelope,
     });
+    const realismProfile = createRealismProfile(effectiveVoiceProfile);
 
+    let audio;
     switch (eng) {
       case "kokoro":
-        return generateKokoroSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        audio = await generateKokoroSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        break;
       case "elevenlabs":
-        return generateElevenLabsSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        audio = await generateElevenLabsSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        break;
       case "cartesia":
-        return generateCartesiaSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        audio = await generateCartesiaSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        break;
       case "piper":
-        return generatePiperSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        audio = await generatePiperSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
+        break;
       default:
-        return generateCloudSpeechAudio({
+        audio = await generateCloudSpeechAudio({
           personality,
           speechHint,
           text: synthesisText,
           voiceProfile: effectiveVoiceProfile,
         });
+        break;
     }
+
+    const processedAudio = await applyRealismPostProcessing(audio, realismProfile);
+
+    return {
+      ...processedAudio,
+      synthesisText,
+      effectiveVoiceProfile,
+    };
   }
 
   try {
@@ -1844,6 +2099,10 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
         chosenEngine: audio.engine || engine,
         attemptedEngines,
         fallbackUsed: false,
+        synthesisText: String(audio?.synthesisText || directedText),
+        synthesisTextChanged: String(audio?.synthesisText || directedText) !== String(directedText),
+        engineControls: audio?.engineControls || null,
+        realism: audio?.realism || null,
         emotionFrame,
         speechEmotion: String(speechPacket?.emotion || ""),
         injectedPhrase: String(speechPacket?.injectedPhrase || "").trim(),
@@ -1867,6 +2126,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
         chunkCount: Number(audio.chunkCount || 0),
         pauseMsTotal: Number(audio.pauseMsTotal || 0),
       },
+      realism: audio?.realism || null,
       sfx,
     };
   } catch (primaryError) {
@@ -1899,6 +2159,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
             fallbackUsed: true,
             fallbackFrom: engine,
             fallbackReason: primaryError.message || "Primary engine failed.",
+            realism: audio?.realism || null,
             emotionFrame,
             speechEmotion: String(speechPacket?.emotion || ""),
             injectedPhrase: String(speechPacket?.injectedPhrase || "").trim(),
@@ -1922,6 +2183,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
             chunkCount: Number(audio.chunkCount || 0),
             pauseMsTotal: Number(audio.pauseMsTotal || 0),
           },
+          realism: audio?.realism || null,
           sfx,
         };
       } catch {
