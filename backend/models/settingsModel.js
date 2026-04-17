@@ -8,7 +8,9 @@ const VOICE_MAPS_KEY = "voice_maps";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
-const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+function isTtsDebugProviderLockEnabledRuntime() {
+  return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+}
 
 function parseJsonObject(value) {
   try {
@@ -346,11 +348,11 @@ export function upsertSavedLlmCredential({ provider, baseUrl, apiKey }) {
 const TTS_PROVIDERS = ["elevenlabs", "cartesia"];
 
 export function isTtsDebugProviderLockEnabled() {
-  return TTS_DEBUG_PROVIDER_LOCK_ENABLED;
+  return isTtsDebugProviderLockEnabledRuntime();
 }
 
 export function getAllowedTtsCredentialProviders() {
-  return TTS_DEBUG_PROVIDER_LOCK_ENABLED ? ["cartesia"] : TTS_PROVIDERS;
+  return isTtsDebugProviderLockEnabledRuntime() ? ["cartesia"] : TTS_PROVIDERS;
 }
 
 function sanitizeTtsProvider(id) {

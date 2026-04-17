@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 import { getApiErrorMessage, readApiResponsePayload } from "../lib/apiResponse.js";
 import { buildTtsCacheKey, getTtsCache, setTtsCache } from "../utils/ttsCache.js";
@@ -952,6 +953,7 @@ export default function VoiceLab({
   onOpenSettings,
   onPersonalityUpdated,
 }) {
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const authFetch = useAuthFetch();
 
   const [voiceProfile, setVoiceProfile] = useState({
@@ -1355,6 +1357,7 @@ export default function VoiceLab({
   }, [authFetch, personality?.id, voiceProfile.engine]);
 
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) return;
     if (!personality || !selectedProviderId) return;
 
     let ignore = false;
@@ -1475,7 +1478,7 @@ export default function VoiceLab({
 
     void loadProviderOptions();
     return () => { ignore = true; };
-  }, [authFetch, personality?.id, selectedProviderId, providerOptionsReloadToken]);
+  }, [authFetch, authLoaded, isSignedIn, personality?.id, selectedProviderId, providerOptionsReloadToken]);
 
   useEffect(() => {
     if (!personality || !supportsCloudModelCatalog) return;

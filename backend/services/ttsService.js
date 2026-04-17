@@ -41,8 +41,6 @@ const MAX_PIPER_TIMEOUT_MS = 180_000;
 const DEFAULT_KOKORO_LOAD_TIMEOUT_MS = 25_000;
 const DEFAULT_KOKORO_GENERATE_TIMEOUT_MS = 30_000;
 const DEFAULT_REALISM_FFMPEG_TIMEOUT_MS = 15_000;
-const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
-const TTS_DISABLE_KOKORO = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 const LOCKED_TTS_ENGINES = Object.freeze(["kokoro", "cartesia"]);
 const CARTESIA_MODEL_FALLBACKS = Object.freeze([
   { id: "sonic-3", label: "sonic-3" },
@@ -93,16 +91,24 @@ export const TTS_ENGINE_CAPABILITIES = Object.freeze({
 });
 
 function getAllowedTtsEngines() {
-  if (TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
-    if (TTS_DISABLE_KOKORO) {
+  if (isTtsDebugProviderLockEnabled()) {
+    if (isTtsDisableKokoroEnabled()) {
       return ["cartesia"];
     }
     return LOCKED_TTS_ENGINES;
   }
 
-  return TTS_DISABLE_KOKORO
+  return isTtsDisableKokoroEnabled()
     ? ["cartesia", "elevenlabs", "cloud", "piper"]
     : ["kokoro", "cartesia", "elevenlabs", "cloud", "piper"];
+}
+
+function isTtsDebugProviderLockEnabled() {
+  return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+}
+
+function isTtsDisableKokoroEnabled() {
+  return String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 }
 
 function isAllowedTtsEngine(engine) {
@@ -843,7 +849,7 @@ function getRequestedEngine(voiceProfile) {
 
 export function getAutoEngineOrder(voiceProfile) {
   const allowed = new Set(getAllowedTtsEngines());
-  if (TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
+  if (isTtsDebugProviderLockEnabled()) {
     const lockedOrder = ["cartesia", "kokoro"];
     return lockedOrder.filter((engine) => {
       if (!allowed.has(engine)) {
@@ -1543,7 +1549,7 @@ function isKokoroPackageInstalled() {
 }
 
 function isKokoroAvailable() {
-  if (TTS_DISABLE_KOKORO) {
+  if (isTtsDisableKokoroEnabled()) {
     return false;
   }
 
@@ -2252,7 +2258,7 @@ export function listProviderStatus() {
     kokoro: {
       available: allowed.has("kokoro") && isKokoroAvailable(),
       disabledByDebugLock: !allowed.has("kokoro"),
-      disabledByEnv: TTS_DISABLE_KOKORO,
+      disabledByEnv: isTtsDisableKokoroEnabled(),
       installed: isKokoroPackageInstalled(),
       loaded: Boolean(_kokoroTts),
       requiresSetup: Boolean(_kokoroLoadError),
@@ -2556,7 +2562,7 @@ export async function getTtsHealthStatus() {
   return {
     status: "ok",
     routing: {
-      debugLockEnabled: TTS_DEBUG_PROVIDER_LOCK_ENABLED,
+      debugLockEnabled: isTtsDebugProviderLockEnabled(),
       allowedEngines: getAllowedTtsEngines(),
       envEngine,
       requestedEngine: getRequestedEngine(),

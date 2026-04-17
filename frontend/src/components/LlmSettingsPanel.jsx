@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@clerk/react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 
 const CUSTOM_OPTION = "__custom__";
@@ -279,6 +280,7 @@ function getTtsModelHelpText(providerId, options, providerName) {
 }
 
 export default function LlmSettingsPanel({ onStatus }) {
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const authFetch = useAuthFetch();
   const [providers, setProviders] = useState([]);
   const [savedProviders, setSavedProviders] = useState([]);
@@ -385,8 +387,11 @@ export default function LlmSettingsPanel({ onStatus }) {
     : CUSTOM_OPTION;
 
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) {
+      return;
+    }
     void initialize();
-  }, []);
+  }, [authLoaded, isSignedIn]);
 
   useEffect(() => {
     if (provider !== "custom") {
@@ -418,6 +423,10 @@ export default function LlmSettingsPanel({ onStatus }) {
   }, [selectedTtsProvider?.provider, selectedTtsProvider?.voiceId, selectedTtsProvider?.model]);
 
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) {
+      return;
+    }
+
     if (!["elevenlabs", "cartesia"].includes(ttsProvider)) {
       return;
     }
@@ -496,7 +505,7 @@ export default function LlmSettingsPanel({ onStatus }) {
     return () => {
       ignore = true;
     };
-  }, [authFetch, ttsProvider]);
+  }, [authFetch, authLoaded, isSignedIn, ttsProvider]);
 
   async function initialize() {
     setIsLoading(true);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 import { getApiErrorMessage, readApiResponsePayload } from "../lib/apiResponse.js";
 import { buildTtsCacheKey, getTtsCache, setTtsCache } from "../utils/ttsCache.js";
@@ -1531,6 +1532,7 @@ export default function ChatWindow({
   onUpdateMemory,
   onOpenPersonaEditor,
 }) {
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const authFetch = useAuthFetch();
   const [draft, setDraft] = useState("");
   const [voiceProfile, setVoiceProfile] = useState({
@@ -1687,6 +1689,10 @@ export default function ChatWindow({
   // Fetch Cartesia voice catalog when the engine is Cartesia (or auto w/ debug lock).
   // Falls back to CARTESIA_QUICK_VOICE_OPTIONS when API key is missing or the call fails.
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) {
+      return;
+    }
+
     const isCartesiaActive =
       voiceProfile.engine === "cartesia" ||
       (TTS_DEBUG_PROVIDER_LOCK && voiceProfile.engine === "auto");
@@ -1698,7 +1704,13 @@ export default function ChatWindow({
     let cancelled = false;
 
     authFetch("/tts/provider-options?provider=cartesia")
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(String(data?.error || "Failed to load Cartesia voices."));
+        }
+        return data;
+      })
       .then((data) => {
         if (cancelled) return;
         const voices = Array.isArray(data?.voices) && data.voices.length
@@ -1706,12 +1718,13 @@ export default function ChatWindow({
           : CARTESIA_QUICK_VOICE_OPTIONS;
         setCartesiaVoiceOptions(voices);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.warn("[ChatWindow] Cartesia voice catalog fallback:", error?.message || error);
         if (!cancelled) setCartesiaVoiceOptions(CARTESIA_QUICK_VOICE_OPTIONS);
       });
 
     return () => { cancelled = true; };
-  }, [authFetch, voiceProfile.engine]);
+  }, [authFetch, authLoaded, isSignedIn, voiceProfile.engine]);
   const pendingAssistantMessage = useMemo(() => {
     if (!isSending && !liveReply) {
       return null;
