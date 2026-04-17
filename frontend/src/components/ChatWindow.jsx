@@ -671,6 +671,43 @@ const chatStyles = `
     accent-color: var(--accent);
   }
 
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+  }
+
+  .speed-control-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: rgba(180, 130, 255, 0.55);
+    margin-right: 3px;
+  }
+
+  .speed-btn {
+    padding: 3px 9px;
+    border: 1px solid rgba(0, 180, 255, 0.20);
+    border-radius: 6px;
+    background: rgba(0, 180, 255, 0.04);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+  }
+
+  .speed-btn:hover {
+    background: rgba(0, 180, 255, 0.10);
+  }
+
+  .speed-btn.active {
+    background: rgba(0, 180, 255, 0.15);
+    border-color: rgba(0, 180, 255, 0.50);
+    color: #fff;
+  }
+
   @media (max-width: 720px) {
     .composer {
       grid-template-columns: 1fr;
@@ -1515,6 +1552,8 @@ export default function ChatWindow({
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [speechPlaybackRate, setSpeechPlaybackRate] = useState(1);
+  const [cartesiaVoiceOptions, setCartesiaVoiceOptions] = useState(CARTESIA_QUICK_VOICE_OPTIONS);
   const [speechEnergy, setSpeechEnergy] = useState(0);
   const [voiceTelemetry, setVoiceTelemetry] = useState(null);
   const [activePersonalityEvents, setActivePersonalityEvents] = useState([]);
@@ -1526,6 +1565,7 @@ export default function ChatWindow({
   const lastNarrationRef = useRef("");
   const messageListRef = useRef(null);
   const audioRef = useRef(null);
+  const speechPlaybackRateRef = useRef(1);
   const speechEnergyTimerRef = useRef(null);
   const ttsRequestAbortRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
@@ -1623,12 +1663,14 @@ export default function ChatWindow({
   const selectedCartesiaVoiceOption = useMemo(() => {
     const currentVoiceId = String(voiceProfile.cartesiaVoiceId || "").trim();
     if (!currentVoiceId) {
-      return CARTESIA_QUICK_VOICE_OPTIONS[0]?.id || CUSTOM_CARTESIA_VOICE_OPTION;
+      return cartesiaVoiceOptions[0]?.id || CUSTOM_CARTESIA_VOICE_OPTION;
     }
 
-    const knownVoice = CARTESIA_QUICK_VOICE_OPTIONS.some((voice) => voice.id === currentVoiceId);
-    return knownVoice ? currentVoiceId : CUSTOM_CARTESIA_VOICE_OPTION;
-  }, [voiceProfile.cartesiaVoiceId]);
+    const knownVoice = cartesiaVoiceOptions.some((voice) => voice.id === currentVoiceId);
+    // If in the fetched list, return the ID directly; otherwise return the ID itself
+    // so the injected "(saved)" option renders as selected instead of "Custom voice ID..."
+    return knownVoice ? currentVoiceId : currentVoiceId;
+  }, [voiceProfile.cartesiaVoiceId, cartesiaVoiceOptions]);
 
   const displayDebug = liveDebug || latestAssistantDebug;
 
@@ -1641,6 +1683,35 @@ export default function ChatWindow({
   useEffect(() => {
     pendingSingingActiveRef.current = liveSingingActive;
   }, [liveSingingActive]);
+
+  // Fetch Cartesia voice catalog when the engine is Cartesia (or auto w/ debug lock).
+  // Falls back to CARTESIA_QUICK_VOICE_OPTIONS when API key is missing or the call fails.
+  useEffect(() => {
+    const isCartesiaActive =
+      voiceProfile.engine === "cartesia" ||
+      (TTS_DEBUG_PROVIDER_LOCK && voiceProfile.engine === "auto");
+
+    if (!isCartesiaActive) {
+      return;
+    }
+
+    let cancelled = false;
+
+    authFetch("/tts/provider-options?provider=cartesia")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const voices = Array.isArray(data?.voices) && data.voices.length
+          ? data.voices.map((v) => ({ id: String(v.id || ""), label: String(v.label || v.id || "") }))
+          : CARTESIA_QUICK_VOICE_OPTIONS;
+        setCartesiaVoiceOptions(voices);
+      })
+      .catch(() => {
+        if (!cancelled) setCartesiaVoiceOptions(CARTESIA_QUICK_VOICE_OPTIONS);
+      });
+
+    return () => { cancelled = true; };
+  }, [authFetch, voiceProfile.engine]);
   const pendingAssistantMessage = useMemo(() => {
     if (!isSending && !liveReply) {
       return null;
@@ -2321,6 +2392,7 @@ export default function ChatWindow({
       if (audioElement instanceof HTMLAudioElement) {
         audioElement.muted = false;
         audioElement.volume = 1;
+        audioElement.playbackRate = speechPlaybackRateRef.current;
         void audioElement.play().catch((playError) => {
           if (!silentAutoplayBlock) {
             onStatus?.({
@@ -2384,6 +2456,15 @@ export default function ChatWindow({
       if (streamPendingSentenceQueueRef.current.length > 0 && !streamPlaybackActiveRef.current) {
         void processStreamingSentenceQueue();
       }
+    }
+  }
+
+  function handlePlaybackRateChange(rate) {
+    speechPlaybackRateRef.current = rate;
+    setSpeechPlaybackRate(rate);
+    const audioElement = audioRef.current;
+    if (audioElement instanceof HTMLAudioElement) {
+      audioElement.playbackRate = rate;
     }
   }
 
@@ -2460,6 +2541,7 @@ export default function ChatWindow({
         if (audioElement instanceof HTMLAudioElement) {
           audioElement.muted = false;
           audioElement.volume = 1;
+          audioElement.playbackRate = speechPlaybackRateRef.current;
           void audioElement.play().catch((playError) => {
             if (!silentAutoplayBlock) {
               onStatus?.({
@@ -2755,9 +2837,16 @@ export default function ChatWindow({
                       updateVoiceField("cartesiaVoiceId", nextValue);
                     }}
                   >
-                    {CARTESIA_QUICK_VOICE_OPTIONS.map((voice) => (
+                    {cartesiaVoiceOptions.map((voice) => (
                       <option key={voice.id} value={voice.id}>{voice.label}</option>
                     ))}
+                    {/* If the saved voice is not in the fetched list, show it explicitly */}
+                    {voiceProfile.cartesiaVoiceId &&
+                      !cartesiaVoiceOptions.some((v) => v.id === voiceProfile.cartesiaVoiceId) ? (
+                      <option value={voiceProfile.cartesiaVoiceId}>
+                        {voiceProfile.cartesiaVoiceId} (saved)
+                      </option>
+                    ) : null}
                     <option value={CUSTOM_CARTESIA_VOICE_OPTION}>Custom voice ID...</option>
                   </select>
                   {selectedCartesiaVoiceOption === CUSTOM_CARTESIA_VOICE_OPTION ? (
@@ -2866,6 +2955,22 @@ export default function ChatWindow({
                 onPause={() => setIsAudioPlaying(false)}
                 onEnded={handleAudioEnded}
               />
+            ) : null}
+
+            {audioUrl ? (
+              <div className="speed-control">
+                <span className="speed-control-label">speed</span>
+                {[0.75, 1, 1.25, 1.5].map((rate) => (
+                  <button
+                    key={rate}
+                    type="button"
+                    className={`speed-btn${speechPlaybackRate === rate ? " active" : ""}`}
+                    onClick={() => handlePlaybackRateChange(rate)}
+                  >
+                    {rate}×
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
 

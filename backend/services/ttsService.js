@@ -881,6 +881,23 @@ function stripInlineMetadataTokens(text) {
   return source.slice(0, first.index).trim();
 }
 
+// Normalize em-dashes, en-dashes, and spaced hyphens-as-dashes into comma pauses
+// so all TTS engines (Kokoro, Piper, cloud) treat them as natural speech breaks
+// rather than reading "dash" aloud or silently dropping them.
+function normalizeDashesForSpeech(text) {
+  return String(text || "")
+    // Em-dash (—) with any surrounding spaces → comma pause
+    .replace(/\s*—\s*/g, ", ")
+    // En-dash (–) with any surrounding spaces → comma pause
+    .replace(/\s*–\s*/g, ", ")
+    // Spaced hyphen used as a dash between letter-words (e.g. "pet - you") → comma pause
+    // Uses word-char guard so "3-5" ranges and hyphenated compound words are untouched
+    .replace(/([a-zA-Z])\s+-\s+([a-zA-Z])/g, "$1, $2")
+    // Clean up any double commas that may result
+    .replace(/,\s*,/g, ",")
+    .replace(/,\s{2,}/g, ", ");
+}
+
 function resolveMood(personality = {}) {
   if (personality?.moodState && typeof personality.moodState === "object") {
     return personality.moodState;
@@ -911,6 +928,7 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
   let directedText = String(speechPacket?.speech || text || "").trim();
   directedText = directedText.replace(/\[BURP\]\s*/g, () => { sfx.push("burp"); return ""; }).trim();
   directedText = stripInlineMetadataTokens(directedText);
+  directedText = normalizeDashesForSpeech(directedText);
 
   const adjustedVoiceProfile = {
     ...applyMoodToVoice(voiceProfile, mood),

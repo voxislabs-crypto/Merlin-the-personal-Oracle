@@ -235,12 +235,6 @@ export default function VoiceSampleSelector({
   const stopPreviewTimerRef = useRef(null);
   const [previewingIndex, setPreviewingIndex] = useState(null);
 
-  if (!voiceSamples || !voiceSamples.representatives || voiceSamples.representatives.length === 0) {
-    return null;
-  }
-
-  const representatives = voiceSamples.representatives;
-
   function stopPreview() {
     if (stopPreviewTimerRef.current) {
       clearTimeout(stopPreviewTimerRef.current);
@@ -255,11 +249,18 @@ export default function VoiceSampleSelector({
     setPreviewingIndex(null);
   }
 
+  // Must be called unconditionally before any early returns — Rules of Hooks.
   useEffect(() => {
     return () => {
       stopPreview();
     };
   }, []);
+
+  if (!voiceSamples || !voiceSamples.representatives || voiceSamples.representatives.length === 0) {
+    return null;
+  }
+
+  const representatives = voiceSamples.representatives;
 
   const getVoiceLabel = (sample) => {
     const centerSpectral = sample.spectralCentroid;

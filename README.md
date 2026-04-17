@@ -1074,3 +1074,25 @@ See [docs/DUAL_MODE_PRODUCT_SPEC.md](docs/DUAL_MODE_PRODUCT_SPEC.md) for the dua
 | **Health** | | |
 | `GET` | `/health` | Backend liveness |
 | `GET` | `/health/tts` | TTS engine status and routing |
+
+---
+
+## Recent Changes
+
+### Chat — Live Playback Speed Control
+A speed row (`0.75× | 1× | 1.25× | 1.5×`) now appears below the audio player. Clicking a button sets `HTMLAudioElement.playbackRate` live — takes effect mid-sentence without re-synthesising. Resets to `1×` on next page load.
+
+### TTS — Dash Normalisation
+`normalizeDashesForSpeech()` runs in `prepareSpeechSynthesis` before any engine adapter sees the text. Em-dashes (`—`), en-dashes (`–`), and spaced hyphens used as dashes (e.g. `pet - you`) are converted to comma pauses so all engines produce a natural beat instead of reading "dash" aloud. Hyphenated compound words and numeric ranges (e.g. `high-quality`, `3-5`) are left untouched.
+
+### Voice Lab — Dynamic Cartesia Voice Catalog
+Chat tab quick-voice selector now fetches the full Cartesia voice catalog from `/tts/provider-options?provider=cartesia` on mount (same endpoint as Voice Lab). Falls back to the three built-in presets when the API key is missing or the call fails. The personality's currently saved voice ID is always shown even if it doesn't appear in the fetched catalog.
+
+### Voice Lab — ★ Recommended Voice Map Fix
+Engine normalization bug: saved voice maps with `engine: "auto"` were never scoring against the current profile when the debug lock coerced `"auto"` → `"cartesia"`. Both sides are now normalized through `normalizeVoiceEngineForDebug()` before comparison.
+
+### Voice Lab — Prosody 413 Handling
+The 413 from nginx (fired when a base64-encoded audio file exceeds nginx's default 1 MB body limit) now shows a clear action message: add `client_max_body_size 30m;` to your nginx server block and reload nginx. The template at `deploy/nginx-merlin.template.conf` already includes this directive.
+
+### Voice Sample Selector — Hooks Order Fix
+`useEffect` in `VoiceSampleSelector` was placed after an early `return null` guard, triggering a "Rendered more hooks than during the previous render" crash whenever `voiceSamples` transitioned to null mid-render. Fixed by moving `stopPreview` and its `useEffect` unconditionally above the guard.

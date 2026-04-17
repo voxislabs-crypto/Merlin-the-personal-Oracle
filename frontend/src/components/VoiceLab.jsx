@@ -1106,7 +1106,10 @@ export default function VoiceLab({
       return "";
     }
 
-    const currentEngine = String(voiceProfile.engine || "auto").trim().toLowerCase();
+    // Normalize engine consistently — maps saved as "auto" should match the
+    // current profile even when TTS debug lock coerces "auto" → "cartesia".
+    // Also treat an empty/missing engine as "auto" on both sides.
+    const currentEngine = normalizeVoiceEngineForDebug(String(voiceProfile.engine || "auto").trim().toLowerCase());
     const currentModel = currentEngine === "elevenlabs"
       ? String(voiceProfile.elevenLabsModel || "").trim().toLowerCase()
       : currentEngine === "cartesia"
@@ -1128,7 +1131,7 @@ export default function VoiceLab({
 
     for (const map of savedVoiceMaps) {
       const profile = map?.voiceProfile && typeof map.voiceProfile === "object" ? map.voiceProfile : {};
-      const mapEngine = String(profile.engine || "auto").trim().toLowerCase();
+      const mapEngine = normalizeVoiceEngineForDebug(String(profile.engine || "auto").trim().toLowerCase());
       const mapModel = mapEngine === "elevenlabs"
         ? String(profile.elevenLabsModel || "").trim().toLowerCase()
         : mapEngine === "cartesia"
@@ -1873,7 +1876,11 @@ export default function VoiceLab({
       const payload = await readApiResponsePayload(response);
 
       if (!response.ok) {
-        throw new Error(getApiErrorMessage(response, payload, "Failed to extract prosody template."));
+        const baseMsg = getApiErrorMessage(response, payload, "Failed to extract prosody template.");
+        const msg = response.status === 413
+          ? `${baseMsg} The file is too large for the server to accept. Add 'client_max_body_size 30m;' to your nginx config and reload nginx (sudo systemctl reload nginx).`
+          : baseMsg;
+        throw new Error(msg);
       }
 
       onPersonalityUpdated?.(payload.personality);
