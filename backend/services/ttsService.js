@@ -1568,10 +1568,7 @@ function isCartesiaConfigured() {
 async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   const config = getCartesiaConfig();
   const providerVoiceCandidate = String(voiceProfile?.providerVoice || "").trim();
-  const providerVoiceAsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(providerVoiceCandidate)
-    ? providerVoiceCandidate
-    : "";
-  const voiceId = String(voiceProfile?.cartesiaVoiceId || providerVoiceAsUuid || config.voiceId).trim();
+  const voiceId = String(voiceProfile?.cartesiaVoiceId || providerVoiceCandidate || config.voiceId).trim();
   const model = String(voiceProfile?.cartesiaModel || config.model).trim();
   const timeoutMs = getCartesiaTimeoutMs(text);
 

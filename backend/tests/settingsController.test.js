@@ -30,6 +30,8 @@ vi.mock("../models/settingsModel.js", () => ({
   getTtsCredential: vi.fn(),
   setTtsCredential: vi.fn(),
   clearTtsCredential: vi.fn(),
+  getAllowedTtsCredentialProviders: vi.fn(() => ["cartesia", "elevenlabs", "openai"]),
+  isTtsDebugProviderLockEnabled: vi.fn(() => false),
   getVoiceDefaults: mockGetVoiceDefaults,
   setVoiceDefaults: mockSetVoiceDefaults,
   getMoodRuntimeConfig: mockGetMoodRuntimeConfig,
