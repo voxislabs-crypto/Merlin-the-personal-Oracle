@@ -32,6 +32,104 @@ function truncate(str, max) {
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
 }
 
+// ─── Emotion Graph Panel ─────────────────────────────────────────────────────
+
+// Pressure bar color — green→yellow→red as pressure builds
+function pressureColor(pressure) {
+  if (pressure < 0.3) return "#34d399"; // green
+  if (pressure < 0.7) return "#fbbf24"; // amber
+  return "#fb7185"; // red / singing imminent
+}
+
+// Drift bar color — maps weight deviation from baseline (1.0) to color
+function driftColor(weight) {
+  if (weight < 0.8) return "#60a5fa"; // suppressed
+  if (weight < 1.2) return "#a3a3a3"; // neutral
+  if (weight < 1.8) return "#c084fc"; // elevated
+  return "#fb7185"; // dominant
+}
+
+function EmotionGraphPanel({ graphEvent }) {
+  if (!graphEvent?.nodes) {
+    return (
+      <section className="bt-panel bt-emotion-panel futuristic-card holo-border scanline">
+        <h3 className="bt-panel-title">Emotion Graph</h3>
+        <p className="bt-empty-hint">Waiting for emotion data…</p>
+      </section>
+    );
+  }
+
+  const { nodes, singing, voiceAdjustments, narrative } = graphEvent;
+
+  const sortedNodes = Object.entries(nodes || {})
+    .sort(([, a], [, b]) => (b.driftWeight || 1) - (a.driftWeight || 1));
+
+  return (
+    <section className="bt-panel bt-emotion-panel futuristic-card holo-border scanline">
+      <h3 className="bt-panel-title">Emotion Graph</h3>
+
+      {/* Singing status */}
+      {singing && (
+        <div
+          className="bt-singing-status"
+          style={{ color: singing.active ? "#fb7185" : "#a3a3a3" }}
+        >
+          {singing.active ? (
+            <>
+              <span className="bt-pulse" style={{ background: "#fb7185" }} />
+              SINGING — {singing.dominantNode} pressure {singing.weighted?.toFixed(2)}
+            </>
+          ) : (
+            <>archetype: {singing.archetype || "none"} | pressure: {singing.weighted?.toFixed(2) ?? "0.00"}</>
+          )}
+        </div>
+      )}
+
+      {/* Emotion nodes */}
+      <div className="bt-emotion-nodes">
+        {sortedNodes.map(([emotion, node]) => {
+          const drift = node.driftWeight ?? 1;
+          const pressure = node.singingPressure ?? 0;
+          const driftPct = Math.min(100, Math.round(((drift - 0.5) / 2) * 100));
+          const pressurePct = Math.min(100, Math.round(pressure * 50));
+
+          return (
+            <div key={emotion} className="bt-emotion-node-row">
+              <span className="bt-emotion-label">{emotion}</span>
+              <div className="bt-bar-track bt-node-track">
+                <div
+                  className="bt-bar-fill"
+                  style={{ width: `${driftPct}%`, background: driftColor(drift) }}
+                />
+              </div>
+              <span className="bt-node-stat">{drift.toFixed(2)}</span>
+              {pressure > 0.01 ? (
+                <div
+                  className="bt-pressure-ring"
+                  style={{ borderColor: pressureColor(pressure), opacity: Math.min(1, pressure * 2) }}
+                  title={`singing pressure: ${pressure.toFixed(3)}`}
+                />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Voice adjustments */}
+      {voiceAdjustments && (
+        <div className="bt-voice-adj">
+          <span>rate {voiceAdjustments.rateDelta >= 0 ? "+" : ""}{voiceAdjustments.rateDelta?.toFixed(2)}</span>
+          <span>pitch {voiceAdjustments.pitchDelta >= 0 ? "+" : ""}{voiceAdjustments.pitchDelta?.toFixed(2)}</span>
+          <span>energy {voiceAdjustments.energyBoost >= 0 ? "+" : ""}{voiceAdjustments.energyBoost?.toFixed(2)}</span>
+          <span className="bt-voice-style">{voiceAdjustments.style}</span>
+        </div>
+      )}
+
+      {narrative ? <p className="bt-narrative-item">{narrative}</p> : null}
+    </section>
+  );
+}
+
 // ─── sub-panels ──────────────────────────────────────────────────────────────
 
 function MoodPanel({ moodEvent }) {
@@ -326,6 +424,9 @@ export default function BrainTab({ brainEvents = [], personality, livePhase }) {
 
           {/* Prompt Budget */}
           <PromptBudgetPanel promptEvent={latest["prompt_assembly"]} />
+
+          {/* Emotion Graph / Singing Engine */}
+          <EmotionGraphPanel graphEvent={latest["emotion_graph"]} />
         </div>
       )}
     </div>

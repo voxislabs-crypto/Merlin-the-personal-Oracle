@@ -741,6 +741,26 @@ All changes to mood, emotion labels, emotion telemetry, avatar rendering, or TTS
 
 ---
 
+### Emotion Memory Drift & Living Personality Neural Graph
+
+Every character maintains a persistent `emotionDrift` state — a map of 9 tracked emotion nodes (`dominant`, `excited`, `playful`, `seductive`, `calm`, `cold`, `assertive`, `angry`, `neutral`), each carrying:
+
+- **`driftWeight`** — accumulated exposure multiplier (baseline 1.0; repeated exposure lifts above 1.0; natural decay pulls back)
+- **`singingPressure`** — acoustic pressure that builds across high-intensity turns and decays when the emotion fades
+- **`exposureCount`** — how many turns this emotion has been active
+
+**Graph propagation:** Emotion nodes are linked by weighted edges (e.g. `dominant → seductive +0.4`, `angry → dominant +0.6`, `calm → angry −0.4`). Each activation ripples influence to neighboring nodes, creating interconnected affective dynamics rather than flat independent counters.
+
+**Pressure-based singing emergence:** When total weighted singing pressure exceeds a threshold, `checkSingingTrigger` returns `true` and `buildSingingInstruction()` injects a single 1–2 sentence directive into the LLM turn: `"Let a natural lyrical moment surface…"`. No random probability — singing *builds* organically and *decays* when the pressure drops. Archetype `none` never sings; `chaotic` has maximum global bias.
+
+**EPF audio discipline:** A permanent ~50-token `buildEPFAudioConstraintNote()` in the base persona prompt keeps the LLM writing storyboard-style sound texture cues (`"low hum under voice"`, `"glitch flicker"`) rather than DAW-style music production descriptions. The singing instruction is a separate per-turn injection — the base prompt never describes full arrangements.
+
+**Voice adjustments:** `mapEmotionToVoiceAdjustments(emotionLabel, intensity)` returns `{rateDelta, pitchDelta, energyBoost, style}` multipliers that are forwarded to the TTS pipeline to modulate delivery based on the active emotional state.
+
+**Brain tab debug panel:** The `emotion_graph` event streams live from `chatController` to the frontend `BrainTab` whenever `streamBrain=true`. The `EmotionGraphPanel` component shows all 9 emotion bars (drift weight), pressure rings (glowing when singing is imminent), singing status, and voice adjustment deltas.
+
+---
+
 ### Research Pipeline
 
 `POST /research` accepts a `sourceQuery` and URL list, then:

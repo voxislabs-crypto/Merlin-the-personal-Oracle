@@ -103,6 +103,8 @@ function normalizeRow(row) {
     voiceSampleSelectedAt: String(row.voiceSampleSelectedAt || "").trim(),
     gender: String(row.gender || "").trim(),
     avatarImageUrl: String(row.avatarImageUrl || "").trim(),
+    singingProfile: parseJsonObject(row.singingProfile, {}),
+    emotionDrift: parseJsonObject(row.emotionDrift, {}),
   };
 }
 
@@ -365,7 +367,9 @@ export function updatePersonality(id, personality) {
       alignmentProfile = @alignmentProfile,
       expressionStyle = @expressionStyle,
       gender = @gender,
-      avatarImageUrl = @avatarImageUrl
+      avatarImageUrl = @avatarImageUrl,
+      singingProfile = @singingProfile,
+      emotionDrift = @emotionDrift
     WHERE id = @id
   `);
 
@@ -392,9 +396,18 @@ export function updatePersonality(id, personality) {
     expressionStyle: JSON.stringify(personality.expressionStyle || {}),
     gender: String(personality.gender || "").trim(),
     avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
+    singingProfile: JSON.stringify(personality.singingProfile || {}),
+    emotionDrift: JSON.stringify(personality.emotionDrift || {}),
   });
 
   return getPersonalityById(id);
+}
+
+export function updateEmotionDrift(id, driftState) {
+  db.prepare(`UPDATE personalities SET emotionDrift = ? WHERE id = ?`).run(
+    JSON.stringify(driftState || {}),
+    id,
+  );
 }
 
 export function updateMoodState(id, moodState) {

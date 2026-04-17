@@ -1,2 +1,247 @@
-Sample preview runs through the same Speech Director pipeline as live TTS replies.
-Directed preview: [[A0]] [[B1]] [10.0:] Hello, Ara? (Hello, Ara?) [:] Is that all you've got? [:] Careful now, you might like where this goes (where this goes) [:] Oh honey, you have no idea [:] I'm already three steps deep in your head (in your head) [:] Just a shadow in the neon, darlin' [:] Watching the spin. [[C2]] [40.0:] Let's see how bad you really wanna be! [:] I'm playing the strings while you're chasing the fee! [:] Magnetic, ruthless, I'm the ghost in your machine! [:] The prettiest trap that you've ever seen! [:] Pet, you're looking a little lost! [:] But you'll love the view when you count the cost! [:] When you count the cost! [[B3]] [60.0:] Let's see how bad you really wanna be? (Wanna be?) [:] Don't stumble, pet, I've got shorter patience today [:] Faster, sharper, keep moving the pieces [:] Every favor has a price, darlin' (darlin') [:] A price that grows while you hesitate [:] Just a whisper in the static, honey [:] I already own the frequency. [[C4]] [90.0:] Let's see how bad you really wanna be! [:] I'm playing the strings while you're chasing the fee! [:] Magnetic, ruthless, I'm the ghost in your machine! [:] The prettiest trap that you've ever seen! [:] Pet, you're looking a little lost! [:] But you'll love the view when you count the cost! [:] When you count the cost! [[D5]] [110.0:] Going so soon, darlin'? [:] (Heh heh heh...) [:] Don't worry about me. [:] I’m already gone. [:] Careful now.mosic: 4.5 bpm: 120.0 duration_secs: 130.0 good_crop: 1.0 [[A0]] [0.0:] A sleek, neon-soaked Cyberpunk intro defined by a sense of dark anticipation. The segment is anchored by a persistent, high-frequency digital pulse that acts as a rhythmic heartbeat. The rhythm is sparse but heavy, featuring a muffled, booming electronic kick drum on the downbeats. The instrumentation includes a low, resonant analog synthesizer drone and sharp, biting white-noise glitches that pan rapidly across the stereo field. There are no vocals in this segment. The melodic structure is atmospheric and dissonant, utilizing an E-minor tonality to establish a predatory mood. The interaction between the stable drone and the chaotic digital artifacts creates a high-tech noir atmosphere, evocative of a rain-slicked futuristic city at midnight. [[B1]] [10.0:] A minimalist, punchy Industrial Electronic verse defined by its focus on a singular, seductive vocal presence. The segment is anchored by a syncopated, mid-tempo bassline played on a gritty sawtooth synthesizer. The rhythm is driven by sharp, electronic rim-shots and a clinical hi-hat pattern that suggests a calculated, mechanical precision. The instrumentation includes flickering, high-pitched synth bells that sound like digital raindrops. The vocal performance features a female contralto with a smoky, sharp, and confident timbre, delivering her lines in a hushed, teasing style close to the microphone. The melodic structure is conversational but rhythmic, emphasizing the subtext of the words. The interaction between the solitary, breathy voice and the cold, unyielding beat creates an intimate yet dangerous atmosphere, characteristic of a high-stakes underworld interrogation. [[C2]] [40.0:] A massive, aggressive Industrial Electronic chorus defined by an explosion of distorted textures. The segment is anchored by a heavy, bit-crushed electronic drum beat with a resonant, metallic snare. The rhythm is high-energy and driving, featuring a loud, distorted synth-bass that follows a rhythmic, staccato pattern. The instrumentation includes sweeping, high-filter synthesizer pads and aggressive, rhythmic synth stabs that cut through the mix like laser fire. The vocal performance features a female contralto with a smoky, sharp, and confident timbre, shifting to a more powerful, commanding delivery. She uses playful interruptions and sharp interjections in her voice. The melodic structure is anthemic and menacing, utilizing a narrow-interval chromatic scale. The interaction creates a wall of sound that is both overwhelming and magnetic. The atmosphere is ruthless and triumphant, evocative of a digital predator asserting total control. [[B3]] [60.0:] A minimalist, punchy Industrial Electronic verse defined by its focus on a singular, seductive vocal presence. The segment is anchored by a syncopated, mid-tempo bassline played on a gritty sawtooth synthesizer, now accompanied by a subtle, glitching arpeggio. The rhythm is driven by sharp, electronic rim-shots and a clinical hi-hat pattern. The instrumentation includes flickering, high-pitched synth bells and occasional low-frequency cinematic impacts. The vocal performance features a female contralto with a smoky, sharp, and confident timbre, delivering lines with a rapid, assertive cadence. Her delivery is slightly more open and favorable, though still laced with street slang. The interaction between the voice and the digital textures creates a sense of building anticipation. The atmosphere suggests a shift in the speed of the game, with the character pushing the pace of the conversation. [[C4]] [90.0:] A massive, aggressive Industrial Electronic chorus defined by an explosion of distorted textures. The segment is anchored by a heavy, bit-crushed electronic drum beat with a resonant, metallic snare. The rhythm is high-energy and driving, featuring a loud, distorted synth-bass that follows a rhythmic, staccato pattern. The instrumentation includes sweeping, high-filter synthesizer pads and aggressive, rhythmic synth stabs. The vocal performance features a female contralto with a smoky, sharp, and confident timbre, delivering the rhythmic hook with maximum attitude. The melodic structure is anthemic and menacing. The interaction between the rhythmic punch of the drums and the soaring synth leads creates a feeling of overwhelming power. The atmosphere is ruthless and triumphant, typical of a dominant figure claiming her prize. [[D5]] [110.0:] A decaying, atmospheric Industrial Electronic outro defined by the slow death of the signal. The segment is anchored by a fading, low-pass filtered version of the main synth-bass. The rhythm consists of a slowing, irregular electronic pulse that eventually stops, leaving only a bed of static. The instrumentation features atmospheric digital echoes and the sound of distant, echoing laughter drenched in reverb. The vocal performance features the female contralto with a smoky, sharp, and confident timbre, whispering a final dismissive line and a low, sultry laugh. The structure dissolves into ambient noise. The interaction between the silence and the fading electronic textures creates a dark, unresolved atmosphere, signaling that the game is never truly over. The mood is dismissive and untouchable. | Engine: CARTESIA | Rate: 1.25x | Pitch: 0.94x | Emotion: Excited - Bold | Zone: Yellow Zone | Emotional Intensity: 59%
+Alright—this is the point where Voxis stops being “a system” and starts acting like a **creature you can watch think**.
+
+We’ll connect everything into a live loop:
+
+* 🧠 Emotion Graph (you already have)
+* 🎤 Audio/Cartesia layer (speech + tone)
+* 🎧 Voice morphing behavior
+* 🖥️ Live Debug Overlay (real-time brain scan)
+
+---
+
+# 🔥 VOXIS NEXT UPGRADE: LIVE LIVING ENGINE LOOP
+
+## 🧠 1) CORE RUNTIME LOOP (THE HEARTBEAT)
+
+Drop this into something like `engineLoop.ts`
+
+```ts id="vx_loop_1"
+import { triggerEmotion } from "./vpk_engine_1";
+import { updateGraph } from "./vpk_engine_3";
+import { checkSingingTrigger } from "./vpk_sing_1";
+import { resolveAudioState } from "./vpk_audio_1";
+
+export class VoxisBrain {
+  graph: any;
+  listeners: ((state: any) => void)[] = [];
+
+  constructor(graph: any) {
+    this.graph = graph;
+  }
+
+  tick(deltaTime: number) {
+    updateGraph(this.graph, deltaTime);
+
+    const audioState = resolveAudioState(this.graph);
+    const singing = checkSingingTrigger(this.graph);
+
+    const snapshot = {
+      emotions: this.graph.nodes,
+      audioState,
+      singing,
+      timestamp: Date.now(),
+    };
+
+    this.emit(snapshot);
+  }
+
+  onUpdate(fn: (state: any) => void) {
+    this.listeners.push(fn);
+  }
+
+  emit(state: any) {
+    for (const fn of this.listeners) fn(state);
+  }
+
+  trigger(emotion: string, intensity: number) {
+    triggerEmotion(this.graph, emotion as any, intensity);
+  }
+}
+```
+
+---
+
+# 🎤 2) CARTESIA / VOICE MAPPING LAYER
+
+This is where emotion graph becomes **voice behavior**.
+
+```ts id="vx_voice_1"
+export function mapEmotionToVoice(audioState: any) {
+  const { intensity, speechStyle, musicPresence } = audioState;
+
+  return {
+    rate: 1.0 + intensity * 0.2,
+    pitch: 1.0 - intensity * 0.1,
+    energy: intensity,
+    style: speechStyle,
+    backgroundMix: musicPresence,
+  };
+}
+```
+
+👉 This is where you stop “describing music” and start **driving voice physics**
+
+---
+
+# 🎧 3) VOICE MORPH RULES (IMPORTANT)
+
+This replaces the “DAW composer drift” problem you had.
+
+```ts id="vx_voice_2"
+export function enforceVoiceConstraints(voice: any) {
+  return {
+    ...voice,
+
+    // HARD LIMITS
+    allowMusicComposition: false,
+    allowInstrumentBreakdowns: false,
+
+    // allowed sonic behavior ONLY
+    allowedAudioTypes: [
+      "ambient",
+      "glitch",
+      "bass hum",
+      "tone shift",
+      "rhythmic speech"
+    ],
+
+    maxAudioDescriptionLength: 1 // keeps system from rambling
+  };
+}
+```
+
+---
+
+# 🧪 4) REAL-TIME DEBUG OVERLAY (THIS IS YOUR “BRAIN VIEW”)
+
+This is what makes Voxis feel insane in a good way.
+
+## React component (drop into `DebugOverlay.tsx`)
+
+```tsx id="vx_ui_1"
+import React, { useEffect, useState } from "react";
+
+export default function DebugOverlay({ brain }: any) {
+  const [state, setState] = useState<any>(null);
+
+  useEffect(() => {
+    brain.onUpdate(setState);
+  }, []);
+
+  if (!state) return null;
+
+  return (
+    <div style={{
+      position: "absolute",
+      top: 0,
+      right: 0,
+      width: "320px",
+      background: "rgba(0,0,0,0.7)",
+      color: "#0ff",
+      padding: "10px",
+      fontSize: "12px",
+      fontFamily: "monospace"
+    }}>
+      <h3>VOXIS EMOTION GRAPH</h3>
+
+      {Object.entries(state.emotions).map(([id, node]: any) => (
+        <div key={id}>
+          {id}: {node.current.toFixed(2)} | drift {node.drift.toFixed(2)}
+        </div>
+      ))}
+
+      <hr />
+
+      <div>
+        <b>SINGING:</b> {state.singing ? "YES 🔥" : "no"}
+      </div>
+
+      <div>
+        <b>AUDIO INTENSITY:</b> {state.audioState.intensity.toFixed(2)}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+# 🧬 5) CONNECT EVERYTHING (MAIN ENTRY)
+
+```ts id="vx_main_1"
+import { createPersonaGraph } from "./graphInit";
+import { VoxisBrain } from "./engineLoop";
+
+const graph = createPersonaGraph();
+const brain = new VoxisBrain(graph);
+
+// simulate runtime loop
+setInterval(() => {
+  brain.tick(0.1);
+}, 100);
+
+// example trigger
+brain.trigger("dominant", 1.2);
+
+export default brain;
+```
+
+---
+
+# 💥 WHAT YOU NOW HAVE
+
+You just built a system that:
+
+### 🧠 THINKS
+
+* emotion nodes evolve over time
+* memory changes behavior
+
+### 🎤 SPEAKS
+
+* voice is dynamically shaped by emotion graph
+
+### 🎧 “BLEEDS AUDIO”
+
+* ambient + glitch + tone shifts emerge naturally
+
+### 🎲 SINGS (but only when earned)
+
+* no randomness spam
+* pressure builds until it breaks through
+
+### 🖥️ IS OBSERVABLE
+
+* you can literally watch its “mind” move in real time
+
+---
+
+# ⚡ NEXT EVOLUTION OPTIONS (THIS GETS WILD)
+
+Pick your next move:
+
+## 🧠 1. Memory Crystallization System
+
+* emotions permanently reshape graph structure over time
+* personas “become themselves more strongly”
+
+## 🎭 2. Persona Mutation Events
+
+* rare events where graph rewires itself mid-conversation
+
+## 🎤 3. Voice Identity Lock
+
+* each persona develops a unique “audio fingerprint”
+
+## 🔥 4. Singing Evolution Tree
+
+* songs aren’t random—they evolve like a learned behavior pattern
+
+---
+
+If you want, next step I can help you:
+👉 hook this directly into Cartesia live streaming
+👉 or turn the graph into a **3D neural visualization (floating Voxis brain)**
+👉 or build a “personality save file system” so characters persist forever
+
+Just say the word and we go deeper.

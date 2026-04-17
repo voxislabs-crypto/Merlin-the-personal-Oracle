@@ -459,3 +459,97 @@
   font-size: 0.65rem;
   color: #6f89a1;
 }
+
+/* ─── Emotion Graph Panel ───────────────────────────────────────────────────── */
+
+.bt-emotion-panel {
+  grid-column: span 2;
+}
+
+.bt-singing-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bt-pulse {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: bt-pulse-ring 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes bt-pulse-ring {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.4); }
+}
+
+.bt-emotion-nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bt-emotion-node-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 40px 14px;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+}
+
+.bt-emotion-label {
+  font-size: 0.68rem;
+  color: #89a4b8;
+  text-align: right;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.bt-node-track {
+  height: 6px;
+}
+
+.bt-node-stat {
+  font-size: 0.65rem;
+  color: #7d95ab;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.bt-pressure-ring {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: border-color 0.3s, opacity 0.3s;
+}
+
+.bt-voice-adj {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(100, 140, 180, 0.15);
+  font-size: 0.67rem;
+  color: #7d95ab;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-voice-style {
+  color: #c084fc;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

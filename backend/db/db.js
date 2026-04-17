@@ -79,6 +79,8 @@ ensureColumn("personalities", "voiceSampleAnalysis", "TEXT NOT NULL DEFAULT '{}'
 ensureColumn("personalities", "voiceSampleSelectedAt", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("personalities", "gender", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("personalities", "avatarImageUrl", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("personalities", "singingProfile", "TEXT NOT NULL DEFAULT '{}'");
+ensureColumn("personalities", "emotionDrift", "TEXT NOT NULL DEFAULT '{}'");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (

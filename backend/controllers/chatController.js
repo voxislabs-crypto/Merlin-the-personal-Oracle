@@ -81,6 +81,22 @@ import {
 } from "../services/rateLimitRecoveryService.js";
 import { detectMemoryConflicts } from "../services/memoryConflictService.js";
 import { buildAssistantPresentation } from "../services/chatPresentationService.js";
+import {
+  normalizeDriftState,
+  applyEmotionDrift,
+  applyDecay,
+  computeSingingLeakage,
+  applyEmotionResidue,
+  describeDriftState,
+  checkSingingTrigger,
+} from "../services/emotionMemoryDrift.js";
+import {
+  normalizeSingingProfile,
+  computeSingingChance,
+  buildSingingInstruction,
+  mapEmotionToVoiceAdjustments,
+} from "../services/singingEngine.js";
+import { updateEmotionDrift } from "../models/personalityModel.js";
 
 // Reconditioning cadence: antagonist/dark contexts drift faster, so we anchor more often.
 const RECONDITION_CADENCE = {
@@ -568,6 +584,53 @@ export async function chatHandler(req, res, next) {
     updateMoodState(personalityId, newMood);
     personality.moodState = newMood;
     personality.mood = moodLabel;
+
+    // Emotion Memory Drift — update drift state based on this turn's emotion.
+    // Drift accumulates emotional habits over time and influences singing emergence.
+    const previousMoodLabel = moodToLabel(currentMood);
+    const moodIntensity = Math.min(
+      1,
+      Math.sqrt(
+        Math.pow(newMood.valence || 0, 2) +
+        Math.pow(newMood.arousal || 0, 2) +
+        Math.pow(newMood.dominance || 0, 2),
+      ) / Math.sqrt(3),
+    );
+    let driftState = normalizeDriftState(personality.emotionDrift || {});
+    driftState = applyDecay(driftState, 120, personality.singingProfile?.archetype || "none");
+    driftState = applyEmotionResidue(driftState, previousMoodLabel);
+    driftState = applyEmotionDrift(driftState, moodLabel.toLowerCase(), moodIntensity);
+    // Persist drift asynchronously — non-critical, should not block LLM call.
+    setImmediate(() => {
+      updateEmotionDrift(personalityId, driftState);
+    });
+    personality.emotionDrift = driftState;
+
+    // Singing emergence — pressure-based decision (not random).
+    // checkSingingTrigger replaces probabilistic shouldSingThisTurn:
+    // pressure builds across turns until it crosses the threshold.
+    const singingProfile = normalizeSingingProfile(personality.singingProfile || {});
+    const globalSingingBias = singingProfile.baseSingingAffinity ?? 0.1;
+    const singingTrigger = checkSingingTrigger(driftState, globalSingingBias);
+    const singingActive = singingTrigger.shouldSing;
+
+    // Legacy chance metric — kept for debug panel display only
+    const driftBoost = computeSingingLeakage(driftState, moodLabel.toLowerCase());
+    const singingChance = computeSingingChance(singingProfile, moodLabel.toLowerCase(), driftBoost);
+
+    streamedDebugData.singing = {
+      archetype: singingProfile.archetype,
+      chance: Number(singingChance.toFixed(4)),
+      pressure: Number(singingTrigger.totalPressure.toFixed(4)),
+      weighted: Number(singingTrigger.weightedPressure.toFixed(4)),
+      dominantNode: singingTrigger.dominantNode,
+      active: singingActive,
+      drift: describeDriftState(driftState),
+    };
+
+    // Voice adjustment from emotion graph — applied to voiceProfile at TTS time
+    const voiceAdjustments = mapEmotionToVoiceAdjustments(moodLabel.toLowerCase(), moodIntensity);
+    streamedDebugData.voiceAdjustments = voiceAdjustments;
     streamedDebugData.mood = {
       before: currentMood,
       after: newMood,
@@ -595,6 +658,32 @@ export async function chatHandler(req, res, next) {
         narrative: vBefore === vAfter
           ? `Mood stable at ${moodLabel}.`
           : `Mood shifted to ${moodLabel} (valence ${vBefore > vAfter ? "↓" : "↑"} ${vAfter}).`,
+      }));
+
+      // Emotion graph update event for the Brain tab overlay
+      const graphNodes = Object.fromEntries(
+        Object.entries(driftState).map(([emotion, mem]) => [
+          emotion,
+          {
+            driftWeight: Number((mem.driftWeight || 1).toFixed(3)),
+            singingPressure: Number((mem.singingPressure || 0).toFixed(3)),
+            exposureCount: mem.exposureCount || 0,
+          },
+        ]),
+      );
+      stream.write("brain", buildBrainEvent("emotion_graph", {
+        nodes: graphNodes,
+        singing: {
+          active: singingActive,
+          pressure: Number(singingTrigger.totalPressure.toFixed(3)),
+          weighted: Number(singingTrigger.weightedPressure.toFixed(3)),
+          dominantNode: singingTrigger.dominantNode,
+          archetype: singingProfile.archetype,
+        },
+        voiceAdjustments,
+        narrative: singingActive
+          ? `Singing triggered via ${singingTrigger.dominantNode} pressure (${singingTrigger.weightedPressure.toFixed(2)}).`
+          : `Emotion drift: ${describeDriftState(driftState)}.`,
       }));
     }
 
@@ -724,6 +813,13 @@ export async function chatHandler(req, res, next) {
       messages.push({ role: "system", content: moodFragment });
     }
 
+    // Singing instruction — injected as a late system message (decision already made in code).
+    // Grok architecture: code decides, LLM gets a 1-sentence directive — no heavy prompt frame.
+    const singingInstruction = buildSingingInstruction(singingProfile, moodLabel.toLowerCase(), singingActive);
+    if (singingInstruction) {
+      messages.push({ role: "system", content: singingInstruction });
+    }
+
     // Layer 2 raw history: inject recalled past conversation moments when triggered.
     const rawHistorySection = buildRawHistorySection(rawHistoryTurns);
     if (rawHistorySection) {
@@ -735,6 +831,7 @@ export async function chatHandler(req, res, next) {
       reconditioned: shouldRecondition,
       preferenceDecayEvaluated: shouldDecayPreferences,
       moodFragmentInjected: Boolean(moodFragment),
+      singingInstructionInjected: Boolean(singingInstruction),
       historyMessages: history.length,
     };
     stream.write("debug", {
