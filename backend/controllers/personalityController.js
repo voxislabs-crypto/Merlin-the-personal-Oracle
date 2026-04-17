@@ -132,6 +132,22 @@ const VALID_ALIGNMENTS = new Set([
 
 const VALID_EXPRESSION_ENERGY = new Set(["low", "medium", "high", "very_high"]);
 
+function sanitizeCadenceRegulator(input) {
+  const cadence = input && typeof input === "object" ? input : {};
+  const variability = String(cadence.variability || "high").trim().toLowerCase();
+  const repetitionPenalty = String(cadence.repetitionPenalty || "strong").trim().toLowerCase();
+
+  return {
+    teasingFrequency: clamp01(cadence.teasingFrequency, 0.2),
+    variability: ["low", "medium", "high"].includes(variability) ? variability : "high",
+    repetitionPenalty: ["light", "medium", "strong"].includes(repetitionPenalty)
+      ? repetitionPenalty
+      : "strong",
+    cooldownTurns: Math.max(0, Math.min(8, Number(cadence.cooldownTurns) || 2)),
+    windowTurns: Math.max(3, Math.min(12, Number(cadence.windowTurns) || 6)),
+  };
+}
+
 function sanitizeBigFiveProfile(input) {
   const profile = input && typeof input === "object" ? input : {};
   return {
@@ -160,6 +176,7 @@ function sanitizeExpressionStyle(input) {
     interruptionRate: clamp01(style.interruptionRate, 0.3),
     energy: VALID_EXPRESSION_ENERGY.has(energy) ? energy : "medium",
     rules: sanitizeItems(style.rules).slice(0, 12),
+    cadenceRegulator: sanitizeCadenceRegulator(style.cadenceRegulator),
   };
 }
 
@@ -181,6 +198,9 @@ function mergeExpressionStyle(baseStyle, overrideStyle) {
           : 0.3,
     energy: overrideStyle?.energy || baseStyle?.energy || "medium",
     rules: overrideRules.length ? overrideRules : baseRules,
+    cadenceRegulator: sanitizeCadenceRegulator(
+      overrideStyle?.cadenceRegulator || baseStyle?.cadenceRegulator,
+    ),
   };
 }
 

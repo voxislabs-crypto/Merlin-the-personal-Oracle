@@ -1263,6 +1263,26 @@ function formatExpressionStyle(style = {}) {
     parts.push(`rules=${rules.join(" | ")}`);
   }
 
+  const cadence = style?.cadenceRegulator && typeof style.cadenceRegulator === "object"
+    ? style.cadenceRegulator
+    : null;
+
+  if (cadence) {
+    const teaseFrequency = Number(cadence.teasingFrequency);
+    if (Number.isFinite(teaseFrequency)) {
+      parts.push(`teaseFrequency=${Math.round(Math.min(1, Math.max(0, teaseFrequency)) * 100)}%`);
+    }
+    if (cadence.variability) {
+      parts.push(`variability=${String(cadence.variability)}`);
+    }
+    if (cadence.repetitionPenalty) {
+      parts.push(`repetitionPenalty=${String(cadence.repetitionPenalty)}`);
+    }
+    if (Number.isFinite(Number(cadence.cooldownTurns))) {
+      parts.push(`cooldownTurns=${Math.max(0, Math.round(Number(cadence.cooldownTurns)))}`);
+    }
+  }
+
   return parts.length ? `- ${parts.join(", ")}` : "- Not specified";
 }
 
@@ -1324,7 +1344,7 @@ function buildVoiceGuardrails({
 
   if (samplePhrases.length) {
     guardrails.push(
-      `Naturally weave in signature phrasing when it fits: ${samplePhrases.join(" | ")}.`,
+      `Signature phrasing is optional texture, not a mandatory line. Rotate naturally and avoid repeating the same exact phrase in back-to-back replies or as a default closing sentence. Candidate phrases: ${samplePhrases.join(" | ")}.`,
     );
   }
 

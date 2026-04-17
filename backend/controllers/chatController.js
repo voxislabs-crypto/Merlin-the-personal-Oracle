@@ -81,6 +81,7 @@ import {
 } from "../services/rateLimitRecoveryService.js";
 import { detectMemoryConflicts } from "../services/memoryConflictService.js";
 import { buildAssistantPresentation } from "../services/chatPresentationService.js";
+import { regulateReplyCadence } from "../services/cadenceRegulator.js";
 import {
   normalizeDriftState,
   applyEmotionDrift,
@@ -1009,6 +1010,14 @@ export async function chatHandler(req, res, next) {
     });
     reply = sampled.text;
 
+    const cadenceRegulation = regulateReplyCadence({
+      reply,
+      personality,
+      history,
+      mood: newMood,
+    });
+    reply = cadenceRegulation.text;
+
     streamedDebugData.scientist = scientistValidation
       ? {
           validation: scientistValidation,
@@ -1125,6 +1134,7 @@ export async function chatHandler(req, res, next) {
         repairApplied: emotionalRepairApplied,
       },
       expressionSampling: sampled,
+      cadenceRegulation,
       prompt: promptPackage.debug,
       flags: {
         reconditioned: shouldRecondition,
@@ -1133,6 +1143,7 @@ export async function chatHandler(req, res, next) {
         rateLimitRecovered: Boolean(rateLimit?.retrySucceeded),
         rateLimitFallbackDelivered: Boolean(rateLimit?.fallbackDelivered),
         emotionalRepairApplied,
+        cadenceRegulationAdjusted: cadenceRegulation.adjusted,
       },
     };
 
