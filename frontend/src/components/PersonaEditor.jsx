@@ -324,6 +324,12 @@ function buildDraft(personality) {
     styleRules: listToText(personality.expressionStyle?.rules),
     styleInterruptionRate: String(personality.expressionStyle?.interruptionRate ?? 0.3),
     styleEnergy: personality.expressionStyle?.energy || "medium",
+    cadenceMode: personality.expressionStyle?.cadenceRegulator?.mode || "adaptive",
+    cadenceTeasingFrequency: String(personality.expressionStyle?.cadenceRegulator?.teasingFrequency ?? 0.2),
+    cadenceVariability: personality.expressionStyle?.cadenceRegulator?.variability || "high",
+    cadenceRepetitionPenalty: personality.expressionStyle?.cadenceRegulator?.repetitionPenalty || "strong",
+    cadenceCooldownTurns: String(personality.expressionStyle?.cadenceRegulator?.cooldownTurns ?? 2),
+    cadenceWindowTurns: String(personality.expressionStyle?.cadenceRegulator?.windowTurns ?? 6),
     moodSensitivity: String(personality.moodSensitivity ?? 1),
     baselineValence: String(personality.moodBaseline?.valence ?? 0),
     baselineArousal: String(personality.moodBaseline?.arousal ?? 0),
@@ -467,6 +473,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
     ],
     behavior: [
       "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules"
+      , "cadenceMode", "cadenceTeasingFrequency", "cadenceVariability", "cadenceRepetitionPenalty", "cadenceCooldownTurns", "cadenceWindowTurns"
     ],
     neural: [
       "baselineValence", "baselineArousal", "baselineDominance", "moodSensitivity", "alignmentEnabled", "alignment",
@@ -529,6 +536,14 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
         interruptionRate: normalizeRatio(draft.styleInterruptionRate, 0.3),
         energy: draft.styleEnergy || "medium",
         rules: textToList(draft.styleRules),
+        cadenceRegulator: {
+          mode: draft.cadenceMode || "adaptive",
+          teasingFrequency: normalizeRatio(draft.cadenceTeasingFrequency, 0.2),
+          variability: draft.cadenceVariability || "high",
+          repetitionPenalty: draft.cadenceRepetitionPenalty || "strong",
+          cooldownTurns: Math.max(0, Math.min(8, Math.round(toNumber(draft.cadenceCooldownTurns, 2)))),
+          windowTurns: Math.max(3, Math.min(12, Math.round(toNumber(draft.cadenceWindowTurns, 6)))),
+        },
       },
       moodSensitivity: toNumber(draft.moodSensitivity, 1),
       moodBaseline: {
@@ -896,6 +911,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
               <option value="low">low</option>
               <option value="medium">medium</option>
               <option value="high">high</option>
+              <option value="very_high">very_high</option>
             </select>
           </div>
           <div className="persona-field full">
@@ -956,6 +972,72 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
             <textarea
               value={draft.styleRules}
               onChange={(event) => setDraft((current) => ({ ...current, styleRules: event.target.value }))}
+            />
+          </div>
+
+          <div className="persona-field">
+            <label>Cadence Mode</label>
+            <select
+              value={draft.cadenceMode}
+              onChange={(event) => setDraft((current) => ({ ...current, cadenceMode: event.target.value }))}
+            >
+              <option value="adaptive">adaptive</option>
+              <option value="manual">manual</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Teasing Frequency Target (0-1)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={draft.cadenceTeasingFrequency}
+              onChange={(event) => setDraft((current) => ({ ...current, cadenceTeasingFrequency: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field">
+            <label>Variability</label>
+            <select
+              value={draft.cadenceVariability}
+              onChange={(event) => setDraft((current) => ({ ...current, cadenceVariability: event.target.value }))}
+            >
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Repetition Penalty</label>
+            <select
+              value={draft.cadenceRepetitionPenalty}
+              onChange={(event) => setDraft((current) => ({ ...current, cadenceRepetitionPenalty: event.target.value }))}
+            >
+              <option value="light">light</option>
+              <option value="medium">medium</option>
+              <option value="strong">strong</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Cooldown Turns (0-8)</label>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              max="8"
+              value={draft.cadenceCooldownTurns}
+              onChange={(event) => setDraft((current) => ({ ...current, cadenceCooldownTurns: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field">
+            <label>Lookback Turns (3-12)</label>
+            <input
+              type="number"
+              step="1"
+              min="3"
+              max="12"
+              value={draft.cadenceWindowTurns}
+              onChange={(event) => setDraft((current) => ({ ...current, cadenceWindowTurns: event.target.value }))}
             />
           </div>
         </div>

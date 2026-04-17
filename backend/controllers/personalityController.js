@@ -134,10 +134,12 @@ const VALID_EXPRESSION_ENERGY = new Set(["low", "medium", "high", "very_high"]);
 
 function sanitizeCadenceRegulator(input) {
   const cadence = input && typeof input === "object" ? input : {};
+  const mode = String(cadence.mode || "adaptive").trim().toLowerCase();
   const variability = String(cadence.variability || "high").trim().toLowerCase();
   const repetitionPenalty = String(cadence.repetitionPenalty || "strong").trim().toLowerCase();
 
   return {
+    mode: ["manual", "adaptive"].includes(mode) ? mode : "adaptive",
     teasingFrequency: clamp01(cadence.teasingFrequency, 0.2),
     variability: ["low", "medium", "high"].includes(variability) ? variability : "high",
     repetitionPenalty: ["light", "medium", "strong"].includes(repetitionPenalty)

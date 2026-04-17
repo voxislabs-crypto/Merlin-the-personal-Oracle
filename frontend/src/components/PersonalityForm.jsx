@@ -688,6 +688,12 @@ const initialForm = {
   expressionInterruptionRate: 0.3,
   expressionEnergy: "medium",
   expressionRules: "",
+  cadenceMode: "adaptive",
+  cadenceTeasingFrequency: 0.2,
+  cadenceVariability: "high",
+  cadenceRepetitionPenalty: "strong",
+  cadenceCooldownTurns: 2,
+  cadenceWindowTurns: 6,
   resetMoodState: false,
   avatarImageUrl: "",
 };
@@ -710,6 +716,7 @@ function mapPersonalityToForm(personality) {
   const bigFiveProfile = personality.bigFiveProfile || {};
   const alignmentProfile = personality.alignmentProfile || {};
   const expressionStyle = personality.expressionStyle || {};
+  const cadenceRegulator = expressionStyle.cadenceRegulator || {};
 
   return {
     name: personality.name || "",
@@ -750,6 +757,12 @@ function mapPersonalityToForm(personality) {
     expressionInterruptionRate: String(Number(expressionStyle.interruptionRate ?? 0.3)),
     expressionEnergy: String(expressionStyle.energy || "medium"),
     expressionRules: toLineList(expressionStyle.rules),
+    cadenceMode: String(cadenceRegulator.mode || "adaptive"),
+    cadenceTeasingFrequency: String(Number(cadenceRegulator.teasingFrequency ?? 0.2)),
+    cadenceVariability: String(cadenceRegulator.variability || "high"),
+    cadenceRepetitionPenalty: String(cadenceRegulator.repetitionPenalty || "strong"),
+    cadenceCooldownTurns: String(Math.max(0, Number(cadenceRegulator.cooldownTurns ?? 2))),
+    cadenceWindowTurns: String(Math.max(3, Number(cadenceRegulator.windowTurns ?? 6))),
     resetMoodState: false,
     avatarImageUrl: personality.avatarImageUrl || "",
   };
@@ -974,6 +987,14 @@ export default function PersonalityForm({
             interruptionRate: Number(form.expressionInterruptionRate),
             energy: form.expressionEnergy,
             rules: splitLineSeparated(form.expressionRules),
+            cadenceRegulator: {
+              mode: form.cadenceMode || "adaptive",
+              teasingFrequency: Number(form.cadenceTeasingFrequency),
+              variability: form.cadenceVariability || "high",
+              repetitionPenalty: form.cadenceRepetitionPenalty || "strong",
+              cooldownTurns: Number(form.cadenceCooldownTurns),
+              windowTurns: Number(form.cadenceWindowTurns),
+            },
           },
           resetMoodState: Boolean(form.resetMoodState),
           avatarImageUrl: form.avatarImageUrl,
@@ -1145,6 +1166,12 @@ export default function PersonalityForm({
       expressionInterruptionRate: String(mappedHybrid.expressionStyle.interruptionRate),
       expressionEnergy: mappedHybrid.expressionStyle.energy,
       expressionRules: (mappedHybrid.expressionStyle.rules || []).join("\n"),
+      cadenceMode: "adaptive",
+      cadenceTeasingFrequency: String(mappedHybrid.creativeContext === "narrative_antagonist" ? 0.28 : 0.2),
+      cadenceVariability: "high",
+      cadenceRepetitionPenalty: "strong",
+      cadenceCooldownTurns: "2",
+      cadenceWindowTurns: "6",
     }));
 
     onError({
@@ -1633,6 +1660,98 @@ export default function PersonalityForm({
               onChange={updateField}
             />
             <small>One line per expression rule. These rules are injected directly into prompt voice guardrails.</small>
+
+            <div className="expression-grid" style={{ marginTop: 12 }}>
+              <div className="field">
+                <label htmlFor="cadenceMode">Cadence intelligence mode</label>
+                <select
+                  id="cadenceMode"
+                  name="cadenceMode"
+                  value={form.cadenceMode}
+                  onChange={updateField}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                >
+                  <option value="adaptive">Adaptive (smart, conversation-aware)</option>
+                  <option value="manual">Manual (fixed cadence)</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="cadenceTeasingFrequency">Teasing frequency target: {Math.round(Number(form.cadenceTeasingFrequency || 0) * 100)}%</label>
+                <input
+                  className="voice-slider"
+                  id="cadenceTeasingFrequency"
+                  name="cadenceTeasingFrequency"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={form.cadenceTeasingFrequency}
+                  onChange={updateField}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="cadenceVariability">Variability</label>
+                <select
+                  id="cadenceVariability"
+                  name="cadenceVariability"
+                  value={form.cadenceVariability}
+                  onChange={updateField}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="cadenceRepetitionPenalty">Repetition penalty</label>
+                <select
+                  id="cadenceRepetitionPenalty"
+                  name="cadenceRepetitionPenalty"
+                  value={form.cadenceRepetitionPenalty}
+                  onChange={updateField}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                >
+                  <option value="light">Light</option>
+                  <option value="medium">Medium</option>
+                  <option value="strong">Strong</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="cadenceCooldownTurns">Cooldown turns</label>
+                <input
+                  id="cadenceCooldownTurns"
+                  name="cadenceCooldownTurns"
+                  type="number"
+                  min="0"
+                  max="8"
+                  step="1"
+                  value={form.cadenceCooldownTurns}
+                  onChange={updateField}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="cadenceWindowTurns">Lookback turns</label>
+                <input
+                  id="cadenceWindowTurns"
+                  name="cadenceWindowTurns"
+                  type="number"
+                  min="3"
+                  max="12"
+                  step="1"
+                  value={form.cadenceWindowTurns}
+                  onChange={updateField}
+                />
+              </div>
+            </div>
+            <small>
+              Adaptive mode uses mood + recent conversation rhythm to regulate teasing instinctively. Manual mode follows the fixed frequency target.
+            </small>
           </div>
 
           <div className="field">

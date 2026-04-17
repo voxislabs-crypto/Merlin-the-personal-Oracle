@@ -1268,6 +1268,9 @@ function formatExpressionStyle(style = {}) {
     : null;
 
   if (cadence) {
+    if (cadence.mode) {
+      parts.push(`cadenceMode=${String(cadence.mode)}`);
+    }
     const teaseFrequency = Number(cadence.teasingFrequency);
     if (Number.isFinite(teaseFrequency)) {
       parts.push(`teaseFrequency=${Math.round(Math.min(1, Math.max(0, teaseFrequency)) * 100)}%`);

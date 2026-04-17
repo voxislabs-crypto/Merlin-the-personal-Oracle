@@ -123,18 +123,24 @@ function normalizeCadenceRegulator(personality = {}, mood = {}) {
     : {};
 
   const context = String(personality?.creativeContext || "default").trim();
+  const mode = ["manual", "adaptive"].includes(String(inputCadence.mode || "").toLowerCase())
+    ? String(inputCadence.mode).toLowerCase()
+    : "adaptive";
+
   let teaseFrequency = CONTEXT_BASE_TEASING[context] ?? CONTEXT_BASE_TEASING.default;
 
-  const arousal = Number(mood?.arousal);
-  if (Number.isFinite(arousal)) {
-    if (arousal >= 0.55) teaseFrequency += 0.05;
-    if (arousal <= -0.3) teaseFrequency -= 0.04;
-  }
+  if (mode === "adaptive") {
+    const arousal = Number(mood?.arousal);
+    if (Number.isFinite(arousal)) {
+      if (arousal >= 0.55) teaseFrequency += 0.05;
+      if (arousal <= -0.3) teaseFrequency -= 0.04;
+    }
 
-  const energy = String(expressionStyle?.energy || "medium").toLowerCase();
-  if (energy === "very_high") teaseFrequency += 0.05;
-  if (energy === "high") teaseFrequency += 0.02;
-  if (energy === "low") teaseFrequency -= 0.03;
+    const energy = String(expressionStyle?.energy || "medium").toLowerCase();
+    if (energy === "very_high") teaseFrequency += 0.05;
+    if (energy === "high") teaseFrequency += 0.02;
+    if (energy === "low") teaseFrequency -= 0.03;
+  }
 
   teaseFrequency = clamp(inputCadence.teasingFrequency, 0, 1, teaseFrequency);
 
@@ -156,6 +162,7 @@ function normalizeCadenceRegulator(personality = {}, mood = {}) {
   const maxRecentTurns = clamp(inputCadence.windowTurns, 3, 12, 6);
 
   return {
+    mode,
     teasingFrequency: clamp(teaseFrequency, 0.05, 0.6, 0.18),
     repetitionPenalty,
     variability,
