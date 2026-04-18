@@ -66,17 +66,63 @@ else
 fi
 pm2 save >/dev/null 2>&1 || true
 
-echo "→ Reloading nginx..."
-sudo systemctl reload nginx
-
+echo "→ Configuring Nginx..."
 NGINX_SITE="/etc/nginx/sites-available/$APP_NAME"
-if [[ -f "$NGINX_SITE" ]]; then
-	if ! grep -q 'personality-preference' "$NGINX_SITE" || ! grep -q '(api|' "$NGINX_SITE"; then
-		echo "WARNING: nginx site ${NGINX_SITE} is missing newer API proxy routes."
-		echo "Production may miss preferences, loops, SFX, and other newer frontend-backed features."
-		echo "Reapply the nginx config from deploy/setup-ubuntu.sh, then run: sudo nginx -t && sudo systemctl reload nginx"
-	fi
+BACKEND_PORT="${BACKEND_PORT:-3101}"
+SERVER_NAME="${SERVER_NAME:-$(hostname -f)}"
+
+# Required routes that must appear in the Nginx config.
+NGINX_NEEDS_UPDATE=0
+if [[ ! -f "$NGINX_SITE" ]]; then
+  NGINX_NEEDS_UPDATE=1
+elif ! grep -q 'personality-preference' "$NGINX_SITE" \
+  || ! grep -q 'loop' "$NGINX_SITE" \
+  || ! grep -q 'sfx' "$NGINX_SITE" \
+  || ! grep -q "127.0.0.1:${BACKEND_PORT}" "$NGINX_SITE"; then
+  NGINX_NEEDS_UPDATE=1
 fi
+
+if [[ "$NGINX_NEEDS_UPDATE" -eq 1 ]]; then
+  echo "  Writing Nginx config for ${APP_NAME} → port ${BACKEND_PORT}..."
+  sudo tee "$NGINX_SITE" >/dev/null <<NGINXEOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${SERVER_NAME};
+
+    root ${APP_DIR}/frontend/dist;
+    index index.html;
+    client_max_body_size 30m;
+
+    location ~ ^/(api|health|chat|settings|me|users|personality|personality-preference|personalities|research-profile|memory|tts|voice-presets|loop|loops|sfx|preferences|prosody|voice-sample|user-memory|performance)(/|\$) {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        add_header X-Accel-Buffering no;
+    }
+
+    location / {
+        try_files \$uri /index.html;
+    }
+}
+NGINXEOF
+  sudo ln -sfn "$NGINX_SITE" "/etc/nginx/sites-enabled/$APP_NAME"
+  if [[ -L /etc/nginx/sites-enabled/default ]]; then
+    sudo rm -f /etc/nginx/sites-enabled/default
+  fi
+  echo "  Nginx config written."
+else
+  echo "  Nginx config OK (no update needed)."
+fi
+
+sudo nginx -t && sudo systemctl reload nginx
 
 if [[ "${STASH_CREATED}" -eq 1 ]]; then
 	echo "→ Cleaning up deploy stash..."
