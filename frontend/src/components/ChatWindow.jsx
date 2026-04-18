@@ -1454,6 +1454,22 @@ function buildTtsErrorMessage(error) {
   const provider = String(error?.ttsProvider || "").trim().toLowerCase();
   const providerCode = String(error?.ttsProviderCode || "").trim().toLowerCase();
   const providerStatus = Number(error?.ttsProviderStatus || 0);
+  const httpStatus = Number(error?.httpStatus || 0);
+  const isHtmlErrorPage = Boolean(error?.isHtmlErrorPage);
+
+  if (isHtmlErrorPage && httpStatus === 502) {
+    const lockHint = TTS_DEBUG_PROVIDER_LOCK
+      ? " Debug lock is enabled, so fallback engines may be blocked; verify the active provider credentials/voice/model or temporarily disable the lock for fallback."
+      : "";
+
+    return [
+      "Speech request failed with an upstream HTML 502 before Voxis could return provider diagnostics.",
+      "This usually means the reverse proxy/gateway failed while waiting on backend TTS.",
+      "Check backend PM2 logs and nginx error logs.",
+      lockHint.trim(),
+      "Quick checks: /health and /health/tts.",
+    ].filter(Boolean).join(" ");
+  }
 
   if (!provider) {
     return base;
@@ -2437,6 +2453,11 @@ export default function ChatWindow({
         "Failed to generate speech.",
       );
 
+      const isHtmlErrorPage =
+        payload && typeof payload === "object" && typeof payload.rawText === "string"
+          ? /^\s*</.test(payload.rawText)
+          : false;
+
       const provider = String(payload?.details?.provider || "").trim().toLowerCase();
       const providerCode = String(payload?.details?.providerCode || "").trim().toLowerCase();
       const providerStatus = Number(payload?.details?.providerStatus || 0);
@@ -2448,6 +2469,8 @@ export default function ChatWindow({
       error.ttsProvider = provider;
       error.ttsProviderCode = providerCode;
       error.ttsProviderStatus = providerStatus;
+      error.httpStatus = Number(response.status || 0);
+      error.isHtmlErrorPage = isHtmlErrorPage;
       throw error;
     }
 
