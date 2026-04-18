@@ -56,6 +56,35 @@ app.get("/health/tts", async (_req, res, next) => {
   }
 });
 
+// Lightweight endpoint exposing the sanitized effective TTS runtime config.
+// Useful for verifying prod env/PM2 variable loading without SSH access.
+// Returns env var names and effective values — never raw secrets.
+app.get("/health/tts/config", (_req, res) => {
+  const boolFrom = (key, defaultVal) =>
+    String(process.env[key] ?? defaultVal).trim().toLowerCase() !== "false";
+  const strFrom = (key, fallback = "") => String(process.env[key] || fallback).trim();
+  const numFrom = (key, fallback) => {
+    const n = Number(process.env[key]);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  res.json({
+    ttsEngine: strFrom("TTS_ENGINE", "auto"),
+    debugLockEnabled: boolFrom("TTS_DEBUG_PROVIDER_LOCK", "true"),
+    kokoroDisabled: boolFrom("TTS_DISABLE_KOKORO", "false") === true
+      ? true
+      : String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true",
+    requestTimeoutMs: numFrom("TTS_REQUEST_TIMEOUT_MS", 12000),
+    keys: {
+      cartesiaKeySet: Boolean(process.env.CARTESIA_API_KEY),
+      openaiKeySet: Boolean(process.env.OPENAI_API_KEY || process.env.TTS_API_KEY),
+      elevenLabsKeySet: Boolean(process.env.ELEVENLABS_API_KEY),
+      piperModelPathSet: Boolean(process.env.PIPER_MODEL_PATH),
+    },
+    env: strFrom("NODE_ENV", "production"),
+  });
+});
+
 app.use(personalityRoutes);
 app.use(chatRoutes);
 app.use(settingsRoutes);

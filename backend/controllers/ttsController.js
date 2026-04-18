@@ -31,7 +31,12 @@ function setEncodedJsonHeader(res, name, payload, options) {
   }
 }
 
-const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+// Read env at call time — NOT at module load time — so dotenv has already run
+// regardless of ESM module evaluation order.
+function isTtsDebugLockEnabled() {
+  return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+}
+
 const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 12_000;
 
 function getTtsRequestTimeoutMs() {
@@ -153,7 +158,7 @@ export async function generateSpeechHandler(req, res, next) {
     if (!isTtsConfigured(voiceProfile)) {
       return res.status(500).json({
         error:
-          TTS_DEBUG_PROVIDER_LOCK_ENABLED
+          isTtsDebugLockEnabled()
             ? "TTS debug lock is active and no allowed engine is configured. Configure Cartesia credentials (Settings -> Voice Provider Credentials) or use Kokoro."
             : "TTS is not configured. Configure cloud TTS (TTS_API_KEY/TTS_BASE_URL) or Piper (PIPER_MODEL_PATH) in backend/.env.",
       });
@@ -197,7 +202,7 @@ export async function generateSpeechHandler(req, res, next) {
       const providerCode = String(error.ttsProviderCode || "").trim().toLowerCase();
       const providerStatus = Number(error.providerStatus || 0);
       const shouldAttachLockHint =
-        TTS_DEBUG_PROVIDER_LOCK_ENABLED &&
+        isTtsDebugLockEnabled() &&
         provider === "cartesia" &&
         (providerCode === "timeout" || providerCode === "network_error" || providerCode === "backend_timeout");
 

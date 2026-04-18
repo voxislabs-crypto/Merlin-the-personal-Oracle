@@ -4,18 +4,25 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, safe));
 }
 
-const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
-const TTS_DISABLE_KOKORO = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
+// Read env at call time — NOT at module load time — so dotenv has already run
+// regardless of ESM module evaluation order.
+function isTtsLockEnabled() {
+  return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+}
+
+function isKokoroDisabledByEnv() {
+  return String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
+}
 
 function isAllowedVoiceEngine(engine) {
   const normalized = String(engine || "").trim().toLowerCase();
-  if (!TTS_DEBUG_PROVIDER_LOCK_ENABLED) {
-    const openEngines = TTS_DISABLE_KOKORO
+  if (!isTtsLockEnabled()) {
+    const openEngines = isKokoroDisabledByEnv()
       ? ["auto", "cloud", "openai", "piper", "elevenlabs", "cartesia"]
       : ["auto", "cloud", "openai", "piper", "kokoro", "elevenlabs", "cartesia"];
     return openEngines.includes(normalized);
   }
-  return TTS_DISABLE_KOKORO
+  return isKokoroDisabledByEnv()
     ? ["auto", "cartesia"].includes(normalized)
     : ["auto", "kokoro", "cartesia"].includes(normalized);
 }

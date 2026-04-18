@@ -98,14 +98,21 @@ echo "[7/9] Building frontend"
 npm --prefix "$APP_DIR" run build
 
 echo "[8/9] Configuring PM2"
-cat > "$APP_DIR/ecosystem.config.cjs" <<EOF
+# Preserve an existing ecosystem.config.cjs (which may have env_file and other tuned settings).
+# Only write a minimal one if none exists on disk. This prevents silent env-loading regressions
+# after updates that add env_file or other PM2 options to the repo file.
+if [[ ! -f "$APP_DIR/ecosystem.config.cjs" ]]; then
+  cat > "$APP_DIR/ecosystem.config.cjs" <<EOF
+const path = require("node:path");
 module.exports = {
   apps: [
     {
       name: "voxis-backend",
-      cwd: "$APP_DIR/backend",
+      cwd: path.join(__dirname, "backend"),
       script: "server.js",
       interpreter: "node",
+      env_file: path.join(__dirname, "backend", ".env"),
+      max_memory_restart: "1536M",
       env: {
         NODE_ENV: "production",
         PORT: "$BACKEND_PORT"
@@ -114,8 +121,20 @@ module.exports = {
   ]
 };
 EOF
+  echo "  Created ecosystem.config.cjs with env_file support."
+else
+  echo "  Existing ecosystem.config.cjs preserved."
+fi
 
-pm2 startOrReload "$APP_DIR/ecosystem.config.cjs" --only voxis-backend
+# Source backend env so PM2 inherits any vars not yet in its saved process env.
+if [[ -f "$APP_DIR/backend/.env" ]]; then
+  set -o allexport
+  # shellcheck source=/dev/null
+  source "$APP_DIR/backend/.env"
+  set +o allexport
+fi
+
+pm2 startOrReload "$APP_DIR/ecosystem.config.cjs" --only voxis-backend --update-env
 pm2 save
 
 set +e
