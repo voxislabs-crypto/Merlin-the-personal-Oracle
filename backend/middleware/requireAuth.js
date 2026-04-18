@@ -92,13 +92,25 @@ const _clerkClient = (clerkPublishableKey && clerkSecretKey)
 // Errors are always non-fatal here — protected routes gate separately via requireAuth().
 export const clerkVerify = async (req, res, next) => {
   if (!_clerkClient) {
+    req.auth = null;
     return next();
   }
   try {
-    const requestState = await _clerkClient.authenticateRequest(req, {
+    // @clerk/backend authenticateRequest expects a Web Fetch API Request, not an Express
+    // IncomingMessage. Build one from the Express req so it can read both the Authorization
+    // header (Bearer token) and __session cookie for all Clerk auth flows.
+    const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
+    const host = String(req.headers["x-forwarded-host"] || req.headers.host || "localhost").split(",")[0].trim();
+    const url = `${proto}://${host}${req.originalUrl || req.url || "/"}`;
+    const fetchHeaders = new Headers();
+    for (const [k, v] of Object.entries(req.headers || {})) {
+      const values = Array.isArray(v) ? v : [String(v)];
+      for (const val of values) fetchHeaders.append(k, val);
+    }
+    const fetchReq = new Request(url, { method: req.method || "GET", headers: fetchHeaders });
+    const requestState = await _clerkClient.authenticateRequest(fetchReq, {
       publishableKey: clerkPublishableKey,
       secretKey: clerkSecretKey,
-      authorizedParties: [],
     });
     req.auth = requestState.toAuth?.() ?? null;
   } catch (err) {
