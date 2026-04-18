@@ -1,6 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
-import { clerkMiddleware, getAuth } from "@clerk/express";
+import { createClerkClient } from "@clerk/backend";
 import { createUser, getUserByClerkId } from "../models/userModel.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -79,44 +79,38 @@ console.info("[Auth] Clerk env", {
     : "missing",
 });
 
-// Create the inner Clerk middleware once — NOT per request.
-const _clerkInner = clerkMiddleware({
-  publishableKey: clerkPublishableKey || undefined,
-  secretKey: clerkSecretKey || undefined,
-});
+// Create the Clerk backend client once with explicit keys.
+// Using @clerk/backend directly (which @clerk/express wraps) avoids the SDK's
+// per-request env-var re-resolution in @clerk/shared parsePublishableKey —
+// the cause of repeated "Publishable key is missing" errors despite env vars being set.
+const _clerkClient = (clerkPublishableKey && clerkSecretKey)
+  ? createClerkClient({ publishableKey: clerkPublishableKey, secretKey: clerkSecretKey })
+  : null;
 
-// Wrap so that any error from @clerk/express (sync or async, caught or uncaught) is
-// absorbed here. Errors are logged but never crash the process or hang the request.
-// Protected routes still gate via requireAuth() which returns 401 when req.auth is absent.
-export const clerkVerify = (req, res, next) => {
-  let nextCalled = false;
-  const guardedNext = (...args) => {
-    nextCalled = true;
-    next(...args);
-  };
-  try {
-    const result = _clerkInner(req, res, guardedNext);
-    if (result && typeof result.then === "function") {
-      result.catch((err) => {
-        if (!nextCalled) {
-          console.error("[Auth] Clerk middleware async error (non-fatal):", err?.message || err);
-          nextCalled = true;
-          next();
-        }
-      });
-    }
-  } catch (err) {
-    if (!nextCalled) {
-      console.error("[Auth] Clerk middleware sync error (non-fatal):", err?.message || err);
-      nextCalled = true;
-      next();
-    }
+// Authenticate each request by verifying the Clerk session token when present.
+// On success, attaches req.auth = { userId } so downstream requireAuth() can use it.
+// Errors are always non-fatal here — protected routes gate separately via requireAuth().
+export const clerkVerify = async (req, res, next) => {
+  if (!_clerkClient) {
+    return next();
   }
+  try {
+    const requestState = await _clerkClient.authenticateRequest(req, {
+      publishableKey: clerkPublishableKey,
+      secretKey: clerkSecretKey,
+      authorizedParties: [],
+    });
+    req.auth = requestState.toAuth?.() ?? null;
+  } catch (err) {
+    console.error("[Auth] Clerk verify error (non-fatal):", err?.message || err);
+    req.auth = null;
+  }
+  return next();
 };
 
 export async function requireAuth(req, res, next) {
   try {
-    const { userId: clerkUserId } = getAuth(req);
+    const clerkUserId = req.auth?.userId || null;
 
     if (!clerkUserId) {
       return res.status(401).json({ error: "Authentication required." });
