@@ -226,12 +226,15 @@ function getCartesiaTimeoutMs(text = "") {
   const normalizedText = String(text || "").trim();
   const textLength = normalizedText.length;
 
-  if (textLength <= 120) {
-    return DEFAULT_CARTESIA_TIMEOUT_MS;
-  }
+  const scaledTimeout = textLength <= 120
+    ? DEFAULT_CARTESIA_TIMEOUT_MS
+    : Math.min(MAX_CARTESIA_TIMEOUT_MS, DEFAULT_CARTESIA_TIMEOUT_MS + ((textLength - 120) * 40));
 
-  const scaledTimeout = DEFAULT_CARTESIA_TIMEOUT_MS + ((textLength - 120) * 40);
-  return Math.min(MAX_CARTESIA_TIMEOUT_MS, Math.max(DEFAULT_CARTESIA_TIMEOUT_MS, scaledTimeout));
+  // Cap Cartesia's per-call timeout to 60% of the outer request budget (min 6s, max 20s)
+  // so a hanging Cartesia call doesn't eat the entire budget and leaves time for fallback.
+  const outerBudget = Number(process.env.TTS_REQUEST_TIMEOUT_MS) || 12000;
+  const cap = Math.max(6000, Math.min(20000, Math.floor(outerBudget * 0.6)));
+  return Math.min(scaledTimeout, cap);
 }
 
 function clampPiperPauseMs(pauseMs, voiceProfile = {}) {
