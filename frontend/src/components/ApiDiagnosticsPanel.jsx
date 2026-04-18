@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 
 const styles = `
@@ -100,10 +100,11 @@ function compact(value) {
   return text.length > 220 ? `${text.slice(0, 219)}...` : text;
 }
 
-export default function ApiDiagnosticsPanel({ onStatus }) {
+export default function ApiDiagnosticsPanel({ onStatus, autoRunToken = 0 }) {
   const authFetch = useAuthFetch();
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState([]);
+  const lastAutoRunTokenRef = useRef(0);
 
   async function runSingle({ id, label, withAuth }) {
     const started = performance.now();
@@ -175,6 +176,16 @@ export default function ApiDiagnosticsPanel({ onStatus }) {
       setRunning(false);
     }
   }
+
+  useEffect(() => {
+    const nextToken = Number(autoRunToken || 0);
+    if (nextToken <= 0 || nextToken === lastAutoRunTokenRef.current) {
+      return;
+    }
+
+    lastAutoRunTokenRef.current = nextToken;
+    void runDiagnostics();
+  }, [autoRunToken]);
 
   return (
     <div className="diag-shell">

@@ -289,6 +289,32 @@ const appStyles = `
     font-size: 0.95rem;
   }
 
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .status-action {
+    border: 1px solid rgba(0, 180, 255, 0.28);
+    border-radius: 999px;
+    background: rgba(0, 180, 255, 0.08);
+    color: #b9efff;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .status.error .status-action {
+    border-color: rgba(255, 122, 122, 0.42);
+    background: rgba(255, 98, 98, 0.16);
+    color: #ffd3d3;
+  }
+
   .status.error {
     background: rgba(240, 40, 40, 0.08);
     color: #ff7272;
@@ -966,6 +992,7 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [liveChatState, setLiveChatState] = useState({});
   const [status, setStatus] = useState({ type: "", message: "" });
+  const [diagnosticsRunToken, setDiagnosticsRunToken] = useState(0);
   const [neuralToast, setNeuralToast] = useState(null);
   const [backgroundVideoReady, setBackgroundVideoReady] = useState(false);
   const [backgroundVideoPlaying, setBackgroundVideoPlaying] = useState(false);
@@ -986,6 +1013,22 @@ export default function App() {
   const backgroundCanvasRef = useRef(null);
   const backgroundVideoRef = useRef(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  function handleStatusAction(actionId) {
+    const normalized = String(actionId || "").trim().toLowerCase();
+    if (!normalized) {
+      return;
+    }
+
+    if (normalized === "run-connectivity-diagnostics") {
+      setActiveView("settings");
+      setDiagnosticsRunToken((current) => current + 1);
+      setStatus({
+        type: "info",
+        message: "Running diagnostics in Settings...",
+      });
+    }
+  }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -2648,7 +2691,7 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <ApiDiagnosticsPanel onStatus={setStatus} />
+                  <ApiDiagnosticsPanel onStatus={setStatus} autoRunToken={diagnosticsRunToken} />
                   <div style={{ marginTop: 24 }}>
                     <h3 className="section-heading">Chat Provider Configuration</h3>
                   </div>
@@ -2746,7 +2789,20 @@ export default function App() {
               )}
 
               {status.message ? (
-                <div className={`status ${status.type || "success"}`}>{status.message}</div>
+                <div className={`status ${status.type || "success"}`}>
+                  <div className="status-row">
+                    <span>{status.message}</span>
+                    {status.actionLabel && status.actionId ? (
+                      <button
+                        type="button"
+                        className="status-action"
+                        onClick={() => handleStatusAction(status.actionId)}
+                      >
+                        {status.actionLabel}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
             </div>
           </main>

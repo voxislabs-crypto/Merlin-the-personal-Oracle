@@ -2710,10 +2710,15 @@ export default function ChatWindow({
       }
     } catch (error) {
       if (error?.name !== "AbortError") {
-        onStatus?.({
+        const statusPayload = {
           type: "error",
           message: buildTtsErrorMessage(error),
-        });
+        };
+        if (Boolean(error?.isHtmlErrorPage) && Number(error?.httpStatus || 0) === 502) {
+          statusPayload.actionId = "run-connectivity-diagnostics";
+          statusPayload.actionLabel = "Run diagnostics";
+        }
+        onStatus?.(statusPayload);
       }
     } finally {
       if (ttsRequestAbortRef.current) {
@@ -2826,10 +2831,15 @@ export default function ChatWindow({
         return;
       }
 
-      onStatus?.({
+      const statusPayload = {
         type: "error",
         message: buildTtsErrorMessage(error),
-      });
+      };
+      if (Boolean(error?.isHtmlErrorPage) && Number(error?.httpStatus || 0) === 502) {
+        statusPayload.actionId = "run-connectivity-diagnostics";
+        statusPayload.actionLabel = "Run diagnostics";
+      }
+      onStatus?.(statusPayload);
     } finally {
       if (ttsRequestAbortRef.current === controller) {
         ttsRequestAbortRef.current = null;
