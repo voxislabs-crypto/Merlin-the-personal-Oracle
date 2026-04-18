@@ -1456,6 +1456,36 @@ function buildTtsErrorMessage(error) {
   const providerStatus = Number(error?.ttsProviderStatus || 0);
   const httpStatus = Number(error?.httpStatus || 0);
   const isHtmlErrorPage = Boolean(error?.isHtmlErrorPage);
+  const ttsHealthSnapshot = error?.ttsHealthSnapshot;
+
+  const getRoutingHint = () => {
+    if (!ttsHealthSnapshot || typeof ttsHealthSnapshot !== "object") {
+      return "";
+    }
+
+    const debugLockEnabled = Boolean(ttsHealthSnapshot?.routing?.debugLockEnabled);
+    const allowedEngines = Array.isArray(ttsHealthSnapshot?.routing?.allowedEngines)
+      ? ttsHealthSnapshot.routing.allowedEngines.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const requestedEngine = String(ttsHealthSnapshot?.routing?.requestedEngine || "").trim().toLowerCase();
+    const cartesiaConnected = Boolean(ttsHealthSnapshot?.engines?.cartesia?.connected);
+    const cartesiaError = String(ttsHealthSnapshot?.engines?.cartesia?.error || "").trim();
+
+    const parts = [];
+    if (debugLockEnabled) {
+      parts.push(`debug lock is on (allowed: ${allowedEngines.length ? allowedEngines.join(", ") : "none"})`);
+    }
+    if (requestedEngine) {
+      parts.push(`requested engine=${requestedEngine}`);
+    }
+    if (cartesiaConnected) {
+      parts.push("cartesia reports connected");
+    } else if (cartesiaError) {
+      parts.push(`cartesia health error: ${cartesiaError}`);
+    }
+
+    return parts.length ? ` Live TTS health: ${parts.join("; ")}.` : "";
+  };
 
   if (isHtmlErrorPage && httpStatus === 502) {
     const lockHint = TTS_DEBUG_PROVIDER_LOCK
@@ -1465,6 +1495,7 @@ function buildTtsErrorMessage(error) {
     return [
       "Speech request failed with an upstream HTML 502 before Voxis could return provider diagnostics.",
       "This usually means the reverse proxy/gateway failed while waiting on backend TTS.",
+      getRoutingHint().trim(),
       "Check backend PM2 logs and nginx error logs.",
       lockHint.trim(),
       "Quick checks: /health and /health/tts.",
@@ -1503,6 +1534,51 @@ function buildTtsErrorMessage(error) {
 
   const detailSuffix = ` [provider=${provider}${providerCode ? ` code=${providerCode}` : ""}${providerStatus ? ` status=${providerStatus}` : ""}]`;
   return `${base} ${hint}${detailSuffix}`.trim();
+}
+
+async function fetchTtsHealthSnapshot(authFetch) {
+  if (typeof authFetch !== "function") {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+
+  try {
+    const response = await authFetch("/health/tts", {
+      method: "GET",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json();
+    if (!payload || typeof payload !== "object") {
+      return null;
+    }
+
+    return {
+      routing: {
+        debugLockEnabled: Boolean(payload?.routing?.debugLockEnabled),
+        allowedEngines: Array.isArray(payload?.routing?.allowedEngines)
+          ? payload.routing.allowedEngines
+          : [],
+        requestedEngine: String(payload?.routing?.requestedEngine || "").trim().toLowerCase(),
+      },
+      engines: {
+        cartesia: {
+          connected: Boolean(payload?.engines?.cartesia?.connected),
+          error: String(payload?.engines?.cartesia?.error || "").trim(),
+        },
+      },
+    };
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 const MAX_STREAM_READY_AUDIO = 3;
@@ -2458,6 +2534,11 @@ export default function ChatWindow({
           ? /^\s*</.test(payload.rawText)
           : false;
 
+      let ttsHealthSnapshot = null;
+      if (isHtmlErrorPage && Number(response.status) === 502) {
+        ttsHealthSnapshot = await fetchTtsHealthSnapshot(authFetch);
+      }
+
       const provider = String(payload?.details?.provider || "").trim().toLowerCase();
       const providerCode = String(payload?.details?.providerCode || "").trim().toLowerCase();
       const providerStatus = Number(payload?.details?.providerStatus || 0);
@@ -2471,6 +2552,7 @@ export default function ChatWindow({
       error.ttsProviderStatus = providerStatus;
       error.httpStatus = Number(response.status || 0);
       error.isHtmlErrorPage = isHtmlErrorPage;
+      error.ttsHealthSnapshot = ttsHealthSnapshot;
       throw error;
     }
 

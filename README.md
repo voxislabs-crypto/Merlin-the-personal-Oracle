@@ -515,6 +515,7 @@ bash deploy/check-stack.sh voxis.voxislabs.com
 | `LLM request failed with 401` | Re-save provider credentials in Settings or set `LLM_API_KEY` in `.env`, then restart PM2 with `--update-env` |
 | TTS forced to Piper but not working | Check `/health/tts` for `routing.envEngine`, verify `PIPER_COMMAND` and `PIPER_MODEL_PATH`, raise `PIPER_TIMEOUT_MS` if needed |
 | Kokoro `502` / HTML error page | Ensure `TTS_ENGINE=auto` or `kokoro` (not `piper` with debug lock on). Raise `PM2_MAX_MEMORY_RESTART` if seeing frequent memory restarts |
+| Replay shows HTML `502` in chat | Chat now auto-checks `/health/tts` and includes lock/engine/provider health hints in the toast. If lock is enabled and provider fails, verify provider credentials/voice/model or disable lock to permit fallback |
 | Cartesia model discovery 404 | Voxis retries endpoint variants and falls back to the built-in Cartesia catalog (`sonic-3`, `sonic-3-latest`, `sonic-2`, `sonic-turbo`) |
 | Provider/key mismatch | The connect flow auto-corrects obvious built-in provider/key mismatches by prefix |
 
