@@ -16,15 +16,40 @@ try {
 // Verifies the Clerk JWT on every request that uses this middleware.
 // On success, attaches req.clerkUserId (string) and req.voxisUser (the local DB record).
 // Auto-provisions a Voxis user row on first sign-in.
-const clerkPublishableKey =
-  process.env.CLERK_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+const clerkPublishableKeyFrom =
+  (process.env.CLERK_PUBLISHABLE_KEY && "CLERK_PUBLISHABLE_KEY") ||
+  (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY") ||
+  (process.env.VITE_CLERK_PUBLISHABLE_KEY && "VITE_CLERK_PUBLISHABLE_KEY") ||
   "";
 
+const clerkPublishableKey = clerkPublishableKeyFrom
+  ? process.env[clerkPublishableKeyFrom]
+  : "";
+
 const clerkSecretKey = process.env.CLERK_SECRET_KEY || "";
+const allowMissingClerkKeys = String(process.env.ALLOW_MISSING_CLERK_KEYS || "")
+  .trim()
+  .toLowerCase() === "true";
+
+if ((!clerkPublishableKey || !clerkSecretKey) && !allowMissingClerkKeys && process.env.NODE_ENV !== "test") {
+  const missing = [
+    !clerkPublishableKey ? "publishable key (CLERK_PUBLISHABLE_KEY preferred)" : null,
+    !clerkSecretKey ? "CLERK_SECRET_KEY" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  throw new Error(
+    `[Auth] Missing Clerk configuration: ${missing}. ` +
+      "Set keys in backend/.env and restart with: " +
+      "pm2 startOrReload ecosystem.config.cjs --only voxis-backend --update-env. " +
+      "To bypass in local-only debugging, set ALLOW_MISSING_CLERK_KEYS=true.",
+  );
+}
 
 console.info("[Auth] Clerk env", {
   publishableKeyPresent: Boolean(clerkPublishableKey),
+  publishableKeyFrom: clerkPublishableKeyFrom || "missing",
   publishableKeyPrefix: clerkPublishableKey
     ? clerkPublishableKey.startsWith("pk_live_")
       ? "pk_live"

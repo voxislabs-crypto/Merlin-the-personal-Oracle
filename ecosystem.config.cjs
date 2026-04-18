@@ -7,6 +7,7 @@ module.exports = {
       cwd: path.join(__dirname, "backend"),
       script: "server.js",
       interpreter: "node",
+      env_file: path.join(__dirname, "backend", ".env"),
       max_memory_restart: process.env.PM2_MAX_MEMORY_RESTART || "1536M",
       env: {
         NODE_ENV: "production",

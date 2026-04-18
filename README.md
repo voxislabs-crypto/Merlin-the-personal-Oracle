@@ -335,6 +335,15 @@ Edit `backend/.env` with your API keys. All environment variables are optional â
 | `LLM_MODEL` | Fallback model name (e.g., `gpt-4o`, `mistral-small`) |
 | `LLM_LOCK_ENV` | Set `true` to force `.env` values over runtime settings |
 
+**Auth (Clerk):**
+
+| Variable | Purpose |
+|---|---|
+| `CLERK_SECRET_KEY` | Clerk backend secret key (required for protected routes) |
+| `CLERK_PUBLISHABLE_KEY` | Preferred backend publishable key name |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Supported backend fallback alias |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Supported backend/frontend fallback alias |
+
 **Mood & Prompt:**
 
 | Variable | Purpose |
@@ -479,7 +488,7 @@ bash deploy/update-app.sh --backup-db
 ### Production deploy sequence
 
 ```bash
-npm run build && pm2 restart voxis-backend && sudo systemctl reload nginx
+npm run build && pm2 startOrReload ecosystem.config.cjs --only voxis-backend --update-env && sudo systemctl reload nginx
 ```
 
 ### Release verification
@@ -508,11 +517,19 @@ DOMAIN=voxis.voxislabs.com EMAIL=you@voxislabs.com bash deploy/enable-ssl.sh
 bash deploy/check-stack.sh voxis.voxislabs.com
 ```
 
+Auth and 502-focused diagnostics:
+
+```bash
+APP_DIR=/opt/voxis APP_NAME=voxis PM2_APP_NAME=voxis-backend bash deploy/diagnose-auth-stack.sh voxis.voxislabs.com
+```
+
 ### Troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | `LLM request failed with 401` | Re-save provider credentials in Settings or set `LLM_API_KEY` in `.env`, then restart PM2 with `--update-env` |
+| `Publishable key is missing` (Clerk) | Set `CLERK_SECRET_KEY` and one publishable key (`CLERK_PUBLISHABLE_KEY` preferred), then run `pm2 startOrReload ecosystem.config.cjs --only voxis-backend --update-env` |
+| Intermittent `502` with backend online | Run `deploy/diagnose-auth-stack.sh` to verify env file keys, PM2 runtime env, local health, nginx upstream, and public `/health` |
 | TTS forced to Piper but not working | Check `/health/tts` for `routing.envEngine`, verify `PIPER_COMMAND` and `PIPER_MODEL_PATH`, raise `PIPER_TIMEOUT_MS` if needed |
 | Kokoro `502` / HTML error page | Ensure `TTS_ENGINE=auto` or `kokoro` (not `piper` with debug lock on). Raise `PM2_MAX_MEMORY_RESTART` if seeing frequent memory restarts |
 | Replay shows HTML `502` in chat | Chat now auto-checks `/health/tts`, includes lock/engine/provider health hints, and exposes a one-click **Run diagnostics** action from the error toast. If lock is enabled and provider fails, verify provider credentials/voice/model or disable lock to permit fallback |
