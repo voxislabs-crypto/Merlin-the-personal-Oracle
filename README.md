@@ -404,7 +404,7 @@ npm run dev --workspace frontend
 npm run build
 ```
 
-> The backend serves built frontend assets. Always build before restarting in production.
+> In production, Nginx serves `frontend/dist` and proxies API requests to the backend. Always rebuild the frontend before restarting PM2 or reloading Nginx.
 
 **Optional feature flags:**
 
@@ -458,13 +458,13 @@ This writes env routing, installs Piper, runs a synthesis smoke test, and restar
 
 ```bash
 cd /opt/voxis
-bash deploy/update-app.sh
+APP_DIR=/opt/voxis BRANCH=NeuronMap bash deploy/update-app.sh
 ```
 
 For conservative deploys (stashes local changes first):
 
 ```bash
-bash ./deploy-safe.sh
+APP_DIR=/opt/voxis BRANCH=NeuronMap bash ./deploy-safe.sh
 ```
 
 Database-safe deploy with backup:
@@ -477,6 +477,20 @@ bash deploy/update-app.sh --backup-db
 
 ```bash
 npm run build && pm2 restart voxis-backend && sudo systemctl reload nginx
+```
+
+### Release verification
+
+After deploy, confirm production is running the expected backend branch and commit:
+
+```bash
+curl -fsS http://127.0.0.1:3101/health
+```
+
+If production still looks older than dev after a successful frontend build, check the active Nginx site. Older configs only proxied a subset of backend routes and will silently break newer UI features such as persona preferences, performance loops, and SFX playback. Regenerate or update the site config from `deploy/setup-ubuntu.sh`, then run:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ### HTTPS (Let's Encrypt)

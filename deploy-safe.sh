@@ -4,6 +4,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/voxis}"
 BRANCH="${BRANCH:-NeuronMap}"
 PM2_APP_NAME="${PM2_APP_NAME:-voxis-backend}"
+APP_NAME="${APP_NAME:-voxis}"
 STASH_NAME="Pre-deploy auto-stash $(date +%Y-%m-%d_%H-%M-%S)"
 STASH_CREATED=0
 
@@ -52,6 +53,15 @@ pm2 save >/dev/null 2>&1 || true
 
 echo "→ Reloading nginx..."
 sudo systemctl reload nginx
+
+NGINX_SITE="/etc/nginx/sites-available/$APP_NAME"
+if [[ -f "$NGINX_SITE" ]]; then
+	if ! grep -q 'personality-preference' "$NGINX_SITE" || ! grep -q '(api|' "$NGINX_SITE"; then
+		echo "WARNING: nginx site ${NGINX_SITE} is missing newer API proxy routes."
+		echo "Production may miss preferences, loops, SFX, and other newer frontend-backed features."
+		echo "Reapply the nginx config from deploy/setup-ubuntu.sh, then run: sudo nginx -t && sudo systemctl reload nginx"
+	fi
+fi
 
 if [[ "${STASH_CREATED}" -eq 1 ]]; then
 	echo "→ Cleaning up deploy stash..."

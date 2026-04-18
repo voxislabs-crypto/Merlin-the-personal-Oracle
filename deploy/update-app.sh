@@ -15,6 +15,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/voxis}"
 BRANCH="${BRANCH:-NeuronMap}"
 PM2_APP_NAME="${PM2_APP_NAME:-voxis-backend}"
+APP_NAME="${APP_NAME:-voxis}"
 BACKEND_DIR="$APP_DIR/backend"
 DB_FILE="$BACKEND_DIR/voxis.sqlite"
 BACKUP_DIR="$BACKEND_DIR/backups"
@@ -102,6 +103,17 @@ else
   pm2 restart "$PM2_APP_NAME" --update-env
 fi
 pm2 save
+
+NGINX_SITE="/etc/nginx/sites-available/$APP_NAME"
+if [[ -f "$NGINX_SITE" ]]; then
+  if ! grep -q 'personality-preference' "$NGINX_SITE" || ! grep -q '(api|' "$NGINX_SITE"; then
+    echo
+    echo "WARNING: nginx site $NGINX_SITE is missing newer API proxy routes."
+    echo "Production may miss preferences, loops, SFX, and other newer frontend-backed features."
+    echo "Update the nginx site from deploy/setup-ubuntu.sh, then run:"
+    echo "  sudo nginx -t && sudo systemctl reload nginx"
+  fi
+fi
 
 echo "Done."
 echo "Backend health check: curl -fsS http://127.0.0.1:3101/health"

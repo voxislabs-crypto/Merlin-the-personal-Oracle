@@ -137,8 +137,9 @@ server {
     root $APP_DIR/frontend/dist;
     index index.html;
 
-    # Regex API matcher: proxies backend endpoints to Express on $BACKEND_PORT.
-    location ~ ^/(health|chat|settings|me|users|personality|personalities|research-profile|memory|tts|voice-presets)(/|$) {
+  # Regex API matcher: proxies backend endpoints to Express on $BACKEND_PORT.
+  # Keep this list aligned with frontend relative fetches and backend route mounts.
+  location ~ ^/(api|health|chat|settings|me|users|personality|personality-preference|personalities|research-profile|memory|tts|voice-presets)(/|$) {
         proxy_pass http://127.0.0.1:$BACKEND_PORT;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
