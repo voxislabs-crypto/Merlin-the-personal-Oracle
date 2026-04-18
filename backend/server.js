@@ -102,6 +102,56 @@ app.use(userRoutes);
 app.use(loopRoutes);
 app.use(sfxRoutes);
 
+// Temporary diagnostic: test Cartesia connectivity directly without going through ttsService.
+// Remove after confirming Cartesia API key/model works.
+app.get("/health/tts/cartesia-ping", async (_req, res) => {
+  const { getTtsCredential } = await import("./models/settingsModel.js");
+  let dbCred = null;
+  try { dbCred = getTtsCredential("cartesia"); } catch { /* ignore */ }
+  const apiKey = dbCred?.apiKey || process.env.CARTESIA_API_KEY || "";
+  const model = dbCred?.model || process.env.CARTESIA_MODEL || "sonic-3";
+  const voiceId = dbCred?.voiceId || process.env.CARTESIA_VOICE_ID || "694f9389-aac1-45b6-b726-9d9369183238";
+
+  if (!apiKey) return res.status(400).json({ error: "No Cartesia API key configured." });
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let response;
+    try {
+      response = await fetch("https://api.cartesia.ai/tts/bytes", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "X-API-Key": apiKey,
+          "Cartesia-Version": "2024-06-10",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transcript: "Test.",
+          model_id: model,
+          voice: { mode: "id", id: voiceId },
+          output_format: { container: "mp3", bit_rate: 128000, sample_rate: 44100 },
+        }),
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    const body = await response.text();
+    return res.json({
+      status: response.ok ? "ok" : "error",
+      httpStatus: response.status,
+      bodyLength: body.length,
+      bodyPreview: body.slice(0, 300),
+      model,
+      voiceId,
+      keyPrefix: apiKey.slice(0, 8) + "...",
+    });
+  } catch (err) {
+    return res.json({ status: "fetch_error", error: err.message });
+  }
+});
+
 app.use((err, _req, res, _next) => {
   console.error(err);
 
