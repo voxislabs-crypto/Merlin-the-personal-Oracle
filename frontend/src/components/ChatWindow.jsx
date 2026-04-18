@@ -1449,6 +1449,46 @@ function getResponseLensSummary(debug) {
   };
 }
 
+function buildTtsErrorMessage(error) {
+  const base = String(error?.message || "Failed to generate speech.").trim();
+  const provider = String(error?.ttsProvider || "").trim().toLowerCase();
+  const providerCode = String(error?.ttsProviderCode || "").trim().toLowerCase();
+  const providerStatus = Number(error?.ttsProviderStatus || 0);
+
+  if (!provider) {
+    return base;
+  }
+
+  const hint = provider === "cartesia"
+    ? providerStatus === 401 || providerStatus === 403
+      ? "Cartesia auth failed. Re-save your Cartesia API key in Voice Provider Credentials."
+      : providerStatus === 429
+        ? "Cartesia rate limit hit. Retry in a moment or switch providers."
+        : providerStatus === 504 || providerCode === "timeout"
+          ? "Cartesia timed out. Try shorter text or verify model/voice settings."
+          : providerStatus === 400 || /voice|model|invalid/.test(providerCode)
+            ? "Cartesia rejected the voice/model combo. Verify voice ID (UUID) and model."
+            : "Cartesia request failed. Verify provider credentials and voice/model settings."
+    : provider === "elevenlabs"
+      ? providerStatus === 429
+        ? "ElevenLabs is rate limited. Retry shortly or use another engine."
+        : "ElevenLabs request failed. Verify API key and selected voice."
+      : provider === "cloud"
+        ? providerStatus === 401 || providerStatus === 403
+          ? "Cloud TTS auth failed. Verify TTS/OpenAI API key configuration."
+          : providerStatus === 429
+            ? "Cloud TTS rate limit hit. Retry shortly."
+            : "Cloud TTS request failed. Verify provider settings."
+        : provider === "kokoro"
+          ? "Kokoro failed during synthesis. Check model preload and server resources."
+          : provider === "piper"
+            ? "Piper failed. Verify model path, binary, and synthesis timeout settings."
+            : "TTS provider request failed. Verify provider settings.";
+
+  const detailSuffix = ` [provider=${provider}${providerCode ? ` code=${providerCode}` : ""}${providerStatus ? ` status=${providerStatus}` : ""}]`;
+  return `${base} ${hint}${detailSuffix}`.trim();
+}
+
 const MAX_STREAM_READY_AUDIO = 3;
 const MAX_STREAM_SENTENCE_CHARS = 260;
 const DOT_PLACEHOLDER = "__VOXIS_DOT__";
@@ -1664,6 +1704,7 @@ export default function ChatWindow({
   const streamQueueProcessingRef = useRef(false);
   const streamPlaybackActiveRef = useRef(false);
   const streamAutoplayUsedRef = useRef(false);
+  const autoplayAssistantBaselineRef = useRef(0);
   const prevZoneKeyRef = useRef("");
   // Tracks the latest voice adjustments from the chat pipeline — applied to TTS requests
   const pendingVoiceAdjustmentsRef = useRef(null);
@@ -1688,6 +1729,11 @@ export default function ChatWindow({
   const latestAssistantSpeechText = useMemo(
     () => getAssistantSpeechContent(latestAssistantMessage),
     [latestAssistantMessage],
+  );
+
+  const assistantMessageCount = useMemo(
+    () => messages.reduce((count, message) => count + (message?.role === "assistant" ? 1 : 0), 0),
+    [messages],
   );
 
   const activeUsage = liveUsage || latestAssistantUsage;
@@ -1971,12 +2017,25 @@ export default function ChatWindow({
     setActivePersonalityEvents([]);
     streamAutoplaySessionRef.current = null;
     clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
+    autoplayAssistantBaselineRef.current = assistantMessageCount;
+    lastGeneratedRef.current = `${personality?.id || "none"}:${latestAssistantSpeechText}`;
     if (personalityEventsTimerRef.current) {
       window.clearTimeout(personalityEventsTimerRef.current);
     }
     setEmotionDrift([]);
     prevZoneKeyRef.current = "";
-  }, [personality?.id]);
+  }, [assistantMessageCount, latestAssistantSpeechText, personality?.id]);
+
+  useEffect(() => {
+    if (!voiceProfile.autoplay) {
+      return;
+    }
+
+    // Arming autoplay should not immediately replay the latest historical assistant
+    // response just because the tab/component became active.
+    autoplayAssistantBaselineRef.current = assistantMessageCount;
+    lastGeneratedRef.current = `${personality?.id || "none"}:${latestAssistantSpeechText}`;
+  }, [voiceProfile.autoplay, assistantMessageCount, latestAssistantSpeechText, personality?.id]);
 
   useEffect(() => {
     const nextValence = Number(avatarMood?.valence || 0);
@@ -2219,6 +2278,11 @@ export default function ChatWindow({
       return;
     }
 
+    // Only autoplay after a newly generated assistant turn in this session.
+    if (assistantMessageCount <= autoplayAssistantBaselineRef.current) {
+      return;
+    }
+
     const stamp = `${personality?.id || "none"}:${latestAssistantSpeechText}`;
     if (lastGeneratedRef.current === stamp) {
       return;
@@ -2231,6 +2295,7 @@ export default function ChatWindow({
     liveReply,
     latestAssistantMessage,
     latestAssistantSpeechText,
+    assistantMessageCount,
     messages.length,
     personality?.id,
     voiceProfile.autoplay,
@@ -2379,8 +2444,11 @@ export default function ChatWindow({
       const suffix = provider
         ? ` [provider=${provider}${providerCode ? ` code=${providerCode}` : ""}${providerStatus ? ` status=${providerStatus}` : ""}]`
         : "";
-
-      throw new Error(`${baseError}${suffix}`.trim());
+      const error = new Error(`${baseError}${suffix}`.trim());
+      error.ttsProvider = provider;
+      error.ttsProviderCode = providerCode;
+      error.ttsProviderStatus = providerStatus;
+      throw error;
     }
 
     const ttsTelemetryHeader = response.headers.get("X-Voxis-Tts-Telemetry");
@@ -2539,7 +2607,7 @@ export default function ChatWindow({
       if (error?.name !== "AbortError") {
         onStatus?.({
           type: "error",
-          message: error.message || "Failed to generate speech.",
+          message: buildTtsErrorMessage(error),
         });
       }
     } finally {
@@ -2655,7 +2723,7 @@ export default function ChatWindow({
 
       onStatus?.({
         type: "error",
-        message: error.message || "Failed to generate speech.",
+        message: buildTtsErrorMessage(error),
       });
     } finally {
       if (ttsRequestAbortRef.current === controller) {
