@@ -96,17 +96,28 @@ export const clerkVerify = async (req, res, next) => {
     return next();
   }
   try {
-    // @clerk/backend authenticateRequest expects a Web Fetch API Request, not an Express
-    // IncomingMessage. Build one from the Express req so it can read both the Authorization
-    // header (Bearer token) and __session cookie for all Clerk auth flows.
-    const proto = String(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim();
-    const host = String(req.headers["x-forwarded-host"] || req.headers.host || "localhost").split(",")[0].trim();
-    const url = `${proto}://${host}${req.originalUrl || req.url || "/"}`;
+    // @clerk/backend authenticateRequest expects a Web Fetch API Request.
+    // Build a minimal one with just the headers Clerk needs (Authorization + Cookie).
+    // The URL must be absolute; use a placeholder origin when the real one can't be resolved.
+    const proto = String(
+      req.headers["x-forwarded-proto"] || req.protocol || "https"
+    ).split(",")[0].trim() || "https";
+    const host = String(
+      req.headers["x-forwarded-host"] || req.headers.host || "localhost"
+    ).split(",")[0].trim() || "localhost";
+    const pathname = String(req.url || req.originalUrl || "/");
+    // Ensure pathname is absolute so the URL constructor doesn't throw.
+    const safePath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+    const url = `${proto}://${host}${safePath}`;
+
     const fetchHeaders = new Headers();
-    for (const [k, v] of Object.entries(req.headers || {})) {
-      const values = Array.isArray(v) ? v : [String(v)];
-      for (const val of values) fetchHeaders.append(k, val);
+    // Only copy headers Clerk actually needs — avoids issues with multi-value headers.
+    const clerkHeaders = ["authorization", "cookie", "x-clerk-auth-token", "origin", "referer"];
+    for (const key of clerkHeaders) {
+      const val = req.headers[key];
+      if (val) fetchHeaders.set(key, Array.isArray(val) ? val[0] : val);
     }
+
     const fetchReq = new Request(url, { method: req.method || "GET", headers: fetchHeaders });
     const requestState = await _clerkClient.authenticateRequest(fetchReq, {
       publishableKey: clerkPublishableKey,
