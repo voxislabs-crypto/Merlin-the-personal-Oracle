@@ -44,6 +44,17 @@ echo "→ Restarting backend..."
 export VOXIS_GIT_SHA="$(git -C "${APP_DIR}" rev-parse --short HEAD)"
 export VOXIS_BRANCH="${BRANCH}"
 export PM2_APP_NAME
+
+# Source backend/.env into the current shell so PM2 picks up every variable,
+# including TTS_ENGINE. PM2 does NOT read .env files itself.
+if [[ -f "${APP_DIR}/backend/.env" ]]; then
+	echo "  Sourcing backend/.env into shell environment"
+	set -o allexport
+	# shellcheck source=/dev/null
+	source "${APP_DIR}/backend/.env"
+	set +o allexport
+fi
+
 if [[ -f "${APP_DIR}/ecosystem.config.cjs" ]]; then
 	pm2 startOrReload "${APP_DIR}/ecosystem.config.cjs" --only "${PM2_APP_NAME}" --update-env
 else
