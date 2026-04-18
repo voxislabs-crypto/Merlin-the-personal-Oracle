@@ -382,6 +382,7 @@ Edit `backend/.env` with your API keys. All environment variables are optional â
 | `CARTESIA_API_KEY` | Cartesia API key |
 | `CARTESIA_VOICE_ID` | Default Cartesia voice |
 | `CARTESIA_MODEL` | Cartesia model (default: `sonic-3`) |
+| `TTS_REQUEST_TIMEOUT_MS` | Backend guard timeout for `/personality/:id/tts` (default: `18000`) |
 
 **Alternative credential paths:**
 
@@ -530,6 +531,7 @@ APP_DIR=/opt/voxis APP_NAME=voxis PM2_APP_NAME=voxis-backend bash deploy/diagnos
 | `LLM request failed with 401` | Re-save provider credentials in Settings or set `LLM_API_KEY` in `.env`, then restart PM2 with `--update-env` |
 | `Publishable key is missing` (Clerk) | Set `CLERK_SECRET_KEY` and one publishable key (`CLERK_PUBLISHABLE_KEY` preferred), then run `pm2 startOrReload ecosystem.config.cjs --only voxis-backend --update-env` |
 | Intermittent `502` with backend online | Run `deploy/diagnose-auth-stack.sh` to verify env file keys, PM2 runtime env, local health, nginx upstream, and public `/health` |
+| `Speech request failed ... upstream HTML 502` | Lower TTS request latency and force JSON diagnostics by setting `TTS_REQUEST_TIMEOUT_MS` (e.g. `15000`), then restart PM2 with `--update-env`; verify `/health` and `/health/tts` |
 | TTS forced to Piper but not working | Check `/health/tts` for `routing.envEngine`, verify `PIPER_COMMAND` and `PIPER_MODEL_PATH`, raise `PIPER_TIMEOUT_MS` if needed |
 | Kokoro `502` / HTML error page | Ensure `TTS_ENGINE=auto` or `kokoro` (not `piper` with debug lock on). Raise `PM2_MAX_MEMORY_RESTART` if seeing frequent memory restarts |
 | Replay shows HTML `502` in chat | Chat now auto-checks `/health/tts`, includes lock/engine/provider health hints, and exposes a one-click **Run diagnostics** action from the error toast. If lock is enabled and provider fails, verify provider credentials/voice/model or disable lock to permit fallback |

@@ -31,6 +31,50 @@ function setEncodedJsonHeader(res, name, payload, options) {
 }
 
 const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 18_000;
+
+function getTtsRequestTimeoutMs() {
+  const configured = Number(process.env.TTS_REQUEST_TIMEOUT_MS || DEFAULT_TTS_REQUEST_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) {
+    return DEFAULT_TTS_REQUEST_TIMEOUT_MS;
+  }
+  return Math.max(8_000, Math.min(60_000, Math.round(configured)));
+}
+
+function inferRequestedEngine(voiceProfile = {}) {
+  const envEngine = String(process.env.TTS_ENGINE || "").trim().toLowerCase();
+  if (envEngine && envEngine !== "auto") {
+    return envEngine;
+  }
+
+  return String(voiceProfile?.engine || "auto").trim().toLowerCase() || "auto";
+}
+
+async function generateSpeechAudioWithTimeout(options, timeoutMs) {
+  let timer = null;
+
+  try {
+    return await Promise.race([
+      generateSpeechAudio(options),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error(
+            `Speech synthesis timed out after ${timeoutMs}ms before the provider returned audio.`,
+          );
+          error.statusCode = 504;
+          error.ttsProvider = inferRequestedEngine(options?.voiceProfile);
+          error.ttsProviderCode = "backend_timeout";
+          error.providerStatus = 504;
+          reject(error);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
 
 export async function listPiperVoicesHandler(req, res, next) {
   try {
@@ -93,12 +137,12 @@ export async function generateSpeechHandler(req, res, next) {
             : "TTS is not configured. Configure cloud TTS (TTS_API_KEY/TTS_BASE_URL) or Piper (PIPER_MODEL_PATH) in backend/.env.",
       });
     }
-    const audio = await generateSpeechAudio({
+    const audio = await generateSpeechAudioWithTimeout({
       personality,
       text,
       voiceProfile,
       speechHint,
-    });
+    }, getTtsRequestTimeoutMs());
 
     res.setHeader("Content-Type", audio.contentType);
     res.setHeader("Cache-Control", "no-store");
