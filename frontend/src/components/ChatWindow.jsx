@@ -253,6 +253,47 @@ const chatStyles = `
     max-height: 260px;
     white-space: pre-wrap;
   }
+  .debug-summary {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 180, 255, 0.18);
+    background: rgba(2, 16, 28, 0.88);
+    color: #b6ecff;
+  }
+
+  .debug-summary-title {
+    display: block;
+    margin-bottom: 6px;
+    color: #7fdfff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .debug-summary-body {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  .debug-summary-meta {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .debug-summary-chip {
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 180, 255, 0.16);
+    background: rgba(0, 180, 255, 0.08);
+    color: #8ddfff;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
 
   .message-role {
     display: block;
@@ -1364,6 +1405,48 @@ function getAssistantDisplayContent(message, mode) {
 function getAssistantSpeechContent(message) {
   const rawContent = String(message?.content || "");
   return String(message?.displayContent || "") || extractEPFDialogue(rawContent) || rawContent;
+}
+
+function getResponseLensSummary(debug) {
+  const lens = debug?.responseLens;
+  const label = String(lens?.label || lens?.id || "").trim();
+  if (!label) {
+    return null;
+  }
+
+  const source = String(lens?.source || "default").trim();
+  const score = Number(lens?.score);
+  const priorities = Array.isArray(lens?.priority)
+    ? lens.priority.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const reasons = Array.isArray(lens?.reasons)
+    ? lens.reasons.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  let body = `This reply was routed through the ${label} lens.`;
+  if (priorities.length > 0) {
+    body += ` That means the model was pushed to ${priorities[0]}.`;
+  }
+  if (reasons.length > 0) {
+    body += ` It was selected because ${reasons[0].charAt(0).toLowerCase()}${reasons[0].slice(1)}.`;
+  } else if (source === "default") {
+    body += " No stronger lens matched, so the system fell back to the persona's default focus.";
+  }
+
+  const chips = [
+    `lens: ${label}`,
+    `source: ${source}`,
+  ];
+
+  if (Number.isFinite(score)) {
+    chips.push(`score: ${score.toFixed(2)}`);
+  }
+
+  return {
+    title: "Response Lens",
+    body,
+    chips,
+  };
 }
 
 const MAX_STREAM_READY_AUDIO = 3;
@@ -3173,7 +3256,25 @@ export default function ChatWindow({
                       message.content
                     )}
                     {debugMode && message.role === "assistant" && message.debug ? (
-                      <pre className="debug-panel">{JSON.stringify(message.debug, null, 2)}</pre>
+                      (() => {
+                        const lensSummary = getResponseLensSummary(message.debug);
+                        return (
+                          <>
+                            {lensSummary ? (
+                              <div className="debug-summary">
+                                <span className="debug-summary-title">{lensSummary.title}</span>
+                                <p className="debug-summary-body">{lensSummary.body}</p>
+                                <div className="debug-summary-meta">
+                                  {lensSummary.chips.map((chip) => (
+                                    <span key={chip} className="debug-summary-chip">{chip}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                            <pre className="debug-panel">{JSON.stringify(message.debug, null, 2)}</pre>
+                          </>
+                        );
+                      })()
                     ) : null}
                   </div>
                 ))}

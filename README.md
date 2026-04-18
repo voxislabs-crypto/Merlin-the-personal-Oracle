@@ -211,6 +211,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 
 - **Per-turn debug payloads** — mood transitions, memory retrieval details, injected memory subsets, goal selection, prompt-budget decisions, adjudication diagnostics, and system flags.
 - **Lens selection debug** — the active response lens, score, and candidate ranking are surfaced in chat debug so you can verify why a turn leaned toward courage, compassion, justice, or another focus.
+- **Plain-English debug summary** — the chat debug panel now explains the selected response lens in human terms before the raw JSON, so you can sanity-check behavior without reading backend internals.
 - **Toggleable debug panel** in the chat UI renders all telemetry per assistant turn.
 - **Adversarial harness** — built-in scenarios (reform pressure, false vulnerability, authority pressure, guilt leverage, villain marathon) with heuristic drift flags, per-scenario scoring, prompt telemetry, and optional LLM judge summary.
 - **TTS telemetry** — speech director transformation preview, prosody compilation metadata, emotion frame, engine routing path, and fallback recovery details.
