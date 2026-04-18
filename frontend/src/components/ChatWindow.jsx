@@ -1488,7 +1488,11 @@ function buildTtsErrorMessage(error) {
   };
 
   if (isHtmlErrorPage && httpStatus === 502) {
-    const lockHint = TTS_DEBUG_PROVIDER_LOCK
+    const effectiveLockEnabled = ttsHealthSnapshot && typeof ttsHealthSnapshot === "object"
+      ? Boolean(ttsHealthSnapshot?.routing?.debugLockEnabled)
+      : TTS_DEBUG_PROVIDER_LOCK;
+
+    const lockHint = effectiveLockEnabled
       ? " Debug lock is enabled, so fallback engines may be blocked; verify the active provider credentials/voice/model or temporarily disable the lock for fallback."
       : "";
 

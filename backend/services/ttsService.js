@@ -2032,6 +2032,27 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
       );
     }
 
+    // Explicit Cartesia mode is common in production. When Cartesia has
+    // timeout/network/upstream instability, degrade to another configured
+    // engine instead of surfacing opaque gateway failures.
+    if (requested === "cartesia" || provider === "cartesia") {
+      if (isTtsDebugProviderLockEnabled()) {
+        return false;
+      }
+
+      return (
+        statusCode === 502 ||
+        statusCode === 503 ||
+        statusCode === 504 ||
+        upstreamStatus === 502 ||
+        upstreamStatus === 503 ||
+        upstreamStatus === 504 ||
+        providerCode === "timeout" ||
+        providerCode === "network_error" ||
+        providerCode === "backend_timeout"
+      );
+    }
+
     // Piper process failures (binary missing, model not found, timeout) should
     // always degrade to the next configured engine rather than surface a 502.
     if (requested === "piper" || provider === "piper") {
