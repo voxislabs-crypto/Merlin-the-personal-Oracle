@@ -14,6 +14,13 @@ module.exports = {
         PORT: process.env.PORT || "3101",
         // TTS vars: read from shell env when pm2 loads this config, fall back to safe defaults.
         // "set -a && source backend/.env && set +a" before pm2 startOrReload exports these properly.
+        // Clerk: forward canonical key name so @clerk/express per-request env lookups work.
+        CLERK_PUBLISHABLE_KEY:
+          process.env.CLERK_PUBLISHABLE_KEY ||
+          process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+          process.env.VITE_CLERK_PUBLISHABLE_KEY ||
+          "",
+        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || "",
         TTS_ENGINE: process.env.TTS_ENGINE || "auto",
         TTS_DEBUG_PROVIDER_LOCK: process.env.TTS_DEBUG_PROVIDER_LOCK ?? "false",
         TTS_DISABLE_KOKORO: process.env.TTS_DISABLE_KOKORO ?? "false",

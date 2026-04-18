@@ -47,6 +47,13 @@ if ((!clerkPublishableKey || !clerkSecretKey) && !allowMissingClerkKeys && proce
   );
 }
 
+// @clerk/express re-reads process.env.CLERK_PUBLISHABLE_KEY at request time (per-request
+// AuthenticateContext construction), regardless of the publishableKey option passed at init.
+// Normalize the canonical var name so both our code and the SDK internals find the same key.
+if (clerkPublishableKey && !process.env.CLERK_PUBLISHABLE_KEY) {
+  process.env.CLERK_PUBLISHABLE_KEY = clerkPublishableKey;
+}
+
 console.info("[Auth] Clerk env", {
   publishableKeyPresent: Boolean(clerkPublishableKey),
   publishableKeyFrom: clerkPublishableKeyFrom || "missing",
