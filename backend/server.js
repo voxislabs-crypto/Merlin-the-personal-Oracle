@@ -1,6 +1,16 @@
 import express from "express";
 import cors from "cors";
 
+// Prevent unhandled async errors (e.g. from Clerk middleware in @clerk/express) from crashing
+// the Node process. Express catches synchronous errors, but some middleware throws outside
+// the request-response cycle. Log and continue.
+process.on("unhandledRejection", (reason) => {
+  console.error("[Process] Unhandled promise rejection (non-fatal):", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[Process] Uncaught exception (non-fatal):", err);
+});
+
 import personalityRoutes from "./routes/personalityRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";

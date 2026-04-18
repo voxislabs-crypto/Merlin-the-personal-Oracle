@@ -47,11 +47,16 @@ if ((!clerkPublishableKey || !clerkSecretKey) && !allowMissingClerkKeys && proce
   );
 }
 
-// @clerk/express re-reads process.env.CLERK_PUBLISHABLE_KEY at request time (per-request
-// AuthenticateContext construction), regardless of the publishableKey option passed at init.
-// Normalize the canonical var name so both our code and the SDK internals find the same key.
-if (clerkPublishableKey && !process.env.CLERK_PUBLISHABLE_KEY) {
-  process.env.CLERK_PUBLISHABLE_KEY = clerkPublishableKey;
+// @clerk/shared's parsePublishableKey reads NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY first, then
+// CLERK_PUBLISHABLE_KEY. Servers typically only have one alias set. Normalize both so Clerk's
+// per-request AuthenticateContext construction finds the key regardless of which it checks.
+if (clerkPublishableKey) {
+  if (!process.env.CLERK_PUBLISHABLE_KEY) {
+    process.env.CLERK_PUBLISHABLE_KEY = clerkPublishableKey;
+  }
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = clerkPublishableKey;
+  }
 }
 
 console.info("[Auth] Clerk env", {
