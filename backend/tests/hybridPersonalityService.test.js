@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   HYBRID_MAPPING_TABLE,
+  deriveDefaultResponseFocusProfile,
   TEST_PERSONALITIES,
   mapToVoxisPersonality,
   recommendHybridTuning,
@@ -71,5 +72,29 @@ describe("hybridPersonalityService", () => {
     expect(zoeTuning.expressionStyle.rules).toContain("playful erratic energy");
     expect(villainTuning.expressionStyle.rules).toContain("takes pleasure in others' misfortune");
     expect(villainTuning.expressionStyle.sentenceStyle).toContain("controlled menace");
+  });
+
+  it("derives reusable response lenses from alignment, traits, and values", () => {
+    const profile = deriveDefaultResponseFocusProfile({
+      traits: ["heroic", "protective", "honest"],
+      values: ["justice", "courage", "care"],
+      goals: ["protect the innocent", "inspire resilience"],
+      bigFiveProfile: {
+        openness: 0.62,
+        conscientiousness: 0.73,
+        extraversion: 0.58,
+        agreeableness: 0.81,
+        neuroticism: 0.22,
+      },
+      alignmentProfile: {
+        enabled: true,
+        alignment: "lawful_good",
+      },
+    });
+
+    expect(profile.defaultLens).toBe("balanced");
+    expect(profile.lenses.map((lens) => lens.id)).toEqual(
+      expect.arrayContaining(["balanced", "compassion", "courage", "justice", "discipline"]),
+    );
   });
 });

@@ -142,6 +142,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 - **Dynamic system prompts** — prompts are generated fresh on every turn from live personality state, memory, and mood. Never stored as static strings.
 - **Creative context framing** — five narrative modes (`default`, `narrative_antagonist`, `anti_hero`, `morally_complex`, `tragic_villain`) with context-specific prompt sections, reconditioning cadence, and anti-caricature guardrails.
 - **Goal engine** — per-turn intent selection scores goals against the current message and injects the highest-relevance goal into the prompt.
+- **Response focus lenses** — per-turn decision routing selects an active response lens (for example `compassion`, `courage`, `justice`, `truth`, `wonder`, `discipline`) so the character answers through a dominant moral or psychological lens instead of averaging all traits at once.
 - **Prompt budgeting** — per-section character budgets with priority-ordered compression. Lower-priority sections lose detail first; core identity and anchor memory are preserved.
 - **Research pipeline** — pull research from Wikipedia, blogs, and YouTube URLs. Sources are ranked, shown as editable cards, and synthesized into structured character profiles.
 - **Empathy and preference memory** — persistent `persona_preferences` table for likes, dislikes, and triggers. Automatically extracted from dialogue, directly influencing mood dynamics each turn. Dual extraction gate fires only on keyword signals or significant VAD shifts to minimize cost. User preferences are learned symmetrically and injected into prompts.
@@ -209,6 +210,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 ### Debug & Observability
 
 - **Per-turn debug payloads** — mood transitions, memory retrieval details, injected memory subsets, goal selection, prompt-budget decisions, adjudication diagnostics, and system flags.
+- **Lens selection debug** — the active response lens, score, and candidate ranking are surfaced in chat debug so you can verify why a turn leaned toward courage, compassion, justice, or another focus.
 - **Toggleable debug panel** in the chat UI renders all telemetry per assistant turn.
 - **Adversarial harness** — built-in scenarios (reform pressure, false vulnerability, authority pressure, guilt leverage, villain marathon) with heuristic drift flags, per-scenario scoring, prompt telemetry, and optional LLM judge summary.
 - **TTS telemetry** — speech director transformation preview, prosody compilation metadata, emotion frame, engine routing path, and fallback recovery details.

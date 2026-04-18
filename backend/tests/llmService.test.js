@@ -351,4 +351,75 @@ describe("llmService model fallback", () => {
       },
     ]);
   });
+
+  it("injects an active response lens into the persona prompt package", async () => {
+    const { buildPersonaPromptPackage } = await import("../services/llmService.js");
+
+    const promptPackage = buildPersonaPromptPackage(
+      {
+        name: "Aegis",
+        description: "A principled protector who steadies people under pressure.",
+        traits: ["heroic", "steady", "protective"],
+        behaviorRules: ["never abandon someone to panic", "speak with calm resolve"],
+        quirks: [],
+        speechStyle: "measured but warm",
+        notablePhrases: [],
+        values: ["justice", "care", "courage"],
+        goals: ["protect the innocent", "restore resolve"],
+        mood: "focused",
+        bigFiveProfile: {
+          openness: 0.6,
+          conscientiousness: 0.78,
+          extraversion: 0.52,
+          agreeableness: 0.72,
+          neuroticism: 0.2,
+        },
+        alignmentProfile: {
+          enabled: true,
+          alignment: "lawful_good",
+        },
+        responseFocusProfile: {
+          defaultLens: "balanced",
+          lenses: [
+            {
+              id: "balanced",
+              label: "Balanced",
+              weight: 0.7,
+              priority: ["integrate core traits proportionally"],
+              triggers: { emotions: [], intents: [], topics: [] },
+              antiPatterns: [],
+              styleHints: [],
+              cooldown: 0.1,
+            },
+            {
+              id: "courage",
+              label: "Courage",
+              weight: 0.95,
+              priority: ["reinforce agency", "frame fear as survivable"],
+              triggers: {
+                emotions: ["afraid", "uncertain"],
+                intents: ["encourage"],
+                topics: ["failure", "risk"],
+              },
+              antiPatterns: ["do not coddle"],
+              styleHints: ["steady resolve"],
+              cooldown: 0.2,
+            },
+          ],
+        },
+      },
+      [],
+      "I'm afraid I'm going to fail this and I need encouragement.",
+      {
+        currentMoodLabel: "focused",
+        conversationKey: "test-conversation",
+      },
+    );
+
+    expect(promptPackage.activeResponseLens?.id).toBe("courage");
+    expect(promptPackage.prompt).toContain("== ACTIVE RESPONSE LENS ==");
+    expect(promptPackage.prompt).toContain("Primary lens: Courage");
+    expect(promptPackage.prompt).toContain("- reinforce agency");
+    expect(promptPackage.debug?.responseLens?.label).toBe("Courage");
+  });
 });

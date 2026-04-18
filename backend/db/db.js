@@ -68,6 +68,11 @@ ensureColumn(
 );
 ensureColumn(
   "personalities",
+  "responseFocusProfile",
+  `TEXT NOT NULL DEFAULT '{"defaultLens":"balanced","lenses":[]}'`,
+);
+ensureColumn(
+  "personalities",
   "expressionStyle",
   `TEXT NOT NULL DEFAULT '{"sentenceStyle":"","interruptionRate":0.3,"energy":"medium","rules":[]}'`,
 );

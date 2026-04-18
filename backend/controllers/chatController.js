@@ -702,9 +702,13 @@ export async function chatHandler(req, res, next) {
     const rawHistoryTurns = isPersonalQuery(message)
       ? await searchRawChatHistory(personalityId, message, 3).catch(() => [])
       : [];
-    const promptPackage = buildPersonaPromptPackage(personality, memoryFacts, message);
+    const promptPackage = buildPersonaPromptPackage(personality, memoryFacts, message, {
+      currentMoodLabel: moodLabel,
+      conversationKey: `${personalityId}:${userScopedId ?? "anon"}`,
+    });
     const systemPrompt = promptPackage.prompt;
     streamedDebugData.goal = promptPackage.activeGoal;
+    streamedDebugData.responseLens = promptPackage.activeResponseLens;
     streamedDebugData.memoryRetrieved = memoryFacts.map((memory) => ({
       content: memory.content,
       importance: memory.importance,
@@ -1074,6 +1078,7 @@ export async function chatHandler(req, res, next) {
     });
     const debugData = {
       goal: promptPackage.activeGoal,
+      responseLens: promptPackage.activeResponseLens,
       policy,
       mood: {
         before: currentMood,

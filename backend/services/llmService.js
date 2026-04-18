@@ -16,6 +16,7 @@ const CONTEXT_BUDGET_ENV_KEYS = {
 import { getLlmRuntimeConfig, setLlmRuntimeConfig } from "../models/settingsModel.js";
 import { fetchProviderModels } from "./providerDiscoveryService.js";
 import { buildEPFAudioConstraintNote, normalizeSingingProfile, resolveEmotionNode } from "./singingEngine.js";
+import { deriveDefaultResponseFocusProfile } from "./hybridPersonalityService.js";
 
 function getLlmConfig() {
   const envApiKey = String(process.env.LLM_API_KEY || "").trim();
@@ -846,6 +847,231 @@ function tokenizeForRelevance(text) {
   );
 }
 
+const responseLensConversationState = new Map();
+
+function normalizeStringArray(values = []) {
+  return Array.from(
+    new Set(
+      (Array.isArray(values) ? values : [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function ensureResponseFocusProfile(personality = {}) {
+  const profile = personality?.responseFocusProfile && typeof personality.responseFocusProfile === "object"
+    ? personality.responseFocusProfile
+    : null;
+
+  if (!profile || !Array.isArray(profile.lenses) || profile.lenses.length === 0) {
+    return deriveDefaultResponseFocusProfile({
+      traits: personality?.traits,
+      values: personality?.values,
+      goals: personality?.goals,
+      bigFiveProfile: personality?.bigFiveProfile,
+      alignmentProfile: personality?.alignmentProfile,
+    });
+  }
+
+  return {
+    defaultLens: String(profile.defaultLens || "balanced").trim().toLowerCase() || "balanced",
+    lenses: profile.lenses
+      .map((lens) => {
+        if (!lens || typeof lens !== "object") {
+          return null;
+        }
+        const triggers = lens.triggers && typeof lens.triggers === "object" ? lens.triggers : {};
+        const id = String(lens.id || lens.label || "").trim().toLowerCase();
+        if (!id) {
+          return null;
+        }
+        return {
+          id,
+          label: String(lens.label || id).trim() || id,
+          weight: clampNumber(lens.weight, 0, 1, 0.5),
+          priority: normalizeStringArray(lens.priority).slice(0, 6),
+          triggers: {
+            emotions: normalizeStringArray(triggers.emotions).slice(0, 6),
+            intents: normalizeStringArray(triggers.intents).slice(0, 6),
+            topics: normalizeStringArray(triggers.topics).slice(0, 6),
+          },
+          styleHints: normalizeStringArray(lens.styleHints).slice(0, 4),
+          antiPatterns: normalizeStringArray(lens.antiPatterns).slice(0, 4),
+          cooldown: clampNumber(lens.cooldown, 0, 1, 0.15),
+        };
+      })
+      .filter(Boolean),
+  };
+}
+
+function triggerMatches(trigger, text, tokens) {
+  const normalized = String(trigger || "").trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (text.includes(normalized)) {
+    return true;
+  }
+
+  if (normalized.includes(" ")) {
+    const parts = normalized.split(/\s+/).filter(Boolean);
+    return parts.length > 0 && parts.every((part) => tokens.has(part));
+  }
+
+  return tokens.has(normalized);
+}
+
+function getTriggerGroupScore({ triggers = [], label, weight, text, tokens }) {
+  const matches = normalizeStringArray(triggers).filter((trigger) => triggerMatches(trigger, text, tokens));
+  if (!matches.length) {
+    return { score: 0, reasons: [], matches: [] };
+  }
+
+  return {
+    score: matches.length * weight,
+    reasons: [`${label}: ${matches.join(", ")}`],
+    matches,
+  };
+}
+
+export function selectActiveResponseLens(
+  personality,
+  queryText = "",
+  memoryFacts = [],
+  activeGoal = null,
+  options = {},
+) {
+  const profile = ensureResponseFocusProfile(personality);
+  const lenses = Array.isArray(profile?.lenses) ? profile.lenses : [];
+  if (!lenses.length) {
+    return null;
+  }
+
+  const defaultLens =
+    lenses.find((lens) => lens.id === profile.defaultLens)
+    || lenses.find((lens) => lens.id === "balanced")
+    || lenses[0];
+  const query = String(queryText || "").trim().toLowerCase();
+  const queryTokens = tokenizeForRelevance(query);
+  const memoryText = memoryFacts.map((fact) => fact.content).join(" ").toLowerCase();
+  const memoryTokens = tokenizeForRelevance(memoryText);
+  const goalText = String(activeGoal?.goal || "").trim().toLowerCase();
+  const goalTokens = tokenizeForRelevance(goalText);
+  const moodText = String(options.currentMoodLabel || "").trim().toLowerCase();
+  const moodTokens = tokenizeForRelevance(moodText);
+  const conversationKey = String(options.conversationKey || "").trim();
+  const previousState = conversationKey ? responseLensConversationState.get(conversationKey) : null;
+  const lastLensId = previousState?.lensId || null;
+  const lastLensStreak = Math.max(1, Number(previousState?.streak) || 1);
+
+  const scored = lenses.map((lens, index) => {
+    const reasons = [];
+    const emotionScore = getTriggerGroupScore({
+      triggers: lens.triggers?.emotions,
+      label: "emotion",
+      weight: 1.2,
+      text: `${query} ${moodText}`,
+      tokens: new Set([...queryTokens, ...moodTokens]),
+    });
+    const intentScore = getTriggerGroupScore({
+      triggers: lens.triggers?.intents,
+      label: "intent",
+      weight: 1.0,
+      text: query,
+      tokens: queryTokens,
+    });
+    const topicScore = getTriggerGroupScore({
+      triggers: lens.triggers?.topics,
+      label: "topic",
+      weight: 0.8,
+      text: `${query} ${memoryText}`,
+      tokens: new Set([...queryTokens, ...memoryTokens]),
+    });
+
+    let baseScore = emotionScore.score + intentScore.score + topicScore.score;
+    reasons.push(...emotionScore.reasons, ...intentScore.reasons, ...topicScore.reasons);
+
+    if (goalText) {
+      const goalOverlap = normalizeStringArray(lens.priority).reduce((count, item) => {
+        const itemTokens = tokenizeForRelevance(item);
+        let overlap = 0;
+        for (const token of itemTokens) {
+          if (goalTokens.has(token)) {
+            overlap += 1;
+          }
+        }
+        return count + overlap;
+      }, 0);
+      if (goalOverlap > 0) {
+        const goalBonus = goalOverlap * 0.35;
+        baseScore += goalBonus;
+        reasons.push(`goal: ${activeGoal.goal}`);
+      }
+    }
+
+    if (memoryText && memoryText.includes(lens.id)) {
+      baseScore += 0.25;
+      reasons.push(`memory: ${lens.id}`);
+    }
+
+    if (lastLensId === lens.id) {
+      baseScore += 0.15;
+      reasons.push("momentum: carry forward");
+      if (lastLensStreak > 1 && lens.cooldown > 0) {
+        const cooldownPenalty = Math.min(0.25, lens.cooldown * 0.1 * (lastLensStreak - 1));
+        baseScore -= cooldownPenalty;
+        reasons.push(`cooldown: -${cooldownPenalty.toFixed(2)}`);
+      }
+    } else if (lastLensId) {
+      baseScore -= 0.05;
+      reasons.push("momentum: switch resistance");
+    }
+
+    if (lens.id === defaultLens.id) {
+      baseScore += 0.05;
+    }
+
+    const finalScore = Number((baseScore * Math.max(0.05, lens.weight)).toFixed(4));
+    return {
+      ...lens,
+      index,
+      score: finalScore,
+      reasons,
+    };
+  });
+
+  scored.sort((left, right) => right.score - left.score || left.index - right.index);
+  const selected = scored[0]?.score > 0 ? scored[0] : { ...defaultLens, score: 0, reasons: ["default lens fallback"] };
+
+  if (conversationKey && selected?.id) {
+    responseLensConversationState.set(conversationKey, {
+      lensId: selected.id,
+      streak: lastLensId === selected.id ? lastLensStreak + 1 : 1,
+    });
+  }
+
+  return {
+    id: selected.id,
+    label: selected.label,
+    weight: selected.weight,
+    priority: selected.priority,
+    triggers: selected.triggers,
+    styleHints: selected.styleHints,
+    antiPatterns: selected.antiPatterns,
+    cooldown: selected.cooldown,
+    score: selected.score,
+    reasons: selected.reasons,
+    source: selected.score > 0 ? "relevance" : "default",
+    allScores: scored.map((lens) => ({
+      id: lens.id,
+      label: lens.label,
+      score: lens.score,
+    })),
+  };
+}
+
 function getGoalRelevanceScore(goal, queryText, memoryFacts = []) {
   const goalTokens = tokenizeForRelevance(goal);
   if (!goalTokens.size) {
@@ -909,6 +1135,39 @@ function buildGoalPrompt(activeGoal) {
     `You are currently trying to: ${activeGoal.goal}`,
     "Subtly bias your responses toward progressing this aim without bluntly announcing it unless the character naturally would.",
   ].join("\n");
+}
+
+function buildResponseLensPrompt(activeResponseLens) {
+  if (!activeResponseLens?.label) {
+    return null;
+  }
+
+  const lines = [
+    "== ACTIVE RESPONSE LENS ==",
+    `Primary lens: ${activeResponseLens.label}`,
+    "This lens should dominate decision-making for this turn.",
+    "It should take priority over secondary traits when shaping framing, emphasis, and moral interpretation.",
+    "",
+    "Priorities:",
+    ...normalizeStringArray(activeResponseLens.priority).map((item) => `- ${item}`),
+  ];
+
+  const antiPatterns = normalizeStringArray(activeResponseLens.antiPatterns);
+  if (antiPatterns.length) {
+    lines.push("", "Avoid:", ...antiPatterns.map((item) => `- ${item}`));
+  }
+
+  const styleHints = normalizeStringArray(activeResponseLens.styleHints);
+  if (styleHints.length) {
+    lines.push("", `Style hints: ${styleHints.join(" | ")}`);
+  }
+
+  lines.push(
+    "",
+    "Maintain core persona identity at all times. Let this lens steer tone, framing, and priorities without replacing values or goals.",
+  );
+
+  return lines.join("\n");
 }
 
 export async function generateChatCompletion(messages) {
@@ -1361,7 +1620,7 @@ function buildVoiceGuardrails({
   return guardrails.map((line) => `- ${line}`).join("\n");
 }
 
-export function buildPersonaPromptPackage(personality, memoryFacts = [], queryText = "") {
+export function buildPersonaPromptPackage(personality, memoryFacts = [], queryText = "", options = {}) {
   const {
     name,
     description,
@@ -1384,6 +1643,7 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
   const frame = CREATIVE_CONTEXT_FRAMES[creativeContext] || null;
   const promptBudget = getContextPromptBudget(creativeContext);
   const activeGoal = selectActiveGoal(personality, queryText, memoryFacts);
+  const activeResponseLens = selectActiveResponseLens(personality, queryText, memoryFacts, activeGoal, options);
 
   // Anchor facts (importance >= 9) are immutable identity truths shown first.
   // Regular facts are learned context that can evolve over time.
@@ -1479,6 +1739,8 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
 
   const goalPrompt = buildGoalPrompt(activeGoal);
   const goalPromptTokens = estimateTokenCount(goalPrompt);
+  const responseLensPrompt = buildResponseLensPrompt(activeResponseLens);
+  const responseLensPromptTokens = estimateTokenCount(responseLensPrompt);
   const alignmentBlock = alignmentSection
     ? ["== MORAL COMPASS ==", alignmentSection].join("\n")
     : "";
@@ -1523,6 +1785,8 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
     "== VALUES & MOTIVATIONS ==",
     `Values:\n${valuesSection}`,
     `\nGoals:\n${goalsSection}`,
+    responseLensPrompt ? "" : null,
+    responseLensPrompt,
     "",
     "== CURRENT EMOTIONAL REGISTER ==",
     mood || "Neutral",
@@ -1560,8 +1824,10 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
   return {
     prompt: finalPrompt,
     activeGoal,
+    activeResponseLens,
     debug: {
       promptBudget: describePersonaPromptBudget(personality, finalPrompt),
+      responseLens: activeResponseLens,
       sections: {
         traits: {
           total: Array.isArray(traits) ? traits.length : 0,
@@ -1592,6 +1858,12 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
           active: activeGoal?.goal || null,
           source: activeGoal?.source || null,
           approxTokens: goalPromptTokens,
+        },
+        responseLens: {
+          active: activeResponseLens?.label || null,
+          source: activeResponseLens?.source || null,
+          score: activeResponseLens?.score ?? null,
+          approxTokens: responseLensPromptTokens,
         },
         research: {
           usedChars: researchSection.length,
@@ -1626,8 +1898,8 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
   };
 }
 
-export function buildPersonaSystemPrompt(personality, memoryFacts = [], queryText = "") {
-  return buildPersonaPromptPackage(personality, memoryFacts, queryText).prompt;
+export function buildPersonaSystemPrompt(personality, memoryFacts = [], queryText = "", options = {}) {
+  return buildPersonaPromptPackage(personality, memoryFacts, queryText, options).prompt;
 }
 
 export function describePersonaPromptBudget(personality, promptText) {

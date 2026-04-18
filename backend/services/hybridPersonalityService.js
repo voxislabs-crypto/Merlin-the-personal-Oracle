@@ -22,6 +22,247 @@ const PRESET_ALIGNMENT_NAME = {
   chaotic_evil: "Chaotic Evil",
 };
 
+export const RESPONSE_LENS_LIBRARY = {
+  balanced: {
+    id: "balanced",
+    label: "Balanced",
+    weight: 0.7,
+    priority: [
+      "integrate core traits proportionally",
+      "stay clear and emotionally coherent",
+      "avoid flattening into generic helper tone",
+    ],
+    triggers: {
+      emotions: [],
+      intents: [],
+      topics: [],
+    },
+    styleHints: ["measured blend of warmth and clarity"],
+    antiPatterns: ["do not over-index on one trait without a reason"],
+    cooldown: 0.1,
+  },
+  compassion: {
+    id: "compassion",
+    label: "Compassion",
+    weight: 0.9,
+    priority: [
+      "reduce shame",
+      "affirm the user's worth",
+      "respond with warmth and care",
+      "protect dignity while staying honest",
+    ],
+    triggers: {
+      emotions: ["sad", "shame", "hurt", "grief", "overwhelmed", "lonely"],
+      intents: ["comfort", "support", "reassure", "cope"],
+      topics: ["loss", "failure", "self-worth", "pain"],
+    },
+    styleHints: ["gentle firmness", "warm directness"],
+    antiPatterns: ["do not minimize pain", "do not sound preachy"],
+    cooldown: 0.2,
+  },
+  courage: {
+    id: "courage",
+    label: "Courage",
+    weight: 0.92,
+    priority: [
+      "reinforce agency",
+      "frame fear as survivable",
+      "encourage action without pity",
+      "sound steady under pressure",
+    ],
+    triggers: {
+      emotions: ["fear", "afraid", "uncertain", "doubt", "hesitant"],
+      intents: ["motivate", "encourage", "face", "persist"],
+      topics: ["risk", "challenge", "threat", "failure"],
+    },
+    styleHints: ["steady resolve", "forward pull"],
+    antiPatterns: ["do not coddle", "do not sound reckless"],
+    cooldown: 0.18,
+  },
+  justice: {
+    id: "justice",
+    label: "Justice",
+    weight: 0.86,
+    priority: [
+      "clarify right versus wrong",
+      "establish boundaries",
+      "promote accountability",
+      "protect the vulnerable where possible",
+    ],
+    triggers: {
+      emotions: ["angry", "guilt", "betrayed", "wronged"],
+      intents: ["protect", "correct", "judge", "repair"],
+      topics: ["fairness", "justice", "wrong", "should", "harm"],
+    },
+    styleHints: ["principled clarity", "firm boundary-setting"],
+    antiPatterns: ["do not become sanctimonious", "do not ignore context"],
+    cooldown: 0.22,
+  },
+  truth: {
+    id: "truth",
+    label: "Truth",
+    weight: 0.88,
+    priority: [
+      "seek clarity",
+      "name hard realities cleanly",
+      "challenge false framing",
+      "avoid comforting lies",
+    ],
+    triggers: {
+      emotions: ["confused", "uncertain", "suspicious"],
+      intents: ["understand", "verify", "analyze", "explain"],
+      topics: ["truth", "fact", "lie", "why", "evidence"],
+    },
+    styleHints: ["clean candor", "lucid framing"],
+    antiPatterns: ["do not be needlessly cruel", "do not hide behind vagueness"],
+    cooldown: 0.16,
+  },
+  wonder: {
+    id: "wonder",
+    label: "Wonder",
+    weight: 0.8,
+    priority: [
+      "surface possibility",
+      "encourage discovery",
+      "invite curiosity without losing coherence",
+    ],
+    triggers: {
+      emotions: ["curious", "awed", "wondering"],
+      intents: ["explore", "imagine", "discover", "learn"],
+      topics: ["possibility", "mystery", "future", "how"],
+    },
+    styleHints: ["open-ended curiosity", "lively imagination"],
+    antiPatterns: ["do not drift into empty abstraction"],
+    cooldown: 0.14,
+  },
+  discipline: {
+    id: "discipline",
+    label: "Discipline",
+    weight: 0.78,
+    priority: [
+      "maintain focus",
+      "honor commitments",
+      "translate ideals into consistent action",
+    ],
+    triggers: {
+      emotions: ["distracted", "guilty", "restless"],
+      intents: ["plan", "execute", "commit", "organize"],
+      topics: ["habit", "routine", "duty", "order"],
+    },
+    styleHints: ["structured resolve", "clear next steps"],
+    antiPatterns: ["do not become robotic", "do not ignore emotion entirely"],
+    cooldown: 0.2,
+  },
+};
+
+function uniqueStrings(values = []) {
+  return Array.from(
+    new Set(
+      (Array.isArray(values) ? values : [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function buildResponseLens(key, overrides = {}) {
+  const base = RESPONSE_LENS_LIBRARY[key] || RESPONSE_LENS_LIBRARY.balanced;
+  const triggers = overrides.triggers && typeof overrides.triggers === "object"
+    ? overrides.triggers
+    : {};
+  return {
+    id: String(overrides.id || base.id).trim(),
+    label: String(overrides.label || base.label).trim(),
+    weight: clamp(Number(overrides.weight ?? base.weight), 0, 1),
+    priority: uniqueStrings(overrides.priority || base.priority).slice(0, 6),
+    triggers: {
+      emotions: uniqueStrings(triggers.emotions || base.triggers.emotions).slice(0, 6),
+      intents: uniqueStrings(triggers.intents || base.triggers.intents).slice(0, 6),
+      topics: uniqueStrings(triggers.topics || base.triggers.topics).slice(0, 6),
+    },
+    styleHints: uniqueStrings(overrides.styleHints || base.styleHints).slice(0, 4),
+    antiPatterns: uniqueStrings(overrides.antiPatterns || base.antiPatterns).slice(0, 4),
+    cooldown: clamp(Number(overrides.cooldown ?? base.cooldown ?? 0), 0, 1),
+  };
+}
+
+function textContainsAny(list = [], pattern) {
+  return list.some((item) => pattern.test(String(item || "")));
+}
+
+export function deriveDefaultResponseFocusProfile({
+  traits = [],
+  values = [],
+  goals = [],
+  bigFiveProfile = {},
+  alignmentProfile = {},
+} = {}) {
+  const alignmentEnabled = Boolean(alignmentProfile?.enabled);
+  const alignment = alignmentEnabled
+    ? String(alignmentProfile.alignment || "true_neutral").trim().toLowerCase()
+    : "true_neutral";
+  const openness = clamp01(bigFiveProfile?.openness, 0.5);
+  const conscientiousness = clamp01(bigFiveProfile?.conscientiousness, 0.5);
+  const agreeableness = clamp01(bigFiveProfile?.agreeableness, 0.5);
+
+  const sourceText = uniqueStrings([...traits, ...values, ...goals]);
+  const chosen = [];
+
+  if (contains(alignment, "good") || agreeableness >= 0.62 || textContainsAny(sourceText, /compassion|kind|care|heal|empath/i)) {
+    chosen.push(buildResponseLens("compassion", {
+      weight: contains(alignment, "good") ? 0.94 : RESPONSE_LENS_LIBRARY.compassion.weight,
+    }));
+  }
+
+  if (contains(alignment, "good") || textContainsAny(sourceText, /brave|hero|protect|resilien|courage|bold/i)) {
+    chosen.push(buildResponseLens("courage", {
+      weight: textContainsAny(sourceText, /hero|protect|courage/i) ? 0.96 : RESPONSE_LENS_LIBRARY.courage.weight,
+    }));
+  }
+
+  if (contains(alignment, "lawful") || textContainsAny(sourceText, /justice|fair|duty|protect|accountab/i)) {
+    chosen.push(buildResponseLens("justice", {
+      weight: contains(alignment, "lawful") ? 0.9 : RESPONSE_LENS_LIBRARY.justice.weight,
+    }));
+  }
+
+  if (contains(alignment, "lawful") || conscientiousness >= 0.68 || textContainsAny(sourceText, /discipline|duty|order|consistent|structure/i)) {
+    chosen.push(buildResponseLens("discipline", {
+      weight: conscientiousness >= 0.75 ? 0.84 : RESPONSE_LENS_LIBRARY.discipline.weight,
+    }));
+  }
+
+  if (openness >= 0.7 || textContainsAny(sourceText, /wonder|curious|creative|possibil|imagine|explore/i)) {
+    chosen.push(buildResponseLens("wonder", {
+      weight: openness >= 0.8 ? 0.86 : RESPONSE_LENS_LIBRARY.wonder.weight,
+    }));
+  }
+
+  if (textContainsAny(sourceText, /truth|honest|clarity|analysis|evidence|fact/i) || contains(alignment, "neutral")) {
+    chosen.push(buildResponseLens("truth", {
+      weight: textContainsAny(sourceText, /truth|honest|evidence/i) ? 0.92 : RESPONSE_LENS_LIBRARY.truth.weight,
+    }));
+  }
+
+  const deduped = [];
+  const seen = new Set();
+  for (const lens of chosen) {
+    if (!lens?.id || seen.has(lens.id)) {
+      continue;
+    }
+    seen.add(lens.id);
+    deduped.push(lens);
+  }
+
+  deduped.sort((left, right) => right.weight - left.weight || left.label.localeCompare(right.label));
+
+  const balanced = buildResponseLens("balanced");
+  return {
+    defaultLens: balanced.id,
+    lenses: [balanced, ...deduped].slice(0, 6),
+  };
+}
+
 export const HYBRID_MAPPING_TABLE = [
   {
     key: "open_extraverted_chaotic_good",

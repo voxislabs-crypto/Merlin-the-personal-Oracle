@@ -12,7 +12,10 @@ import {
 import { clearChatMessagesForPersonality } from "../models/chatModel.js";
 import { clearPersonalityMemory } from "../models/memoryModel.js";
 import { moodFromLabel } from "../services/moodEngine.js";
-import { mapToVoxisPersonality } from "../services/hybridPersonalityService.js";
+import {
+  deriveDefaultResponseFocusProfile,
+  mapToVoxisPersonality,
+} from "../services/hybridPersonalityService.js";
 import { getAllVoicePresets, recommendVoicePreset } from "../services/voicePresetsService.js";
 import { sanitizeVoiceProfile } from "../services/voiceProfileSanitizer.js";
 import path from "path";
@@ -182,6 +185,48 @@ function sanitizeExpressionStyle(input) {
   };
 }
 
+function sanitizeResponseFocusProfile(input) {
+  const profile = input && typeof input === "object" ? input : {};
+  const lenses = Array.isArray(profile.lenses) ? profile.lenses : [];
+  const sanitizedLenses = [];
+
+  for (const rawLens of lenses.slice(0, 8)) {
+    if (!rawLens || typeof rawLens !== "object") {
+      continue;
+    }
+
+    const id = String(rawLens.id || rawLens.label || "").trim().toLowerCase();
+    if (!id) {
+      continue;
+    }
+
+    const triggers = rawLens.triggers && typeof rawLens.triggers === "object"
+      ? rawLens.triggers
+      : {};
+
+    sanitizedLenses.push({
+      id,
+      label: String(rawLens.label || id).trim() || id,
+      weight: clamp01(rawLens.weight, 0.5),
+      priority: sanitizeItems(rawLens.priority).slice(0, 6),
+      triggers: {
+        emotions: sanitizeItems(triggers.emotions).slice(0, 5),
+        intents: sanitizeItems(triggers.intents).slice(0, 5),
+        topics: sanitizeItems(triggers.topics).slice(0, 5),
+      },
+      styleHints: sanitizeItems(rawLens.styleHints).slice(0, 4),
+      antiPatterns: sanitizeItems(rawLens.antiPatterns).slice(0, 4),
+      cooldown: clamp01(rawLens.cooldown, 0.15),
+    });
+  }
+
+  const defaultLens = String(profile.defaultLens || "balanced").trim().toLowerCase() || "balanced";
+  return {
+    defaultLens,
+    lenses: sanitizedLenses,
+  };
+}
+
 function hasDefinedValue(value) {
   return value !== undefined && value !== null && String(value).trim() !== "";
 }
@@ -292,6 +337,17 @@ export function createPersonalityHandler(req, res, next) {
     const hybridTuning = autoTuneHybrid
       ? mapToVoxisPersonality({ bigFiveProfile, alignmentProfile })
       : null;
+    const responseFocusProfileInput =
+      req.body.responseFocusProfile !== undefined
+        ? sanitizeResponseFocusProfile(req.body.responseFocusProfile)
+        : null;
+    const derivedResponseFocusProfile = deriveDefaultResponseFocusProfile({
+      traits,
+      values,
+      goals,
+      bigFiveProfile,
+      alignmentProfile,
+    });
 
     const creativeContext = hasDefinedValue(req.body.creativeContext)
       ? sanitizeCreativeContext(req.body.creativeContext)
@@ -305,6 +361,10 @@ export function createPersonalityHandler(req, res, next) {
 
     const moodBaseline = hybridTuning?.moodBaseline || moodFromLabel(mood);
     const moodState = { ...moodBaseline };
+    const responseFocusProfile =
+      responseFocusProfileInput && responseFocusProfileInput.lenses.length > 0
+        ? responseFocusProfileInput
+        : derivedResponseFocusProfile;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required." });
@@ -349,6 +409,7 @@ export function createPersonalityHandler(req, res, next) {
       expressionProfile,
       bigFiveProfile,
       alignmentProfile,
+      responseFocusProfile,
       expressionStyle,
       ownerId: req.voxisUser?.id ?? null,
     });
@@ -452,6 +513,17 @@ export function updatePersonalityHandler(req, res, next) {
     const hybridTuning = autoTuneHybrid
       ? mapToVoxisPersonality({ bigFiveProfile, alignmentProfile })
       : null;
+    const responseFocusProfileInput =
+      req.body.responseFocusProfile !== undefined
+        ? sanitizeResponseFocusProfile(req.body.responseFocusProfile)
+        : null;
+    const derivedResponseFocusProfile = deriveDefaultResponseFocusProfile({
+      traits,
+      values,
+      goals,
+      bigFiveProfile,
+      alignmentProfile,
+    });
 
     const creativeContext =
       req.body.creativeContext !== undefined
@@ -472,6 +544,14 @@ export function updatePersonalityHandler(req, res, next) {
       : existing?.moodState && typeof existing.moodState === "object"
         ? existing.moodState
         : { ...moodBaseline };
+    const responseFocusProfile =
+      responseFocusProfileInput !== null
+        ? responseFocusProfileInput.lenses.length > 0
+          ? responseFocusProfileInput
+          : derivedResponseFocusProfile
+        : existing?.responseFocusProfile && Array.isArray(existing.responseFocusProfile.lenses) && existing.responseFocusProfile.lenses.length > 0
+          ? existing.responseFocusProfile
+          : derivedResponseFocusProfile;
 
     if (!name) {
       return res.status(400).json({ error: "Name is required." });
@@ -516,6 +596,7 @@ export function updatePersonalityHandler(req, res, next) {
       expressionProfile,
       bigFiveProfile,
       alignmentProfile,
+      responseFocusProfile,
       expressionStyle,
     });
 
