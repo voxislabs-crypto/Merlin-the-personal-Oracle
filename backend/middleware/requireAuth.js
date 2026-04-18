@@ -1,6 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
-import { createClerkClient } from "@clerk/backend";
+import { verifyToken } from "@clerk/backend";
 import { createUser, getUserByClerkId } from "../models/userModel.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -79,54 +79,35 @@ console.info("[Auth] Clerk env", {
     : "missing",
 });
 
-// Create the Clerk backend client once with explicit keys.
-// Using @clerk/backend directly (which @clerk/express wraps) avoids the SDK's
-// per-request env-var re-resolution in @clerk/shared parsePublishableKey —
-// the cause of repeated "Publishable key is missing" errors despite env vars being set.
-const _clerkClient = (clerkPublishableKey && clerkSecretKey)
-  ? createClerkClient({ publishableKey: clerkPublishableKey, secretKey: clerkSecretKey })
-  : null;
-
 // Authenticate each request by verifying the Clerk session token when present.
 // On success, attaches req.auth = { userId } so downstream requireAuth() can use it.
 // Errors are always non-fatal here — protected routes gate separately via requireAuth().
 export const clerkVerify = async (req, res, next) => {
-  if (!_clerkClient) {
-    req.auth = null;
-    return next();
-  }
+  req.auth = null;
+  if (!clerkSecretKey) return next();
+
   try {
-    // @clerk/backend authenticateRequest expects a Web Fetch API Request.
-    // Build a minimal one with just the headers Clerk needs (Authorization + Cookie).
-    // The URL must be absolute; use a placeholder origin when the real one can't be resolved.
-    const proto = String(
-      req.headers["x-forwarded-proto"] || req.protocol || "https"
-    ).split(",")[0].trim() || "https";
-    const host = String(
-      req.headers["x-forwarded-host"] || req.headers.host || "localhost"
-    ).split(",")[0].trim() || "localhost";
-    const pathname = String(req.url || req.originalUrl || "/");
-    // Ensure pathname is absolute so the URL constructor doesn't throw.
-    const safePath = pathname.startsWith("/") ? pathname : `/${pathname}`;
-    const url = `${proto}://${host}${safePath}`;
-
-    const fetchHeaders = new Headers();
-    // Only copy headers Clerk actually needs — avoids issues with multi-value headers.
-    const clerkHeaders = ["authorization", "cookie", "x-clerk-auth-token", "origin", "referer"];
-    for (const key of clerkHeaders) {
-      const val = req.headers[key];
-      if (val) fetchHeaders.set(key, Array.isArray(val) ? val[0] : val);
+    // Extract session token from Authorization: Bearer <token> or __session cookie.
+    // Avoids constructing a full Request object (which requires an absolute URL).
+    let token = null;
+    const authHeader = String(req.headers["authorization"] || "");
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.slice(7).trim();
     }
+    if (!token) {
+      const cookieHeader = String(req.headers["cookie"] || "");
+      const match = cookieHeader.match(/(?:^|;\s*)__session=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+    if (!token) return next();
 
-    const fetchReq = new Request(url, { method: req.method || "GET", headers: fetchHeaders });
-    const requestState = await _clerkClient.authenticateRequest(fetchReq, {
-      publishableKey: clerkPublishableKey,
+    const payload = await verifyToken(token, {
       secretKey: clerkSecretKey,
+      authorizedParties: [],
     });
-    req.auth = requestState.toAuth?.() ?? null;
+    req.auth = { userId: payload.sub };
   } catch (err) {
-    console.error("[Auth] Clerk verify error (non-fatal):", err?.message || err);
-    req.auth = null;
+    // Missing/invalid token — not fatal; requireAuth() returns 401 when userId absent.
   }
   return next();
 };
