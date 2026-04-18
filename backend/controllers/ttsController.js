@@ -1,6 +1,7 @@
 import { getPersonalityById } from "../models/personalityModel.js";
 import {
   generateSpeechAudio,
+  getTtsHealthStatus,
   isTtsConfigured,
   listPiperVoiceOptions,
   listKokoroVoices,
@@ -31,7 +32,7 @@ function setEncodedJsonHeader(res, name, payload, options) {
 }
 
 const TTS_DEBUG_PROVIDER_LOCK_ENABLED = String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
-const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 18_000;
+const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 12_000;
 
 function getTtsRequestTimeoutMs() {
   const configured = Number(process.env.TTS_REQUEST_TIMEOUT_MS || DEFAULT_TTS_REQUEST_TIMEOUT_MS);
@@ -74,6 +75,24 @@ async function generateSpeechAudioWithTimeout(options, timeoutMs) {
       clearTimeout(timer);
     }
   }
+}
+
+function summarizeRouting(health = null) {
+  const allowedEngines = Array.isArray(health?.routing?.allowedEngines)
+    ? health.routing.allowedEngines.map((engine) => String(engine || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+
+  const debugLockEnabled = Boolean(health?.routing?.debugLockEnabled);
+  const requestedEngine = String(health?.routing?.requestedEngine || inferRequestedEngine()).trim().toLowerCase();
+  const cartesiaAvailable = Boolean(health?.engines?.cartesia?.available);
+
+  return {
+    debugLockEnabled,
+    allowedEngines,
+    requestedEngine,
+    cartesiaAvailable,
+    cartesiaOnly: debugLockEnabled && allowedEngines.length === 1 && allowedEngines[0] === "cartesia",
+  };
 }
 
 export async function listPiperVoicesHandler(req, res, next) {
@@ -128,6 +147,8 @@ export async function generateSpeechHandler(req, res, next) {
     }
 
     const voiceProfile = sanitizeVoiceProfile(req.body.voiceProfile, personality.voiceProfile);
+    const ttsHealth = await getTtsHealthStatus();
+    const routing = summarizeRouting(ttsHealth);
 
     if (!isTtsConfigured(voiceProfile)) {
       return res.status(500).json({
@@ -137,6 +158,20 @@ export async function generateSpeechHandler(req, res, next) {
             : "TTS is not configured. Configure cloud TTS (TTS_API_KEY/TTS_BASE_URL) or Piper (PIPER_MODEL_PATH) in backend/.env.",
       });
     }
+
+    if (routing.cartesiaOnly && !routing.cartesiaAvailable) {
+      return res.status(503).json({
+        error:
+          "TTS debug lock currently allows only Cartesia, but Cartesia is not available. " +
+          "Add Cartesia credentials/settings or disable TTS_DEBUG_PROVIDER_LOCK to allow fallback engines.",
+        details: {
+          provider: "cartesia",
+          providerCode: "locked_provider_unavailable",
+          providerStatus: 503,
+        },
+      });
+    }
+
     const audio = await generateSpeechAudioWithTimeout({
       personality,
       text,
@@ -161,9 +196,18 @@ export async function generateSpeechHandler(req, res, next) {
       const provider = String(error.ttsProvider || "unknown").trim().toLowerCase();
       const providerCode = String(error.ttsProviderCode || "").trim().toLowerCase();
       const providerStatus = Number(error.providerStatus || 0);
+      const shouldAttachLockHint =
+        TTS_DEBUG_PROVIDER_LOCK_ENABLED &&
+        provider === "cartesia" &&
+        (providerCode === "timeout" || providerCode === "network_error" || providerCode === "backend_timeout");
+
+      const lockHint = shouldAttachLockHint
+        ? " Debug lock is enabled and Cartesia is currently the active route; " +
+          "disable TTS_DEBUG_PROVIDER_LOCK=false (or enable Kokoro) to allow fallback while Cartesia is unstable."
+        : "";
 
       return res.status(Number(error.statusCode || 502)).json({
-        error: String(error.message || "Speech generation failed."),
+        error: `${String(error.message || "Speech generation failed.")}${lockHint}`.trim(),
         details: {
           provider,
           providerCode,
