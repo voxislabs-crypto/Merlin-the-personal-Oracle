@@ -1850,7 +1850,10 @@ function isCartesiaConfigured() {
 async function generateCartesiaSpeechAudio({ text, voiceProfile }) {
   const config = getCartesiaConfig();
   const providerVoiceCandidate = String(voiceProfile?.providerVoice || "").trim();
-  const voiceId = String(voiceProfile?.cartesiaVoiceId || providerVoiceCandidate || config.voiceId).trim();
+  // Cartesia requires UUID format — reject non-UUID values and fall back to config default.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const rawVoiceId = String(voiceProfile?.cartesiaVoiceId || providerVoiceCandidate || config.voiceId).trim();
+  const voiceId = UUID_RE.test(rawVoiceId) ? rawVoiceId : config.voiceId;
   const model = String(voiceProfile?.cartesiaModel || config.model).trim();
 
   // Clean lyrics before synthesis: strip parenthetical echoes, smooth commas
@@ -2044,9 +2047,11 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
       }
 
       return (
+        statusCode === 400 ||  // invalid voice ID / model — degrade rather than hard-fail
         statusCode === 502 ||
         statusCode === 503 ||
         statusCode === 504 ||
+        upstreamStatus === 400 ||
         upstreamStatus === 502 ||
         upstreamStatus === 503 ||
         upstreamStatus === 504 ||
