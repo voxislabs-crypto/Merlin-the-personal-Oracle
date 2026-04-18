@@ -79,10 +79,40 @@ console.info("[Auth] Clerk env", {
     : "missing",
 });
 
-export const clerkVerify = clerkMiddleware({
+// Create the inner Clerk middleware once — NOT per request.
+const _clerkInner = clerkMiddleware({
   publishableKey: clerkPublishableKey || undefined,
   secretKey: clerkSecretKey || undefined,
 });
+
+// Wrap so that any error from @clerk/express (sync or async, caught or uncaught) is
+// absorbed here. Errors are logged but never crash the process or hang the request.
+// Protected routes still gate via requireAuth() which returns 401 when req.auth is absent.
+export const clerkVerify = (req, res, next) => {
+  let nextCalled = false;
+  const guardedNext = (...args) => {
+    nextCalled = true;
+    next(...args);
+  };
+  try {
+    const result = _clerkInner(req, res, guardedNext);
+    if (result && typeof result.then === "function") {
+      result.catch((err) => {
+        if (!nextCalled) {
+          console.error("[Auth] Clerk middleware async error (non-fatal):", err?.message || err);
+          nextCalled = true;
+          next();
+        }
+      });
+    }
+  } catch (err) {
+    if (!nextCalled) {
+      console.error("[Auth] Clerk middleware sync error (non-fatal):", err?.message || err);
+      nextCalled = true;
+      next();
+    }
+  }
+};
 
 export async function requireAuth(req, res, next) {
   try {

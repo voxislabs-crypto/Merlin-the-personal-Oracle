@@ -125,9 +125,10 @@ app.listen(port, () => {
   // Skip if a different engine is forced via TTS_ENGINE env to avoid crash loops
   // when Kokoro's HuggingFace model files are unavailable.
   const _forcedEngine = String(process.env.TTS_ENGINE || "auto").trim().toLowerCase();
-  if (_forcedEngine === "auto" || _forcedEngine === "kokoro") {
+  const _kokoroDisabled = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
+  if (!_kokoroDisabled && (_forcedEngine === "auto" || _forcedEngine === "kokoro")) {
     preloadKokoro().catch((err) => console.warn("[Kokoro] preload error:", err.message));
   } else {
-    console.log(`[Kokoro] Preload skipped (TTS_ENGINE=${_forcedEngine}).`);
+    console.log(`[Kokoro] Preload skipped (TTS_ENGINE=${_forcedEngine}, TTS_DISABLE_KOKORO=${_kokoroDisabled}).`);
   }
 });
