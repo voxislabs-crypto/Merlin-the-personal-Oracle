@@ -537,6 +537,11 @@ Recommended production timeout baseline for Cartesia:
 TTS_REQUEST_TIMEOUT_MS=25000
 ```
 
+Voxis reserves part of this request budget for fallback engines. If Cartesia
+is slow or unstable, the backend times out Cartesia early enough to still try
+fallback synthesis (cloud/other configured engines) instead of failing with an
+outer `backend_timeout`.
+
 Apply and restart:
 
 ```bash

@@ -31,7 +31,7 @@ const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_TTS_VOICE = "alloy";
 const DEFAULT_TTS_FORMAT = "mp3";
 const DEFAULT_FETCH_TIMEOUT_MS = 9000;
-const DEFAULT_CARTESIA_TIMEOUT_MS = 18000;
+const DEFAULT_CARTESIA_TIMEOUT_MS = 16000;
 const MAX_CARTESIA_TIMEOUT_MS = 45000;
 const DEFAULT_CARTESIA_VOICE_ID = "694f9389-aac1-45b6-b726-9d9369183238";
 const DEFAULT_CARTESIA_MODEL = "sonic-3";
@@ -230,10 +230,12 @@ function getCartesiaTimeoutMs(text = "") {
     ? DEFAULT_CARTESIA_TIMEOUT_MS
     : Math.min(MAX_CARTESIA_TIMEOUT_MS, DEFAULT_CARTESIA_TIMEOUT_MS + ((textLength - 120) * 55));
 
-  // Leave a small fixed headroom for controller/response overhead while still
-  // giving Cartesia most of the request budget in production.
+  // Reserve explicit fallback headroom so Cartesia stalls cannot consume the
+  // whole request budget and force an outer backend timeout.
   const outerBudget = Number(process.env.TTS_REQUEST_TIMEOUT_MS) || 25000;
-  const cap = Math.max(10000, Math.min(40000, Math.floor(outerBudget * 0.92) - 1200));
+  const reservedFallbackMs = 12000;
+  const budgetCap = Math.max(8000, outerBudget - reservedFallbackMs);
+  const cap = Math.max(10000, Math.min(22000, budgetCap));
   return Math.min(scaledTimeout, cap);
 }
 
