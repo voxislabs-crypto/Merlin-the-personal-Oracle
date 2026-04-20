@@ -577,6 +577,8 @@ function GraphNode({ node, selectedId, linkedIds, onSelect, onHoverStart, onHove
 
   const isSelected = node.id === selectedId;
   const isLinked   = linkedIds.has(node.id);
+  const compactPreview = Boolean(hideLabels);
+  const nodeScale = compactPreview ? 0.78 : 1;
 
   useFrame((state, delta) => {
     if (!groupRef.current || !meshRef.current) return;
@@ -612,15 +614,20 @@ function GraphNode({ node, selectedId, linkedIds, onSelect, onHoverStart, onHove
 
     // Breathing scale
     const breathe    = 1 + Math.sin(t * dp.breathFreq + dp.offset) * 0.042;
-    const targetScale = (isSelected ? 1.22 : isLinked ? 1.09 : 1.0) * breathe;
+    const selectionBoost = compactPreview
+      ? (isSelected ? 1.08 : isLinked ? 1.03 : 1.0)
+      : (isSelected ? 1.22 : isLinked ? 1.09 : 1.0);
+    const targetScale = selectionBoost * breathe;
     const cur  = meshRef.current.scale.x;
     const next = cur + (targetScale - cur) * 0.06;
     meshRef.current.scale.setScalar(next);
 
     // Emissive — base + activity + pulse flash
-    const baseGlow = 0.82 + node.activity * 0.72 + Math.sin(t * 2.1 + dp.offset) * 0.10;
+    const baseGlow = compactPreview
+      ? 0.58 + node.activity * 0.42 + Math.sin(t * 2.1 + dp.offset) * 0.06
+      : 0.82 + node.activity * 0.72 + Math.sin(t * 2.1 + dp.offset) * 0.10;
     meshRef.current.material.emissiveIntensity =
-      baseGlow + pulseRef.current * 7.2 + (isSelected ? 1.8 : 0);
+      baseGlow + pulseRef.current * (compactPreview ? 4.6 : 7.2) + (isSelected ? (compactPreview ? 1.0 : 1.8) : 0);
 
     // Spike global bloom on strong pulse
     if (pulseRef.current > 0.6 && bloomIntensityRef) {
@@ -632,20 +639,25 @@ function GraphNode({ node, selectedId, linkedIds, onSelect, onHoverStart, onHove
 
     // Glow halo
     if (glowRef.current) {
-      glowRef.current.material.opacity =
-        0.03 + pulseRef.current * 0.30 + node.activity * 0.03 + (isSelected ? 0.07 : 0);
-      glowRef.current.scale.setScalar(next * (1.0 + pulseRef.current * 0.14));
+      glowRef.current.material.opacity = compactPreview
+        ? 0.02 + pulseRef.current * 0.18 + node.activity * 0.02 + (isSelected ? 0.04 : 0)
+        : 0.03 + pulseRef.current * 0.30 + node.activity * 0.03 + (isSelected ? 0.07 : 0);
+      glowRef.current.scale.setScalar(next * (1.0 + pulseRef.current * (compactPreview ? 0.09 : 0.14)));
     }
     // Neural ring — rotates slowly, flares on pulse
     if (ringRef.current) {
       ringRef.current.rotation.z = t * 0.22 + dp.offset;
-      ringRef.current.material.opacity = 0.28 + pulseRef.current * 0.72 + (isSelected ? 0.25 : 0);
-      ringRef.current.material.emissiveIntensity = 1.2 + pulseRef.current * 4.5 + (isSelected ? 0.8 : 0);
+      ringRef.current.material.opacity = compactPreview
+        ? 0.16 + pulseRef.current * 0.42 + (isSelected ? 0.14 : 0)
+        : 0.28 + pulseRef.current * 0.72 + (isSelected ? 0.25 : 0);
+      ringRef.current.material.emissiveIntensity = compactPreview
+        ? 0.9 + pulseRef.current * 2.8 + (isSelected ? 0.45 : 0)
+        : 1.2 + pulseRef.current * 4.5 + (isSelected ? 0.8 : 0);
     }
   });
 
   // Node size — much smaller for neural pathway aesthetic
-  const radius = 0.055 + node.strength * 0.12;
+  const radius = (0.055 + node.strength * 0.12) * nodeScale;
 
   return (
     <group ref={groupRef} position={node.position}
