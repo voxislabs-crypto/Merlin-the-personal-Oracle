@@ -37,7 +37,7 @@ function isTtsDebugLockEnabled() {
   return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 }
 
-const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 12_000;
+const DEFAULT_TTS_REQUEST_TIMEOUT_MS = 25_000;
 
 function getTtsRequestTimeoutMs() {
   const configured = Number(process.env.TTS_REQUEST_TIMEOUT_MS || DEFAULT_TTS_REQUEST_TIMEOUT_MS);
@@ -201,6 +201,13 @@ export async function generateSpeechHandler(req, res, next) {
       const provider = String(error.ttsProvider || "unknown").trim().toLowerCase();
       const providerCode = String(error.ttsProviderCode || "").trim().toLowerCase();
       const providerStatus = Number(error.providerStatus || 0);
+      console.warn("[TTS] Provider synthesis failure", {
+        provider,
+        providerCode,
+        providerStatus,
+        statusCode: Number(error.statusCode || 0),
+        message: String(error.message || ""),
+      });
       const shouldAttachLockHint =
         isTtsDebugLockEnabled() &&
         provider === "cartesia" &&

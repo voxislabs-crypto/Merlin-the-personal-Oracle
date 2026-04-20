@@ -31,7 +31,7 @@ module.exports = {
         TTS_DEBUG_PROVIDER_LOCK: process.env.TTS_DEBUG_PROVIDER_LOCK ?? "false",
         // Default true: prevents ~500MB Kokoro model load on servers where it isn't wanted.
         TTS_DISABLE_KOKORO: process.env.TTS_DISABLE_KOKORO ?? "true",
-        TTS_REQUEST_TIMEOUT_MS: process.env.TTS_REQUEST_TIMEOUT_MS || "12000",
+        TTS_REQUEST_TIMEOUT_MS: process.env.TTS_REQUEST_TIMEOUT_MS || "25000",
       },
     },
   ],

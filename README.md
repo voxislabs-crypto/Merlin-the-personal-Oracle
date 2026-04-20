@@ -521,6 +521,31 @@ If production still looks older than dev after a successful frontend build, chec
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+### Cartesia 504 troubleshooting (prod)
+
+If TTS works in dev but production returns `504` on `/personality/:id/tts`, verify runtime routing and provider reachability first:
+
+```bash
+curl -fsS http://127.0.0.1:3101/health/tts | jq
+curl -fsS http://127.0.0.1:3101/health/tts/cartesia-ping | jq
+```
+
+Recommended production timeout baseline for Cartesia:
+
+```bash
+# backend/.env
+TTS_REQUEST_TIMEOUT_MS=25000
+```
+
+Apply and restart:
+
+```bash
+cd /opt/voxis
+pm2 startOrReload ecosystem.config.cjs --only voxis-backend --update-env
+```
+
+Then watch backend logs for provider diagnostics (`[TTS] Provider synthesis failure`) and confirm `provider`, `providerCode`, and `providerStatus` before changing engines.
+
 ### HTTPS (Let's Encrypt)
 
 ```bash
