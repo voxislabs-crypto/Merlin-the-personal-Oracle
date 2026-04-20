@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "backfill-memory-embeddings": "node scripts/backfillMemoryEmbeddings.js",
+    "seed-ara-personas": "node scripts/seedAraPersonas.js",
     "adversarial-harness": "node scripts/adversarialTranscriptHarness.js",
     "tts-diagnostics": "node scripts/testTtsDiagnostics.js",
     "kokoro:preload": "node scripts/preloadKokoroModel.js"

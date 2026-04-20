@@ -411,6 +411,21 @@ npm run dev --workspace backend
 npm run dev --workspace frontend
 ```
 
+**Seed Ara personas (owned or legacy):**
+
+```bash
+# Create/update Ara and Dark Ara as legacy personas (ownerId NULL)
+npm run seed-ara-personas --workspace backend -- --legacy
+
+# Create/update Ara and Dark Ara for a specific Clerk user
+npm run seed-ara-personas --workspace backend -- --clerk-id=user_xxx
+
+# Create/update Ara and Dark Ara for an explicit local owner id
+npm run seed-ara-personas --workspace backend -- --owner-id=6
+```
+
+The script is idempotent for the selected ownership target: it updates existing `Ara` and `Dark Ara` rows when present, otherwise it creates them.
+
 **Build for production:**
 
 ```bash
