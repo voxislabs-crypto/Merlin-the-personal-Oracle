@@ -2199,6 +2199,7 @@ export default function NeuralCore({
                 dominance={dominance}
                 livePhaseBurst={phaseBurst}
                 hideLabels
+                hideConnections
                 onActivityUpdate={onActivityUpdate}
               />
             </div>

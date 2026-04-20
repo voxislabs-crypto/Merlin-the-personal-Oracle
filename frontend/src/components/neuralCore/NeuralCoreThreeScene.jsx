@@ -693,7 +693,8 @@ function GraphNode({ node, selectedId, linkedIds, onSelect, onHoverStart, onHove
 // NeuralScene — owns all runtime state inside the Canvas
 // ─────────────────────────────────────────────────────────────────────────────
 function NeuralScene({ graph, selectedNode, linkedIds, handleSelect, setSelectedId,
-                       livePhaseBurst, burstSeq, controlsRef, hideLabels, onActivityUpdate, hoveredNodeId, sceneHovered, setHoveredNodeId }) {
+                       livePhaseBurst, burstSeq, controlsRef, hideLabels, onActivityUpdate, hoveredNodeId, sceneHovered, setHoveredNodeId,
+                       hideConnections = false }) {
 
   // One pulse ref per node — mutable, never trigger re-renders
   const pulseRefs      = useRef({});
@@ -870,25 +871,27 @@ function NeuralScene({ graph, selectedNode, linkedIds, handleSelect, setSelected
 
       <group ref={networkGroupRef}>
         {/* Synaptic connections */}
-        {graph.connections.map((conn) => {
-          const src = graph.nodeMap.get(conn.sourceId);
-          const tgt = graph.nodeMap.get(conn.targetId);
-          if (!src || !tgt) return null;
-          const highlighted =
-            conn.sourceId === selectedNode?.id || conn.targetId === selectedNode?.id;
-          const onPulseArrive = () => {
-            const ref = pulseRefs.current[conn.targetId];
-            if (ref) ref.current = Math.max(ref.current, 0.45);
-          };
-          return (
-            <LightningConnection key={conn.key}
-              start={src.position} end={tgt.position}
-              color={conn.color} weight={conn.weight}
-              highlighted={highlighted} activity={conn.weight}
-              onPulseArrive={onPulseArrive}
-            />
-          );
-        })}
+        {!hideConnections
+          ? graph.connections.map((conn) => {
+              const src = graph.nodeMap.get(conn.sourceId);
+              const tgt = graph.nodeMap.get(conn.targetId);
+              if (!src || !tgt) return null;
+              const highlighted =
+                conn.sourceId === selectedNode?.id || conn.targetId === selectedNode?.id;
+              const onPulseArrive = () => {
+                const ref = pulseRefs.current[conn.targetId];
+                if (ref) ref.current = Math.max(ref.current, 0.45);
+              };
+              return (
+                <LightningConnection key={conn.key}
+                  start={src.position} end={tgt.position}
+                  color={conn.color} weight={conn.weight}
+                  highlighted={highlighted} activity={conn.weight}
+                  onPulseArrive={onPulseArrive}
+                />
+              );
+            })
+          : null}
 
         {/* Nodes */}
         {graph.nodes.map((node) => {
@@ -919,7 +922,7 @@ export default function NeuralCoreThreeScene({
   scene, personality, memoryCount, hasIntent, identityActive, evidenceActive,
   repairActive, reconditioningActive, visibleChildNodes, focusNode, setFocusNode,
   valence, arousal, dominance, livePhaseBurst, hideLabels = false, onActivityUpdate,
-  onLeafNodeSelect,
+  onLeafNodeSelect, hideConnections = false,
 }) {
   const controlsRef = useRef(null);
   const [selectedId, setSelectedId] = useState(focusNode || "core");
@@ -1061,6 +1064,7 @@ export default function NeuralCoreThreeScene({
           hoveredNodeId={hoveredNodeId}
           sceneHovered={sceneHovered}
           setHoveredNodeId={setHoveredNodeId}
+          hideConnections={hideConnections}
         />
       </Canvas>
       )}
