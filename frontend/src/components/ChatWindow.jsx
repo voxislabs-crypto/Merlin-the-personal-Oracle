@@ -2591,6 +2591,10 @@ export default function ChatWindow({
         fetch(sfxUrl)
           .then(async (sfxResponse) => {
             if (!sfxResponse.ok) {
+              onStatus?.({
+                type: "warn",
+                message: `SFX cue received but audio is unavailable for: ${sfxName}.`,
+              });
               return;
             }
 
@@ -2608,7 +2612,10 @@ export default function ChatWindow({
             void sfxAudio.play().catch(cleanup);
           })
           .catch(() => {
-            // SFX not yet cached (will be downloaded on next startup)
+            onStatus?.({
+              type: "warn",
+              message: `SFX cue failed to load: ${sfxName}.`,
+            });
           });
       }
     }
