@@ -247,7 +247,7 @@ describe("ttsService Piper voice discovery", () => {
         text: "Keep the pacing deliberate.",
         voiceProfile: {
           engine: "cartesia",
-          providerVoice: "voice-from-provider-field",
+            providerVoice: "a0e99841-438c-4a64-b679-ae501e7d6091",
           cartesiaVoiceId: "",
           cartesiaModel: "sonic-2",
           rate: 1,
@@ -259,7 +259,7 @@ describe("ttsService Piper voice discovery", () => {
       expect(fetchCalls).toHaveLength(1);
 
       const payload = JSON.parse(String(fetchCalls[0].options?.body || "{}"));
-      expect(payload.voice).toEqual({ mode: "id", id: "voice-from-provider-field" });
+      expect(payload.voice).toEqual({ mode: "id", id: "a0e99841-438c-4a64-b679-ae501e7d6091" });
       expect(payload.model_id).toBe("sonic-2");
     } finally {
       global.fetch = originalFetch;
@@ -311,7 +311,7 @@ describe("ttsService Piper voice discovery", () => {
         ttsProviderCode: "timeout",
       });
 
-      await vi.advanceTimersByTimeAsync(12_100);
+      await vi.advanceTimersByTimeAsync(15_000);
       await assertion;
     } finally {
       vi.useRealTimers();

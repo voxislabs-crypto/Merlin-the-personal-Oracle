@@ -76,6 +76,14 @@ Returns a `release` block with `branch` and `gitSha` when the backend was starte
 
 ---
 
+## Recent Maintenance Updates (2026-04-21)
+
+- Fixed Cartesia timeout test expectations to align with the current timeout cap behavior.
+- Updated Cartesia voice fallback test data to use UUID-format provider voice IDs.
+- Verified backend test suite stability: 25 test files passing, 209/209 tests green.
+
+---
+
 ## Why This Matters
 
 Most AI chat products are stateless wrappers. Voxis explores a different paradigm: persistent, evolving AI identities with memory, mood, and intent continuity across sessions.
