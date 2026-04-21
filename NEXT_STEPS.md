@@ -127,3 +127,57 @@ Where I'd push back:
 The "neural identity graph" already partially exists in your frontend - PersonaStateContext.jsx builds an in-memory tree, neuralCoreModel.js maps it, the 3D scene renders it. The missing piece is the backend treating memory as a graph, not flat rows
 The budget estimate ($35-55) is fantasy if you're doing the full 7-feature list. Real estimate for everything described: $150-300 minimum, because each major refactor needs multiple correction passes
 "Use Opus for dangerous refactors" is actually backwards for your situation - you want planning to be the expensive careful pass, not execution
+
+---
+
+## Evolution Paths (2026-04-21)
+
+### Option 1 — Live Emotional Dashboard ✅ DONE
+Compact `mood-bar` strip added below the chat header description. Visible on all viewport sizes (avatar panel is hidden at <980px — this fills the gap). Shows:
+- Zone badge (Green / Yellow / Red / Blue) colored by `emotionSpectrum.zone.accent`
+- Emotion display label (e.g. "Calm · Grounded")
+- V / A numeric readout (valence + arousal, signed, 2 dp, monospace)
+- Drift sparkline SVG — the already-computed `emotionDriftPath` polyline, colored by active zone
+
+### Option 2 — System Observability Panel
+A collapsible "System Status" drawer accessible from the debug area showing:
+- Embedding status (configured / degraded / disabled) — already available as `debugData.flags.embeddingsConfigured`
+- LLM provider + model currently active (expose from chatController debug payload)
+- TTS provider chain in-use (`routing.requestedEngine` + fallback list) — already in `/health/tts`
+- Memory count per persona + conflict log (last N entries)
+- Token budget usage per turn (charBudget remaining, breakdown by section)
+- Mood adjudication toggle live feedback (MOOD_ADJUDICATION_ENABLED flag value + last adjudication delta)
+Implementation notes:
+- All data already at surface (debug payload + health endpoints) — this is pure frontend aggregation
+- Hook into `ChatWindow.jsx` debug section or expose as a `<SystemObserver />` component
+- Poll `/health/tts` on mount + after each turn; cache for 5 s
+
+### Option 3 — Council Mode Integration (Smarter Prompting)
+Multi-persona "Council" mode where 2–3 personas produce structured sub-responses assembled into one reply:
+- Route to `llmService` with a multi-persona system prompt template
+- Each persona supplies a `voice` block (JSON) with `responseText`, `mood_delta`, `tag`
+- Assembly step merges blocks with attribution, chooses TTS voice per speaker segment
+- Frontend: renders each council member turn with persona badge + mini mood indicator
+- Tied to `COUNCIL_MODE_ENABLED` feature flag in `settingsModel`
+- Risk: latency doubles; mitigate with parallel per-persona calls + aggressive truncation
+Implementation prerequisites:
+- Stable SSE multi-block protocol (extend `phase` event with `speakerId`)
+- Per-segment TTS segment queue in `speechDirector` (Level 3/4 of TTS roadmap)
+
+---
+
+## Remaining Partial Items (carry-forward)
+
+### Silent catch blocks (non-fatal, low priority)
+Three `setImmediate` catch blocks in `chatController.js` now log structured `console.warn` (done). Remaining: confirm no other silent `catch {}` or `catch (e) { /* ignore */ }` patterns exist in backend services — particularly `memoryConflictService.js`, `emotionMemoryDrift.js`.
+
+### Unused backend routes
+`/api/research` and `/api/prosody` routes exist but have no active frontend callers. Before removing: confirm no external tooling/scripts call them. If confirmed dead, delete route files + controller to reduce surface area.
+
+### Config weak points
+- `EMBEDDING_BASE_URL` falls back to `LLM_BASE_URL` if not set — document this in README env table
+- `CLERK_SECRET_KEY` absence fails silently on optional-auth routes; consider a startup warning log
+- No `.env.example` file exists — creates friction for new contributors
+
+### ElevenLabs concurrent debounce
+Under rapid user input, multiple in-flight ElevenLabs requests can race. Add a per-persona request deduplicator in `ttsService.js` (cancel previous in-flight request if same `personalityId` triggers a new one within 200 ms).

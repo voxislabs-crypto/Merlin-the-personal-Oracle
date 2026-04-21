@@ -138,6 +138,69 @@ const chatStyles = `
     line-height: 1.6;
   }
 
+  .mood-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 180, 255, 0.07);
+  }
+
+  .mood-zone-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .mood-emotion-label {
+    font-size: 0.72rem;
+    color: rgba(190, 230, 255, 0.75);
+    flex-shrink: 0;
+  }
+
+  .mood-vad-pair {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .mood-vad-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .mood-vad-label {
+    font-size: 0.52rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(0, 180, 255, 0.45);
+  }
+
+  .mood-vad-value {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: rgba(200, 240, 255, 0.9);
+    font-family: monospace;
+    min-width: 3ch;
+    text-align: center;
+  }
+
+  .mood-drift-svg {
+    flex: 1;
+    min-width: 48px;
+    max-width: 120px;
+    height: 18px;
+    opacity: 0.75;
+  }
+
   .debug-toggle {
     padding: 8px 12px;
     border-radius: 999px;
@@ -3037,6 +3100,44 @@ export default function ChatWindow({
               </button>
             </div>
             <p>{personality.description}</p>
+            {personality.moodState && (
+              <div className="mood-bar">
+                <span
+                  className="mood-zone-badge"
+                  style={{
+                    background: emotionSpectrum.zone.accent + "22",
+                    color: emotionSpectrum.zone.accent,
+                    border: `1px solid ${emotionSpectrum.zone.accent}55`,
+                  }}
+                >
+                  {emotionSpectrum.zone.label}
+                </span>
+                <span className="mood-emotion-label">{emotionSpectrum.displayLabel}</span>
+                <div className="mood-vad-pair">
+                  <div className="mood-vad-stat">
+                    <span className="mood-vad-label">V</span>
+                    <span className="mood-vad-value">{(avatarMood.valence >= 0 ? "+" : "") + Number(avatarMood.valence || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="mood-vad-stat">
+                    <span className="mood-vad-label">A</span>
+                    <span className="mood-vad-value">{(avatarMood.arousal >= 0 ? "+" : "") + Number(avatarMood.arousal || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+                {emotionDriftPath && (
+                  <svg className="mood-drift-svg" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
+                    <line x1="0" y1="12" x2="100" y2="12" stroke="rgba(0,180,255,0.18)" strokeWidth="1" strokeDasharray="2 2" />
+                    <polyline
+                      points={emotionDriftPath}
+                      fill="none"
+                      stroke={emotionSpectrum.zone.accent}
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="voice-panel">
