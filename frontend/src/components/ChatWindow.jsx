@@ -201,6 +201,108 @@ const chatStyles = `
     opacity: 0.75;
   }
 
+  .sys-observer {
+    border-bottom: 1px solid rgba(0, 180, 255, 0.07);
+    background: rgba(3, 10, 22, 0.92);
+  }
+
+  .sys-observer-inner {
+    padding: 14px 20px 16px;
+  }
+
+  .sys-observer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+
+  .sys-observer-card {
+    background: rgba(0, 180, 255, 0.04);
+    border: 1px solid rgba(0, 180, 255, 0.1);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+
+  .sys-observer-card-title {
+    font-size: 0.56rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(0, 180, 255, 0.5);
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .sys-observer-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+
+  .sys-observer-label {
+    font-size: 0.62rem;
+    color: rgba(180, 220, 245, 0.5);
+    flex-shrink: 0;
+  }
+
+  .sys-observer-value {
+    font-size: 0.66rem;
+    font-family: monospace;
+    color: rgba(200, 240, 255, 0.85);
+    text-align: right;
+    word-break: break-all;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sys-observer-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+
+  .sys-observer-status::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.8;
+  }
+
+  .sys-observer-status.ok { color: #34d399; }
+  .sys-observer-status.warn { color: #fbbf24; }
+  .sys-observer-status.off { color: rgba(180, 180, 180, 0.5); }
+
+  .sys-observer-bar-wrap {
+    margin-top: 5px;
+  }
+
+  .sys-observer-bar-track {
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(0, 180, 255, 0.1);
+    overflow: hidden;
+  }
+
+  .sys-observer-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 400ms ease;
+  }
+
+  .sys-observer-bar-label {
+    font-size: 0.56rem;
+    color: rgba(160, 210, 240, 0.45);
+    margin-top: 2px;
+  }
+
   .debug-toggle {
     padding: 8px 12px;
     border-radius: 999px;
@@ -1847,6 +1949,7 @@ export default function ChatWindow({
   const [voiceTelemetry, setVoiceTelemetry] = useState(null);
   const [activePersonalityEvents, setActivePersonalityEvents] = useState([]);
   const [debugMode, setDebugMode] = useState(false);
+  const [sysObserverOpen, setSysObserverOpen] = useState(false);
   const [performanceText, setPerformanceText] = useState(null); // EPF text to perform
   const [emotionDrift, setEmotionDrift] = useState([]);
   const [zoneShiftActive, setZoneShiftActive] = useState(false);
@@ -3098,6 +3201,9 @@ export default function ChatWindow({
               <button type="button" className="debug-toggle" onClick={() => setDebugMode((value) => !value)}>
                 {debugMode ? "Hide Debug" : "Show Debug"}
               </button>
+              <button type="button" className="debug-toggle" onClick={() => setSysObserverOpen((v) => !v)} style={{ marginLeft: 6 }}>
+                {sysObserverOpen ? "Hide System" : "⬡ System"}
+              </button>
             </div>
             <p>{personality.description}</p>
             {personality.moodState && (
@@ -3143,6 +3249,187 @@ export default function ChatWindow({
           <div className="voice-panel">
             <div className="voice-panel-header">
               <div className="voice-panel-label">
+          {sysObserverOpen && (
+            <div className="sys-observer">
+              <div className="sys-observer-inner">
+                <div className="sys-observer-grid">
+
+                  {/* LLM */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">LLM</div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">model</span>
+                      <span className="sys-observer-value" title={activeUsage?.model || "unknown"}>
+                        {activeUsage?.model ? activeUsage.model.split("/").pop() : "—"}
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">tokens in</span>
+                      <span className="sys-observer-value">{activeUsage ? Number(activeUsage.inputTokens || 0).toLocaleString() : "—"}</span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">tokens out</span>
+                      <span className="sys-observer-value">{activeUsage ? Number(activeUsage.outputTokens || 0).toLocaleString() : "—"}</span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">source</span>
+                      <span className="sys-observer-value">{activeUsage?.source === "provider" ? "provider" : "estimate"}</span>
+                    </div>
+                  </div>
+
+                  {/* Prompt Budget */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">Prompt Budget</div>
+                    {(() => {
+                      const budget = displayDebug?.prompt?.promptBudget;
+                      const util = budget ? Math.round((budget.utilization || 0) * 100) : null;
+                      const fillColor = util == null ? "#4ade80" : util >= 90 ? "#fb7185" : util >= 75 ? "#fbbf24" : "#4ade80";
+                      return budget ? (
+                        <>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">chars used</span>
+                            <span className="sys-observer-value">{Number(budget.charCount || 0).toLocaleString()} / {Number(budget.charBudget || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">~tokens</span>
+                            <span className="sys-observer-value">{Number(budget.approxTokens || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="sys-observer-bar-wrap">
+                            <div className="sys-observer-bar-track">
+                              <div className="sys-observer-bar-fill" style={{ width: `${util}%`, background: fillColor }} />
+                            </div>
+                            <div className="sys-observer-bar-label">{util}% utilized</div>
+                          </div>
+                        </>
+                      ) : <span className="sys-observer-label">No prompt data yet</span>;
+                    })()}
+                  </div>
+
+                  {/* Memory */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">Memory</div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">embeddings</span>
+                      {displayDebug?.flags?.embeddingsConfigured === false ? (
+                        <span className="sys-observer-status warn">disabled</span>
+                      ) : displayDebug?.flags?.embeddingsConfigured === true ? (
+                        <span className="sys-observer-status ok">active</span>
+                      ) : (
+                        <span className="sys-observer-status off">unknown</span>
+                      )}
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">injected</span>
+                      <span className="sys-observer-value">{displayDebug?.memoryInjected ? displayDebug.memoryInjected.length : "—"}</span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">user memories</span>
+                      <span className="sys-observer-value">{displayDebug?.userMemoryRetrieved ? displayDebug.userMemoryRetrieved.length : "—"}</span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">conflicts</span>
+                      <span className="sys-observer-value">{displayDebug?.memoryConflicts ? displayDebug.memoryConflicts.length : "—"}</span>
+                    </div>
+                  </div>
+
+                  {/* Mood Adjudication */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">Mood Adjudication</div>
+                    {(() => {
+                      const adj = displayDebug?.mood?.adjudication;
+                      const runtime = displayDebug?.mood?.runtime;
+                      return adj ? (
+                        <>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">method</span>
+                            <span className="sys-observer-value">{String(adj.method || adj.source || "vad-decay")}</span>
+                          </div>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">Δ valence</span>
+                            <span className="sys-observer-value">
+                              {Number.isFinite(adj.delta?.valence) ? (adj.delta.valence >= 0 ? "+" : "") + adj.delta.valence.toFixed(3) : "—"}
+                            </span>
+                          </div>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">Δ arousal</span>
+                            <span className="sys-observer-value">
+                              {Number.isFinite(adj.delta?.arousal) ? (adj.delta.arousal >= 0 ? "+" : "") + adj.delta.arousal.toFixed(3) : "—"}
+                            </span>
+                          </div>
+                          {runtime != null && (
+                            <div className="sys-observer-row">
+                              <span className="sys-observer-label">runtime</span>
+                              <span className="sys-observer-value">{String(runtime)}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : <span className="sys-observer-label">No adjudication data yet</span>;
+                    })()}
+                  </div>
+
+                  {/* TTS */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">TTS</div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">engine</span>
+                      <span className="sys-observer-value">{voiceTelemetry ? String(voiceTelemetry.chosenEngine || "—") : "—"}</span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">requested</span>
+                      <span className="sys-observer-value">{voiceTelemetry ? String(voiceTelemetry.requestedRaw || voiceTelemetry.requested || "auto") : "—"}</span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">fallback</span>
+                      {voiceTelemetry ? (
+                        voiceTelemetry.fallbackUsed ? (
+                          <span className="sys-observer-status warn">from {String(voiceTelemetry.fallbackFrom || "primary")}</span>
+                        ) : (
+                          <span className="sys-observer-status ok">none</span>
+                        )
+                      ) : <span className="sys-observer-value">—</span>}
+                    </div>
+                    {voiceTelemetry?.fallbackUsed && voiceTelemetry.fallbackReason ? (
+                      <div className="sys-observer-row">
+                        <span className="sys-observer-label">reason</span>
+                        <span className="sys-observer-value" title={String(voiceTelemetry.fallbackReason)}>
+                          {String(voiceTelemetry.fallbackReason).slice(0, 24)}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Rate Limit */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">Rate Limit</div>
+                    {(() => {
+                      const rl = displayDebug?.rateLimit;
+                      return rl ? (
+                        <>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">hit</span>
+                            {rl.hit ? <span className="sys-observer-status warn">yes</span> : <span className="sys-observer-status ok">no</span>}
+                          </div>
+                          {rl.retryAttempted ? (
+                            <div className="sys-observer-row">
+                              <span className="sys-observer-label">retry</span>
+                              {rl.retrySucceeded ? <span className="sys-observer-status ok">ok</span> : <span className="sys-observer-status warn">failed</span>}
+                            </div>
+                          ) : null}
+                          {rl.fallbackDelivered ? (
+                            <div className="sys-observer-row">
+                              <span className="sys-observer-label">fallback</span>
+                              <span className="sys-observer-status warn">delivered</span>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : <span className="sys-observer-label">No rate limit events</span>;
+                    })()}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
                 <span className="voice-panel-dot" />
                 QUICK VOICE
               </div>
