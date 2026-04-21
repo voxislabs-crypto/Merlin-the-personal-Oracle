@@ -81,6 +81,10 @@ Returns a `release` block with `branch` and `gitSha` when the backend was starte
 - Fixed Cartesia timeout test expectations to align with the current timeout cap behavior.
 - Updated Cartesia voice fallback test data to use UUID-format provider voice IDs.
 - Verified backend test suite stability: 25 test files passing, 209/209 tests green.
+- Added non-fatal chat pipeline warning logs for background memory/preference extraction tasks.
+- Added EPF player UI control to trigger `/api/loops/refresh` and reload loop cache from the frontend.
+- Expanded TTS telemetry visibility in chat UI with fallback reason and attempted engine chain.
+- Added chat debug visibility when semantic memory embeddings are disabled.
 
 ---
 

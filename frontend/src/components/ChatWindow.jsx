@@ -1442,6 +1442,11 @@ function getResponseLensSummary(debug) {
     chips.push(`score: ${score.toFixed(2)}`);
   }
 
+  if (debug?.flags?.embeddingsConfigured === false) {
+    chips.push("memory embeddings: disabled");
+    body += " Semantic memory embeddings are currently disabled, so recall ranking may be less precise.";
+  }
+
   return {
     title: "Response Lens",
     body,
@@ -3199,6 +3204,12 @@ export default function ChatWindow({
                 {` -> ${String(voiceTelemetry.chosenEngine || "unknown")}`}
                 {voiceTelemetry.fallbackUsed
                   ? ` (fallback from ${String(voiceTelemetry.fallbackFrom || "primary")})`
+                  : ""}
+                {voiceTelemetry.fallbackUsed && voiceTelemetry.fallbackReason
+                  ? ` | reason: ${String(voiceTelemetry.fallbackReason)}`
+                  : ""}
+                {Array.isArray(voiceTelemetry.attemptedEngines) && voiceTelemetry.attemptedEngines.length > 0
+                  ? ` | attempts: ${voiceTelemetry.attemptedEngines.map((item) => String(item || "").trim()).filter(Boolean).join(" -> ")}`
                   : ""}
               </div>
             ) : null}

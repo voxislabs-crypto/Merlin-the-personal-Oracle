@@ -98,6 +98,42 @@ const styles = `
 
   .epf-close:hover { color: #fff; border-color: rgba(255,255,255,0.30); }
 
+  .epf-loop-refresh {
+    margin-right: 10px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 234, 255, 0.25);
+    background: rgba(0, 234, 255, 0.08);
+    color: rgba(136, 236, 255, 0.95);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .epf-loop-refresh:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .epf-loop-refresh:hover:not(:disabled) {
+    border-color: rgba(0, 234, 255, 0.5);
+    background: rgba(0, 234, 255, 0.14);
+  }
+
+  .epf-header-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .epf-loop-refresh-note {
+    margin: 8px 22px 0;
+    font-size: 0.72rem;
+    color: rgba(136, 236, 255, 0.86);
+    letter-spacing: 0.04em;
+  }
+
   .epf-timeline {
     padding: 16px 22px 0;
     display: flex;
@@ -776,6 +812,8 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
   const [progress, setProgress] = useState(0);
   const [musicVolume, setMusicVolume] = useState(0.55);
   const [error, setError] = useState(null);
+  const [isRefreshingLoops, setIsRefreshingLoops] = useState(false);
+  const [loopRefreshNote, setLoopRefreshNote] = useState("");
 
   const loopEngineRef = useRef(null);
   const schedulerRef = useRef(null);
@@ -952,6 +990,33 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
     loopEngineRef.current?.setVolume(vol);
   }, []);
 
+  const handleRefreshLoops = useCallback(async () => {
+    if (isRefreshingLoops) {
+      return;
+    }
+
+    setIsRefreshingLoops(true);
+    setLoopRefreshNote("Refreshing mood loop cache…");
+
+    try {
+      const resp = await authFetch("/api/loops/refresh", {
+        method: "POST",
+      });
+      const payload = await resp.json().catch(() => ({}));
+
+      if (!resp.ok) {
+        throw new Error(String(payload?.error || "Loop refresh failed."));
+      }
+
+      await loopEngineRef.current?.init();
+      setLoopRefreshNote("Mood loop cache refreshed.");
+    } catch (err) {
+      setLoopRefreshNote(String(err?.message || "Loop refresh failed."));
+    } finally {
+      setIsRefreshingLoops(false);
+    }
+  }, [authFetch, isRefreshingLoops]);
+
   const moodConf = MOOD_CONFIG[currentMood] || MOOD_CONFIG.ambient;
   const segmentIds = script?.segments?.map((s) => s.id) || [];
 
@@ -969,8 +1034,21 @@ export default function PerformancePlayer({ personalityId, text, voiceProfile, o
                 &nbsp;· v{script.version} · {script.segments?.length || 0} segments
               </span>}
             </div>
-            <button className="epf-close" onClick={onClose}>✕ Close</button>
+            <div className="epf-header-actions">
+              <button
+                type="button"
+                className="epf-loop-refresh"
+                onClick={() => void handleRefreshLoops()}
+                disabled={isRefreshingLoops}
+                title="Refresh loop cache from backend"
+              >
+                {isRefreshingLoops ? "Refreshing…" : "Refresh Loops"}
+              </button>
+              <button className="epf-close" onClick={onClose}>✕ Close</button>
+            </div>
           </div>
+
+          {loopRefreshNote ? <div className="epf-loop-refresh-note">{loopRefreshNote}</div> : null}
 
           {status === "error" && (
             <div className="epf-loading" style={{ color: "#ff6b6b" }}>

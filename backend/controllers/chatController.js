@@ -24,6 +24,7 @@ import {
   estimateModelContextWindow,
   estimateTokenCount,
   extractMemoryFacts,
+  isEmbeddingConfigured,
 } from "../services/llmService.js";
 import {
   stepMoodDetailed,
@@ -1145,6 +1146,7 @@ export async function chatHandler(req, res, next) {
         reconditioned: shouldRecondition,
         moodFragmentInjected: Boolean(moodFragment),
         historyMessages: history.length,
+        embeddingsConfigured: isEmbeddingConfigured(),
         rateLimitRecovered: Boolean(rateLimit?.retrySucceeded),
         rateLimitFallbackDelivered: Boolean(rateLimit?.fallbackDelivered),
         emotionalRepairApplied,
@@ -1333,8 +1335,11 @@ export async function chatHandler(req, res, next) {
     }
 
     setImmediate(() => {
-      backfillMissingMemoryEmbeddings(personalityId).catch(() => {
-        // Backfill is best-effort and should never impact chat flow.
+      backfillMissingMemoryEmbeddings(personalityId).catch((err) => {
+        console.warn("[Chat] memory embedding backfill failed (non-fatal)", {
+          personalityId,
+          error: String(err?.message || err || "unknown"),
+        });
       });
     });
 
@@ -1361,8 +1366,11 @@ export async function chatHandler(req, res, next) {
         if (newFacts.length > 0) {
           pruneMemory(personalityId, MEMORY_MAX);
         }
-      } catch {
-        // Memory extraction failure is non-fatal.
+      } catch (err) {
+        console.warn("[Chat] memory extraction failed (non-fatal)", {
+          personalityId,
+          error: String(err?.message || err || "unknown"),
+        });
       }
     });
 
@@ -1378,8 +1386,12 @@ export async function chatHandler(req, res, next) {
               memory.importance,
             );
           }
-        } catch {
-          // User memory extraction is additive and non-fatal.
+        } catch (err) {
+          console.warn("[Chat] user memory extraction failed (non-fatal)", {
+            personalityId,
+            userId: policy.userId,
+            error: String(err?.message || err || "unknown"),
+          });
         }
       });
     }
@@ -1387,8 +1399,11 @@ export async function chatHandler(req, res, next) {
     setImmediate(async () => {
       try {
         await extractPersonaPreferences();
-      } catch {
-        // Preference extraction is additive and non-fatal.
+      } catch (err) {
+        console.warn("[Chat] preference extraction failed (non-fatal)", {
+          personalityId,
+          error: String(err?.message || err || "unknown"),
+        });
       }
     });
 
