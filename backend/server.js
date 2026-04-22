@@ -12,6 +12,7 @@ process.on("uncaughtException", (err) => {
 });
 
 import personalityRoutes from "./routes/personalityRoutes.js";
+import councilRoutes from "./routes/councilRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import userRoutes from "./routes/userRoutes.js";

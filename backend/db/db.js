@@ -86,6 +86,9 @@ ensureColumn("personalities", "gender", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("personalities", "avatarImageUrl", "TEXT NOT NULL DEFAULT ''");
 ensureColumn("personalities", "singingProfile", "TEXT NOT NULL DEFAULT '{}'");
 ensureColumn("personalities", "emotionDrift", "TEXT NOT NULL DEFAULT '{}'");
+// Per-personality LLM binding — used by the council/external API layer.
+// Falls back to global config when empty.
+ensureColumn("personalities", "llmConfig", "TEXT NOT NULL DEFAULT '{}'");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (

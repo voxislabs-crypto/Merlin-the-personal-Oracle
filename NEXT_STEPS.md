@@ -181,3 +181,78 @@ Three `setImmediate` catch blocks in `chatController.js` now log structured `con
 
 ### ElevenLabs concurrent debounce
 Under rapid user input, multiple in-flight ElevenLabs requests can race. Add a per-persona request deduplicator in `ttsService.js` (cancel previous in-flight request if same `personalityId` triggers a new one within 200 ms).
+
+---
+
+## Resume Here — CoE Integration Decision (2026-04-21)
+
+Final architecture decision:
+- Keep **Counsel of Echoes (CoE)** as the orchestrator service.
+- CoE calls Voxis over API per personality.
+- Voxis acts as a high-quality personality reasoning service.
+- Avoid bidirectional orchestration (do not have both systems orchestrate each other).
+
+Why this direction:
+- Better fault isolation and safer deploys (CoE changes do not destabilize Voxis chat core).
+- Cleaner scaling and cost control for multi-agent fanout.
+- Simpler experimentation/A-B tests at CoE layer.
+- Clear ownership boundary: Voxis = persona quality, CoE = deliberation/aggregation.
+
+### V1 Contract (CoE -> Voxis)
+
+Endpoint proposal:
+- `POST /api/coe/personality/:personalityId/respond`
+
+Request shape (minimum):
+- `requestId`, `conversationId`, `turnId`
+- `user: { id, mode }`
+- `input: { text, context.recentTurns[] }`
+- `orchestration: { roleInCouncil, temperatureHint, maxOutputTokens, timeoutMs, councilPrompt? }`
+- `telemetry: { traceId, spanId }`
+
+Response shape (minimum):
+- `requestId`, `personalityId`, `personalityName`
+- `reply: { text, confidence, stance, keyPoints[] }`
+- `mood: { before, after, label }`
+- `usage: { model, inputTokens, outputTokens, totalTokens }`
+- `timing: { latencyMs }`
+- `debug: { rateLimited, fallbackUsed }`
+
+Error contract:
+- Statuses: `408`, `422`, `429`, `503`
+- Body shape: `error: { code, message, retryable }`
+
+### Personality API Registry (CoE-side)
+
+Store per-personality routing in CoE config/DB (not hardcoded):
+- `personalityId`
+- `provider` ("voxis")
+- `endpoint`
+- `weight`
+- `timeoutMs`
+- `enabled`
+
+This enables dynamic attach/detach of personalities without Voxis code changes.
+
+### Operational Guardrails
+
+- Per-personality timeout: `1500-2500ms`
+- Circuit breaker per endpoint
+- Continue partial council results if one member fails
+- Fallback path: if council fails, serve direct Voxis single-response
+- Propagate `X-Trace-Id` end-to-end for log correlation
+
+### Rollout Plan
+
+1. Add Voxis CoE endpoint and auth token validation.
+2. Add CoE adapter + registry.
+3. Run shadow mode (CoE calls Voxis, user still sees current path).
+4. Enable feature-flagged partial traffic.
+5. Promote to full council mode once latency/error targets pass.
+
+### First Implementation Slice (smallest safe step)
+
+1. Add new Voxis route/controller for `POST /api/coe/personality/:personalityId/respond`.
+2. Reuse existing prompt assembly + mood pipeline internally.
+3. Return normalized response envelope (including usage + mood + timing).
+4. Add one integration test for success and one for timeout/error envelope.

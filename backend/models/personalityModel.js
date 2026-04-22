@@ -109,6 +109,7 @@ function normalizeRow(row) {
     avatarImageUrl: String(row.avatarImageUrl || "").trim(),
     singingProfile: parseJsonObject(row.singingProfile, {}),
     emotionDrift: parseJsonObject(row.emotionDrift, {}),
+    llmConfig: parseJsonObject(row.llmConfig, {}),
   };
 }
 
@@ -377,7 +378,8 @@ export function updatePersonality(id, personality) {
       gender = @gender,
       avatarImageUrl = @avatarImageUrl,
       singingProfile = @singingProfile,
-      emotionDrift = @emotionDrift
+      emotionDrift = @emotionDrift,
+      llmConfig = @llmConfig
     WHERE id = @id
   `);
 
@@ -407,6 +409,7 @@ export function updatePersonality(id, personality) {
     avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
     singingProfile: JSON.stringify(personality.singingProfile || {}),
     emotionDrift: JSON.stringify(personality.emotionDrift || {}),
+    llmConfig: JSON.stringify(personality.llmConfig || {}),
   });
 
   return getPersonalityById(id);
