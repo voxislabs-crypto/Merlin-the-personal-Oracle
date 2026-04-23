@@ -76,6 +76,60 @@ Returns a `release` block with `branch` and `gitSha` when the backend was starte
 
 ---
 
+## Recent Updates (2026-04-23) — Background Cognition Loop
+
+Voxis personalities now think in the background between conversations.
+
+### What was added
+
+**`backend/services/cognitionLoopService.js`** — Autonomous scheduled cognition service. Each interval, every active personality runs a private reflection pass: generating internal thoughts, open loops, and reach-out candidates via an LLM prompt. The service is self-contained with overlap prevention, startup grace, and a full delivery policy layer.
+
+**Delivery policy** — A governor layer that gates every candidate reach-out against 7 independent guards before surfacing anything to the user:
+- Priority threshold (configurable `deliveryPriorityThreshold`)
+- Minimum cooldown interval between deliveries
+- Hourly delivery cap
+- Active user suppression (no interruption during active conversation)
+- Inactivity requirement (user must have been away long enough)
+- Quiet hours window (configurable start/end hour, handles overnight rollover)
+- Startup grace period (suppresses delivery for N minutes after boot)
+
+**Staged candidate architecture** — Reach-out candidates are written as `reach_out_candidate` memory entries (structured JSON with priority, type, cooldownKey, status). When policy approves, a `reach_out_delivery` entry is written and the candidate is marked delivered. Candidates are never discarded — they age gracefully in memory.
+
+**Delivery feedback loop** — After each delivery, the next reflection pass scores the outcome: did the user reply? How fast? What was the sentiment (positive / neutral / negative / ignored)? Feedback is stored as `reach_out_feedback` memory and injected into the reflection prompt so personalities learn what actually works for each user over time.
+
+**Personality-typed message formatting** — Reach-outs are styled by their declared type (`curiosity`, `reflection`, `idea`, `concern`) with distinct prefix patterns so each personality's initiative feels consistent with its character.
+
+**Admin API** (`backend/routes/cognitionRoutes.js`, `backend/controllers/cognitionController.js`):
+```
+GET  /api/cognition-loop/config   — read current config
+PUT  /api/cognition-loop/config   — update config + reschedule (admin only)
+GET  /api/cognition-loop/status   — runtime state (loopCount, lastRunAt, deliveriesTotal, nextRunAt)
+POST /api/cognition-loop/run      — trigger a manual pass (admin only)
+```
+
+**Config** (all fields in `app_settings` under `cognition_loop_config`):
+
+| Field | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Master on/off |
+| `intervalMinutes` | `15` | Reflection cycle frequency |
+| `deliveryEnabled` | `true` | Allow reach-outs to surface |
+| `deliveryPriorityThreshold` | `0.6` | Minimum priority to deliver |
+| `deliveryMinIntervalMinutes` | `10` | Cooldown between deliveries |
+| `deliveryMaxPerHour` | `2` | Hourly delivery cap |
+| `activeUserWindowMinutes` | `2` | Suppress if user active within N min |
+| `inactivityHoursForReachOut` | `24` | Min idle time before reach-out allowed |
+| `quietHoursEnabled` | `true` | Enable quiet window |
+| `quietHoursStartHour` | `1` | Quiet window start (0–23) |
+| `quietHoursEndHour` | `7` | Quiet window end (0–23, handles overnight) |
+| `startupGraceMinutes` | `10` | No delivery for N minutes after boot |
+
+**Tests** — 14 focused Vitest tests across two suites:
+- `tests/cognitionLoopService.test.js` — scheduling, overlap prevention, priority gating, cooldown, quiet hours (including overnight rollover), and full happy-path memory write verification
+- `tests/cognitionController.test.js` — API contract tests for all 4 handlers, including error propagation and malformed body handling
+
+---
+
 ## Recent Maintenance Updates (2026-04-21)
 
 - Fixed Cartesia timeout test expectations to align with the current timeout cap behavior.

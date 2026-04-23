@@ -164,6 +164,32 @@ export function getPersonalityMemory(personalityId, limit = 20) {
     .all(personalityId, limit);
 }
 
+export function getPersonalityMemoryByType(
+  personalityId,
+  memoryType,
+  limit = 20,
+  { enabledOnly = true } = {},
+) {
+  const type = String(memoryType || "").trim();
+  if (!type) {
+    return [];
+  }
+
+  const query = enabledOnly
+    ? `SELECT id, personalityId, memoryType, content, importance, createdAt, updatedAt, enabled
+       FROM personality_memory
+       WHERE personalityId = ? AND memoryType = ? AND enabled = 1
+       ORDER BY id DESC
+       LIMIT ?`
+    : `SELECT id, personalityId, memoryType, content, importance, createdAt, updatedAt, enabled
+       FROM personality_memory
+       WHERE personalityId = ? AND memoryType = ?
+       ORDER BY id DESC
+       LIMIT ?`;
+
+  return db.prepare(query).all(personalityId, type, limit);
+}
+
 export async function getRelevantPersonalityMemory(personalityId, query, limit = 5) {
   const normalizedQuery = String(query || "").trim();
   if (!normalizedQuery) {

@@ -8,6 +8,7 @@ const VOICE_MAPS_KEY = "voice_maps";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
+const COGNITION_LOOP_CONFIG_KEY = "cognition_loop_config";
 function isTtsDebugProviderLockEnabledRuntime() {
   return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 }
@@ -500,6 +501,46 @@ function sanitizeMoodRuntimeConfig(config) {
     recoveryCurves: sanitizeRecoveryCurves(normalized.recoveryCurves),
     updatedAt: String(normalized.updatedAt || "").trim(),
   };
+}
+
+function sanitizeCognitionLoopConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : true,
+    intervalMinutes: Math.round(clampNumber(input.intervalMinutes, 5, 180, 15)),
+    maxPersonalitiesPerRun: Math.round(clampNumber(input.maxPersonalitiesPerRun, 1, 25, 8)),
+    recentMessagesWindow: Math.round(clampNumber(input.recentMessagesWindow, 4, 20, 8)),
+    memoryContextLimit: Math.round(clampNumber(input.memoryContextLimit, 3, 20, 8)),
+    inactivityHoursForReachOut: clampNumber(input.inactivityHoursForReachOut, 6, 168, 24),
+    curiosityThreshold: clampNumber(input.curiosityThreshold, 0.4, 0.95, 0.75),
+    maxNewGoalsPerRun: Math.round(clampNumber(input.maxNewGoalsPerRun, 0, 3, 1)),
+    deliveryEnabled: typeof input.deliveryEnabled === "boolean" ? input.deliveryEnabled : true,
+    deliveryMinIntervalMinutes: Math.round(clampNumber(input.deliveryMinIntervalMinutes, 2, 240, 10)),
+    deliveryMaxPerHour: Math.round(clampNumber(input.deliveryMaxPerHour, 1, 12, 2)),
+    deliveryPriorityThreshold: clampNumber(input.deliveryPriorityThreshold, 0.4, 0.95, 0.6),
+    activeUserWindowMinutes: Math.round(clampNumber(input.activeUserWindowMinutes, 1, 30, 2)),
+    quietHoursEnabled: typeof input.quietHoursEnabled === "boolean" ? input.quietHoursEnabled : true,
+    quietHoursStartHour: Math.round(clampNumber(input.quietHoursStartHour, 0, 23, 1)),
+    quietHoursEndHour: Math.round(clampNumber(input.quietHoursEndHour, 0, 23, 7)),
+    startupGraceMinutes: Math.round(clampNumber(input.startupGraceMinutes, 0, 120, 10)),
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
+export function getCognitionLoopConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(COGNITION_LOOP_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeCognitionLoopConfig(parsed);
+}
+
+export function setCognitionLoopConfig(config) {
+  const sanitized = sanitizeCognitionLoopConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(COGNITION_LOOP_CONFIG_KEY, payload);
+  return getCognitionLoopConfig();
 }
 
 export function getMoodRuntimeConfig() {

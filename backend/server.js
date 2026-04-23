@@ -18,8 +18,10 @@ import settingsRoutes from "./routes/settingsRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import loopRoutes from "./routes/loopRoutes.js";
 import sfxRoutes from "./routes/sfxRoutes.js";
+import cognitionRoutes from "./routes/cognitionRoutes.js";
 import { initSfxCache } from "./services/sfxCacheService.js";
 import { getTtsHealthStatus, preloadKokoro } from "./services/ttsService.js";
+import { startCognitionLoop } from "./services/cognitionLoopService.js";
 import { clerkVerify } from "./middleware/requireAuth.js";
 
 try {
@@ -102,6 +104,7 @@ app.use(settingsRoutes);
 app.use(userRoutes);
 app.use(loopRoutes);
 app.use(sfxRoutes);
+app.use(cognitionRoutes);
 
 // Temporary diagnostic: test Cartesia connectivity directly without going through ttsService.
 // Remove after confirming Cartesia API key/model works.
@@ -182,4 +185,11 @@ app.listen(port, () => {
   } else {
     console.log(`[Kokoro] Preload skipped (TTS_ENGINE=${_forcedEngine}, TTS_DISABLE_KOKORO=${_kokoroDisabled}).`);
   }
+
+  const cognitionStatus = startCognitionLoop();
+  console.log("[CognitionLoop] started", {
+    enabled: cognitionStatus.config.enabled,
+    intervalMinutes: cognitionStatus.config.intervalMinutes,
+    nextRunAt: cognitionStatus.nextRunAt,
+  });
 });
