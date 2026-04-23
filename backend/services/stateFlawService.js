@@ -32,6 +32,16 @@ function defaultChannel() {
   };
 }
 
+function normalizeTriggerProfile(input, defaults = {}) {
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    keywordWeight: clamp01(source.keywordWeight, clamp01(defaults.keywordWeight ?? 1, 1)),
+    longConversationWeight: clamp01(source.longConversationWeight, clamp01(defaults.longConversationWeight ?? 1, 1)),
+    messageLengthWeight: clamp01(source.messageLengthWeight, clamp01(defaults.messageLengthWeight ?? 1, 1)),
+    punctuationWeight: clamp01(source.punctuationWeight, clamp01(defaults.punctuationWeight ?? 1, 1)),
+  };
+}
+
 function normalizeChannel(input, defaults = {}) {
   const source = input && typeof input === "object" ? input : {};
   return {
@@ -40,6 +50,7 @@ function normalizeChannel(input, defaults = {}) {
     decayPerTurn: clamp01(source.decayPerTurn, clamp01(defaults.decayPerTurn ?? 0.02, 0.02)),
     triggerGain: clamp01(source.triggerGain, clamp01(defaults.triggerGain ?? 0.12, 0.12)),
     triggerKeywords: normalizeKeywords(source.triggerKeywords, defaults.triggerKeywords || []),
+    triggerProfile: normalizeTriggerProfile(source.triggerProfile, defaults.triggerProfile || {}),
     passiveGainPerTurn: clamp01(source.passiveGainPerTurn, clamp01(defaults.passiveGainPerTurn ?? 0, 0)),
     recoveryPerTurn: clamp01(source.recoveryPerTurn, clamp01(defaults.recoveryPerTurn ?? 0, 0)),
   };
@@ -56,6 +67,12 @@ export function normalizeStateFlaws(input) {
       decayPerTurn: 0.02,
       triggerGain: 0.12,
       triggerKeywords: ["drink", "drunk", "alcohol", "whiskey", "vodka", "beer", "wine", "buzzed", "bar"],
+      triggerProfile: {
+        keywordWeight: 1,
+        longConversationWeight: 0.2,
+        messageLengthWeight: 0.35,
+        punctuationWeight: 0.25,
+      },
     }),
     fatigue: normalizeChannel(root.fatigue, {
       ...defaultChannel(),
@@ -65,6 +82,12 @@ export function normalizeStateFlaws(input) {
       passiveGainPerTurn: 0.015,
       triggerGain: 0.08,
       triggerKeywords: ["late", "tired", "sleep", "exhausted", "insomnia", "long day", "burned out"],
+      triggerProfile: {
+        keywordWeight: 1,
+        longConversationWeight: 0.9,
+        messageLengthWeight: 0.25,
+        punctuationWeight: 0.1,
+      },
     }),
     agitation: normalizeChannel(root.agitation, {
       ...defaultChannel(),
@@ -73,6 +96,12 @@ export function normalizeStateFlaws(input) {
       decayPerTurn: 0.03,
       triggerGain: 0.1,
       triggerKeywords: ["stupid", "idiot", "hate", "annoying", "angry", "mad", "insult"],
+      triggerProfile: {
+        keywordWeight: 1,
+        longConversationWeight: 0.25,
+        messageLengthWeight: 0.12,
+        punctuationWeight: 0.8,
+      },
     }),
     focus: normalizeChannel(root.focus, {
       ...defaultChannel(),
@@ -82,6 +111,12 @@ export function normalizeStateFlaws(input) {
       recoveryPerTurn: 0.03,
       triggerGain: 0.08,
       triggerKeywords: ["focus", "concentrate", "plan", "step by step", "clear", "precise"],
+      triggerProfile: {
+        keywordWeight: 1,
+        longConversationWeight: 0.3,
+        messageLengthWeight: 0.18,
+        punctuationWeight: 0.2,
+      },
     }),
   };
 }
@@ -126,14 +161,27 @@ export function buildStateDriftDirectives(stateFlaws) {
   };
 }
 
-export function stepStateFlaws({ stateFlaws, userMessage = "" }) {
+export function stepStateFlaws({ stateFlaws, userMessage = "", turnCount = 0 }) {
   const normalized = normalizeStateFlaws(stateFlaws);
   const diagnostics = {};
+  const messageText = String(userMessage || "");
+  const messageLength = messageText.length;
+  const messagePunctuationDensity = Math.min(1, (messageText.match(/[!?.,;:]/g) || []).length / Math.max(1, messageLength));
+  const normalizedTurnCount = Math.max(0, Number(turnCount || 0));
+  const longConversationSignal = normalizedTurnCount >= 16 ? Math.min(1, (normalizedTurnCount - 16) / 20) : 0;
 
-  const intoxMatches = keywordMatches(userMessage, normalized.intoxication.triggerKeywords);
-  const fatigueMatches = keywordMatches(userMessage, normalized.fatigue.triggerKeywords);
-  const agitationMatches = keywordMatches(userMessage, normalized.agitation.triggerKeywords);
-  const focusMatches = keywordMatches(userMessage, normalized.focus.triggerKeywords);
+  const intoxMatches = keywordMatches(messageText, normalized.intoxication.triggerKeywords);
+  const fatigueMatches = keywordMatches(messageText, normalized.fatigue.triggerKeywords);
+  const agitationMatches = keywordMatches(messageText, normalized.agitation.triggerKeywords);
+  const focusMatches = keywordMatches(messageText, normalized.focus.triggerKeywords);
+
+  const computeProfileMultiplier = (profile) => {
+    const keywordSignal = clamp01((profile.keywordWeight || 0), 1);
+    const lengthSignal = clamp01((messageLength / 280) * (profile.messageLengthWeight || 0), 0);
+    const punctuationSignal = clamp01(messagePunctuationDensity * (profile.punctuationWeight || 0), 0);
+    const longConversation = clamp01(longConversationSignal * (profile.longConversationWeight || 0), 0);
+    return clamp01(keywordSignal + lengthSignal + punctuationSignal + longConversation, 1);
+  };
 
   const next = {
     ...normalized,
@@ -145,7 +193,8 @@ export function stepStateFlaws({ stateFlaws, userMessage = "" }) {
 
   const beforeIntox = normalized.intoxication.level;
   if (normalized.intoxication.enabled) {
-    const boost = intoxMatches.length * normalized.intoxication.triggerGain;
+    const profileMultiplier = computeProfileMultiplier(normalized.intoxication.triggerProfile);
+    const boost = intoxMatches.length * normalized.intoxication.triggerGain * profileMultiplier;
     next.intoxication.level = clamp01(beforeIntox - normalized.intoxication.decayPerTurn + boost, beforeIntox);
   }
   diagnostics.intoxication = {
@@ -153,11 +202,13 @@ export function stepStateFlaws({ stateFlaws, userMessage = "" }) {
     before: beforeIntox,
     after: next.intoxication.level,
     matchedKeywords: intoxMatches,
+    triggerProfile: normalized.intoxication.triggerProfile,
   };
 
   const beforeFatigue = normalized.fatigue.level;
   if (normalized.fatigue.enabled) {
-    const boost = fatigueMatches.length * normalized.fatigue.triggerGain;
+    const profileMultiplier = computeProfileMultiplier(normalized.fatigue.triggerProfile);
+    const boost = fatigueMatches.length * normalized.fatigue.triggerGain * profileMultiplier;
     next.fatigue.level = clamp01(
       beforeFatigue + normalized.fatigue.passiveGainPerTurn + boost - normalized.fatigue.decayPerTurn,
       beforeFatigue,
@@ -168,11 +219,13 @@ export function stepStateFlaws({ stateFlaws, userMessage = "" }) {
     before: beforeFatigue,
     after: next.fatigue.level,
     matchedKeywords: fatigueMatches,
+    triggerProfile: normalized.fatigue.triggerProfile,
   };
 
   const beforeAgitation = normalized.agitation.level;
   if (normalized.agitation.enabled) {
-    const boost = agitationMatches.length * normalized.agitation.triggerGain;
+    const profileMultiplier = computeProfileMultiplier(normalized.agitation.triggerProfile);
+    const boost = agitationMatches.length * normalized.agitation.triggerGain * profileMultiplier;
     next.agitation.level = clamp01(beforeAgitation - normalized.agitation.decayPerTurn + boost, beforeAgitation);
   }
   diagnostics.agitation = {
@@ -180,11 +233,13 @@ export function stepStateFlaws({ stateFlaws, userMessage = "" }) {
     before: beforeAgitation,
     after: next.agitation.level,
     matchedKeywords: agitationMatches,
+    triggerProfile: normalized.agitation.triggerProfile,
   };
 
   const beforeFocus = normalized.focus.level;
   if (normalized.focus.enabled) {
-    const support = focusMatches.length * normalized.focus.triggerGain;
+    const profileMultiplier = computeProfileMultiplier(normalized.focus.triggerProfile);
+    const support = focusMatches.length * normalized.focus.triggerGain * profileMultiplier;
     const pressureLoss = next.intoxication.level * 0.06 + next.fatigue.level * 0.05 + next.agitation.level * 0.03;
     next.focus.level = clamp01(
       beforeFocus + normalized.focus.recoveryPerTurn + support - normalized.focus.decayPerTurn - pressureLoss,
@@ -196,6 +251,7 @@ export function stepStateFlaws({ stateFlaws, userMessage = "" }) {
     before: beforeFocus,
     after: next.focus.level,
     matchedKeywords: focusMatches,
+    triggerProfile: normalized.focus.triggerProfile,
   };
 
   const directives = buildStateDriftDirectives(next);

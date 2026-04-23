@@ -52,4 +52,48 @@ describe("stateFlawService PersonaStateEngine", () => {
     expect(section).toContain("STATE DRIFT");
     expect(section).toContain("Intoxication");
   });
+
+  it("respects per-persona trigger profile weighting", () => {
+    const high = stepStateFlaws({
+      stateFlaws: {
+        agitation: {
+          enabled: true,
+          level: 0.2,
+          decayPerTurn: 0,
+          triggerGain: 0.2,
+          triggerKeywords: ["idiot"],
+          triggerProfile: {
+            keywordWeight: 1,
+            punctuationWeight: 1,
+            messageLengthWeight: 1,
+            longConversationWeight: 1,
+          },
+        },
+      },
+      userMessage: "IDIOT!!!",
+      turnCount: 35,
+    });
+
+    const low = stepStateFlaws({
+      stateFlaws: {
+        agitation: {
+          enabled: true,
+          level: 0.2,
+          decayPerTurn: 0,
+          triggerGain: 0.2,
+          triggerKeywords: ["idiot"],
+          triggerProfile: {
+            keywordWeight: 0.1,
+            punctuationWeight: 0,
+            messageLengthWeight: 0,
+            longConversationWeight: 0,
+          },
+        },
+      },
+      userMessage: "idiot",
+      turnCount: 0,
+    });
+
+    expect(high.stateFlaws.agitation.level).toBeGreaterThan(low.stateFlaws.agitation.level);
+  });
 });

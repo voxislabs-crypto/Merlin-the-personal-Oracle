@@ -494,9 +494,12 @@ export async function chatHandler(req, res, next) {
       return res.status(404).json({ error: "Personality not found." });
     }
 
+    const totalMessages = getChatMessageCount(personalityId);
+
     const stateFlawStep = stepStateFlaws({
       stateFlaws: personality.stateFlaws,
       userMessage: message,
+      turnCount: totalMessages,
     });
     personality.stateFlaws = stateFlawStep.stateFlaws;
     setImmediate(() => {
@@ -870,7 +873,6 @@ export async function chatHandler(req, res, next) {
     // Periodic reconditioning: inject a compressed persona anchor every N turns to
     // counter personality drift. Cadence is tighter for antagonist contexts.
     const reconditionEvery = getReconditionEvery(personality.creativeContext);
-    const totalMessages = getChatMessageCount(personalityId);
     const shouldRecondition = totalMessages > 0 && totalMessages % reconditionEvery === 0;
     const shouldDecayPreferences = totalMessages > 0 && totalMessages % PREF_DECAY_CADENCE === 0;
     if (shouldDecayPreferences) {

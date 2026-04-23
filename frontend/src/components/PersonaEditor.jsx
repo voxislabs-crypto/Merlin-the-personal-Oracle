@@ -316,23 +316,39 @@ function buildDraft(personality) {
     intoxicationDecayPerTurn: String(personality.stateFlaws?.intoxication?.decayPerTurn ?? 0.02),
     intoxicationTriggerGain: String(personality.stateFlaws?.intoxication?.triggerGain ?? 0.12),
     intoxicationTriggerKeywords: listToText(personality.stateFlaws?.intoxication?.triggerKeywords),
+    intoxicationKeywordWeight: String(personality.stateFlaws?.intoxication?.triggerProfile?.keywordWeight ?? 1),
+    intoxicationLongConversationWeight: String(personality.stateFlaws?.intoxication?.triggerProfile?.longConversationWeight ?? 0.2),
+    intoxicationMessageLengthWeight: String(personality.stateFlaws?.intoxication?.triggerProfile?.messageLengthWeight ?? 0.35),
+    intoxicationPunctuationWeight: String(personality.stateFlaws?.intoxication?.triggerProfile?.punctuationWeight ?? 0.25),
     fatigueEnabled: String(Boolean(personality.stateFlaws?.fatigue?.enabled)),
     fatigueLevel: String(personality.stateFlaws?.fatigue?.level ?? 0.1),
     fatigueDecayPerTurn: String(personality.stateFlaws?.fatigue?.decayPerTurn ?? 0.01),
     fatiguePassiveGainPerTurn: String(personality.stateFlaws?.fatigue?.passiveGainPerTurn ?? 0.015),
     fatigueTriggerGain: String(personality.stateFlaws?.fatigue?.triggerGain ?? 0.08),
     fatigueTriggerKeywords: listToText(personality.stateFlaws?.fatigue?.triggerKeywords),
+    fatigueKeywordWeight: String(personality.stateFlaws?.fatigue?.triggerProfile?.keywordWeight ?? 1),
+    fatigueLongConversationWeight: String(personality.stateFlaws?.fatigue?.triggerProfile?.longConversationWeight ?? 0.9),
+    fatigueMessageLengthWeight: String(personality.stateFlaws?.fatigue?.triggerProfile?.messageLengthWeight ?? 0.25),
+    fatiguePunctuationWeight: String(personality.stateFlaws?.fatigue?.triggerProfile?.punctuationWeight ?? 0.1),
     agitationEnabled: String(Boolean(personality.stateFlaws?.agitation?.enabled)),
     agitationLevel: String(personality.stateFlaws?.agitation?.level ?? 0),
     agitationDecayPerTurn: String(personality.stateFlaws?.agitation?.decayPerTurn ?? 0.03),
     agitationTriggerGain: String(personality.stateFlaws?.agitation?.triggerGain ?? 0.1),
     agitationTriggerKeywords: listToText(personality.stateFlaws?.agitation?.triggerKeywords),
+    agitationKeywordWeight: String(personality.stateFlaws?.agitation?.triggerProfile?.keywordWeight ?? 1),
+    agitationLongConversationWeight: String(personality.stateFlaws?.agitation?.triggerProfile?.longConversationWeight ?? 0.25),
+    agitationMessageLengthWeight: String(personality.stateFlaws?.agitation?.triggerProfile?.messageLengthWeight ?? 0.12),
+    agitationPunctuationWeight: String(personality.stateFlaws?.agitation?.triggerProfile?.punctuationWeight ?? 0.8),
     focusEnabled: String(Boolean(personality.stateFlaws?.focus?.enabled)),
     focusLevel: String(personality.stateFlaws?.focus?.level ?? 0.75),
     focusDecayPerTurn: String(personality.stateFlaws?.focus?.decayPerTurn ?? 0.015),
     focusRecoveryPerTurn: String(personality.stateFlaws?.focus?.recoveryPerTurn ?? 0.03),
     focusTriggerGain: String(personality.stateFlaws?.focus?.triggerGain ?? 0.08),
     focusTriggerKeywords: listToText(personality.stateFlaws?.focus?.triggerKeywords),
+    focusKeywordWeight: String(personality.stateFlaws?.focus?.triggerProfile?.keywordWeight ?? 1),
+    focusLongConversationWeight: String(personality.stateFlaws?.focus?.triggerProfile?.longConversationWeight ?? 0.3),
+    focusMessageLengthWeight: String(personality.stateFlaws?.focus?.triggerProfile?.messageLengthWeight ?? 0.18),
+    focusPunctuationWeight: String(personality.stateFlaws?.focus?.triggerProfile?.punctuationWeight ?? 0.2),
     creativeContext: personality.creativeContext || "default",
     mood: personality.mood || "neutral",
     moodLabel: personality.moodLabel || "",
@@ -496,7 +512,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       "name", "creativeContext", "mood", "moodLabel", "description", "systemPrompt", "sourceUrls", "prosodySourceUrl", "notablePhrases"
     ],
     behavior: [
-      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords", "fatigueEnabled", "fatigueLevel", "fatigueDecayPerTurn", "fatiguePassiveGainPerTurn", "fatigueTriggerGain", "fatigueTriggerKeywords", "agitationEnabled", "agitationLevel", "agitationDecayPerTurn", "agitationTriggerGain", "agitationTriggerKeywords", "focusEnabled", "focusLevel", "focusDecayPerTurn", "focusRecoveryPerTurn", "focusTriggerGain", "focusTriggerKeywords"
+      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords", "intoxicationKeywordWeight", "intoxicationLongConversationWeight", "intoxicationMessageLengthWeight", "intoxicationPunctuationWeight", "fatigueEnabled", "fatigueLevel", "fatigueDecayPerTurn", "fatiguePassiveGainPerTurn", "fatigueTriggerGain", "fatigueTriggerKeywords", "fatigueKeywordWeight", "fatigueLongConversationWeight", "fatigueMessageLengthWeight", "fatiguePunctuationWeight", "agitationEnabled", "agitationLevel", "agitationDecayPerTurn", "agitationTriggerGain", "agitationTriggerKeywords", "agitationKeywordWeight", "agitationLongConversationWeight", "agitationMessageLengthWeight", "agitationPunctuationWeight", "focusEnabled", "focusLevel", "focusDecayPerTurn", "focusRecoveryPerTurn", "focusTriggerGain", "focusTriggerKeywords", "focusKeywordWeight", "focusLongConversationWeight", "focusMessageLengthWeight", "focusPunctuationWeight"
       , "cadenceMode", "cadenceTeasingFrequency", "cadenceVariability", "cadenceRepetitionPenalty", "cadenceCooldownTurns", "cadenceWindowTurns"
     ],
     neural: [
@@ -555,6 +571,12 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           decayPerTurn: normalizeRatio(draft.intoxicationDecayPerTurn, 0.02),
           triggerGain: normalizeRatio(draft.intoxicationTriggerGain, 0.12),
           triggerKeywords: textToList(draft.intoxicationTriggerKeywords),
+          triggerProfile: {
+            keywordWeight: normalizeRatio(draft.intoxicationKeywordWeight, 1),
+            longConversationWeight: normalizeRatio(draft.intoxicationLongConversationWeight, 0.2),
+            messageLengthWeight: normalizeRatio(draft.intoxicationMessageLengthWeight, 0.35),
+            punctuationWeight: normalizeRatio(draft.intoxicationPunctuationWeight, 0.25),
+          },
         },
         fatigue: {
           enabled: parseBoolean(draft.fatigueEnabled),
@@ -563,6 +585,12 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           passiveGainPerTurn: normalizeRatio(draft.fatiguePassiveGainPerTurn, 0.015),
           triggerGain: normalizeRatio(draft.fatigueTriggerGain, 0.08),
           triggerKeywords: textToList(draft.fatigueTriggerKeywords),
+          triggerProfile: {
+            keywordWeight: normalizeRatio(draft.fatigueKeywordWeight, 1),
+            longConversationWeight: normalizeRatio(draft.fatigueLongConversationWeight, 0.9),
+            messageLengthWeight: normalizeRatio(draft.fatigueMessageLengthWeight, 0.25),
+            punctuationWeight: normalizeRatio(draft.fatiguePunctuationWeight, 0.1),
+          },
         },
         agitation: {
           enabled: parseBoolean(draft.agitationEnabled),
@@ -570,6 +598,12 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           decayPerTurn: normalizeRatio(draft.agitationDecayPerTurn, 0.03),
           triggerGain: normalizeRatio(draft.agitationTriggerGain, 0.1),
           triggerKeywords: textToList(draft.agitationTriggerKeywords),
+          triggerProfile: {
+            keywordWeight: normalizeRatio(draft.agitationKeywordWeight, 1),
+            longConversationWeight: normalizeRatio(draft.agitationLongConversationWeight, 0.25),
+            messageLengthWeight: normalizeRatio(draft.agitationMessageLengthWeight, 0.12),
+            punctuationWeight: normalizeRatio(draft.agitationPunctuationWeight, 0.8),
+          },
         },
         focus: {
           enabled: parseBoolean(draft.focusEnabled),
@@ -578,6 +612,12 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           recoveryPerTurn: normalizeRatio(draft.focusRecoveryPerTurn, 0.03),
           triggerGain: normalizeRatio(draft.focusTriggerGain, 0.08),
           triggerKeywords: textToList(draft.focusTriggerKeywords),
+          triggerProfile: {
+            keywordWeight: normalizeRatio(draft.focusKeywordWeight, 1),
+            longConversationWeight: normalizeRatio(draft.focusLongConversationWeight, 0.3),
+            messageLengthWeight: normalizeRatio(draft.focusMessageLengthWeight, 0.18),
+            punctuationWeight: normalizeRatio(draft.focusPunctuationWeight, 0.2),
+          },
         },
       },
       creativeContext: draft.creativeContext,
@@ -1077,6 +1117,22 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
               onChange={(event) => setDraft((current) => ({ ...current, intoxicationTriggerKeywords: event.target.value }))}
             />
           </div>
+          <div className="persona-field">
+            <label>Intoxication Keyword Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.intoxicationKeywordWeight} onChange={(event) => setDraft((current) => ({ ...current, intoxicationKeywordWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Long Conversation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.intoxicationLongConversationWeight} onChange={(event) => setDraft((current) => ({ ...current, intoxicationLongConversationWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Message Length Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.intoxicationMessageLengthWeight} onChange={(event) => setDraft((current) => ({ ...current, intoxicationMessageLengthWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Punctuation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.intoxicationPunctuationWeight} onChange={(event) => setDraft((current) => ({ ...current, intoxicationPunctuationWeight: event.target.value }))} />
+          </div>
 
           <div className="persona-field">
             <label>Fatigue Enabled</label>
@@ -1105,6 +1161,22 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
             <label>Fatigue Trigger Keywords (one per line)</label>
             <textarea value={draft.fatigueTriggerKeywords} onChange={(event) => setDraft((current) => ({ ...current, fatigueTriggerKeywords: event.target.value }))} />
           </div>
+          <div className="persona-field">
+            <label>Fatigue Keyword Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatigueKeywordWeight} onChange={(event) => setDraft((current) => ({ ...current, fatigueKeywordWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Long Conversation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatigueLongConversationWeight} onChange={(event) => setDraft((current) => ({ ...current, fatigueLongConversationWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Message Length Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatigueMessageLengthWeight} onChange={(event) => setDraft((current) => ({ ...current, fatigueMessageLengthWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Punctuation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatiguePunctuationWeight} onChange={(event) => setDraft((current) => ({ ...current, fatiguePunctuationWeight: event.target.value }))} />
+          </div>
 
           <div className="persona-field">
             <label>Agitation Enabled</label>
@@ -1128,6 +1200,22 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           <div className="persona-field full">
             <label>Agitation Trigger Keywords (one per line)</label>
             <textarea value={draft.agitationTriggerKeywords} onChange={(event) => setDraft((current) => ({ ...current, agitationTriggerKeywords: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Agitation Keyword Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationKeywordWeight} onChange={(event) => setDraft((current) => ({ ...current, agitationKeywordWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Agitation Long Conversation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationLongConversationWeight} onChange={(event) => setDraft((current) => ({ ...current, agitationLongConversationWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Agitation Message Length Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationMessageLengthWeight} onChange={(event) => setDraft((current) => ({ ...current, agitationMessageLengthWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Agitation Punctuation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationPunctuationWeight} onChange={(event) => setDraft((current) => ({ ...current, agitationPunctuationWeight: event.target.value }))} />
           </div>
 
           <div className="persona-field">
@@ -1156,6 +1244,22 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           <div className="persona-field full">
             <label>Focus Trigger Keywords (one per line)</label>
             <textarea value={draft.focusTriggerKeywords} onChange={(event) => setDraft((current) => ({ ...current, focusTriggerKeywords: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Keyword Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusKeywordWeight} onChange={(event) => setDraft((current) => ({ ...current, focusKeywordWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Long Conversation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusLongConversationWeight} onChange={(event) => setDraft((current) => ({ ...current, focusLongConversationWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Message Length Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusMessageLengthWeight} onChange={(event) => setDraft((current) => ({ ...current, focusMessageLengthWeight: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Punctuation Weight (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusPunctuationWeight} onChange={(event) => setDraft((current) => ({ ...current, focusPunctuationWeight: event.target.value }))} />
           </div>
           <div className="persona-field full">
             <label>Sentence Style</label>

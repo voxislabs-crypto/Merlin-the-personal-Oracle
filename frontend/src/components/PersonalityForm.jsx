@@ -673,23 +673,39 @@ const initialForm = {
   intoxicationDecayPerTurn: 0.02,
   intoxicationTriggerGain: 0.12,
   intoxicationTriggerKeywords: "drink, drunk, alcohol, whiskey, vodka, beer, wine, buzzed",
+  intoxicationKeywordWeight: 1,
+  intoxicationLongConversationWeight: 0.2,
+  intoxicationMessageLengthWeight: 0.35,
+  intoxicationPunctuationWeight: 0.25,
   fatigueEnabled: false,
   fatigueLevel: 0.1,
   fatigueDecayPerTurn: 0.01,
   fatiguePassiveGainPerTurn: 0.015,
   fatigueTriggerGain: 0.08,
   fatigueTriggerKeywords: "late, tired, sleep, exhausted, insomnia, long day, burned out",
+  fatigueKeywordWeight: 1,
+  fatigueLongConversationWeight: 0.9,
+  fatigueMessageLengthWeight: 0.25,
+  fatiguePunctuationWeight: 0.1,
   agitationEnabled: false,
   agitationLevel: 0,
   agitationDecayPerTurn: 0.03,
   agitationTriggerGain: 0.1,
   agitationTriggerKeywords: "stupid, idiot, hate, annoying, angry, mad, insult",
+  agitationKeywordWeight: 1,
+  agitationLongConversationWeight: 0.25,
+  agitationMessageLengthWeight: 0.12,
+  agitationPunctuationWeight: 0.8,
   focusEnabled: false,
   focusLevel: 0.75,
   focusDecayPerTurn: 0.015,
   focusRecoveryPerTurn: 0.03,
   focusTriggerGain: 0.08,
   focusTriggerKeywords: "focus, concentrate, plan, step by step, clear, precise",
+  focusKeywordWeight: 1,
+  focusLongConversationWeight: 0.3,
+  focusMessageLengthWeight: 0.18,
+  focusPunctuationWeight: 0.2,
   voiceEnabled: true,
   voiceAutoplay: false,
   voicePitch: 1,
@@ -770,23 +786,39 @@ function mapPersonalityToForm(personality) {
     intoxicationDecayPerTurn: String(Number(intoxication.decayPerTurn ?? 0.02)),
     intoxicationTriggerGain: String(Number(intoxication.triggerGain ?? 0.12)),
     intoxicationTriggerKeywords: toCommaList(intoxication.triggerKeywords),
+    intoxicationKeywordWeight: String(Number(intoxication.triggerProfile?.keywordWeight ?? 1)),
+    intoxicationLongConversationWeight: String(Number(intoxication.triggerProfile?.longConversationWeight ?? 0.2)),
+    intoxicationMessageLengthWeight: String(Number(intoxication.triggerProfile?.messageLengthWeight ?? 0.35)),
+    intoxicationPunctuationWeight: String(Number(intoxication.triggerProfile?.punctuationWeight ?? 0.25)),
     fatigueEnabled: Boolean(fatigue.enabled),
     fatigueLevel: String(Number(fatigue.level ?? 0.1)),
     fatigueDecayPerTurn: String(Number(fatigue.decayPerTurn ?? 0.01)),
     fatiguePassiveGainPerTurn: String(Number(fatigue.passiveGainPerTurn ?? 0.015)),
     fatigueTriggerGain: String(Number(fatigue.triggerGain ?? 0.08)),
     fatigueTriggerKeywords: toCommaList(fatigue.triggerKeywords),
+    fatigueKeywordWeight: String(Number(fatigue.triggerProfile?.keywordWeight ?? 1)),
+    fatigueLongConversationWeight: String(Number(fatigue.triggerProfile?.longConversationWeight ?? 0.9)),
+    fatigueMessageLengthWeight: String(Number(fatigue.triggerProfile?.messageLengthWeight ?? 0.25)),
+    fatiguePunctuationWeight: String(Number(fatigue.triggerProfile?.punctuationWeight ?? 0.1)),
     agitationEnabled: Boolean(agitation.enabled),
     agitationLevel: String(Number(agitation.level ?? 0)),
     agitationDecayPerTurn: String(Number(agitation.decayPerTurn ?? 0.03)),
     agitationTriggerGain: String(Number(agitation.triggerGain ?? 0.1)),
     agitationTriggerKeywords: toCommaList(agitation.triggerKeywords),
+    agitationKeywordWeight: String(Number(agitation.triggerProfile?.keywordWeight ?? 1)),
+    agitationLongConversationWeight: String(Number(agitation.triggerProfile?.longConversationWeight ?? 0.25)),
+    agitationMessageLengthWeight: String(Number(agitation.triggerProfile?.messageLengthWeight ?? 0.12)),
+    agitationPunctuationWeight: String(Number(agitation.triggerProfile?.punctuationWeight ?? 0.8)),
     focusEnabled: Boolean(focus.enabled),
     focusLevel: String(Number(focus.level ?? 0.75)),
     focusDecayPerTurn: String(Number(focus.decayPerTurn ?? 0.015)),
     focusRecoveryPerTurn: String(Number(focus.recoveryPerTurn ?? 0.03)),
     focusTriggerGain: String(Number(focus.triggerGain ?? 0.08)),
     focusTriggerKeywords: toCommaList(focus.triggerKeywords),
+    focusKeywordWeight: String(Number(focus.triggerProfile?.keywordWeight ?? 1)),
+    focusLongConversationWeight: String(Number(focus.triggerProfile?.longConversationWeight ?? 0.3)),
+    focusMessageLengthWeight: String(Number(focus.triggerProfile?.messageLengthWeight ?? 0.18)),
+    focusPunctuationWeight: String(Number(focus.triggerProfile?.punctuationWeight ?? 0.2)),
     voiceEnabled: voiceProfile.enabled !== false,
     voiceAutoplay: Boolean(voiceProfile.autoplay),
     voicePitch: String(Number(voiceProfile.pitch ?? 1)),
@@ -1009,6 +1041,12 @@ export default function PersonalityForm({
               decayPerTurn: Number(form.intoxicationDecayPerTurn) || 0.02,
               triggerGain: Number(form.intoxicationTriggerGain) || 0.12,
               triggerKeywords: splitCommaSeparated(form.intoxicationTriggerKeywords),
+              triggerProfile: {
+                keywordWeight: Number(form.intoxicationKeywordWeight) || 0,
+                longConversationWeight: Number(form.intoxicationLongConversationWeight) || 0,
+                messageLengthWeight: Number(form.intoxicationMessageLengthWeight) || 0,
+                punctuationWeight: Number(form.intoxicationPunctuationWeight) || 0,
+              },
             },
             fatigue: {
               enabled: Boolean(form.fatigueEnabled),
@@ -1017,6 +1055,12 @@ export default function PersonalityForm({
               passiveGainPerTurn: Number(form.fatiguePassiveGainPerTurn) || 0.015,
               triggerGain: Number(form.fatigueTriggerGain) || 0.08,
               triggerKeywords: splitCommaSeparated(form.fatigueTriggerKeywords),
+              triggerProfile: {
+                keywordWeight: Number(form.fatigueKeywordWeight) || 0,
+                longConversationWeight: Number(form.fatigueLongConversationWeight) || 0,
+                messageLengthWeight: Number(form.fatigueMessageLengthWeight) || 0,
+                punctuationWeight: Number(form.fatiguePunctuationWeight) || 0,
+              },
             },
             agitation: {
               enabled: Boolean(form.agitationEnabled),
@@ -1024,6 +1068,12 @@ export default function PersonalityForm({
               decayPerTurn: Number(form.agitationDecayPerTurn) || 0.03,
               triggerGain: Number(form.agitationTriggerGain) || 0.1,
               triggerKeywords: splitCommaSeparated(form.agitationTriggerKeywords),
+              triggerProfile: {
+                keywordWeight: Number(form.agitationKeywordWeight) || 0,
+                longConversationWeight: Number(form.agitationLongConversationWeight) || 0,
+                messageLengthWeight: Number(form.agitationMessageLengthWeight) || 0,
+                punctuationWeight: Number(form.agitationPunctuationWeight) || 0,
+              },
             },
             focus: {
               enabled: Boolean(form.focusEnabled),
@@ -1032,6 +1082,12 @@ export default function PersonalityForm({
               recoveryPerTurn: Number(form.focusRecoveryPerTurn) || 0.03,
               triggerGain: Number(form.focusTriggerGain) || 0.08,
               triggerKeywords: splitCommaSeparated(form.focusTriggerKeywords),
+              triggerProfile: {
+                keywordWeight: Number(form.focusKeywordWeight) || 0,
+                longConversationWeight: Number(form.focusLongConversationWeight) || 0,
+                messageLengthWeight: Number(form.focusMessageLengthWeight) || 0,
+                punctuationWeight: Number(form.focusPunctuationWeight) || 0,
+              },
             },
           },
           behaviorRules: splitLineSeparated(form.behaviorRules),
@@ -1654,6 +1710,23 @@ export default function PersonalityForm({
             <small>Comma-separated terms that increase intoxication state when seen in user messages.</small>
           </div>
 
+          <div className="field">
+            <label htmlFor="intoxicationKeywordWeight">Intoxication keyword weight (0-1)</label>
+            <input id="intoxicationKeywordWeight" name="intoxicationKeywordWeight" type="number" min="0" max="1" step="0.01" value={form.intoxicationKeywordWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="intoxicationLongConversationWeight">Intoxication long conversation weight (0-1)</label>
+            <input id="intoxicationLongConversationWeight" name="intoxicationLongConversationWeight" type="number" min="0" max="1" step="0.01" value={form.intoxicationLongConversationWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="intoxicationMessageLengthWeight">Intoxication message length weight (0-1)</label>
+            <input id="intoxicationMessageLengthWeight" name="intoxicationMessageLengthWeight" type="number" min="0" max="1" step="0.01" value={form.intoxicationMessageLengthWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="intoxicationPunctuationWeight">Intoxication punctuation weight (0-1)</label>
+            <input id="intoxicationPunctuationWeight" name="intoxicationPunctuationWeight" type="number" min="0" max="1" step="0.01" value={form.intoxicationPunctuationWeight} onChange={updateField} />
+          </div>
+
           <label className="checkbox-row" style={{ paddingTop: 10 }}>
             <input
               type="checkbox"
@@ -1689,6 +1762,22 @@ export default function PersonalityForm({
             <label htmlFor="fatigueTriggerKeywords">Fatigue trigger keywords</label>
             <input id="fatigueTriggerKeywords" name="fatigueTriggerKeywords" value={form.fatigueTriggerKeywords} onChange={updateField} />
           </div>
+          <div className="field">
+            <label htmlFor="fatigueKeywordWeight">Fatigue keyword weight (0-1)</label>
+            <input id="fatigueKeywordWeight" name="fatigueKeywordWeight" type="number" min="0" max="1" step="0.01" value={form.fatigueKeywordWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="fatigueLongConversationWeight">Fatigue long conversation weight (0-1)</label>
+            <input id="fatigueLongConversationWeight" name="fatigueLongConversationWeight" type="number" min="0" max="1" step="0.01" value={form.fatigueLongConversationWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="fatigueMessageLengthWeight">Fatigue message length weight (0-1)</label>
+            <input id="fatigueMessageLengthWeight" name="fatigueMessageLengthWeight" type="number" min="0" max="1" step="0.01" value={form.fatigueMessageLengthWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="fatiguePunctuationWeight">Fatigue punctuation weight (0-1)</label>
+            <input id="fatiguePunctuationWeight" name="fatiguePunctuationWeight" type="number" min="0" max="1" step="0.01" value={form.fatiguePunctuationWeight} onChange={updateField} />
+          </div>
 
           <label className="checkbox-row" style={{ paddingTop: 10 }}>
             <input
@@ -1720,6 +1809,22 @@ export default function PersonalityForm({
           <div className="field full">
             <label htmlFor="agitationTriggerKeywords">Agitation trigger keywords</label>
             <input id="agitationTriggerKeywords" name="agitationTriggerKeywords" value={form.agitationTriggerKeywords} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="agitationKeywordWeight">Agitation keyword weight (0-1)</label>
+            <input id="agitationKeywordWeight" name="agitationKeywordWeight" type="number" min="0" max="1" step="0.01" value={form.agitationKeywordWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="agitationLongConversationWeight">Agitation long conversation weight (0-1)</label>
+            <input id="agitationLongConversationWeight" name="agitationLongConversationWeight" type="number" min="0" max="1" step="0.01" value={form.agitationLongConversationWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="agitationMessageLengthWeight">Agitation message length weight (0-1)</label>
+            <input id="agitationMessageLengthWeight" name="agitationMessageLengthWeight" type="number" min="0" max="1" step="0.01" value={form.agitationMessageLengthWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="agitationPunctuationWeight">Agitation punctuation weight (0-1)</label>
+            <input id="agitationPunctuationWeight" name="agitationPunctuationWeight" type="number" min="0" max="1" step="0.01" value={form.agitationPunctuationWeight} onChange={updateField} />
           </div>
 
           <label className="checkbox-row" style={{ paddingTop: 10 }}>
@@ -1756,6 +1861,22 @@ export default function PersonalityForm({
           <div className="field full">
             <label htmlFor="focusTriggerKeywords">Focus trigger keywords</label>
             <input id="focusTriggerKeywords" name="focusTriggerKeywords" value={form.focusTriggerKeywords} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusKeywordWeight">Focus keyword weight (0-1)</label>
+            <input id="focusKeywordWeight" name="focusKeywordWeight" type="number" min="0" max="1" step="0.01" value={form.focusKeywordWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusLongConversationWeight">Focus long conversation weight (0-1)</label>
+            <input id="focusLongConversationWeight" name="focusLongConversationWeight" type="number" min="0" max="1" step="0.01" value={form.focusLongConversationWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusMessageLengthWeight">Focus message length weight (0-1)</label>
+            <input id="focusMessageLengthWeight" name="focusMessageLengthWeight" type="number" min="0" max="1" step="0.01" value={form.focusMessageLengthWeight} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusPunctuationWeight">Focus punctuation weight (0-1)</label>
+            <input id="focusPunctuationWeight" name="focusPunctuationWeight" type="number" min="0" max="1" step="0.01" value={form.focusPunctuationWeight} onChange={updateField} />
           </div>
 
           <div className="field full">
