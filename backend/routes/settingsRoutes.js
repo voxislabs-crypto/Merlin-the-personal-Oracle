@@ -20,6 +20,10 @@ import {
   saveMoodRuntimeSettingsHandler,
   getExpressionSamplingSettingsHandler,
   saveExpressionSamplingSettingsHandler,
+  getSttRuntimeSettingsHandler,
+  saveSttRuntimeSettingsHandler,
+  getSearchRuntimeSettingsHandler,
+  saveSearchRuntimeSettingsHandler,
   getVoiceMapsHandler,
   saveVoiceMapHandler,
   deleteVoiceMapHandler,
@@ -49,6 +53,10 @@ router.get("/settings/mood-runtime", requireAuth, getMoodRuntimeSettingsHandler)
 router.put("/settings/mood-runtime", requireAuth, requireAdmin, saveMoodRuntimeSettingsHandler);
 router.get("/settings/expression-sampling", requireAuth, getExpressionSamplingSettingsHandler);
 router.put("/settings/expression-sampling", requireAuth, requireAdmin, saveExpressionSamplingSettingsHandler);
+router.get("/settings/stt-runtime", requireAuth, getSttRuntimeSettingsHandler);
+router.put("/settings/stt-runtime", requireAuth, requireAdmin, saveSttRuntimeSettingsHandler);
+router.get("/settings/search-runtime", requireAuth, getSearchRuntimeSettingsHandler);
+router.put("/settings/search-runtime", requireAuth, requireAdmin, saveSearchRuntimeSettingsHandler);
 router.get("/settings/voice-maps", requireAuth, getVoiceMapsHandler);
 router.put("/settings/voice-maps", requireAuth, saveVoiceMapHandler);
 router.delete("/settings/voice-maps/:id", requireAuth, deleteVoiceMapHandler);

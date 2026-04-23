@@ -9,6 +9,8 @@ const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
 const COGNITION_LOOP_CONFIG_KEY = "cognition_loop_config";
+const STT_RUNTIME_CONFIG_KEY = "stt_runtime_config";
+const SEARCH_RUNTIME_CONFIG_KEY = "search_runtime_config";
 function isTtsDebugProviderLockEnabledRuntime() {
   return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 }
@@ -594,6 +596,70 @@ function sanitizeExpressionSamplingConfig(config) {
     },
     updatedAt: String(input.updatedAt || "").trim(),
   };
+}
+
+function sanitizeSttRuntimeConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  const provider = String(input.provider || "openai-compatible").trim().toLowerCase();
+  const model = String(input.model || "whisper-1").trim();
+  const baseUrl = String(input.baseUrl || "http://127.0.0.1:8000/v1").trim().replace(/\/$/, "");
+
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : true,
+    provider: provider || "openai-compatible",
+    baseUrl,
+    model,
+    language: String(input.language || "auto").trim() || "auto",
+    apiKey: String(input.apiKey || "").trim(),
+    maxAudioBytes: Math.round(clampNumber(input.maxAudioBytes, 1024 * 64, 1024 * 1024 * 30, 1024 * 1024 * 10)),
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
+function sanitizeSearchRuntimeConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  const provider = String(input.provider || "duckduckgo").trim().toLowerCase();
+
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : true,
+    provider: provider || "duckduckgo",
+    autoForQueries: typeof input.autoForQueries === "boolean" ? input.autoForQueries : true,
+    maxResults: Math.round(clampNumber(input.maxResults, 1, 8, 4)),
+    timeoutMs: Math.round(clampNumber(input.timeoutMs, 1000, 20000, 7000)),
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
+export function getSttRuntimeConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(STT_RUNTIME_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeSttRuntimeConfig(parsed);
+}
+
+export function setSttRuntimeConfig(config) {
+  const sanitized = sanitizeSttRuntimeConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(STT_RUNTIME_CONFIG_KEY, payload);
+  return getSttRuntimeConfig();
+}
+
+export function getSearchRuntimeConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(SEARCH_RUNTIME_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeSearchRuntimeConfig(parsed);
+}
+
+export function setSearchRuntimeConfig(config) {
+  const sanitized = sanitizeSearchRuntimeConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(SEARCH_RUNTIME_CONFIG_KEY, payload);
+  return getSearchRuntimeConfig();
 }
 
 export function getExpressionSamplingConfig() {

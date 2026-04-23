@@ -668,6 +668,11 @@ const initialForm = {
   notablePhrases: "",
   vocalMannerismItems: "",
   vocalMannerismFrequency: 0.15,
+  intoxicationEnabled: false,
+  intoxicationLevel: 0,
+  intoxicationDecayPerTurn: 0.02,
+  intoxicationTriggerGain: 0.12,
+  intoxicationTriggerKeywords: "drink, drunk, alcohol, whiskey, vodka, beer, wine, buzzed",
   voiceEnabled: true,
   voiceAutoplay: false,
   voicePitch: 1,
@@ -719,6 +724,7 @@ function mapPersonalityToForm(personality) {
   const alignmentProfile = personality.alignmentProfile || {};
   const expressionStyle = personality.expressionStyle || {};
   const cadenceRegulator = expressionStyle.cadenceRegulator || {};
+  const intoxication = personality.stateFlaws?.intoxication || {};
 
   return {
     name: personality.name || "",
@@ -739,6 +745,11 @@ function mapPersonalityToForm(personality) {
     notablePhrases: toCommaList(personality.notablePhrases),
     vocalMannerismItems: toLineList(personality.vocalMannerisms?.items),
     vocalMannerismFrequency: String(Number(personality.vocalMannerisms?.frequency ?? 0.15)),
+    intoxicationEnabled: Boolean(intoxication.enabled),
+    intoxicationLevel: String(Number(intoxication.level ?? 0)),
+    intoxicationDecayPerTurn: String(Number(intoxication.decayPerTurn ?? 0.02)),
+    intoxicationTriggerGain: String(Number(intoxication.triggerGain ?? 0.12)),
+    intoxicationTriggerKeywords: toCommaList(intoxication.triggerKeywords),
     voiceEnabled: voiceProfile.enabled !== false,
     voiceAutoplay: Boolean(voiceProfile.autoplay),
     voicePitch: String(Number(voiceProfile.pitch ?? 1)),
@@ -953,6 +964,15 @@ export default function PersonalityForm({
           vocalMannerisms: {
             items: splitLineSeparated(form.vocalMannerismItems),
             frequency: Number(form.vocalMannerismFrequency) || 0,
+          },
+          stateFlaws: {
+            intoxication: {
+              enabled: Boolean(form.intoxicationEnabled),
+              level: Number(form.intoxicationLevel) || 0,
+              decayPerTurn: Number(form.intoxicationDecayPerTurn) || 0.02,
+              triggerGain: Number(form.intoxicationTriggerGain) || 0.12,
+              triggerKeywords: splitCommaSeparated(form.intoxicationTriggerKeywords),
+            },
           },
           behaviorRules: splitLineSeparated(form.behaviorRules),
           goals: splitCommaSeparated(form.goals),
@@ -1503,6 +1523,75 @@ export default function PersonalityForm({
               onChange={updateField}
             />
             <small>Approximate share of replies where mannerisms appear. 0.15 = 15%.</small>
+          </div>
+
+          <label className="checkbox-row" style={{ paddingTop: 36 }}>
+            <input
+              type="checkbox"
+              name="intoxicationEnabled"
+              checked={Boolean(form.intoxicationEnabled)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  intoxicationEnabled: event.target.checked,
+                }))
+              }
+            />
+            Enable dynamic intoxication flaw
+          </label>
+
+          <div className="field">
+            <label htmlFor="intoxicationLevel">Intoxication level (0-1)</label>
+            <input
+              id="intoxicationLevel"
+              name="intoxicationLevel"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={form.intoxicationLevel}
+              onChange={updateField}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="intoxicationDecayPerTurn">Decay per turn (0-1)</label>
+            <input
+              id="intoxicationDecayPerTurn"
+              name="intoxicationDecayPerTurn"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={form.intoxicationDecayPerTurn}
+              onChange={updateField}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="intoxicationTriggerGain">Trigger gain (0-1)</label>
+            <input
+              id="intoxicationTriggerGain"
+              name="intoxicationTriggerGain"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={form.intoxicationTriggerGain}
+              onChange={updateField}
+            />
+          </div>
+
+          <div className="field full">
+            <label htmlFor="intoxicationTriggerKeywords">Intoxication trigger keywords</label>
+            <input
+              id="intoxicationTriggerKeywords"
+              name="intoxicationTriggerKeywords"
+              value={form.intoxicationTriggerKeywords}
+              onChange={updateField}
+              placeholder="drink, drunk, alcohol, whiskey, vodka"
+            />
+            <small>Comma-separated terms that increase intoxication state when seen in user messages.</small>
           </div>
 
           <div className="field full">

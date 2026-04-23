@@ -311,6 +311,11 @@ function buildDraft(personality) {
     speechStyle: personality.speechStyle || "",
     vocalMannerismItems: listToText(personality.vocalMannerisms?.items),
     vocalMannerismFrequency: String(personality.vocalMannerisms?.frequency ?? 0.15),
+    intoxicationEnabled: String(Boolean(personality.stateFlaws?.intoxication?.enabled)),
+    intoxicationLevel: String(personality.stateFlaws?.intoxication?.level ?? 0),
+    intoxicationDecayPerTurn: String(personality.stateFlaws?.intoxication?.decayPerTurn ?? 0.02),
+    intoxicationTriggerGain: String(personality.stateFlaws?.intoxication?.triggerGain ?? 0.12),
+    intoxicationTriggerKeywords: listToText(personality.stateFlaws?.intoxication?.triggerKeywords),
     creativeContext: personality.creativeContext || "default",
     mood: personality.mood || "neutral",
     moodLabel: personality.moodLabel || "",
@@ -474,7 +479,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       "name", "creativeContext", "mood", "moodLabel", "description", "systemPrompt", "sourceUrls", "prosodySourceUrl", "notablePhrases"
     ],
     behavior: [
-      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency"
+      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords"
       , "cadenceMode", "cadenceTeasingFrequency", "cadenceVariability", "cadenceRepetitionPenalty", "cadenceCooldownTurns", "cadenceWindowTurns"
     ],
     neural: [
@@ -525,6 +530,15 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       vocalMannerisms: {
         items: textToList(draft.vocalMannerismItems),
         frequency: normalizeRatio(draft.vocalMannerismFrequency, 0.15),
+      },
+      stateFlaws: {
+        intoxication: {
+          enabled: parseBoolean(draft.intoxicationEnabled),
+          level: normalizeRatio(draft.intoxicationLevel, 0),
+          decayPerTurn: normalizeRatio(draft.intoxicationDecayPerTurn, 0.02),
+          triggerGain: normalizeRatio(draft.intoxicationTriggerGain, 0.12),
+          triggerKeywords: textToList(draft.intoxicationTriggerKeywords),
+        },
       },
       creativeContext: draft.creativeContext,
       mood: draft.mood,
@@ -971,6 +985,56 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
               max="1"
               value={draft.vocalMannerismFrequency}
               onChange={(event) => setDraft((current) => ({ ...current, vocalMannerismFrequency: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Enabled</label>
+            <select
+              value={draft.intoxicationEnabled}
+              onChange={(event) => setDraft((current) => ({ ...current, intoxicationEnabled: event.target.value }))}
+            >
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Level (0-1)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={draft.intoxicationLevel}
+              onChange={(event) => setDraft((current) => ({ ...current, intoxicationLevel: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Decay Per Turn (0-1)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={draft.intoxicationDecayPerTurn}
+              onChange={(event) => setDraft((current) => ({ ...current, intoxicationDecayPerTurn: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field">
+            <label>Intoxication Trigger Gain (0-1)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={draft.intoxicationTriggerGain}
+              onChange={(event) => setDraft((current) => ({ ...current, intoxicationTriggerGain: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field full">
+            <label>Intoxication Trigger Keywords (one per line)</label>
+            <textarea
+              value={draft.intoxicationTriggerKeywords}
+              onChange={(event) => setDraft((current) => ({ ...current, intoxicationTriggerKeywords: event.target.value }))}
             />
           </div>
           <div className="persona-field full">

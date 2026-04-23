@@ -24,6 +24,10 @@ import {
   setMoodRuntimeConfig,
   getExpressionSamplingConfig,
   setExpressionSamplingConfig,
+  getSttRuntimeConfig,
+  setSttRuntimeConfig,
+  getSearchRuntimeConfig,
+  setSearchRuntimeConfig,
 } from "../models/settingsModel.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -432,6 +436,26 @@ export function getExpressionSamplingSettingsHandler(_req, res) {
 export function saveExpressionSamplingSettingsHandler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const updated = setExpressionSamplingConfig(body);
+  return res.json(updated);
+}
+
+export function getSttRuntimeSettingsHandler(_req, res) {
+  return res.json(getSttRuntimeConfig());
+}
+
+export function saveSttRuntimeSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setSttRuntimeConfig(body);
+  return res.json(updated);
+}
+
+export function getSearchRuntimeSettingsHandler(_req, res) {
+  return res.json(getSearchRuntimeConfig());
+}
+
+export function saveSearchRuntimeSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setSearchRuntimeConfig(body);
   return res.json(updated);
 }
 

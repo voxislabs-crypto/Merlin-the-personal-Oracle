@@ -1745,6 +1745,10 @@ export default function App() {
         personality?.vocalMannerisms && typeof personality.vocalMannerisms === "object"
           ? personality.vocalMannerisms
           : {},
+      stateFlaws:
+        personality?.stateFlaws && typeof personality.stateFlaws === "object"
+          ? personality.stateFlaws
+          : {},
       creativeContext: String(personality?.creativeContext || "default").trim() || "default",
       moodSensitivity: Number(personality?.moodSensitivity) || 1,
       gender: String(personality?.gender || "").trim(),
@@ -1852,6 +1856,10 @@ export default function App() {
           vocalMannerisms:
             template?.vocalMannerisms && typeof template.vocalMannerisms === "object"
               ? template.vocalMannerisms
+              : {},
+          stateFlaws:
+            template?.stateFlaws && typeof template.stateFlaws === "object"
+              ? template.stateFlaws
               : {},
           creativeContext: String(template?.creativeContext || "default").trim() || "default",
           moodSensitivity: Number(template?.moodSensitivity) || 1,

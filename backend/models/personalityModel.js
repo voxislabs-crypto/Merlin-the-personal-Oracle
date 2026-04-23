@@ -110,6 +110,15 @@ function normalizeRow(row) {
     singingProfile: parseJsonObject(row.singingProfile, {}),
     emotionDrift: parseJsonObject(row.emotionDrift, {}),
     llmConfig: parseJsonObject(row.llmConfig, {}),
+    stateFlaws: parseJsonObject(row.stateFlaws, {
+      intoxication: {
+        enabled: false,
+        level: 0,
+        decayPerTurn: 0.02,
+        triggerGain: 0.12,
+        triggerKeywords: ["drink", "drunk", "alcohol", "whiskey", "vodka", "beer", "wine", "buzzed"],
+      },
+    }),
     vocalMannerisms: parseJsonObject(row.vocalMannerisms, {
       frequency: 0.15,
       items: [],
@@ -145,6 +154,7 @@ export function createPersonality(personality) {
       alignmentProfile,
       responseFocusProfile,
       expressionStyle,
+      stateFlaws,
       vocalMannerisms,
       gender,
       avatarImageUrl,
@@ -176,6 +186,7 @@ export function createPersonality(personality) {
       @alignmentProfile,
       @responseFocusProfile,
       @expressionStyle,
+      @stateFlaws,
       @vocalMannerisms,
       @gender,
       @avatarImageUrl,
@@ -203,6 +214,7 @@ export function createPersonality(personality) {
     alignmentProfile: JSON.stringify(personality.alignmentProfile || {}),
     responseFocusProfile: JSON.stringify(personality.responseFocusProfile || {}),
     expressionStyle: JSON.stringify(personality.expressionStyle || {}),
+    stateFlaws: JSON.stringify(personality.stateFlaws || {}),
     vocalMannerisms: JSON.stringify(personality.vocalMannerisms || {}),
     gender: String(personality.gender || "").trim(),
     avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
@@ -220,7 +232,7 @@ export function getAllPersonalities(ownerId = null) {
           sourceQuery, sourceUrls, researchSummary, speechStyle,
           notablePhrases, researchSources, voiceProfile, behaviorRules,
           goals, coreValues, creativeContext, moodBaseline, moodState,
-          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, vocalMannerisms,
+          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
           voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
@@ -233,7 +245,7 @@ export function getAllPersonalities(ownerId = null) {
           sourceQuery, sourceUrls, researchSummary, speechStyle,
           notablePhrases, researchSources, voiceProfile, behaviorRules,
           goals, coreValues, creativeContext, moodBaseline, moodState,
-          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, vocalMannerisms,
+          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
           voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
@@ -271,7 +283,7 @@ export function getPersonalityById(id, ownerId = null) {
           sourceQuery, sourceUrls, researchSummary, speechStyle,
           notablePhrases, researchSources, voiceProfile, behaviorRules,
           goals, coreValues, creativeContext, moodBaseline, moodState,
-          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, vocalMannerisms,
+          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
           voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
@@ -283,7 +295,7 @@ export function getPersonalityById(id, ownerId = null) {
           sourceQuery, sourceUrls, researchSummary, speechStyle,
           notablePhrases, researchSources, voiceProfile, behaviorRules,
           goals, coreValues, creativeContext, moodBaseline, moodState,
-          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, vocalMannerisms,
+          moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
           voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
         FROM personalities
@@ -382,6 +394,7 @@ export function updatePersonality(id, personality) {
       alignmentProfile = @alignmentProfile,
       responseFocusProfile = @responseFocusProfile,
       expressionStyle = @expressionStyle,
+      stateFlaws = @stateFlaws,
       vocalMannerisms = @vocalMannerisms,
       gender = @gender,
       avatarImageUrl = @avatarImageUrl,
@@ -413,6 +426,7 @@ export function updatePersonality(id, personality) {
     alignmentProfile: JSON.stringify(personality.alignmentProfile || {}),
     responseFocusProfile: JSON.stringify(personality.responseFocusProfile || {}),
     expressionStyle: JSON.stringify(personality.expressionStyle || {}),
+    stateFlaws: JSON.stringify(personality.stateFlaws || {}),
     vocalMannerisms: JSON.stringify(personality.vocalMannerisms || {}),
     gender: String(personality.gender || "").trim(),
     avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
@@ -434,6 +448,13 @@ export function updateEmotionDrift(id, driftState) {
 export function updateMoodState(id, moodState) {
   db.prepare(`UPDATE personalities SET moodState = ? WHERE id = ?`).run(
     JSON.stringify(moodState),
+    id,
+  );
+}
+
+export function updateStateFlaws(id, stateFlaws) {
+  db.prepare(`UPDATE personalities SET stateFlaws = ? WHERE id = ?`).run(
+    JSON.stringify(stateFlaws || {}),
     id,
   );
 }

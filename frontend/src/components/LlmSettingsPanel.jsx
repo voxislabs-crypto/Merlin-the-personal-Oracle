@@ -365,6 +365,24 @@ export default function LlmSettingsPanel({ onStatus }) {
     envModel: "",
     envLocked: false,
   });
+  const [sttConfig, setSttConfig] = useState({
+    enabled: true,
+    provider: "openai-compatible",
+    baseUrl: "http://127.0.0.1:8000/v1",
+    model: "whisper-1",
+    language: "auto",
+    apiKey: "",
+    maxAudioBytes: 10485760,
+  });
+  const [searchConfig, setSearchConfig] = useState({
+    enabled: true,
+    provider: "duckduckgo",
+    autoForQueries: true,
+    maxResults: 4,
+    timeoutMs: 7000,
+  });
+  const [isSavingStt, setIsSavingStt] = useState(false);
+  const [isSavingSearch, setIsSavingSearch] = useState(false);
 
   const selectedProvider = useMemo(
     () => providers.find((candidate) => candidate.id === provider) || null,
@@ -577,17 +595,21 @@ export default function LlmSettingsPanel({ onStatus }) {
     setIsLoading(true);
 
     try {
-      const [providersResponse, settingsResponse, ttsResponse, kokoroResponse] = await Promise.all([
+      const [providersResponse, settingsResponse, ttsResponse, kokoroResponse, sttResponse, searchResponse] = await Promise.all([
         authFetch("/settings/llm/providers"),
         authFetch("/settings/llm"),
         authFetch("/settings/tts"),
         authFetch("/settings/kokoro"),
+        authFetch("/settings/stt-runtime"),
+        authFetch("/settings/search-runtime"),
       ]);
 
       const providersData = await providersResponse.json();
       const settingsData = await settingsResponse.json();
       const ttsData = await ttsResponse.json();
       const kokoroData = await kokoroResponse.json();
+      const sttData = await sttResponse.json();
+      const searchData = await searchResponse.json();
 
       if (!providersResponse.ok) {
         throw new Error(providersData.error || "Failed to load providers.");
@@ -600,6 +622,12 @@ export default function LlmSettingsPanel({ onStatus }) {
       }
       if (!kokoroResponse.ok) {
         throw new Error(kokoroData.error || "Failed to load Kokoro settings.");
+      }
+      if (!sttResponse.ok) {
+        throw new Error(sttData.error || "Failed to load STT settings.");
+      }
+      if (!searchResponse.ok) {
+        throw new Error(searchData.error || "Failed to load web search settings.");
       }
 
       const providerList = Array.isArray(providersData.providers) && providersData.providers.length
@@ -647,6 +675,24 @@ export default function LlmSettingsPanel({ onStatus }) {
         connected: Boolean(kokoroData?.connected),
         keyHint: String(kokoroData?.keyHint || "").trim(),
         updatedAt: String(kokoroData?.updatedAt || "").trim(),
+      });
+
+      setSttConfig({
+        enabled: Boolean(sttData?.enabled),
+        provider: String(sttData?.provider || "openai-compatible").trim() || "openai-compatible",
+        baseUrl: String(sttData?.baseUrl || "").trim(),
+        model: String(sttData?.model || "whisper-1").trim() || "whisper-1",
+        language: String(sttData?.language || "auto").trim() || "auto",
+        apiKey: String(sttData?.apiKey || "").trim(),
+        maxAudioBytes: Number(sttData?.maxAudioBytes) || 10485760,
+      });
+
+      setSearchConfig({
+        enabled: Boolean(searchData?.enabled),
+        provider: String(searchData?.provider || "duckduckgo").trim() || "duckduckgo",
+        autoForQueries: Boolean(searchData?.autoForQueries),
+        maxResults: Number(searchData?.maxResults) || 4,
+        timeoutMs: Number(searchData?.timeoutMs) || 7000,
       });
     } catch (error) {
       onStatus?.({ type: "error", message: error.message || "Failed to load LLM settings." });
@@ -803,6 +849,48 @@ export default function LlmSettingsPanel({ onStatus }) {
       onStatus?.({ type: "error", message: error.message || "Failed to clear Kokoro access token." });
     } finally {
       setIsClearingKokoroToken(false);
+    }
+  }
+
+  async function saveSttRuntimeConfig() {
+    setIsSavingStt(true);
+    try {
+      const response = await authFetch("/settings/stt-runtime", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sttConfig),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save STT settings.");
+      }
+      setSttConfig((current) => ({ ...current, ...data }));
+      onStatus?.({ type: "success", message: "Saved STT runtime settings." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save STT settings." });
+    } finally {
+      setIsSavingStt(false);
+    }
+  }
+
+  async function saveSearchRuntimeConfig() {
+    setIsSavingSearch(true);
+    try {
+      const response = await authFetch("/settings/search-runtime", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(searchConfig),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save web search settings.");
+      }
+      setSearchConfig((current) => ({ ...current, ...data }));
+      onStatus?.({ type: "success", message: "Saved web search settings." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save web search settings." });
+    } finally {
+      setIsSavingSearch(false);
     }
   }
 
@@ -1360,6 +1448,147 @@ export default function LlmSettingsPanel({ onStatus }) {
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">Speech To Text</span>
+          <h3>STT Runtime</h3>
+          <p className="settings-section-copy">
+            Configure voice transcription provider used by the new /stt/transcribe endpoint.
+          </p>
+        </div>
+        <div className="llm-grid">
+          <div className="llm-field">
+            <label htmlFor="stt-enabled">Enabled</label>
+            <select
+              id="stt-enabled"
+              value={sttConfig.enabled ? "true" : "false"}
+              onChange={(event) => setSttConfig((current) => ({ ...current, enabled: event.target.value === "true" }))}
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div className="llm-field">
+            <label htmlFor="stt-base-url">Base URL</label>
+            <input
+              id="stt-base-url"
+              type="text"
+              value={sttConfig.baseUrl}
+              onChange={(event) => setSttConfig((current) => ({ ...current, baseUrl: event.target.value }))}
+              placeholder="http://127.0.0.1:8000/v1"
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="stt-model">Model</label>
+            <input
+              id="stt-model"
+              type="text"
+              value={sttConfig.model}
+              onChange={(event) => setSttConfig((current) => ({ ...current, model: event.target.value }))}
+              placeholder="whisper-1"
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="stt-language">Language</label>
+            <input
+              id="stt-language"
+              type="text"
+              value={sttConfig.language}
+              onChange={(event) => setSttConfig((current) => ({ ...current, language: event.target.value }))}
+              placeholder="auto"
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="stt-api-key">API Key (optional)</label>
+            <input
+              id="stt-api-key"
+              type="password"
+              autoComplete="off"
+              value={sttConfig.apiKey}
+              onChange={(event) => setSttConfig((current) => ({ ...current, apiKey: event.target.value }))}
+              placeholder="Leave blank for local keyless providers"
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="stt-max-audio-bytes">Max Audio Bytes</label>
+            <input
+              id="stt-max-audio-bytes"
+              type="number"
+              min="65536"
+              step="1024"
+              value={sttConfig.maxAudioBytes}
+              onChange={(event) => setSttConfig((current) => ({ ...current, maxAudioBytes: Number(event.target.value) || current.maxAudioBytes }))}
+            />
+          </div>
+        </div>
+        <div className="llm-actions compact">
+          <button type="button" onClick={() => void saveSttRuntimeConfig()} disabled={isSavingStt || isLoading}>
+            {isSavingStt ? "Saving..." : "Save STT Settings"}
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">Web Search</span>
+          <h3>Search Runtime</h3>
+          <p className="settings-section-copy">
+            Configure online retrieval augmentation for up-to-date questions.
+          </p>
+        </div>
+        <div className="llm-grid">
+          <div className="llm-field">
+            <label htmlFor="search-enabled">Enabled</label>
+            <select
+              id="search-enabled"
+              value={searchConfig.enabled ? "true" : "false"}
+              onChange={(event) => setSearchConfig((current) => ({ ...current, enabled: event.target.value === "true" }))}
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div className="llm-field">
+            <label htmlFor="search-auto">Auto Trigger</label>
+            <select
+              id="search-auto"
+              value={searchConfig.autoForQueries ? "true" : "false"}
+              onChange={(event) => setSearchConfig((current) => ({ ...current, autoForQueries: event.target.value === "true" }))}
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div className="llm-field">
+            <label htmlFor="search-max-results">Max Results</label>
+            <input
+              id="search-max-results"
+              type="number"
+              min="1"
+              max="8"
+              value={searchConfig.maxResults}
+              onChange={(event) => setSearchConfig((current) => ({ ...current, maxResults: Number(event.target.value) || current.maxResults }))}
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="search-timeout">Timeout (ms)</label>
+            <input
+              id="search-timeout"
+              type="number"
+              min="1000"
+              step="500"
+              value={searchConfig.timeoutMs}
+              onChange={(event) => setSearchConfig((current) => ({ ...current, timeoutMs: Number(event.target.value) || current.timeoutMs }))}
+            />
+          </div>
+        </div>
+        <div className="llm-actions compact">
+          <button type="button" onClick={() => void saveSearchRuntimeConfig()} disabled={isSavingSearch || isLoading}>
+            {isSavingSearch ? "Saving..." : "Save Search Settings"}
+          </button>
+        </div>
       </section>
 
       <section className="settings-section">

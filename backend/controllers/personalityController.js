@@ -18,6 +18,7 @@ import {
 } from "../services/hybridPersonalityService.js";
 import { getAllVoicePresets, recommendVoicePreset } from "../services/voicePresetsService.js";
 import { sanitizeVoiceProfile } from "../services/voiceProfileSanitizer.js";
+import { normalizeStateFlaws } from "../services/stateFlawService.js";
 import path from "path";
 import { rm, unlink } from "fs/promises";
 
@@ -40,6 +41,10 @@ function sanitizeVocalMannerisms(input) {
       ? Math.min(1, Math.max(0, rawFrequency))
       : 0.15,
   };
+}
+
+function sanitizeStateFlaws(input) {
+  return normalizeStateFlaws(input);
 }
 
 function buildBulletBlock(items) {
@@ -291,6 +296,7 @@ export function generateSystemPrompt({
   mood,
   speechStyle,
   notablePhrases,
+  stateFlaws,
   vocalMannerisms,
   researchSummary,
 }) {
@@ -324,6 +330,12 @@ Vocal Mannerisms:
 ${mannerismItems.length ? buildBulletBlock(mannerismItems) : "- None specified"}
 ${mannerismItems.length ? `\nUse these naturally in about ${mannerismFrequencyPct}% of replies without overdoing them.` : ""}
 
+State Flaws:
+
+${stateFlaws?.intoxication?.enabled
+  ? `- Intoxication active at ${Math.round((Number(stateFlaws.intoxication.level) || 0) * 100)}% intensity.`
+  : "- None active"}
+
 Research Notes:
 
 ${researchSummary || "No external research notes were captured for this profile."}
@@ -356,6 +368,7 @@ export function createPersonalityHandler(req, res, next) {
     const bigFiveProfile = sanitizeBigFiveProfile(req.body.bigFiveProfile);
     const alignmentProfile = sanitizeAlignmentProfile(req.body.alignmentProfile);
     const expressionStyleInput = sanitizeExpressionStyle(req.body.expressionStyle);
+    const stateFlaws = sanitizeStateFlaws(req.body.stateFlaws);
     const vocalMannerisms = sanitizeVocalMannerisms(req.body.vocalMannerisms);
     const autoTuneHybrid = Boolean(req.body.autoTuneHybrid);
     const hybridTuning = autoTuneHybrid
@@ -406,6 +419,7 @@ export function createPersonalityHandler(req, res, next) {
       mood,
       speechStyle,
       notablePhrases,
+      stateFlaws,
       vocalMannerisms,
       researchSummary,
     });
@@ -436,6 +450,7 @@ export function createPersonalityHandler(req, res, next) {
       alignmentProfile,
       responseFocusProfile,
       expressionStyle,
+      stateFlaws,
       vocalMannerisms,
       ownerId: req.voxisUser?.id ?? null,
     });
@@ -534,6 +549,10 @@ export function updatePersonalityHandler(req, res, next) {
       req.body.expressionStyle !== undefined
         ? sanitizeExpressionStyle(req.body.expressionStyle)
         : sanitizeExpressionStyle(existing.expressionStyle);
+    const stateFlaws =
+      req.body.stateFlaws !== undefined
+        ? sanitizeStateFlaws(req.body.stateFlaws)
+        : sanitizeStateFlaws(existing.stateFlaws);
     const vocalMannerisms =
       req.body.vocalMannerisms !== undefined
         ? sanitizeVocalMannerisms(req.body.vocalMannerisms)
@@ -599,6 +618,7 @@ export function updatePersonalityHandler(req, res, next) {
       mood,
       speechStyle,
       notablePhrases,
+      stateFlaws,
       vocalMannerisms,
       researchSummary,
     });
@@ -629,6 +649,7 @@ export function updatePersonalityHandler(req, res, next) {
       alignmentProfile,
       responseFocusProfile,
       expressionStyle,
+      stateFlaws,
       vocalMannerisms,
     });
 

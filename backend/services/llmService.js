@@ -20,6 +20,7 @@ import { getLlmRuntimeConfig, setLlmRuntimeConfig } from "../models/settingsMode
 import { fetchProviderModels } from "./providerDiscoveryService.js";
 import { buildEPFAudioConstraintNote, normalizeSingingProfile, resolveEmotionNode } from "./singingEngine.js";
 import { deriveDefaultResponseFocusProfile } from "./hybridPersonalityService.js";
+import { buildStateFlawPromptSection } from "./stateFlawService.js";
 
 function getLlmConfig() {
   const envApiKey = String(process.env.LLM_API_KEY || "").trim();
@@ -1650,6 +1651,7 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
     quirks,
     speechStyle,
     notablePhrases,
+    stateFlaws,
     vocalMannerisms,
     values,
     goals,
@@ -1719,6 +1721,7 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
         (omittedCount) => `- ${omittedCount} additional vocal mannerisms omitted for prompt budget.`,
       ).join("\n")
     : "";
+  const stateFlawSection = buildStateFlawPromptSection(stateFlaws);
 
   const voiceGuardrails = buildVoiceGuardrails({
     name,
@@ -1811,6 +1814,7 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
     vocalMannerismSection
       ? `\nVocal mannerisms you can naturally weave in (roughly ${vocalMannerismPct}% of replies, but skip when it would hurt clarity):\n${vocalMannerismSection}`
       : "",
+    stateFlawSection ? `\n${stateFlawSection}` : "",
     "",
     "== VOICE GUARDRAILS ==",
     voiceGuardrails,

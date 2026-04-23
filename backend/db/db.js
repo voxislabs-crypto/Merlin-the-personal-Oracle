@@ -91,6 +91,11 @@ ensureColumn("personalities", "emotionDrift", "TEXT NOT NULL DEFAULT '{}'");
 ensureColumn("personalities", "llmConfig", "TEXT NOT NULL DEFAULT '{}'");
 ensureColumn(
   "personalities",
+  "stateFlaws",
+  `TEXT NOT NULL DEFAULT '{"intoxication":{"enabled":false,"level":0,"decayPerTurn":0.02,"triggerGain":0.12,"triggerKeywords":["drink","drunk","alcohol","whiskey","vodka","beer","wine","buzzed"]}}'`,
+);
+ensureColumn(
+  "personalities",
   "vocalMannerisms",
   `TEXT NOT NULL DEFAULT '{"frequency":0.15,"items":[]}'`,
 );

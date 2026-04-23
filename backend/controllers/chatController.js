@@ -1,4 +1,4 @@
-import { getPersonalityById, updateMoodState } from "../models/personalityModel.js";
+import { getPersonalityById, updateMoodState, updateStateFlaws } from "../models/personalityModel.js";
 import {
   createChatMessage,
   getChatMessages,
@@ -74,6 +74,11 @@ import {
 import { getMoodRuntimeConfig, getExpressionSamplingConfig } from "../models/settingsModel.js";
 import { applyBoundedExpressionSampling } from "../services/expressionSampler.js";
 import {
+  searchWeb,
+  shouldUseWebSearch,
+  buildWebSearchPromptSection,
+} from "../services/webSearchService.js";
+import {
   buildRateLimitFallbackReply,
   buildRateLimitNotice,
   buildRateLimitRetryMessages,
@@ -98,6 +103,7 @@ import {
   buildSingingInstruction,
   mapEmotionToVoiceAdjustments,
 } from "../services/singingEngine.js";
+import { stepStateFlaws } from "../services/stateFlawService.js";
 import { updateEmotionDrift } from "../models/personalityModel.js";
 
 // Reconditioning cadence: antagonist/dark contexts drift faster, so we anchor more often.
@@ -464,6 +470,7 @@ export async function chatHandler(req, res, next) {
     const message = String(req.body.message || "").trim();
     const userId = req.body.userId;
     const requestedMode = String(req.body.mode || "").trim().toLowerCase();
+    const forceWebSearch = req.body.enableSearch === true;
 
     if (!Number.isInteger(personalityId)) {
       return res.status(400).json({ error: "A valid personalityId is required." });
@@ -485,6 +492,32 @@ export async function chatHandler(req, res, next) {
 
     if (!personality) {
       return res.status(404).json({ error: "Personality not found." });
+    }
+
+    const stateFlawStep = stepStateFlaws({
+      stateFlaws: personality.stateFlaws,
+      userMessage: message,
+    });
+    personality.stateFlaws = stateFlawStep.stateFlaws;
+    setImmediate(() => {
+      updateStateFlaws(personalityId, stateFlawStep.stateFlaws);
+    });
+    streamedDebugData.stateFlaws = stateFlawStep.diagnostics;
+    stream.write("debug", {
+      phase: "state-flaw",
+      debug: streamedDebugData,
+    });
+    if (streamBrain) {
+      const intox = stateFlawStep.diagnostics?.intoxication;
+      if (intox?.enabled) {
+        stream.write("brain", buildBrainEvent("state_flaw", {
+          name: "intoxication",
+          before: intox.before,
+          after: intox.after,
+          triggers: intox.matchedKeywords || [],
+          narrative: `Intoxication drift ${Math.round((intox.before || 0) * 100)}% → ${Math.round((intox.after || 0) * 100)}%.`,
+        }));
+      }
     }
 
     const userScopedId = Number.isInteger(Number(policy.userId)) ? Number(policy.userId) : null;
@@ -763,6 +796,38 @@ export async function chatHandler(req, res, next) {
       ...history,
     ];
 
+    let webSearchResult = null;
+    const webSearchEnabled = shouldUseWebSearch({ query: message, forced: forceWebSearch });
+    if (webSearchEnabled) {
+      webSearchResult = await searchWeb(message);
+      streamedDebugData.webSearch = {
+        triggered: true,
+        forced: forceWebSearch,
+        provider: webSearchResult.provider,
+        results: (webSearchResult.results || []).map((entry, index) => ({
+          index: index + 1,
+          title: entry.title,
+          url: entry.url,
+        })),
+      };
+
+      stream.write("debug", {
+        phase: "search",
+        debug: streamedDebugData,
+      });
+
+      if (streamBrain) {
+        stream.write("brain", buildBrainEvent("web_search", {
+          query: message,
+          provider: webSearchResult.provider,
+          resultCount: Array.isArray(webSearchResult.results) ? webSearchResult.results.length : 0,
+          narrative: Array.isArray(webSearchResult.results) && webSearchResult.results.length
+            ? `Web search returned ${webSearchResult.results.length} sources.`
+            : "Web search returned no high-confidence sources.",
+        }));
+      }
+    }
+
     // Policy context is injected as a high-priority system instruction so
     // age/mode constraints are enforced even when user prompts conflict.
     messages.push({ role: "system", content: buildModePolicyPrompt(policy) });
@@ -790,6 +855,11 @@ export async function chatHandler(req, res, next) {
     const userEmotionalSection = buildUserEmotionalProfileSection(userMemoryFacts);
     if (userEmotionalSection) {
       messages.push({ role: "system", content: userEmotionalSection });
+    }
+
+    const webSearchSection = buildWebSearchPromptSection(webSearchResult);
+    if (webSearchSection) {
+      messages.push({ role: "system", content: webSearchSection });
     }
 
     // Periodic reconditioning: inject a compressed persona anchor every N turns to
@@ -1139,7 +1209,25 @@ export async function chatHandler(req, res, next) {
         signal: newMood?.emotionalState?.signal || "neutral",
         repairApplied: emotionalRepairApplied,
       },
+      stateFlaws: stateFlawStep.diagnostics,
       expressionSampling: sampled,
+      webSearch: webSearchResult
+        ? {
+            query: webSearchResult.query,
+            provider: webSearchResult.provider,
+            resultCount: Array.isArray(webSearchResult.results) ? webSearchResult.results.length : 0,
+            results: (webSearchResult.results || []).map((entry, index) => ({
+              index: index + 1,
+              title: entry.title,
+              url: entry.url,
+            })),
+          }
+        : {
+            query: message,
+            provider: null,
+            resultCount: 0,
+            results: [],
+          },
       cadenceRegulation,
       prompt: promptPackage.debug,
       flags: {
@@ -1216,6 +1304,18 @@ export async function chatHandler(req, res, next) {
       // without needing to parse the debug event stream.
       voiceAdjustments: streamedDebugData.voiceAdjustments || null,
       singingActive: singingActive || false,
+      webSearch: webSearchResult
+        ? {
+            query: webSearchResult.query,
+            provider: webSearchResult.provider,
+            resultCount: Array.isArray(webSearchResult.results) ? webSearchResult.results.length : 0,
+            results: (webSearchResult.results || []).map((entry, index) => ({
+              index: index + 1,
+              title: entry.title,
+              url: entry.url,
+            })),
+          }
+        : null,
       debug: debugData,
     };
 
