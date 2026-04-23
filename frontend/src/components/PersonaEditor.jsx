@@ -309,6 +309,8 @@ function buildDraft(personality) {
     description: personality.description || "",
     systemPrompt: personality.systemPrompt || "",
     speechStyle: personality.speechStyle || "",
+    vocalMannerismItems: listToText(personality.vocalMannerisms?.items),
+    vocalMannerismFrequency: String(personality.vocalMannerisms?.frequency ?? 0.15),
     creativeContext: personality.creativeContext || "default",
     mood: personality.mood || "neutral",
     moodLabel: personality.moodLabel || "",
@@ -472,7 +474,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       "name", "creativeContext", "mood", "moodLabel", "description", "systemPrompt", "sourceUrls", "prosodySourceUrl", "notablePhrases"
     ],
     behavior: [
-      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules"
+      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency"
       , "cadenceMode", "cadenceTeasingFrequency", "cadenceVariability", "cadenceRepetitionPenalty", "cadenceCooldownTurns", "cadenceWindowTurns"
     ],
     neural: [
@@ -520,6 +522,10 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       description: draft.description.trim(),
       systemPrompt: draft.systemPrompt,
       speechStyle: draft.speechStyle,
+      vocalMannerisms: {
+        items: textToList(draft.vocalMannerismItems),
+        frequency: normalizeRatio(draft.vocalMannerismFrequency, 0.15),
+      },
       creativeContext: draft.creativeContext,
       mood: draft.mood,
       moodLabel: draft.moodLabel,
@@ -947,6 +953,24 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
             <textarea
               value={draft.behaviorRules}
               onChange={(event) => setDraft((current) => ({ ...current, behaviorRules: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field full">
+            <label>Vocal Mannerisms (one per line)</label>
+            <textarea
+              value={draft.vocalMannerismItems}
+              onChange={(event) => setDraft((current) => ({ ...current, vocalMannerismItems: event.target.value }))}
+            />
+          </div>
+          <div className="persona-field">
+            <label>Mannerism Frequency (0-1)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={draft.vocalMannerismFrequency}
+              onChange={(event) => setDraft((current) => ({ ...current, vocalMannerismFrequency: event.target.value }))}
             />
           </div>
           <div className="persona-field full">

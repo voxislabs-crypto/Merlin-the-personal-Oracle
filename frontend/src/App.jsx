@@ -989,6 +989,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClaimingLegacyPersonas, setIsClaimingLegacyPersonas] = useState(false);
   const [isImportingPersonas, setIsImportingPersonas] = useState(false);
+  const [personaImportMode, setPersonaImportMode] = useState("append");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [liveChatState, setLiveChatState] = useState({});
@@ -1740,6 +1741,10 @@ export default function App() {
           ? personality.responseFocusProfile
           : {},
       expressionStyle: personality?.expressionStyle && typeof personality.expressionStyle === "object" ? personality.expressionStyle : {},
+      vocalMannerisms:
+        personality?.vocalMannerisms && typeof personality.vocalMannerisms === "object"
+          ? personality.vocalMannerisms
+          : {},
       creativeContext: String(personality?.creativeContext || "default").trim() || "default",
       moodSensitivity: Number(personality?.moodSensitivity) || 1,
       gender: String(personality?.gender || "").trim(),
@@ -1772,7 +1777,7 @@ export default function App() {
     }
   }
 
-  async function handleImportPersonas(event) {
+  async function handleImportPersonas(event, mode = "append") {
     const file = event?.target?.files?.[0];
     if (!file || isImportingPersonas) {
       return;
@@ -1795,6 +1800,23 @@ export default function App() {
 
       const created = [];
       const failed = [];
+      let skipped = 0;
+
+      const normalizedMode = ["append", "skip", "replace"].includes(String(mode || "").trim().toLowerCase())
+        ? String(mode).trim().toLowerCase()
+        : "append";
+
+      const existingByName = new Map();
+      for (const persona of Array.isArray(personalities) ? personalities : []) {
+        const key = String(persona?.name || "").trim().toLowerCase();
+        if (!key) {
+          continue;
+        }
+        if (!existingByName.has(key)) {
+          existingByName.set(key, []);
+        }
+        existingByName.get(key).push(persona);
+      }
 
       for (const template of personaTemplates) {
         const payload = {
@@ -1827,6 +1849,10 @@ export default function App() {
               ? template.responseFocusProfile
               : {},
           expressionStyle: template?.expressionStyle && typeof template.expressionStyle === "object" ? template.expressionStyle : {},
+          vocalMannerisms:
+            template?.vocalMannerisms && typeof template.vocalMannerisms === "object"
+              ? template.vocalMannerisms
+              : {},
           creativeContext: String(template?.creativeContext || "default").trim() || "default",
           moodSensitivity: Number(template?.moodSensitivity) || 1,
           gender: String(template?.gender || "").trim(),
@@ -1836,6 +1862,41 @@ export default function App() {
         if (!payload.name || !payload.description) {
           failed.push(payload.name || "Unnamed persona");
           continue;
+        }
+
+        const nameKey = payload.name.toLowerCase();
+        const matchingExisting = existingByName.get(nameKey) || [];
+
+        if (normalizedMode === "skip" && matchingExisting.length > 0) {
+          skipped += 1;
+          continue;
+        }
+
+        if (normalizedMode === "replace" && matchingExisting.length > 0) {
+          let replaceFailed = false;
+          for (const existingPersona of matchingExisting) {
+            const deleteResponse = await authFetch(`/personality/${existingPersona.id}`, {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ confirmName: existingPersona.name }),
+            });
+            const deletePayload = await readApiResponsePayload(deleteResponse);
+            if (!deleteResponse.ok) {
+              replaceFailed = true;
+              failed.push(payload.name);
+              setStatus({
+                type: "warn",
+                message: `Could not replace ${payload.name}: ${getApiErrorMessage(deleteResponse, deletePayload, "delete failed")}`,
+              });
+              break;
+            }
+          }
+
+          if (replaceFailed) {
+            continue;
+          }
         }
 
         const response = await authFetch("/personality", {
@@ -1853,6 +1914,10 @@ export default function App() {
         }
 
         created.push(data);
+        if (!existingByName.has(nameKey)) {
+          existingByName.set(nameKey, []);
+        }
+        existingByName.set(nameKey, [data]);
       }
 
       if (created.length) {
@@ -1861,11 +1926,17 @@ export default function App() {
       }
 
       if (created.length && !failed.length) {
-        setStatus({ type: "success", message: `Imported ${created.length} persona${created.length === 1 ? "" : "s"}.` });
+        setStatus({
+          type: skipped ? "info" : "success",
+          message: `Imported ${created.length} persona${created.length === 1 ? "" : "s"}.${skipped ? ` Skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}.` : ""}`,
+        });
       } else if (created.length && failed.length) {
-        setStatus({ type: "warn", message: `Imported ${created.length} persona${created.length === 1 ? "" : "s"}, ${failed.length} failed.` });
+        setStatus({
+          type: "warn",
+          message: `Imported ${created.length} persona${created.length === 1 ? "" : "s"}, ${failed.length} failed${skipped ? `, ${skipped} skipped` : ""}.`,
+        });
       } else {
-        setStatus({ type: "error", message: "No personas were imported. Check file format and required fields." });
+        setStatus({ type: "error", message: "No personas were imported. Check file format, merge mode, and required fields." });
       }
     } catch (error) {
       setStatus({ type: "error", message: error.message || "Failed to import personas." });
@@ -2545,10 +2616,12 @@ export default function App() {
                 legacyPersonaCount={legacyPersonaCount}
                 isClaimingLegacyPersonas={isClaimingLegacyPersonas}
                 isImportingPersonas={isImportingPersonas}
+                importMode={personaImportMode}
+                onChangeImportMode={setPersonaImportMode}
                 onRefresh={loadPersonalities}
                 onClaimLegacyPersonas={handleClaimLegacyPersonalities}
                 onExportPersonas={handleExportPersonas}
-                onImportPersonas={handleImportPersonas}
+                onImportPersonas={(event) => handleImportPersonas(event, personaImportMode)}
                 onSelect={handleSelectPersonality}
                 onOpenChat={() => setActiveView("chat")}
                 onResetPersona={handleResetPersonality}

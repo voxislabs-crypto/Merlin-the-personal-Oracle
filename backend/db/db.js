@@ -89,6 +89,11 @@ ensureColumn("personalities", "emotionDrift", "TEXT NOT NULL DEFAULT '{}'");
 // Per-personality LLM binding — used by the council/external API layer.
 // Falls back to global config when empty.
 ensureColumn("personalities", "llmConfig", "TEXT NOT NULL DEFAULT '{}'");
+ensureColumn(
+  "personalities",
+  "vocalMannerisms",
+  `TEXT NOT NULL DEFAULT '{"frequency":0.15,"items":[]}'`,
+);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (

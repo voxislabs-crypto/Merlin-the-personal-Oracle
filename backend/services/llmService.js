@@ -1650,6 +1650,7 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
     quirks,
     speechStyle,
     notablePhrases,
+    vocalMannerisms,
     values,
     goals,
     mood,
@@ -1702,6 +1703,22 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
     220,
     (omittedCount) => `- ${omittedCount} additional phrases omitted for prompt budget.`,
   ).join("\n");
+
+  const vocalMannerismItems = Array.isArray(vocalMannerisms?.items)
+    ? vocalMannerisms.items.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const vocalMannerismFrequency = Number(vocalMannerisms?.frequency);
+  const normalizedMannerismFrequency = Number.isFinite(vocalMannerismFrequency)
+    ? Math.min(1, Math.max(0, vocalMannerismFrequency))
+    : 0.15;
+  const vocalMannerismPct = Math.round(normalizedMannerismFrequency * 100);
+  const vocalMannerismSection = vocalMannerismItems.length
+    ? fitLinesWithinBudget(
+        vocalMannerismItems.map((item) => `- ${item}`),
+        260,
+        (omittedCount) => `- ${omittedCount} additional vocal mannerisms omitted for prompt budget.`,
+      ).join("\n")
+    : "";
 
   const voiceGuardrails = buildVoiceGuardrails({
     name,
@@ -1790,6 +1807,9 @@ export function buildPersonaPromptPackage(personality, memoryFacts = [], queryTe
     speechStyle || "Match the character's established tone and cadence.",
     notablePhraseSection
       ? `\nPhrases you use naturally:\n${notablePhraseSection}`
+      : "",
+    vocalMannerismSection
+      ? `\nVocal mannerisms you can naturally weave in (roughly ${vocalMannerismPct}% of replies, but skip when it would hurt clarity):\n${vocalMannerismSection}`
       : "",
     "",
     "== VOICE GUARDRAILS ==",

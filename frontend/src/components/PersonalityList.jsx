@@ -365,8 +365,10 @@ export default function PersonalityList({
   legacyPersonaCount = 0,
   isClaimingLegacyPersonas = false,
   isImportingPersonas = false,
+  importMode = "append",
   onRefresh,
   onClaimLegacyPersonas,
+  onChangeImportMode,
   onExportPersonas,
   onImportPersonas,
   onSelect,
@@ -447,6 +449,16 @@ export default function PersonalityList({
           <button type="button" onClick={onRefresh}>
             Refresh
           </button>
+          <select
+            value={importMode}
+            onChange={(event) => onChangeImportMode?.(event.target.value)}
+            disabled={isImportingPersonas || isLoading}
+            aria-label="Persona import merge mode"
+          >
+            <option value="append">Import: Append</option>
+            <option value="skip">Import: Skip duplicates</option>
+            <option value="replace">Import: Replace by name</option>
+          </select>
           <button type="button" onClick={onExportPersonas} disabled={!sortedPersonalities.length || isLoading}>
             Export Personas
           </button>

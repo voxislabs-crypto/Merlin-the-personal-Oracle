@@ -666,6 +666,8 @@ const initialForm = {
   researchSummary: "",
   speechStyle: "",
   notablePhrases: "",
+  vocalMannerismItems: "",
+  vocalMannerismFrequency: 0.15,
   voiceEnabled: true,
   voiceAutoplay: false,
   voicePitch: 1,
@@ -735,6 +737,8 @@ function mapPersonalityToForm(personality) {
     researchSummary: personality.researchSummary || "",
     speechStyle: personality.speechStyle || "",
     notablePhrases: toCommaList(personality.notablePhrases),
+    vocalMannerismItems: toLineList(personality.vocalMannerisms?.items),
+    vocalMannerismFrequency: String(Number(personality.vocalMannerisms?.frequency ?? 0.15)),
     voiceEnabled: voiceProfile.enabled !== false,
     voiceAutoplay: Boolean(voiceProfile.autoplay),
     voicePitch: String(Number(voiceProfile.pitch ?? 1)),
@@ -946,6 +950,10 @@ export default function PersonalityForm({
           researchSummary: form.researchSummary,
           speechStyle: form.speechStyle,
           notablePhrases: splitCommaSeparated(form.notablePhrases),
+          vocalMannerisms: {
+            items: splitLineSeparated(form.vocalMannerismItems),
+            frequency: Number(form.vocalMannerismFrequency) || 0,
+          },
           behaviorRules: splitLineSeparated(form.behaviorRules),
           goals: splitCommaSeparated(form.goals),
           values: splitCommaSeparated(form.values),
@@ -1468,6 +1476,33 @@ export default function PersonalityForm({
               value={form.notablePhrases}
               onChange={updateField}
             />
+          </div>
+
+          <div className="field full">
+            <label htmlFor="vocalMannerismItems">Vocal mannerisms (one per line)</label>
+            <textarea
+              className="compact"
+              id="vocalMannerismItems"
+              name="vocalMannerismItems"
+              placeholder={"belches between clauses\nbrief slur before emphasis\nclears throat before sharp points"}
+              value={form.vocalMannerismItems}
+              onChange={updateField}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="vocalMannerismFrequency">Mannerism frequency (0-1)</label>
+            <input
+              id="vocalMannerismFrequency"
+              name="vocalMannerismFrequency"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={form.vocalMannerismFrequency}
+              onChange={updateField}
+            />
+            <small>Approximate share of replies where mannerisms appear. 0.15 = 15%.</small>
           </div>
 
           <div className="field full">

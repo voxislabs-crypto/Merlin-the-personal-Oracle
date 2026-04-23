@@ -31,6 +31,17 @@ function sanitizeItems(items) {
     .filter(Boolean);
 }
 
+function sanitizeVocalMannerisms(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const rawFrequency = Number(source.frequency);
+  return {
+    items: sanitizeItems(source.items).slice(0, 24),
+    frequency: Number.isFinite(rawFrequency)
+      ? Math.min(1, Math.max(0, rawFrequency))
+      : 0.15,
+  };
+}
+
 function buildBulletBlock(items) {
   if (!items.length) {
     return "- None provided";
@@ -280,8 +291,15 @@ export function generateSystemPrompt({
   mood,
   speechStyle,
   notablePhrases,
+  vocalMannerisms,
   researchSummary,
 }) {
+  const mannerismItems = Array.isArray(vocalMannerisms?.items) ? vocalMannerisms.items : [];
+  const mannerismFrequency = Number(vocalMannerisms?.frequency);
+  const mannerismFrequencyPct = Number.isFinite(mannerismFrequency)
+    ? Math.round(Math.min(1, Math.max(0, mannerismFrequency)) * 100)
+    : 0;
+
   return `You are ${name}.
 Description: ${normalizeDescription(description)}
 
@@ -300,6 +318,11 @@ ${speechStyle || "Stay consistent with the character's established tone and cade
 Notable Phrases:
 
 ${buildBulletBlock(notablePhrases)}
+
+Vocal Mannerisms:
+
+${mannerismItems.length ? buildBulletBlock(mannerismItems) : "- None specified"}
+${mannerismItems.length ? `\nUse these naturally in about ${mannerismFrequencyPct}% of replies without overdoing them.` : ""}
 
 Research Notes:
 
@@ -333,6 +356,7 @@ export function createPersonalityHandler(req, res, next) {
     const bigFiveProfile = sanitizeBigFiveProfile(req.body.bigFiveProfile);
     const alignmentProfile = sanitizeAlignmentProfile(req.body.alignmentProfile);
     const expressionStyleInput = sanitizeExpressionStyle(req.body.expressionStyle);
+    const vocalMannerisms = sanitizeVocalMannerisms(req.body.vocalMannerisms);
     const autoTuneHybrid = Boolean(req.body.autoTuneHybrid);
     const hybridTuning = autoTuneHybrid
       ? mapToVoxisPersonality({ bigFiveProfile, alignmentProfile })
@@ -382,6 +406,7 @@ export function createPersonalityHandler(req, res, next) {
       mood,
       speechStyle,
       notablePhrases,
+      vocalMannerisms,
       researchSummary,
     });
 
@@ -411,6 +436,7 @@ export function createPersonalityHandler(req, res, next) {
       alignmentProfile,
       responseFocusProfile,
       expressionStyle,
+      vocalMannerisms,
       ownerId: req.voxisUser?.id ?? null,
     });
 
@@ -508,6 +534,10 @@ export function updatePersonalityHandler(req, res, next) {
       req.body.expressionStyle !== undefined
         ? sanitizeExpressionStyle(req.body.expressionStyle)
         : sanitizeExpressionStyle(existing.expressionStyle);
+    const vocalMannerisms =
+      req.body.vocalMannerisms !== undefined
+        ? sanitizeVocalMannerisms(req.body.vocalMannerisms)
+        : sanitizeVocalMannerisms(existing.vocalMannerisms);
 
     const autoTuneHybrid = Boolean(req.body.autoTuneHybrid);
     const hybridTuning = autoTuneHybrid
@@ -569,6 +599,7 @@ export function updatePersonalityHandler(req, res, next) {
       mood,
       speechStyle,
       notablePhrases,
+      vocalMannerisms,
       researchSummary,
     });
 
@@ -598,6 +629,7 @@ export function updatePersonalityHandler(req, res, next) {
       alignmentProfile,
       responseFocusProfile,
       expressionStyle,
+      vocalMannerisms,
     });
 
     return res.json(updated);
