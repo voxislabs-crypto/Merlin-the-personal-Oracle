@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 
@@ -303,6 +303,7 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isCheckingOllama, setIsCheckingOllama] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
+  const ollamaCheckInFlightRef = useRef(false);
   const [ttsProviders, setTtsProviders] = useState([]);
   const [ttsProvider, setTtsProvider] = useState(TTS_DEBUG_PROVIDER_LOCK ? "cartesia" : "elevenlabs");
   const [ttsApiKey, setTtsApiKey] = useState("");
@@ -850,7 +851,12 @@ export default function LlmSettingsPanel({ onStatus }) {
     }
   }
 
-  async function checkOllamaRuntime({ loadModels = true } = {}) {
+  async function checkOllamaRuntime({ loadModels = true, silent = false } = {}) {
+    if (ollamaCheckInFlightRef.current) {
+      return;
+    }
+
+    ollamaCheckInFlightRef.current = true;
     setIsCheckingOllama(true);
 
     try {
@@ -873,23 +879,42 @@ export default function LlmSettingsPanel({ onStatus }) {
         }
       }
 
-      if (data.reachable) {
+      if (data.reachable && !silent) {
         onStatus?.({
           type: "success",
           message: `Ollama is reachable${data.version ? ` (v${data.version})` : ""}. ${Array.isArray(data.models) ? `${data.models.length} model(s) detected.` : ""}`,
         });
-      } else {
+      } else if (!data.reachable && !silent) {
         onStatus?.({
           type: "warn",
           message: data.error || "Ollama is not reachable. Start it locally and try again.",
         });
       }
     } catch (error) {
-      onStatus?.({ type: "error", message: error.message || "Failed to reach Ollama runtime." });
+      if (!silent) {
+        onStatus?.({ type: "error", message: error.message || "Failed to reach Ollama runtime." });
+      }
     } finally {
       setIsCheckingOllama(false);
+      ollamaCheckInFlightRef.current = false;
     }
   }
+
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn || provider !== "ollama") {
+      return;
+    }
+
+    // Immediate refresh once selected so model dropdown populates right away.
+    void checkOllamaRuntime({ loadModels: true, silent: true });
+
+    // Lightweight keepalive check while Ollama is selected.
+    const interval = setInterval(() => {
+      void checkOllamaRuntime({ loadModels: false, silent: true });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [authLoaded, isSignedIn, provider, baseUrl]);
 
   async function applyModel(nextModel) {
     if (!nextModel) {
