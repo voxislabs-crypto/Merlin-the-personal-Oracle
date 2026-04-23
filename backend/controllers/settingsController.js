@@ -30,11 +30,16 @@ import {
   detectProviderByApiKey,
   fetchProviderModels,
   getSuggestedProviderIdFromApiKey,
+  getOllamaStatus,
   listSupportedProviders,
 } from "../services/providerDiscoveryService.js";
 
 function maskApiKey(apiKey) {
   const key = String(apiKey || "");
+  if (!key) {
+    return "";
+  }
+
   if (key.length <= 8) {
     return "****";
   }
@@ -72,7 +77,7 @@ function toPublicConfig(config) {
   }
 
   return {
-    connected: Boolean(config.apiKey && config.baseUrl),
+    connected: Boolean(config.baseUrl && (config.apiKey || config.provider === "ollama")),
     provider: config.provider,
     baseUrl: config.baseUrl,
     model: config.model,
@@ -111,6 +116,7 @@ export async function connectLlmSettingsHandler(req, res, next) {
     const baseUrl = String(req.body?.baseUrl || "").trim();
     const requestedModel = String(req.body?.model || "").trim();
     const suppliedApiKey = String(req.body?.apiKey || "").trim();
+    const allowsEmptyApiKey = requestedProvider === "ollama";
 
     if (!requestedProvider) {
       return res.status(400).json({ error: "provider is required." });
@@ -131,7 +137,7 @@ export async function connectLlmSettingsHandler(req, res, next) {
 
     const apiKey = suppliedApiKey || savedCredential?.apiKey || (envKeyMatchesRequest ? envApiKey : "");
 
-    if (!apiKey) {
+    if (!apiKey && !allowsEmptyApiKey) {
       const envKeyProviderHint = envKeyProvider
         ? ` Your only configured key is for ${envKeyProvider}; select ${envKeyProvider} to connect without typing a key.`
         : "";
@@ -175,11 +181,13 @@ export async function connectLlmSettingsHandler(req, res, next) {
       models: connected.models,
     });
 
-    upsertSavedLlmCredential({
-      provider: connected.provider,
-      baseUrl: connected.baseUrl,
-      apiKey,
-    });
+    if (apiKey) {
+      upsertSavedLlmCredential({
+        provider: connected.provider,
+        baseUrl: connected.baseUrl,
+        apiKey,
+      });
+    }
 
     return res.json({
       ...toPublicConfig(saved),
@@ -205,6 +213,16 @@ export async function detectLlmProviderHandler(req, res, next) {
 
     const detected = await detectProviderByApiKey(apiKey);
     return res.json(detected);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getOllamaStatusHandler(req, res, next) {
+  try {
+    const baseUrl = String(req.query?.baseUrl || "").trim();
+    const status = await getOllamaStatus({ baseUrl });
+    return res.json(status);
   } catch (error) {
     return next(error);
   }

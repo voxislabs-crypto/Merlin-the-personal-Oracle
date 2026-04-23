@@ -18,6 +18,7 @@ const mockDetectProviderByApiKey = vi.fn();
 const mockFetchProviderModels = vi.fn();
 const mockGetSuggestedProviderIdFromApiKey = vi.fn();
 const mockListSupportedProviders = vi.fn();
+const mockGetOllamaStatus = vi.fn();
 
 vi.mock("../models/settingsModel.js", () => ({
   clearLlmRuntimeConfig: mockClearLlmRuntimeConfig,
@@ -45,6 +46,7 @@ vi.mock("../services/providerDiscoveryService.js", () => ({
   fetchProviderModels: mockFetchProviderModels,
   getSuggestedProviderIdFromApiKey: mockGetSuggestedProviderIdFromApiKey,
   listSupportedProviders: mockListSupportedProviders,
+  getOllamaStatus: mockGetOllamaStatus,
 }));
 
 function createResponse() {
@@ -74,6 +76,7 @@ describe("settingsController", () => {
     mockFetchProviderModels.mockReset();
     mockGetSuggestedProviderIdFromApiKey.mockReset();
     mockListSupportedProviders.mockReset();
+    mockGetOllamaStatus.mockReset();
     mockGetSavedLlmCredentials.mockReturnValue([]);
     mockGetAllTtsCredentials.mockReturnValue([]);
     mockGetVoiceDefaults.mockReturnValue({ source: "tts", updatedAt: "2026-04-09T00:00:00.000Z" });
@@ -227,6 +230,91 @@ describe("settingsController", () => {
         provider: "openrouter",
         requestedProvider: "grok",
         autoCorrectedProvider: true,
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("allows connecting Ollama without an API key", async () => {
+    mockFetchProviderModels.mockResolvedValue({
+      provider: "ollama",
+      providerName: "Ollama (Offline)",
+      baseUrl: "http://127.0.0.1:11434/v1",
+      models: [{ id: "llama3.2:latest", name: "llama3.2:latest", isFree: true }],
+      model: "llama3.2:latest",
+    });
+    mockSetLlmRuntimeConfig.mockReturnValue({
+      provider: "ollama",
+      baseUrl: "http://127.0.0.1:11434/v1",
+      apiKey: "",
+      model: "llama3.2:latest",
+      models: [{ id: "llama3.2:latest", name: "llama3.2:latest", isFree: true }],
+      connectedAt: "2026-04-23T00:00:00.000Z",
+    });
+
+    const { connectLlmSettingsHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+    const next = vi.fn();
+
+    await connectLlmSettingsHandler(
+      {
+        body: {
+          provider: "ollama",
+          apiKey: "",
+        },
+      },
+      res,
+      next,
+    );
+
+    expect(mockFetchProviderModels).toHaveBeenCalledWith({
+      providerId: "ollama",
+      baseUrl: "",
+      apiKey: "",
+    });
+    expect(mockUpsertSavedLlmCredential).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "ollama",
+        connected: true,
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("returns Ollama runtime status", async () => {
+    mockGetOllamaStatus.mockResolvedValue({
+      provider: "ollama",
+      providerName: "Ollama (Offline)",
+      baseUrl: "http://127.0.0.1:11434/v1",
+      reachable: true,
+      version: "0.5.7",
+      models: [{ id: "llama3.2:latest", name: "llama3.2:latest", isFree: true }],
+      model: "llama3.2:latest",
+      checkedAt: "2026-04-23T00:00:00.000Z",
+    });
+
+    const { getOllamaStatusHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+    const next = vi.fn();
+
+    await getOllamaStatusHandler(
+      {
+        query: {
+          baseUrl: "http://127.0.0.1:11434/v1",
+        },
+      },
+      res,
+      next,
+    );
+
+    expect(mockGetOllamaStatus).toHaveBeenCalledWith({
+      baseUrl: "http://127.0.0.1:11434/v1",
+    });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "ollama",
+        reachable: true,
       }),
     );
     expect(next).not.toHaveBeenCalled();

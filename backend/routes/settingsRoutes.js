@@ -4,6 +4,7 @@ import {
   connectLlmSettingsHandler,
   detectLlmProviderHandler,
   disconnectLlmSettingsHandler,
+  getOllamaStatusHandler,
   removeSavedLlmCredentialHandler,
   getLlmSettingsHandler,
   listLlmProvidersHandler,
@@ -31,6 +32,7 @@ router.get("/settings/llm", requireAuth, getLlmSettingsHandler);
 router.get("/settings/llm/providers", requireAuth, listLlmProvidersHandler);
 router.post("/settings/llm/connect", requireAuth, requireAdmin, connectLlmSettingsHandler);
 router.post("/settings/llm/detect", requireAuth, requireAdmin, detectLlmProviderHandler);
+router.get("/settings/llm/ollama/status", requireAuth, requireAdmin, getOllamaStatusHandler);
 router.post("/settings/llm/model", requireAuth, requireAdmin, selectLlmModelHandler);
 router.delete("/settings/llm", requireAuth, requireAdmin, disconnectLlmSettingsHandler);
 router.delete("/settings/llm/saved", requireAuth, requireAdmin, removeSavedLlmCredentialHandler);

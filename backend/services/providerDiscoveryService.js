@@ -1,5 +1,12 @@
 const PROVIDERS = [
   {
+    id: "ollama",
+    name: "Ollama (Offline)",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    auth: "none",
+    modelsPath: "/models",
+  },
+  {
     id: "openai",
     name: "OpenAI",
     baseUrl: "https://api.openai.com/v1",
@@ -70,6 +77,10 @@ export function getSuggestedProviderIdFromApiKey(apiKey) {
 }
 
 function validateApiKeyMatchesProvider(providerId, apiKey) {
+  if (!String(apiKey || "").trim()) {
+    return;
+  }
+
   const suggestedProviderId = getSuggestedProviderIdFromApiKey(apiKey);
   if (!suggestedProviderId || !providerId || providerId === "custom" || suggestedProviderId === providerId) {
     return;
@@ -90,6 +101,10 @@ function buildHeaders(provider, apiKey) {
     ...(provider.extraHeaders || {}),
   };
 
+  if (provider.auth === "none") {
+    return headers;
+  }
+
   if (provider.auth === "anthropic") {
     headers["x-api-key"] = apiKey;
     headers["anthropic-version"] = "2023-06-01";
@@ -101,7 +116,13 @@ function buildHeaders(provider, apiKey) {
 }
 
 function normalizeModelList(payload) {
-  const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+  const list = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.models)
+      ? payload.models
+      : Array.isArray(payload)
+        ? payload
+        : [];
 
   function hasZeroPricing(pricing) {
     if (!pricing || typeof pricing !== "object") {
@@ -152,15 +173,8 @@ function normalizeModelList(payload) {
         isFree: isLikelyFreeModel(item, id, name),
       };
     })
-    .filter(Boolean);
-
-  // OpenRouter returns hundreds of models which is overwhelming in a UI dropdown.
-  // Return free models first (up to 80), then fill remaining slots with paid ones.
-  const freeModels = normalized.filter((m) => m.isFree);
-  const paidModels = normalized.filter((m) => !m.isFree);
-  const cap = 100;
-  const freeCap = Math.min(freeModels.length, 80);
-  return [...freeModels.slice(0, freeCap), ...paidModels.slice(0, cap - freeCap)];
+    .filter(Boolean)
+    .slice(0, 250);
 }
 
 function chooseDefaultModel(providerId, models) {
@@ -219,6 +233,32 @@ async function probeProvider(provider, apiKey, timeoutMs = 15000) {
   }
 
   if (!response.ok) {
+    if (provider.id === "ollama" && response.status === 404) {
+      const ollamaBase = String(provider.baseUrl || "").replace(/\/v1\/?$/, "");
+      const tagsResponse = await fetch(`${ollamaBase}/api/tags`, {
+        method: "GET",
+        headers: buildHeaders(provider, apiKey),
+      });
+
+      if (!tagsResponse.ok) {
+        return null;
+      }
+
+      const tagsPayload = await tagsResponse.json();
+      const tagsModels = normalizeModelList(tagsPayload);
+      if (!tagsModels.length) {
+        return null;
+      }
+
+      return {
+        provider: provider.id,
+        providerName: provider.name,
+        baseUrl: provider.baseUrl,
+        models: tagsModels,
+        model: chooseDefaultModel(provider.id, tagsModels),
+      };
+    }
+
     // 429 means the key is valid but the models endpoint is rate-limited.
     // Return a minimal result so the user can still connect; the model list
     // will just be empty and they can type the model ID manually.
@@ -292,8 +332,11 @@ export function resolveProviderConfig(providerId, baseUrl = "") {
 }
 
 export async function fetchProviderModels({ providerId, apiKey, baseUrl }) {
+  const provider = resolveProviderConfig(providerId, baseUrl);
   const trimmedKey = String(apiKey || "").trim();
-  if (!trimmedKey) {
+  const providerRequiresApiKey = provider.auth !== "none";
+
+  if (providerRequiresApiKey && !trimmedKey) {
     const error = new Error("apiKey is required.");
     error.statusCode = 400;
     throw error;
@@ -301,7 +344,6 @@ export async function fetchProviderModels({ providerId, apiKey, baseUrl }) {
 
   validateApiKeyMatchesProvider(String(providerId || "").trim().toLowerCase(), trimmedKey);
 
-  const provider = resolveProviderConfig(providerId, baseUrl);
   const detection = await probeProvider(provider, trimmedKey);
   if (!detection) {
     const error = new Error(`Unable to connect to ${providerId}. The API key may be invalid, or the provider may be temporarily unreachable.`);
@@ -354,4 +396,48 @@ export async function detectProviderByApiKey(apiKey) {
   );
   error.statusCode = 400;
   throw error;
+}
+
+export async function getOllamaStatus({ baseUrl = "" } = {}) {
+  const provider = resolveProviderConfig("ollama", baseUrl);
+  const ollamaBase = String(provider.baseUrl || "").replace(/\/v1\/?$/, "");
+
+  const status = {
+    provider: "ollama",
+    providerName: provider.name,
+    baseUrl: provider.baseUrl,
+    reachable: false,
+    version: "",
+    models: [],
+    model: "",
+    checkedAt: new Date().toISOString(),
+  };
+
+  try {
+    const [versionResponse, modelsResponse] = await Promise.all([
+      fetch(`${ollamaBase}/api/version`, {
+        method: "GET",
+        headers: buildHeaders(provider, ""),
+      }),
+      fetchProviderModels({
+        providerId: "ollama",
+        apiKey: "",
+        baseUrl: provider.baseUrl,
+      }),
+    ]);
+
+    if (versionResponse.ok) {
+      const versionPayload = await versionResponse.json();
+      status.version = String(versionPayload?.version || "").trim();
+    }
+
+    status.reachable = true;
+    status.models = Array.isArray(modelsResponse.models) ? modelsResponse.models : [];
+    status.model = String(modelsResponse.model || "").trim();
+    return status;
+  } catch (error) {
+    status.reachable = false;
+    status.error = error?.message || "Unable to reach local Ollama runtime.";
+    return status;
+  }
 }

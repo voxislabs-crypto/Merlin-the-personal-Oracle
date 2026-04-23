@@ -24,7 +24,11 @@ function getLlmConfig() {
   const envLocked = String(process.env.LLM_LOCK_ENV || "").trim().toLowerCase() === "true";
   const runtime = getLlmRuntimeConfig();
 
-  if (!envLocked && runtime?.apiKey && runtime?.baseUrl) {
+  const runtimeProvider = String(runtime?.provider || "").trim().toLowerCase();
+  const runtimeAllowsMissingApiKey = runtimeProvider === "ollama";
+  const runtimeReady = Boolean(runtime?.baseUrl && (runtime?.apiKey || runtimeAllowsMissingApiKey));
+
+  if (!envLocked && runtimeReady) {
     return {
       provider: runtime.provider || "",
       baseUrl: runtime.baseUrl.replace(/\/$/, ""),
@@ -48,7 +52,7 @@ function getLlmConfig() {
     };
   }
 
-  if (runtime?.apiKey && runtime?.baseUrl) {
+  if (runtimeReady) {
     return {
       provider: runtime.provider || "",
       baseUrl: runtime.baseUrl.replace(/\/$/, ""),
@@ -118,6 +122,10 @@ function buildLlmHeaders({ provider, baseUrl, apiKey }) {
   }
 
   return headers;
+}
+
+function providerRequiresApiKey({ provider = "" } = {}) {
+  return String(provider || "").trim().toLowerCase() !== "ollama";
 }
 
 function shouldInlineInstructionMessages({ provider = "", baseUrl = "", model = "" } = {}) {
@@ -417,7 +425,7 @@ async function requestChatCompletionOnce({ messages, temperature = 0.85, config 
   const { baseUrl, model, apiKey, provider } = config;
   const requestMessages = normalizeMessagesForProvider(messages, config);
 
-  if (!apiKey) {
+  if (providerRequiresApiKey({ provider }) && !apiKey) {
     const error = new Error(
       "LLM API key is missing. Set it via the Settings panel → Chat Provider, or add LLM_API_KEY to backend/.env.",
     );
@@ -546,7 +554,7 @@ async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, o
   const { baseUrl, model, apiKey, provider } = config;
   const requestMessages = normalizeMessagesForProvider(messages, config);
 
-  if (!apiKey) {
+  if (providerRequiresApiKey({ provider }) && !apiKey) {
     const error = new Error(
       "LLM API key is missing. Set it via the Settings panel → Chat Provider, or add LLM_API_KEY to backend/.env.",
     );

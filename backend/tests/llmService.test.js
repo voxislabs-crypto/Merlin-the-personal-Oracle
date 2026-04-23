@@ -175,6 +175,38 @@ describe("llmService model fallback", () => {
     expect(mockSetLlmRuntimeConfig).not.toHaveBeenCalled();
   });
 
+  it("allows keyless runtime calls for Ollama", async () => {
+    mockGetLlmRuntimeConfig.mockReturnValue({
+      provider: "ollama",
+      baseUrl: "http://127.0.0.1:11434/v1",
+      apiKey: "",
+      model: "llama3.2:latest",
+      models: [
+        { id: "llama3.2:latest", name: "llama3.2:latest", isFree: true },
+      ],
+    });
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: "Local Ollama reply",
+            },
+          },
+        ],
+      }),
+    });
+
+    const { generateChatCompletion } = await import("../services/llmService.js");
+    const result = await generateChatCompletion([{ role: "user", content: "hello" }]);
+
+    expect(result).toBe("Local Ollama reply");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch.mock.calls[0][0]).toBe("http://127.0.0.1:11434/v1/chat/completions");
+  });
+
   it("retries an unavailable openrouter model when the provider reports no endpoints", async () => {
     mockGetLlmRuntimeConfig.mockReturnValue({
       provider: "openrouter",

@@ -207,6 +207,12 @@ const settingsStyles = `
     color: #8fdfff;
   }
 
+  .llm-connected.warn {
+    border-color: rgba(255, 191, 64, 0.26);
+    background: rgba(255, 191, 64, 0.08);
+    color: #ffd58a;
+  }
+
   .llm-quick-picks {
     display: flex;
     flex-wrap: wrap;
@@ -232,6 +238,7 @@ const settingsStyles = `
 
 function fallbackProviders() {
   return [
+    { id: "ollama", name: "Ollama (Offline)", baseUrl: "http://127.0.0.1:11434/v1" },
     { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1" },
     { id: "grok", name: "Grok (xAI)", baseUrl: "https://api.x.ai/v1" },
     { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1" },
@@ -294,6 +301,8 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isCheckingOllama, setIsCheckingOllama] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState(null);
   const [ttsProviders, setTtsProviders] = useState([]);
   const [ttsProvider, setTtsProvider] = useState(TTS_DEBUG_PROVIDER_LOCK ? "cartesia" : "elevenlabs");
   const [ttsApiKey, setTtsApiKey] = useState("");
@@ -780,7 +789,7 @@ export default function LlmSettingsPanel({ onStatus }) {
       return;
     }
 
-    if (!apiKey.trim() && !selectedSavedCredential?.keyHint && !llmEnvInfo.envConfigured) {
+    if (provider !== "ollama" && !apiKey.trim() && !selectedSavedCredential?.keyHint && !llmEnvInfo.envConfigured) {
       onStatus?.({ type: "error", message: "API key is required. Paste a key or select a provider that has a saved key." });
       return;
     }
@@ -838,6 +847,47 @@ export default function LlmSettingsPanel({ onStatus }) {
       onStatus?.({ type: "error", message: error.message || "Failed to connect provider." });
     } finally {
       setIsConnecting(false);
+    }
+  }
+
+  async function checkOllamaRuntime({ loadModels = true } = {}) {
+    setIsCheckingOllama(true);
+
+    try {
+      const query = provider === "ollama" && baseUrl.trim()
+        ? `?baseUrl=${encodeURIComponent(baseUrl.trim())}`
+        : "";
+      const response = await authFetch(`/settings/llm/ollama/status${query}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reach Ollama runtime.");
+      }
+
+      setOllamaStatus(data);
+
+      if (loadModels && Array.isArray(data.models) && data.models.length) {
+        setAvailableModels(data.models);
+        if (!model || !data.models.some((entry) => entry.id === model)) {
+          setModel(data.model || data.models[0]?.id || "");
+        }
+      }
+
+      if (data.reachable) {
+        onStatus?.({
+          type: "success",
+          message: `Ollama is reachable${data.version ? ` (v${data.version})` : ""}. ${Array.isArray(data.models) ? `${data.models.length} model(s) detected.` : ""}`,
+        });
+      } else {
+        onStatus?.({
+          type: "warn",
+          message: data.error || "Ollama is not reachable. Start it locally and try again.",
+        });
+      }
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to reach Ollama runtime." });
+    } finally {
+      setIsCheckingOllama(false);
     }
   }
 
@@ -960,7 +1010,9 @@ export default function LlmSettingsPanel({ onStatus }) {
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
               placeholder={
-                selectedSavedCredential?.keyHint
+                provider === "ollama"
+                  ? "Optional for local Ollama (leave blank by default)."
+                  : selectedSavedCredential?.keyHint
                   ? "Saved key on file. Enter a new key only to replace it."
                   : llmEnvInfo.envConfigured
                     ? "Env key on file (works for its own provider). Paste a new key to use a different one."
@@ -970,6 +1022,8 @@ export default function LlmSettingsPanel({ onStatus }) {
             />
             {selectedSavedCredential?.keyHint ? (
               <p className="llm-field-helper">Saved key on file: {selectedSavedCredential.keyHint}</p>
+            ) : provider === "ollama" ? (
+              <p className="llm-field-helper">Offline Ollama normally runs keyless on localhost. Enter a token only if your proxy requires one.</p>
             ) : null}
           </div>
 
@@ -1023,6 +1077,26 @@ export default function LlmSettingsPanel({ onStatus }) {
           <button type="button" className="secondary" onClick={() => void detectProvider()} disabled={isDetecting || isLoading || isConnecting}>
             {isDetecting ? "Detecting..." : "Detect Provider"}
           </button>
+          {provider === "ollama" ? (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void checkOllamaRuntime({ loadModels: false })}
+              disabled={isCheckingOllama || isLoading || isConnecting}
+            >
+              {isCheckingOllama ? "Checking Ollama..." : "Check Local Ollama"}
+            </button>
+          ) : null}
+          {provider === "ollama" ? (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void checkOllamaRuntime({ loadModels: true })}
+              disabled={isCheckingOllama || isLoading || isConnecting}
+            >
+              {isCheckingOllama ? "Loading models..." : "Load Ollama Models"}
+            </button>
+          ) : null}
           <button type="button" onClick={() => void connectProvider()} disabled={isConnecting || isLoading}>
             {isConnecting ? "Connecting..." : "Connect Provider"}
           </button>
@@ -1045,6 +1119,14 @@ export default function LlmSettingsPanel({ onStatus }) {
             No runtime LLM is connected right now. Env fallbacks can still be used server-side if configured.
           </div>
         )}
+
+        {provider === "ollama" && ollamaStatus ? (
+          <div className={`llm-connected ${ollamaStatus.reachable ? "info" : "warn"}`}>
+            Ollama runtime: {ollamaStatus.reachable ? "reachable" : "offline"}
+            {ollamaStatus.version ? ` | Version: ${ollamaStatus.version}` : ""}
+            {Array.isArray(ollamaStatus.models) ? ` | Models: ${ollamaStatus.models.length}` : ""}
+          </div>
+        ) : null}
 
         {savedProviders.length > 0 ? (
           <div className="llm-field">
