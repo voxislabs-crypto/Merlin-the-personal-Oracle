@@ -988,6 +988,7 @@ export default function App() {
   const [personaMemoryById, setPersonaMemoryById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isClaimingLegacyPersonas, setIsClaimingLegacyPersonas] = useState(false);
+  const [isImportingPersonas, setIsImportingPersonas] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [liveChatState, setLiveChatState] = useState({});
@@ -1713,6 +1714,169 @@ export default function App() {
     }
   }
 
+  function buildPersonaExportPayload() {
+    const list = Array.isArray(personalities) ? personalities : [];
+    const personaTemplates = list.map((personality) => ({
+      name: String(personality?.name || "").trim(),
+      description: String(personality?.description || "").trim(),
+      mood: String(personality?.mood || "calm").trim() || "calm",
+      traits: Array.isArray(personality?.traits) ? personality.traits : [],
+      quirks: Array.isArray(personality?.quirks) ? personality.quirks : [],
+      sourceQuery: String(personality?.sourceQuery || personality?.name || "").trim(),
+      sourceUrls: Array.isArray(personality?.sourceUrls) ? personality.sourceUrls : [],
+      researchSummary: String(personality?.researchSummary || "").trim(),
+      speechStyle: String(personality?.speechStyle || "").trim(),
+      notablePhrases: Array.isArray(personality?.notablePhrases) ? personality.notablePhrases : [],
+      researchSources: Array.isArray(personality?.researchSources) ? personality.researchSources : [],
+      behaviorRules: Array.isArray(personality?.behaviorRules) ? personality.behaviorRules : [],
+      goals: Array.isArray(personality?.goals) ? personality.goals : [],
+      values: Array.isArray(personality?.values) ? personality.values : [],
+      voiceProfile: personality?.voiceProfile && typeof personality.voiceProfile === "object" ? personality.voiceProfile : {},
+      expressionProfile: personality?.expressionProfile && typeof personality.expressionProfile === "object" ? personality.expressionProfile : {},
+      bigFiveProfile: personality?.bigFiveProfile && typeof personality.bigFiveProfile === "object" ? personality.bigFiveProfile : {},
+      alignmentProfile: personality?.alignmentProfile && typeof personality.alignmentProfile === "object" ? personality.alignmentProfile : {},
+      responseFocusProfile:
+        personality?.responseFocusProfile && typeof personality.responseFocusProfile === "object"
+          ? personality.responseFocusProfile
+          : {},
+      expressionStyle: personality?.expressionStyle && typeof personality.expressionStyle === "object" ? personality.expressionStyle : {},
+      creativeContext: String(personality?.creativeContext || "default").trim() || "default",
+      moodSensitivity: Number(personality?.moodSensitivity) || 1,
+      gender: String(personality?.gender || "").trim(),
+      avatarImageUrl: String(personality?.avatarImageUrl || "").trim(),
+    })).filter((entry) => entry.name && entry.description);
+
+    return {
+      format: "voxis-persona-library",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      count: personaTemplates.length,
+      personalities: personaTemplates,
+    };
+  }
+
+  function handleExportPersonas() {
+    try {
+      const payload = buildPersonaExportPayload();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `voxis-personas-${Date.now()}.json`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      setStatus({ type: "success", message: `Exported ${payload.count} persona${payload.count === 1 ? "" : "s"}.` });
+    } catch (error) {
+      setStatus({ type: "error", message: error.message || "Failed to export personas." });
+    }
+  }
+
+  async function handleImportPersonas(event) {
+    const file = event?.target?.files?.[0];
+    if (!file || isImportingPersonas) {
+      return;
+    }
+
+    setIsImportingPersonas(true);
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const personaTemplates = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed?.personalities)
+          ? parsed.personalities
+          : [];
+
+      if (!personaTemplates.length) {
+        throw new Error("No personas found in the selected file.");
+      }
+
+      const created = [];
+      const failed = [];
+
+      for (const template of personaTemplates) {
+        const payload = {
+          name: String(template?.name || "").trim(),
+          description: String(template?.description || "").trim(),
+          mood: String(template?.mood || "calm").trim() || "calm",
+          traits: Array.isArray(template?.traits) ? template.traits : [],
+          quirks: Array.isArray(template?.quirks) ? template.quirks : [],
+          sourceQuery: String(template?.sourceQuery || template?.name || "").trim(),
+          sourceUrls: Array.isArray(template?.sourceUrls) ? template.sourceUrls : [],
+          researchSummary: String(template?.researchSummary || "").trim(),
+          speechStyle: String(template?.speechStyle || "").trim(),
+          notablePhrases: Array.isArray(template?.notablePhrases) ? template.notablePhrases : [],
+          researchSources: Array.isArray(template?.researchSources) ? template.researchSources : [],
+          behaviorRules: Array.isArray(template?.behaviorRules) ? template.behaviorRules : [],
+          goals: Array.isArray(template?.goals) ? template.goals : [],
+          values: Array.isArray(template?.values) ? template.values : [],
+          voiceProfile: template?.voiceProfile && typeof template.voiceProfile === "object" ? template.voiceProfile : {},
+          expressionProfile:
+            template?.expressionProfile && typeof template.expressionProfile === "object"
+              ? template.expressionProfile
+              : {},
+          bigFiveProfile: template?.bigFiveProfile && typeof template.bigFiveProfile === "object" ? template.bigFiveProfile : {},
+          alignmentProfile:
+            template?.alignmentProfile && typeof template.alignmentProfile === "object"
+              ? template.alignmentProfile
+              : {},
+          responseFocusProfile:
+            template?.responseFocusProfile && typeof template.responseFocusProfile === "object"
+              ? template.responseFocusProfile
+              : {},
+          expressionStyle: template?.expressionStyle && typeof template.expressionStyle === "object" ? template.expressionStyle : {},
+          creativeContext: String(template?.creativeContext || "default").trim() || "default",
+          moodSensitivity: Number(template?.moodSensitivity) || 1,
+          gender: String(template?.gender || "").trim(),
+          avatarImageUrl: String(template?.avatarImageUrl || "").trim(),
+        };
+
+        if (!payload.name || !payload.description) {
+          failed.push(payload.name || "Unnamed persona");
+          continue;
+        }
+
+        const response = await authFetch("/personality", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await readApiResponsePayload(response);
+        if (!response.ok) {
+          failed.push(payload.name);
+          continue;
+        }
+
+        created.push(data);
+      }
+
+      if (created.length) {
+        await loadPersonalities();
+        setSelectedId((current) => current || created[0]?.id || null);
+      }
+
+      if (created.length && !failed.length) {
+        setStatus({ type: "success", message: `Imported ${created.length} persona${created.length === 1 ? "" : "s"}.` });
+      } else if (created.length && failed.length) {
+        setStatus({ type: "warn", message: `Imported ${created.length} persona${created.length === 1 ? "" : "s"}, ${failed.length} failed.` });
+      } else {
+        setStatus({ type: "error", message: "No personas were imported. Check file format and required fields." });
+      }
+    } catch (error) {
+      setStatus({ type: "error", message: error.message || "Failed to import personas." });
+    } finally {
+      setIsImportingPersonas(false);
+      if (event?.target) {
+        event.target.value = "";
+      }
+    }
+  }
+
   async function loadChatHistory(personalityId) {
     setIsLoadingMessages(true);
 
@@ -2380,8 +2544,11 @@ export default function App() {
                 isLoading={isLoading}
                 legacyPersonaCount={legacyPersonaCount}
                 isClaimingLegacyPersonas={isClaimingLegacyPersonas}
+                isImportingPersonas={isImportingPersonas}
                 onRefresh={loadPersonalities}
                 onClaimLegacyPersonas={handleClaimLegacyPersonalities}
+                onExportPersonas={handleExportPersonas}
+                onImportPersonas={handleImportPersonas}
                 onSelect={handleSelectPersonality}
                 onOpenChat={() => setActiveView("chat")}
                 onResetPersona={handleResetPersonality}

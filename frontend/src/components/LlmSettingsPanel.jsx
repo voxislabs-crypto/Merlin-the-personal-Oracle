@@ -323,6 +323,7 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isCheckingOllama, setIsCheckingOllama] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const ollamaCheckInFlightRef = useRef(false);
+  const modelFavoritesImportRef = useRef(null);
   const [modelFavoritesByProvider, setModelFavoritesByProvider] = useState(() => loadModelFavorites());
   const [ttsProviders, setTtsProviders] = useState([]);
   const [ttsProvider, setTtsProvider] = useState(TTS_DEBUG_PROVIDER_LOCK ? "cartesia" : "elevenlabs");
@@ -1021,6 +1022,66 @@ export default function LlmSettingsPanel({ onStatus }) {
     });
   }
 
+  function exportModelFavorites() {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      modelFavoritesByProvider,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `voxis-model-favorites-${Date.now()}.json`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+    onStatus?.({ type: "success", message: "Exported model favorites JSON." });
+  }
+
+  async function importModelFavorites(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const incoming =
+        parsed && typeof parsed === "object" && parsed.modelFavoritesByProvider && typeof parsed.modelFavoritesByProvider === "object"
+          ? parsed.modelFavoritesByProvider
+          : parsed && typeof parsed === "object"
+            ? parsed
+            : null;
+
+      if (!incoming || typeof incoming !== "object") {
+        throw new Error("Invalid favorites file format.");
+      }
+
+      const normalized = Object.fromEntries(
+        Object.entries(incoming)
+          .map(([key, value]) => [
+            String(key || "").trim(),
+            Array.isArray(value)
+              ? Array.from(new Set(value.map((entry) => String(entry || "").trim()).filter(Boolean))).slice(0, 20)
+              : [],
+          ])
+          .filter(([key]) => Boolean(key)),
+      );
+
+      setModelFavoritesByProvider(normalized);
+      saveModelFavorites(normalized);
+      onStatus?.({ type: "success", message: "Imported model favorites." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to import model favorites." });
+    } finally {
+      if (event?.target) {
+        event.target.value = "";
+      }
+    }
+  }
+
   async function disconnectProvider() {
     setIsDisconnecting(true);
 
@@ -1236,6 +1297,29 @@ export default function LlmSettingsPanel({ onStatus }) {
           >
             {isDisconnecting ? "Disconnecting..." : "Disconnect"}
           </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => exportModelFavorites()}
+            disabled={isLoading}
+          >
+            Export Model Favorites
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => modelFavoritesImportRef.current?.click()}
+            disabled={isLoading}
+          >
+            Import Model Favorites
+          </button>
+          <input
+            ref={modelFavoritesImportRef}
+            type="file"
+            accept="application/json"
+            style={{ display: "none" }}
+            onChange={(event) => void importModelFavorites(event)}
+          />
         </div>
 
         {connected?.connected ? (

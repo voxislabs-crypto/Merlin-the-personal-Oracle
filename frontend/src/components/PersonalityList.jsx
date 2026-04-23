@@ -364,8 +364,11 @@ export default function PersonalityList({
   isLoading,
   legacyPersonaCount = 0,
   isClaimingLegacyPersonas = false,
+  isImportingPersonas = false,
   onRefresh,
   onClaimLegacyPersonas,
+  onExportPersonas,
+  onImportPersonas,
   onSelect,
   onOpenChat,
   onResetPersona,
@@ -375,6 +378,7 @@ export default function PersonalityList({
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmName, setConfirmName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const personaImportRef = useRef(null);
   const listRootRef = useRef(null);
   const previousTopIdRef = useRef(null);
 
@@ -443,6 +447,23 @@ export default function PersonalityList({
           <button type="button" onClick={onRefresh}>
             Refresh
           </button>
+          <button type="button" onClick={onExportPersonas} disabled={!sortedPersonalities.length || isLoading}>
+            Export Personas
+          </button>
+          <button
+            type="button"
+            onClick={() => personaImportRef.current?.click()}
+            disabled={isImportingPersonas || isLoading}
+          >
+            {isImportingPersonas ? "Importing..." : "Import Personas"}
+          </button>
+          <input
+            ref={personaImportRef}
+            type="file"
+            accept="application/json"
+            style={{ display: "none" }}
+            onChange={(event) => onImportPersonas?.(event)}
+          />
         </div>
       </div>
       <p className="list-copy">
