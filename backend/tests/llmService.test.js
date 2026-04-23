@@ -207,6 +207,21 @@ describe("llmService model fallback", () => {
     expect(global.fetch.mock.calls[0][0]).toBe("http://127.0.0.1:11434/v1/chat/completions");
   });
 
+  it("uses a larger persona prompt budget when Ollama is active", async () => {
+    mockGetLlmRuntimeConfig.mockReturnValue({
+      provider: "ollama",
+      baseUrl: "http://127.0.0.1:11434/v1",
+      apiKey: "",
+      model: "llama3.2:latest",
+      models: [],
+    });
+
+    const { describePersonaPromptBudget } = await import("../services/llmService.js");
+    const budget = describePersonaPromptBudget({ creativeContext: "default" }, "short prompt");
+
+    expect(budget.charBudget).toBeGreaterThanOrEqual(24000);
+  });
+
   it("retries an unavailable openrouter model when the provider reports no endpoints", async () => {
     mockGetLlmRuntimeConfig.mockReturnValue({
       provider: "openrouter",

@@ -4,6 +4,7 @@ import { useAuthFetch } from "../hooks/useAuthFetch.js";
 
 const CUSTOM_OPTION = "__custom__";
 const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+const LLM_MODEL_FAVORITES_STORAGE_KEY = "voxis.llmModelFavorites.v1";
 
 const ELEVENLABS_VOICE_PRESETS = [
   { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel (default)" },
@@ -286,6 +287,24 @@ function getTtsModelHelpText(providerId, options, providerName) {
   return options?.error || `Auto-loaded from your ${providerName || "provider"} key when available.`;
 }
 
+function loadModelFavorites() {
+  try {
+    const raw = window.localStorage.getItem(LLM_MODEL_FAVORITES_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveModelFavorites(nextValue) {
+  try {
+    window.localStorage.setItem(LLM_MODEL_FAVORITES_STORAGE_KEY, JSON.stringify(nextValue || {}));
+  } catch {
+    // Ignore localStorage write failures.
+  }
+}
+
 export default function LlmSettingsPanel({ onStatus }) {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const authFetch = useAuthFetch();
@@ -304,6 +323,7 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isCheckingOllama, setIsCheckingOllama] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const ollamaCheckInFlightRef = useRef(false);
+  const [modelFavoritesByProvider, setModelFavoritesByProvider] = useState(() => loadModelFavorites());
   const [ttsProviders, setTtsProviders] = useState([]);
   const [ttsProvider, setTtsProvider] = useState(TTS_DEBUG_PROVIDER_LOCK ? "cartesia" : "elevenlabs");
   const [ttsApiKey, setTtsApiKey] = useState("");
@@ -349,6 +369,41 @@ export default function LlmSettingsPanel({ onStatus }) {
     () => providers.find((candidate) => candidate.id === provider) || null,
     [providers, provider],
   );
+
+  const activeProviderKey = useMemo(() => {
+    const normalizedProvider = String(provider || "").trim().toLowerCase();
+    const normalizedBaseUrl = String(baseUrl || selectedProvider?.baseUrl || "").trim().replace(/\/$/, "").toLowerCase();
+    return `${normalizedProvider}::${normalizedBaseUrl}`;
+  }, [provider, baseUrl, selectedProvider?.baseUrl]);
+
+  const activeModelFavorites = useMemo(() => {
+    const list = modelFavoritesByProvider[activeProviderKey];
+    return Array.isArray(list) ? list : [];
+  }, [modelFavoritesByProvider, activeProviderKey]);
+
+  const sortedAvailableModels = useMemo(() => {
+    const list = Array.isArray(availableModels) ? [...availableModels] : [];
+    return list.sort((left, right) => {
+      const leftFav = activeModelFavorites.includes(left.id);
+      const rightFav = activeModelFavorites.includes(right.id);
+      if (leftFav !== rightFav) {
+        return leftFav ? -1 : 1;
+      }
+
+      const leftName = String(left.name || left.id || "").toLowerCase();
+      const rightName = String(right.name || right.id || "").toLowerCase();
+      return leftName.localeCompare(rightName);
+    });
+  }, [availableModels, activeModelFavorites]);
+
+  const favoriteModelEntries = useMemo(() => {
+    if (!sortedAvailableModels.length || !activeModelFavorites.length) {
+      return [];
+    }
+
+    const favorites = sortedAvailableModels.filter((entry) => activeModelFavorites.includes(entry.id));
+    return favorites.slice(0, 8);
+  }, [sortedAvailableModels, activeModelFavorites]);
 
   const selectedSavedCredential = useMemo(() => {
     const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/$/, "");
@@ -945,6 +1000,27 @@ export default function LlmSettingsPanel({ onStatus }) {
     }
   }
 
+  function toggleModelFavorite(modelId) {
+    const normalizedModelId = String(modelId || "").trim();
+    if (!normalizedModelId || !activeProviderKey) {
+      return;
+    }
+
+    setModelFavoritesByProvider((current) => {
+      const currentList = Array.isArray(current[activeProviderKey]) ? current[activeProviderKey] : [];
+      const exists = currentList.includes(normalizedModelId);
+      const nextList = exists
+        ? currentList.filter((id) => id !== normalizedModelId)
+        : [normalizedModelId, ...currentList].slice(0, 20);
+      const nextValue = {
+        ...current,
+        [activeProviderKey]: nextList,
+      };
+      saveModelFavorites(nextValue);
+      return nextValue;
+    });
+  }
+
   async function disconnectProvider() {
     setIsDisconnecting(true);
 
@@ -1075,9 +1151,9 @@ export default function LlmSettingsPanel({ onStatus }) {
                 disabled={isConnecting || isLoading}
               >
                 <option value="">Choose model</option>
-                {availableModels.map((candidate) => (
+                {sortedAvailableModels.map((candidate) => (
                   <option key={candidate.id} value={candidate.id}>
-                    {(candidate.name || candidate.id) + (candidate.isFree ? " (free)" : "")}
+                    {(activeModelFavorites.includes(candidate.id) ? "[fav] " : "") + (candidate.name || candidate.id) + (candidate.isFree ? " (free)" : "")}
                   </option>
                 ))}
               </select>
@@ -1094,6 +1170,33 @@ export default function LlmSettingsPanel({ onStatus }) {
             )}
             {!availableModels.length ? (
               <p className="llm-field-helper">No model list available. Type a model ID and press Tab or click Connect to apply it.</p>
+            ) : null}
+            {availableModels.length ? (
+              <div className="llm-actions compact">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => toggleModelFavorite(model)}
+                  disabled={!model || isLoading || isConnecting}
+                >
+                  {activeModelFavorites.includes(model) ? "Unfavorite Current Model" : "Favorite Current Model"}
+                </button>
+              </div>
+            ) : null}
+            {favoriteModelEntries.length ? (
+              <div className="llm-quick-picks">
+                {favoriteModelEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className="secondary"
+                    onClick={() => void applyModel(entry.id)}
+                    disabled={isLoading || isConnecting}
+                  >
+                    {entry.name || entry.id}
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
         </div>

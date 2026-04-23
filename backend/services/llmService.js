@@ -6,6 +6,9 @@ const OPENROUTER_HEADERS = {
   "X-Title": process.env.OPENROUTER_APP_TITLE || "Voxis",
 };
 const DEFAULT_PERSONA_PROMPT_CHAR_BUDGET = Number(process.env.PERSONA_PROMPT_CHAR_BUDGET || 6500);
+const DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET = Number(
+  process.env.OLLAMA_PERSONA_PROMPT_CHAR_BUDGET || 24000,
+);
 const CONTEXT_BUDGET_ENV_KEYS = {
   default: "PERSONA_PROMPT_CHAR_BUDGET_DEFAULT",
   narrative_antagonist: "PERSONA_PROMPT_CHAR_BUDGET_NARRATIVE_ANTAGONIST",
@@ -739,9 +742,19 @@ function clampNumber(value, min, max, fallback = 0) {
 function getContextPromptBudget(creativeContext = "default") {
   const envKey = CONTEXT_BUDGET_ENV_KEYS[creativeContext] || CONTEXT_BUDGET_ENV_KEYS.default;
   const contextBudget = Number(process.env[envKey]);
+  const activeConfig = getLlmConfig();
+  const isOllamaRuntime = String(activeConfig?.provider || "").trim().toLowerCase() === "ollama";
 
   if (Number.isFinite(contextBudget) && contextBudget > 0) {
+    if (isOllamaRuntime && Number.isFinite(DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET) && DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET > 0) {
+      return Math.max(contextBudget, DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET);
+    }
+
     return contextBudget;
+  }
+
+  if (isOllamaRuntime && Number.isFinite(DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET) && DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET > 0) {
+    return DEFAULT_OLLAMA_PERSONA_PROMPT_CHAR_BUDGET;
   }
 
   return DEFAULT_PERSONA_PROMPT_CHAR_BUDGET;
