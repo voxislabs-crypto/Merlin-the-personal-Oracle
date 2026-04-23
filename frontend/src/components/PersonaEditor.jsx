@@ -316,6 +316,23 @@ function buildDraft(personality) {
     intoxicationDecayPerTurn: String(personality.stateFlaws?.intoxication?.decayPerTurn ?? 0.02),
     intoxicationTriggerGain: String(personality.stateFlaws?.intoxication?.triggerGain ?? 0.12),
     intoxicationTriggerKeywords: listToText(personality.stateFlaws?.intoxication?.triggerKeywords),
+    fatigueEnabled: String(Boolean(personality.stateFlaws?.fatigue?.enabled)),
+    fatigueLevel: String(personality.stateFlaws?.fatigue?.level ?? 0.1),
+    fatigueDecayPerTurn: String(personality.stateFlaws?.fatigue?.decayPerTurn ?? 0.01),
+    fatiguePassiveGainPerTurn: String(personality.stateFlaws?.fatigue?.passiveGainPerTurn ?? 0.015),
+    fatigueTriggerGain: String(personality.stateFlaws?.fatigue?.triggerGain ?? 0.08),
+    fatigueTriggerKeywords: listToText(personality.stateFlaws?.fatigue?.triggerKeywords),
+    agitationEnabled: String(Boolean(personality.stateFlaws?.agitation?.enabled)),
+    agitationLevel: String(personality.stateFlaws?.agitation?.level ?? 0),
+    agitationDecayPerTurn: String(personality.stateFlaws?.agitation?.decayPerTurn ?? 0.03),
+    agitationTriggerGain: String(personality.stateFlaws?.agitation?.triggerGain ?? 0.1),
+    agitationTriggerKeywords: listToText(personality.stateFlaws?.agitation?.triggerKeywords),
+    focusEnabled: String(Boolean(personality.stateFlaws?.focus?.enabled)),
+    focusLevel: String(personality.stateFlaws?.focus?.level ?? 0.75),
+    focusDecayPerTurn: String(personality.stateFlaws?.focus?.decayPerTurn ?? 0.015),
+    focusRecoveryPerTurn: String(personality.stateFlaws?.focus?.recoveryPerTurn ?? 0.03),
+    focusTriggerGain: String(personality.stateFlaws?.focus?.triggerGain ?? 0.08),
+    focusTriggerKeywords: listToText(personality.stateFlaws?.focus?.triggerKeywords),
     creativeContext: personality.creativeContext || "default",
     mood: personality.mood || "neutral",
     moodLabel: personality.moodLabel || "",
@@ -479,7 +496,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       "name", "creativeContext", "mood", "moodLabel", "description", "systemPrompt", "sourceUrls", "prosodySourceUrl", "notablePhrases"
     ],
     behavior: [
-      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords"
+      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords", "fatigueEnabled", "fatigueLevel", "fatigueDecayPerTurn", "fatiguePassiveGainPerTurn", "fatigueTriggerGain", "fatigueTriggerKeywords", "agitationEnabled", "agitationLevel", "agitationDecayPerTurn", "agitationTriggerGain", "agitationTriggerKeywords", "focusEnabled", "focusLevel", "focusDecayPerTurn", "focusRecoveryPerTurn", "focusTriggerGain", "focusTriggerKeywords"
       , "cadenceMode", "cadenceTeasingFrequency", "cadenceVariability", "cadenceRepetitionPenalty", "cadenceCooldownTurns", "cadenceWindowTurns"
     ],
     neural: [
@@ -538,6 +555,29 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
           decayPerTurn: normalizeRatio(draft.intoxicationDecayPerTurn, 0.02),
           triggerGain: normalizeRatio(draft.intoxicationTriggerGain, 0.12),
           triggerKeywords: textToList(draft.intoxicationTriggerKeywords),
+        },
+        fatigue: {
+          enabled: parseBoolean(draft.fatigueEnabled),
+          level: normalizeRatio(draft.fatigueLevel, 0.1),
+          decayPerTurn: normalizeRatio(draft.fatigueDecayPerTurn, 0.01),
+          passiveGainPerTurn: normalizeRatio(draft.fatiguePassiveGainPerTurn, 0.015),
+          triggerGain: normalizeRatio(draft.fatigueTriggerGain, 0.08),
+          triggerKeywords: textToList(draft.fatigueTriggerKeywords),
+        },
+        agitation: {
+          enabled: parseBoolean(draft.agitationEnabled),
+          level: normalizeRatio(draft.agitationLevel, 0),
+          decayPerTurn: normalizeRatio(draft.agitationDecayPerTurn, 0.03),
+          triggerGain: normalizeRatio(draft.agitationTriggerGain, 0.1),
+          triggerKeywords: textToList(draft.agitationTriggerKeywords),
+        },
+        focus: {
+          enabled: parseBoolean(draft.focusEnabled),
+          level: normalizeRatio(draft.focusLevel, 0.75),
+          decayPerTurn: normalizeRatio(draft.focusDecayPerTurn, 0.015),
+          recoveryPerTurn: normalizeRatio(draft.focusRecoveryPerTurn, 0.03),
+          triggerGain: normalizeRatio(draft.focusTriggerGain, 0.08),
+          triggerKeywords: textToList(draft.focusTriggerKeywords),
         },
       },
       creativeContext: draft.creativeContext,
@@ -1036,6 +1076,86 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
               value={draft.intoxicationTriggerKeywords}
               onChange={(event) => setDraft((current) => ({ ...current, intoxicationTriggerKeywords: event.target.value }))}
             />
+          </div>
+
+          <div className="persona-field">
+            <label>Fatigue Enabled</label>
+            <select value={draft.fatigueEnabled} onChange={(event) => setDraft((current) => ({ ...current, fatigueEnabled: event.target.value }))}>
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Level (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatigueLevel} onChange={(event) => setDraft((current) => ({ ...current, fatigueLevel: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Passive Gain (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatiguePassiveGainPerTurn} onChange={(event) => setDraft((current) => ({ ...current, fatiguePassiveGainPerTurn: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Decay (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatigueDecayPerTurn} onChange={(event) => setDraft((current) => ({ ...current, fatigueDecayPerTurn: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Fatigue Trigger Gain (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.fatigueTriggerGain} onChange={(event) => setDraft((current) => ({ ...current, fatigueTriggerGain: event.target.value }))} />
+          </div>
+          <div className="persona-field full">
+            <label>Fatigue Trigger Keywords (one per line)</label>
+            <textarea value={draft.fatigueTriggerKeywords} onChange={(event) => setDraft((current) => ({ ...current, fatigueTriggerKeywords: event.target.value }))} />
+          </div>
+
+          <div className="persona-field">
+            <label>Agitation Enabled</label>
+            <select value={draft.agitationEnabled} onChange={(event) => setDraft((current) => ({ ...current, agitationEnabled: event.target.value }))}>
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Agitation Level (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationLevel} onChange={(event) => setDraft((current) => ({ ...current, agitationLevel: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Agitation Decay (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationDecayPerTurn} onChange={(event) => setDraft((current) => ({ ...current, agitationDecayPerTurn: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Agitation Trigger Gain (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.agitationTriggerGain} onChange={(event) => setDraft((current) => ({ ...current, agitationTriggerGain: event.target.value }))} />
+          </div>
+          <div className="persona-field full">
+            <label>Agitation Trigger Keywords (one per line)</label>
+            <textarea value={draft.agitationTriggerKeywords} onChange={(event) => setDraft((current) => ({ ...current, agitationTriggerKeywords: event.target.value }))} />
+          </div>
+
+          <div className="persona-field">
+            <label>Focus Enabled</label>
+            <select value={draft.focusEnabled} onChange={(event) => setDraft((current) => ({ ...current, focusEnabled: event.target.value }))}>
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+          <div className="persona-field">
+            <label>Focus Level (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusLevel} onChange={(event) => setDraft((current) => ({ ...current, focusLevel: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Recovery (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusRecoveryPerTurn} onChange={(event) => setDraft((current) => ({ ...current, focusRecoveryPerTurn: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Decay (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusDecayPerTurn} onChange={(event) => setDraft((current) => ({ ...current, focusDecayPerTurn: event.target.value }))} />
+          </div>
+          <div className="persona-field">
+            <label>Focus Trigger Gain (0-1)</label>
+            <input type="number" step="0.01" min="0" max="1" value={draft.focusTriggerGain} onChange={(event) => setDraft((current) => ({ ...current, focusTriggerGain: event.target.value }))} />
+          </div>
+          <div className="persona-field full">
+            <label>Focus Trigger Keywords (one per line)</label>
+            <textarea value={draft.focusTriggerKeywords} onChange={(event) => setDraft((current) => ({ ...current, focusTriggerKeywords: event.target.value }))} />
           </div>
           <div className="persona-field full">
             <label>Sentence Style</label>

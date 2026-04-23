@@ -86,8 +86,8 @@ import {
   sanitizeRateLimitedMessage,
 } from "../services/rateLimitRecoveryService.js";
 import { detectMemoryConflicts } from "../services/memoryConflictService.js";
-import { buildAssistantPresentation } from "../services/chatPresentationService.js";
 import { regulateReplyCadence } from "../services/cadenceRegulator.js";
+import { buildUtterancePlan } from "../services/utterancePlanService.js";
 import {
   normalizeDriftState,
   applyEmotionDrift,
@@ -503,6 +503,11 @@ export async function chatHandler(req, res, next) {
       updateStateFlaws(personalityId, stateFlawStep.stateFlaws);
     });
     streamedDebugData.stateFlaws = stateFlawStep.diagnostics;
+    streamedDebugData.stateRuntime = {
+      snapshot: stateFlawStep.snapshot,
+      stabilityIndex: stateFlawStep.stabilityIndex,
+      directives: stateFlawStep.directives,
+    };
     stream.write("debug", {
       phase: "state-flaw",
       debug: streamedDebugData,
@@ -1210,6 +1215,11 @@ export async function chatHandler(req, res, next) {
         repairApplied: emotionalRepairApplied,
       },
       stateFlaws: stateFlawStep.diagnostics,
+      stateRuntime: {
+        snapshot: stateFlawStep.snapshot,
+        stabilityIndex: stateFlawStep.stabilityIndex,
+        directives: stateFlawStep.directives,
+      },
       expressionSampling: sampled,
       webSearch: webSearchResult
         ? {
@@ -1288,12 +1298,17 @@ export async function chatHandler(req, res, next) {
       return newPersonaPrefs;
     };
 
-    const assistantPresentation = buildAssistantPresentation(reply);
+    const utterancePlan = buildUtterancePlan({
+      reply,
+      stateFlaws: personality.stateFlaws,
+      mode: policy.activeMode,
+    });
 
     const responsePayload = {
-      reply,
-      displayReply: assistantPresentation.displayReply,
-      isPerformanceOutput: assistantPresentation.isPerformanceOutput,
+      reply: utterancePlan.rawText,
+      displayReply: utterancePlan.displayText,
+      isPerformanceOutput: utterancePlan.isPerformanceOutput,
+      utterancePlan,
       expressionReplayId: sampled.replayId || "",
       isAI: true,
       moodState: newMood,
@@ -1536,15 +1551,24 @@ export function chatHistoryHandler(req, res, next) {
         return {
           ...message,
           displayContent: message.content,
+          utterancePlan: {
+            rawText: message.content,
+            displayText: message.content,
+            speechText: message.content,
+            isPerformanceOutput: false,
+            speechImpulses: null,
+            stateSnapshot: null,
+          },
           isPerformanceOutput: false,
         };
       }
 
-      const presentation = buildAssistantPresentation(message.content);
+      const utterancePlan = buildUtterancePlan({ reply: message.content });
       return {
         ...message,
-        displayContent: presentation.displayReply,
-        isPerformanceOutput: presentation.isPerformanceOutput,
+        displayContent: utterancePlan.displayText,
+        utterancePlan,
+        isPerformanceOutput: utterancePlan.isPerformanceOutput,
       };
     });
 

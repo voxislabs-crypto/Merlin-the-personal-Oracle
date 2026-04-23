@@ -1559,7 +1559,8 @@ function formatAssistantContentForMode(content, mode) {
 
 function getAssistantDisplayContent(message, mode) {
   const rawContent = String(message?.content || "");
-  const displayContent = String(message?.displayContent || "");
+  const plannedDisplay = String(message?.utterancePlan?.displayText || "");
+  const displayContent = String(message?.displayContent || plannedDisplay || "");
   const chatVisibleContent = mode === "scientist"
     ? rawContent
     : displayContent || extractEPFDialogue(rawContent) || rawContent;
@@ -1569,7 +1570,8 @@ function getAssistantDisplayContent(message, mode) {
 
 function getAssistantSpeechContent(message) {
   const rawContent = String(message?.content || "");
-  return String(message?.displayContent || "") || extractEPFDialogue(rawContent) || rawContent;
+  const plannedSpeech = String(message?.utterancePlan?.speechText || "");
+  return plannedSpeech || String(message?.displayContent || "") || extractEPFDialogue(rawContent) || rawContent;
 }
 
 function getResponseLensSummary(debug) {
@@ -3364,6 +3366,61 @@ export default function ChatWindow({
                           )}
                         </>
                       ) : <span className="sys-observer-label">No adjudication data yet</span>;
+                    })()}
+                  </div>
+
+                  {/* Persona State Monitor */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">Live State Monitor</div>
+                    {(() => {
+                      const runtime = displayDebug?.stateRuntime;
+                      const snapshot = runtime?.snapshot;
+                      const directives = runtime?.directives;
+                      const stability = Number(runtime?.stabilityIndex);
+                      const rows = [
+                        { key: "intoxication", label: "intoxication", value: Number(snapshot?.intoxication || 0), hue: "#ff9f43" },
+                        { key: "fatigue", label: "fatigue", value: Number(snapshot?.fatigue || 0), hue: "#feca57" },
+                        { key: "agitation", label: "agitation", value: Number(snapshot?.agitation || 0), hue: "#ff6b6b" },
+                        { key: "focus", label: "focus", value: Number(snapshot?.focus || 0), hue: "#2ed573" },
+                      ];
+
+                      if (!snapshot) {
+                        return <span className="sys-observer-label">No state runtime data yet</span>;
+                      }
+
+                      return (
+                        <>
+                          {rows.map((item) => (
+                            <div className="sys-observer-bar-wrap" key={item.key}>
+                              <div className="sys-observer-row">
+                                <span className="sys-observer-label">{item.label}</span>
+                                <span className="sys-observer-value">{Math.round(Math.max(0, Math.min(1, item.value)) * 100)}%</span>
+                              </div>
+                              <div className="sys-observer-bar-track">
+                                <div
+                                  className="sys-observer-bar-fill"
+                                  style={{
+                                    width: `${Math.round(Math.max(0, Math.min(1, item.value)) * 100)}%`,
+                                    background: item.hue,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">stability index</span>
+                            <span className="sys-observer-value">{Number.isFinite(stability) ? `${Math.round(Math.max(0, Math.min(1, stability)) * 100)}%` : "—"}</span>
+                          </div>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">coherence penalty</span>
+                            <span className="sys-observer-value">{Number.isFinite(Number(directives?.coherencePenalty)) ? `${Math.round(Math.max(0, Math.min(1, Number(directives.coherencePenalty))) * 100)}%` : "—"}</span>
+                          </div>
+                          <div className="sys-observer-row">
+                            <span className="sys-observer-label">impulse burp chance</span>
+                            <span className="sys-observer-value">{Number.isFinite(Number(directives?.impulseBurpChance)) ? `${Math.round(Math.max(0, Math.min(1, Number(directives.impulseBurpChance))) * 100)}%` : "—"}</span>
+                          </div>
+                        </>
+                      );
                     })()}
                   </div>
 

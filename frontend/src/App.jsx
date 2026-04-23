@@ -25,12 +25,21 @@ function normalizeChatMessage(message) {
   const role = String(message?.role || "").trim().toLowerCase();
   const content = String(message?.content || "");
   const displayContent = String(message?.displayContent || message?.displayReply || content);
+  const utterancePlan = message?.utterancePlan && typeof message.utterancePlan === "object"
+    ? message.utterancePlan
+    : {
+        rawText: content,
+        displayText: displayContent,
+        speechText: displayContent,
+        isPerformanceOutput: Boolean(message?.isPerformanceOutput),
+      };
 
   return {
     ...message,
     role,
     content,
     displayContent,
+    utterancePlan,
     isPerformanceOutput: Boolean(message?.isPerformanceOutput),
     debug: message?.debug || null,
     usage: message?.usage || null,
@@ -2386,6 +2395,7 @@ export default function App() {
                         role: "assistant",
                         content: payload.reply,
                         displayContent: payload.displayReply,
+                        utterancePlan: payload.utterancePlan,
                         isPerformanceOutput: payload.isPerformanceOutput,
                         debug: payload.debug || null,
                         usage: payload.usage || null,
@@ -2459,6 +2469,7 @@ export default function App() {
                 role: "assistant",
                 content: data.reply,
                 displayContent: data.displayReply,
+                utterancePlan: data.utterancePlan,
                 isPerformanceOutput: data.isPerformanceOutput,
                 debug: data.debug || null,
                 usage: data.usage || null,

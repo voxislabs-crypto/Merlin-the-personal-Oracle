@@ -673,6 +673,23 @@ const initialForm = {
   intoxicationDecayPerTurn: 0.02,
   intoxicationTriggerGain: 0.12,
   intoxicationTriggerKeywords: "drink, drunk, alcohol, whiskey, vodka, beer, wine, buzzed",
+  fatigueEnabled: false,
+  fatigueLevel: 0.1,
+  fatigueDecayPerTurn: 0.01,
+  fatiguePassiveGainPerTurn: 0.015,
+  fatigueTriggerGain: 0.08,
+  fatigueTriggerKeywords: "late, tired, sleep, exhausted, insomnia, long day, burned out",
+  agitationEnabled: false,
+  agitationLevel: 0,
+  agitationDecayPerTurn: 0.03,
+  agitationTriggerGain: 0.1,
+  agitationTriggerKeywords: "stupid, idiot, hate, annoying, angry, mad, insult",
+  focusEnabled: false,
+  focusLevel: 0.75,
+  focusDecayPerTurn: 0.015,
+  focusRecoveryPerTurn: 0.03,
+  focusTriggerGain: 0.08,
+  focusTriggerKeywords: "focus, concentrate, plan, step by step, clear, precise",
   voiceEnabled: true,
   voiceAutoplay: false,
   voicePitch: 1,
@@ -725,6 +742,9 @@ function mapPersonalityToForm(personality) {
   const expressionStyle = personality.expressionStyle || {};
   const cadenceRegulator = expressionStyle.cadenceRegulator || {};
   const intoxication = personality.stateFlaws?.intoxication || {};
+  const fatigue = personality.stateFlaws?.fatigue || {};
+  const agitation = personality.stateFlaws?.agitation || {};
+  const focus = personality.stateFlaws?.focus || {};
 
   return {
     name: personality.name || "",
@@ -750,6 +770,23 @@ function mapPersonalityToForm(personality) {
     intoxicationDecayPerTurn: String(Number(intoxication.decayPerTurn ?? 0.02)),
     intoxicationTriggerGain: String(Number(intoxication.triggerGain ?? 0.12)),
     intoxicationTriggerKeywords: toCommaList(intoxication.triggerKeywords),
+    fatigueEnabled: Boolean(fatigue.enabled),
+    fatigueLevel: String(Number(fatigue.level ?? 0.1)),
+    fatigueDecayPerTurn: String(Number(fatigue.decayPerTurn ?? 0.01)),
+    fatiguePassiveGainPerTurn: String(Number(fatigue.passiveGainPerTurn ?? 0.015)),
+    fatigueTriggerGain: String(Number(fatigue.triggerGain ?? 0.08)),
+    fatigueTriggerKeywords: toCommaList(fatigue.triggerKeywords),
+    agitationEnabled: Boolean(agitation.enabled),
+    agitationLevel: String(Number(agitation.level ?? 0)),
+    agitationDecayPerTurn: String(Number(agitation.decayPerTurn ?? 0.03)),
+    agitationTriggerGain: String(Number(agitation.triggerGain ?? 0.1)),
+    agitationTriggerKeywords: toCommaList(agitation.triggerKeywords),
+    focusEnabled: Boolean(focus.enabled),
+    focusLevel: String(Number(focus.level ?? 0.75)),
+    focusDecayPerTurn: String(Number(focus.decayPerTurn ?? 0.015)),
+    focusRecoveryPerTurn: String(Number(focus.recoveryPerTurn ?? 0.03)),
+    focusTriggerGain: String(Number(focus.triggerGain ?? 0.08)),
+    focusTriggerKeywords: toCommaList(focus.triggerKeywords),
     voiceEnabled: voiceProfile.enabled !== false,
     voiceAutoplay: Boolean(voiceProfile.autoplay),
     voicePitch: String(Number(voiceProfile.pitch ?? 1)),
@@ -972,6 +1009,29 @@ export default function PersonalityForm({
               decayPerTurn: Number(form.intoxicationDecayPerTurn) || 0.02,
               triggerGain: Number(form.intoxicationTriggerGain) || 0.12,
               triggerKeywords: splitCommaSeparated(form.intoxicationTriggerKeywords),
+            },
+            fatigue: {
+              enabled: Boolean(form.fatigueEnabled),
+              level: Number(form.fatigueLevel) || 0.1,
+              decayPerTurn: Number(form.fatigueDecayPerTurn) || 0.01,
+              passiveGainPerTurn: Number(form.fatiguePassiveGainPerTurn) || 0.015,
+              triggerGain: Number(form.fatigueTriggerGain) || 0.08,
+              triggerKeywords: splitCommaSeparated(form.fatigueTriggerKeywords),
+            },
+            agitation: {
+              enabled: Boolean(form.agitationEnabled),
+              level: Number(form.agitationLevel) || 0,
+              decayPerTurn: Number(form.agitationDecayPerTurn) || 0.03,
+              triggerGain: Number(form.agitationTriggerGain) || 0.1,
+              triggerKeywords: splitCommaSeparated(form.agitationTriggerKeywords),
+            },
+            focus: {
+              enabled: Boolean(form.focusEnabled),
+              level: Number(form.focusLevel) || 0.75,
+              decayPerTurn: Number(form.focusDecayPerTurn) || 0.015,
+              recoveryPerTurn: Number(form.focusRecoveryPerTurn) || 0.03,
+              triggerGain: Number(form.focusTriggerGain) || 0.08,
+              triggerKeywords: splitCommaSeparated(form.focusTriggerKeywords),
             },
           },
           behaviorRules: splitLineSeparated(form.behaviorRules),
@@ -1592,6 +1652,110 @@ export default function PersonalityForm({
               placeholder="drink, drunk, alcohol, whiskey, vodka"
             />
             <small>Comma-separated terms that increase intoxication state when seen in user messages.</small>
+          </div>
+
+          <label className="checkbox-row" style={{ paddingTop: 10 }}>
+            <input
+              type="checkbox"
+              name="fatigueEnabled"
+              checked={Boolean(form.fatigueEnabled)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  fatigueEnabled: event.target.checked,
+                }))
+              }
+            />
+            Enable fatigue drift
+          </label>
+
+          <div className="field">
+            <label htmlFor="fatigueLevel">Fatigue level (0-1)</label>
+            <input id="fatigueLevel" name="fatigueLevel" type="number" min="0" max="1" step="0.01" value={form.fatigueLevel} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="fatiguePassiveGainPerTurn">Passive gain per turn (0-1)</label>
+            <input id="fatiguePassiveGainPerTurn" name="fatiguePassiveGainPerTurn" type="number" min="0" max="1" step="0.01" value={form.fatiguePassiveGainPerTurn} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="fatigueDecayPerTurn">Fatigue decay per turn (0-1)</label>
+            <input id="fatigueDecayPerTurn" name="fatigueDecayPerTurn" type="number" min="0" max="1" step="0.01" value={form.fatigueDecayPerTurn} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="fatigueTriggerGain">Fatigue trigger gain (0-1)</label>
+            <input id="fatigueTriggerGain" name="fatigueTriggerGain" type="number" min="0" max="1" step="0.01" value={form.fatigueTriggerGain} onChange={updateField} />
+          </div>
+          <div className="field full">
+            <label htmlFor="fatigueTriggerKeywords">Fatigue trigger keywords</label>
+            <input id="fatigueTriggerKeywords" name="fatigueTriggerKeywords" value={form.fatigueTriggerKeywords} onChange={updateField} />
+          </div>
+
+          <label className="checkbox-row" style={{ paddingTop: 10 }}>
+            <input
+              type="checkbox"
+              name="agitationEnabled"
+              checked={Boolean(form.agitationEnabled)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  agitationEnabled: event.target.checked,
+                }))
+              }
+            />
+            Enable agitation drift
+          </label>
+
+          <div className="field">
+            <label htmlFor="agitationLevel">Agitation level (0-1)</label>
+            <input id="agitationLevel" name="agitationLevel" type="number" min="0" max="1" step="0.01" value={form.agitationLevel} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="agitationDecayPerTurn">Agitation decay per turn (0-1)</label>
+            <input id="agitationDecayPerTurn" name="agitationDecayPerTurn" type="number" min="0" max="1" step="0.01" value={form.agitationDecayPerTurn} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="agitationTriggerGain">Agitation trigger gain (0-1)</label>
+            <input id="agitationTriggerGain" name="agitationTriggerGain" type="number" min="0" max="1" step="0.01" value={form.agitationTriggerGain} onChange={updateField} />
+          </div>
+          <div className="field full">
+            <label htmlFor="agitationTriggerKeywords">Agitation trigger keywords</label>
+            <input id="agitationTriggerKeywords" name="agitationTriggerKeywords" value={form.agitationTriggerKeywords} onChange={updateField} />
+          </div>
+
+          <label className="checkbox-row" style={{ paddingTop: 10 }}>
+            <input
+              type="checkbox"
+              name="focusEnabled"
+              checked={Boolean(form.focusEnabled)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  focusEnabled: event.target.checked,
+                }))
+              }
+            />
+            Enable focus drift
+          </label>
+
+          <div className="field">
+            <label htmlFor="focusLevel">Focus level (0-1)</label>
+            <input id="focusLevel" name="focusLevel" type="number" min="0" max="1" step="0.01" value={form.focusLevel} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusRecoveryPerTurn">Focus recovery per turn (0-1)</label>
+            <input id="focusRecoveryPerTurn" name="focusRecoveryPerTurn" type="number" min="0" max="1" step="0.01" value={form.focusRecoveryPerTurn} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusDecayPerTurn">Focus decay per turn (0-1)</label>
+            <input id="focusDecayPerTurn" name="focusDecayPerTurn" type="number" min="0" max="1" step="0.01" value={form.focusDecayPerTurn} onChange={updateField} />
+          </div>
+          <div className="field">
+            <label htmlFor="focusTriggerGain">Focus trigger gain (0-1)</label>
+            <input id="focusTriggerGain" name="focusTriggerGain" type="number" min="0" max="1" step="0.01" value={form.focusTriggerGain} onChange={updateField} />
+          </div>
+          <div className="field full">
+            <label htmlFor="focusTriggerKeywords">Focus trigger keywords</label>
+            <input id="focusTriggerKeywords" name="focusTriggerKeywords" value={form.focusTriggerKeywords} onChange={updateField} />
           </div>
 
           <div className="field full">
