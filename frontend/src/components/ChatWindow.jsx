@@ -1904,6 +1904,7 @@ export default function ChatWindow({
   personality,
   messages,
   liveDebug,
+  stateDriftHistory = [],
   livePhase,
   liveSeq,
   liveReply,
@@ -3377,24 +3378,41 @@ export default function ChatWindow({
                       const snapshot = runtime?.snapshot;
                       const directives = runtime?.directives;
                       const stability = Number(runtime?.stabilityIndex);
-                      const rows = [
+                      const channels = [
                         { key: "intoxication", label: "intoxication", value: Number(snapshot?.intoxication || 0), hue: "#ff9f43" },
                         { key: "fatigue", label: "fatigue", value: Number(snapshot?.fatigue || 0), hue: "#feca57" },
                         { key: "agitation", label: "agitation", value: Number(snapshot?.agitation || 0), hue: "#ff6b6b" },
                         { key: "focus", label: "focus", value: Number(snapshot?.focus || 0), hue: "#2ed573" },
                       ];
 
+                      function Sparkline({ dataKey, hue }) {
+                        const pts = stateDriftHistory.map((e) => e[dataKey] ?? 0);
+                        if (pts.length < 2) return null;
+                        const w = 60, h = 14, pad = 1;
+                        const xs = pts.map((_, i) => pad + (i / (pts.length - 1)) * (w - pad * 2));
+                        const ys = pts.map((v) => pad + (1 - Math.max(0, Math.min(1, v))) * (h - pad * 2));
+                        const d = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+                        return (
+                          <svg width={w} height={h} style={{ display: "block", flexShrink: 0, opacity: 0.85 }}>
+                            <polyline points={pts.map((v, i) => `${xs[i].toFixed(1)},${ys[i].toFixed(1)}`).join(" ")} fill="none" stroke={hue} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                          </svg>
+                        );
+                      }
+
                       if (!snapshot) {
-                        return <span className="sys-observer-label">No state runtime data yet</span>;
+                        return <span className="sys-observer-label">No state runtime data yet. Enable a channel and send a message.</span>;
                       }
 
                       return (
                         <>
-                          {rows.map((item) => (
-                            <div className="sys-observer-bar-wrap" key={item.key}>
-                              <div className="sys-observer-row">
+                          {channels.map((item) => (
+                            <div key={item.key} style={{ marginBottom: "6px" }}>
+                              <div className="sys-observer-row" style={{ marginBottom: "2px" }}>
                                 <span className="sys-observer-label">{item.label}</span>
-                                <span className="sys-observer-value">{Math.round(Math.max(0, Math.min(1, item.value)) * 100)}%</span>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <Sparkline dataKey={item.key} hue={item.hue} />
+                                  <span className="sys-observer-value">{Math.round(Math.max(0, Math.min(1, item.value)) * 100)}%</span>
+                                </div>
                               </div>
                               <div className="sys-observer-bar-track">
                                 <div
@@ -3407,17 +3425,39 @@ export default function ChatWindow({
                               </div>
                             </div>
                           ))}
-                          <div className="sys-observer-row">
-                            <span className="sys-observer-label">stability index</span>
-                            <span className="sys-observer-value">{Number.isFinite(stability) ? `${Math.round(Math.max(0, Math.min(1, stability)) * 100)}%` : "—"}</span>
-                          </div>
-                          <div className="sys-observer-row">
-                            <span className="sys-observer-label">coherence penalty</span>
-                            <span className="sys-observer-value">{Number.isFinite(Number(directives?.coherencePenalty)) ? `${Math.round(Math.max(0, Math.min(1, Number(directives.coherencePenalty))) * 100)}%` : "—"}</span>
-                          </div>
-                          <div className="sys-observer-row">
-                            <span className="sys-observer-label">impulse burp chance</span>
-                            <span className="sys-observer-value">{Number.isFinite(Number(directives?.impulseBurpChance)) ? `${Math.round(Math.max(0, Math.min(1, Number(directives.impulseBurpChance))) * 100)}%` : "—"}</span>
+                          <div style={{ marginTop: "8px", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "6px" }}>
+                            <div className="sys-observer-row">
+                              <span className="sys-observer-label">stability index</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <Sparkline dataKey="stabilityIndex" hue="#a29bfe" />
+                                <span className="sys-observer-value">{Number.isFinite(stability) ? `${Math.round(Math.max(0, Math.min(1, stability)) * 100)}%` : "—"}</span>
+                              </div>
+                            </div>
+                            {[
+                              { k: "coherencePenalty", label: "coherence penalty" },
+                              { k: "fragmentation", label: "fragmentation" },
+                              { k: "interruptions", label: "interruptions" },
+                              { k: "tangentChance", label: "tangent chance" },
+                              { k: "fillerRate", label: "filler rate" },
+                              { k: "impulseBurpChance", label: "burp impulse" },
+                            ].map(({ k, label }) => {
+                              const val = Number(directives?.[k]);
+                              return (
+                                <div className="sys-observer-row" key={k}>
+                                  <span className="sys-observer-label">{label}</span>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <Sparkline dataKey={k} hue="#74b9ff" />
+                                    <span className="sys-observer-value">{Number.isFinite(val) ? `${Math.round(Math.max(0, Math.min(1, val)) * 100)}%` : "—"}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {stateDriftHistory.length > 0 && (
+                              <div className="sys-observer-row" style={{ marginTop: "4px" }}>
+                                <span className="sys-observer-label" style={{ opacity: 0.5 }}>turns tracked</span>
+                                <span className="sys-observer-value" style={{ opacity: 0.5 }}>{stateDriftHistory.length}</span>
+                              </div>
+                            )}
                           </div>
                         </>
                       );

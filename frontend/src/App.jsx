@@ -2351,15 +2351,38 @@ export default function App() {
                 setNeuralToast(toast);
               }
 
-              setLiveChatState((current) => ({
-                ...current,
-                [personalityId]: {
-                  ...(current[personalityId] || {}),
-                  phase: payload.phase,
-                  debug: payload.debug,
-                  seq: (current[personalityId]?.seq || 0) + 1,
-                },
-              }));
+              setLiveChatState((current) => {
+                const prev = current[personalityId] || {};
+                let stateDriftHistory = prev.stateDriftHistory || [];
+                if (payload.phase === "state-flaw" && payload.debug?.stateRuntime?.snapshot) {
+                  const snap = payload.debug.stateRuntime.snapshot;
+                  const directives = payload.debug.stateRuntime.directives || {};
+                  const newEntry = {
+                    turn: stateDriftHistory.length + 1,
+                    intoxication: Number(snap.intoxication || 0),
+                    fatigue: Number(snap.fatigue || 0),
+                    agitation: Number(snap.agitation || 0),
+                    focus: Number(snap.focus || 0),
+                    stabilityIndex: Number(payload.debug.stateRuntime.stabilityIndex || 0),
+                    coherencePenalty: Number(directives.coherencePenalty || 0),
+                    fragmentation: Number(directives.fragmentation || 0),
+                    interruptions: Number(directives.interruptions || 0),
+                    tangentChance: Number(directives.tangentChance || 0),
+                    fillerRate: Number(directives.fillerRate || 0),
+                  };
+                  stateDriftHistory = [...stateDriftHistory.slice(-49), newEntry];
+                }
+                return {
+                  ...current,
+                  [personalityId]: {
+                    ...prev,
+                    phase: payload.phase,
+                    debug: payload.debug,
+                    stateDriftHistory,
+                    seq: (prev.seq || 0) + 1,
+                  },
+                };
+              });
             } else if (type === "token") {
               setLiveChatState((current) => ({
                 ...current,
@@ -3022,6 +3045,7 @@ export default function App() {
                     personality={selectedPersonality}
                     messages={chatLogs[selectedId] || []}
                     liveDebug={liveChatState[selectedId]?.debug || null}
+                    stateDriftHistory={liveChatState[selectedId]?.stateDriftHistory || []}
                     livePhase={liveChatState[selectedId]?.phase || ""}
                     liveSeq={liveChatState[selectedId]?.seq || 0}
                     liveReply={liveChatState[selectedId]?.reply || ""}
