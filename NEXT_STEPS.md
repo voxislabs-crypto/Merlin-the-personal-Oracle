@@ -130,6 +130,24 @@ The budget estimate ($35-55) is fantasy if you're doing the full 7-feature list.
 
 ---
 
+## Recent Completions (2026-04-24)
+
+### PersonaStateEngine — All 3 Phases Shipped
+
+- **Phase 1 — Engine (`stateFlawService.js`)**: Full tick-based state drift with 4 channels (intoxication, fatigue, agitation, focus), per-channel trigger profiles (keyword weight, long-conversation weight, message-length weight, punctuation weight), passive gain, decay curves, recovery mechanics, and `buildStateDriftDirectives` compositing all channels into coherence penalty, fragmentation, interruptions, tangent chance, filler rate, and burp impulse.
+- **Phase 2 — Controller integration**: `chatController.js` pre-steps state before generation, persists post-response, emits `debug` SSE event with `stateRuntime` payload (snapshot + directives + stabilityIndex) and `brain` event for intoxication drift.
+- **Phase 3 — Live State Monitor UI**: System Observer panel upgraded with SVG sparklines per channel (last 50 turns), full 6-directive table (all with trend graphs), turn counter, and stable/empty state messaging. History accumulated in `App.jsx` SSE handler at `state-flaw` debug phase.
+
+### Other Completed Items (since last NEXT_STEPS update)
+
+- **Ollama offline integration**: Auto-refresh on provider selection, model list loading, offline runtime check in LLM settings.
+- **Model favorites**: Import/export of favorite model lists; persona import/export with merge modes (overwrite, merge-keep, merge-update).
+- **Vocal mannerisms**: Speech impulse system with frequency controls added to persona editor.
+- **STT phase scaffold**: `/api/stt` endpoint + `sttService.js` wired.
+- **Web search phase scaffold**: `webSearchService.js` retrieval injected into chat flow.
+
+---
+
 ## Evolution Paths (2026-04-21)
 
 ### Option 1 — Live Emotional Dashboard ✅ DONE
