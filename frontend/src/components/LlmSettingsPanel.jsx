@@ -381,8 +381,17 @@ export default function LlmSettingsPanel({ onStatus }) {
     maxResults: 4,
     timeoutMs: 7000,
   });
+  const [stateRuntimeConfig, setStateRuntimeConfig] = useState({
+    enabled: false,
+    tickSeconds: 60,
+    maxCatchUpTicks: 120,
+    perTickScale: 1,
+    applyDecayDuringTicks: true,
+    applyRecoveryDuringTicks: true,
+  });
   const [isSavingStt, setIsSavingStt] = useState(false);
   const [isSavingSearch, setIsSavingSearch] = useState(false);
+  const [isSavingStateRuntime, setIsSavingStateRuntime] = useState(false);
 
   const selectedProvider = useMemo(
     () => providers.find((candidate) => candidate.id === provider) || null,
@@ -595,13 +604,14 @@ export default function LlmSettingsPanel({ onStatus }) {
     setIsLoading(true);
 
     try {
-      const [providersResponse, settingsResponse, ttsResponse, kokoroResponse, sttResponse, searchResponse] = await Promise.all([
+      const [providersResponse, settingsResponse, ttsResponse, kokoroResponse, sttResponse, searchResponse, stateRuntimeResponse] = await Promise.all([
         authFetch("/settings/llm/providers"),
         authFetch("/settings/llm"),
         authFetch("/settings/tts"),
         authFetch("/settings/kokoro"),
         authFetch("/settings/stt-runtime"),
         authFetch("/settings/search-runtime"),
+        authFetch("/settings/state-runtime"),
       ]);
 
       const providersData = await providersResponse.json();
@@ -610,6 +620,7 @@ export default function LlmSettingsPanel({ onStatus }) {
       const kokoroData = await kokoroResponse.json();
       const sttData = await sttResponse.json();
       const searchData = await searchResponse.json();
+      const stateRuntimeData = await stateRuntimeResponse.json();
 
       if (!providersResponse.ok) {
         throw new Error(providersData.error || "Failed to load providers.");
@@ -628,6 +639,9 @@ export default function LlmSettingsPanel({ onStatus }) {
       }
       if (!searchResponse.ok) {
         throw new Error(searchData.error || "Failed to load web search settings.");
+      }
+      if (!stateRuntimeResponse.ok) {
+        throw new Error(stateRuntimeData.error || "Failed to load state runtime settings.");
       }
 
       const providerList = Array.isArray(providersData.providers) && providersData.providers.length
@@ -693,6 +707,15 @@ export default function LlmSettingsPanel({ onStatus }) {
         autoForQueries: Boolean(searchData?.autoForQueries),
         maxResults: Number(searchData?.maxResults) || 4,
         timeoutMs: Number(searchData?.timeoutMs) || 7000,
+      });
+
+      setStateRuntimeConfig({
+        enabled: Boolean(stateRuntimeData?.enabled),
+        tickSeconds: Number(stateRuntimeData?.tickSeconds) || 60,
+        maxCatchUpTicks: Number(stateRuntimeData?.maxCatchUpTicks) || 120,
+        perTickScale: Number(stateRuntimeData?.perTickScale) || 1,
+        applyDecayDuringTicks: stateRuntimeData?.applyDecayDuringTicks !== false,
+        applyRecoveryDuringTicks: stateRuntimeData?.applyRecoveryDuringTicks !== false,
       });
     } catch (error) {
       onStatus?.({ type: "error", message: error.message || "Failed to load LLM settings." });
@@ -891,6 +914,27 @@ export default function LlmSettingsPanel({ onStatus }) {
       onStatus?.({ type: "error", message: error.message || "Failed to save web search settings." });
     } finally {
       setIsSavingSearch(false);
+    }
+  }
+
+  async function saveStateRuntimeConfig() {
+    setIsSavingStateRuntime(true);
+    try {
+      const response = await authFetch("/settings/state-runtime", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stateRuntimeConfig),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save state runtime settings.");
+      }
+      setStateRuntimeConfig((current) => ({ ...current, ...data }));
+      onStatus?.({ type: "success", message: "Saved between-turn state drift settings." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save state runtime settings." });
+    } finally {
+      setIsSavingStateRuntime(false);
     }
   }
 
@@ -1587,6 +1631,92 @@ export default function LlmSettingsPanel({ onStatus }) {
         <div className="llm-actions compact">
           <button type="button" onClick={() => void saveSearchRuntimeConfig()} disabled={isSavingSearch || isLoading}>
             {isSavingSearch ? "Saving..." : "Save Search Settings"}
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-header">
+          <span className="settings-section-tag">State Runtime</span>
+          <h3>Between-Turn Drift</h3>
+          <p className="settings-section-copy">
+            Apply timed state drift even when the user is idle between messages. Keep disabled for classic turn-only behavior.
+          </p>
+        </div>
+        <div className="llm-grid">
+          <div className="llm-field">
+            <label htmlFor="state-runtime-enabled">Enabled</label>
+            <select
+              id="state-runtime-enabled"
+              value={stateRuntimeConfig.enabled ? "true" : "false"}
+              onChange={(event) => setStateRuntimeConfig((current) => ({ ...current, enabled: event.target.value === "true" }))}
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div className="llm-field">
+            <label htmlFor="state-runtime-tick-seconds">Tick Seconds</label>
+            <input
+              id="state-runtime-tick-seconds"
+              type="number"
+              min="10"
+              max="3600"
+              step="5"
+              value={stateRuntimeConfig.tickSeconds}
+              onChange={(event) => setStateRuntimeConfig((current) => ({ ...current, tickSeconds: Number(event.target.value) || current.tickSeconds }))}
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="state-runtime-max-catchup">Max Catch-up Ticks</label>
+            <input
+              id="state-runtime-max-catchup"
+              type="number"
+              min="1"
+              max="720"
+              step="1"
+              value={stateRuntimeConfig.maxCatchUpTicks}
+              onChange={(event) => setStateRuntimeConfig((current) => ({ ...current, maxCatchUpTicks: Number(event.target.value) || current.maxCatchUpTicks }))}
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="state-runtime-per-tick-scale">Per-Tick Scale</label>
+            <input
+              id="state-runtime-per-tick-scale"
+              type="number"
+              min="0.05"
+              max="5"
+              step="0.05"
+              value={stateRuntimeConfig.perTickScale}
+              onChange={(event) => setStateRuntimeConfig((current) => ({ ...current, perTickScale: Number(event.target.value) || current.perTickScale }))}
+            />
+          </div>
+          <div className="llm-field">
+            <label htmlFor="state-runtime-apply-decay">Apply Decay During Ticks</label>
+            <select
+              id="state-runtime-apply-decay"
+              value={stateRuntimeConfig.applyDecayDuringTicks ? "true" : "false"}
+              onChange={(event) => setStateRuntimeConfig((current) => ({ ...current, applyDecayDuringTicks: event.target.value === "true" }))}
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div className="llm-field">
+            <label htmlFor="state-runtime-apply-recovery">Apply Recovery During Ticks</label>
+            <select
+              id="state-runtime-apply-recovery"
+              value={stateRuntimeConfig.applyRecoveryDuringTicks ? "true" : "false"}
+              onChange={(event) => setStateRuntimeConfig((current) => ({ ...current, applyRecoveryDuringTicks: event.target.value === "true" }))}
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+        </div>
+        <div className="llm-actions compact">
+          <button type="button" onClick={() => void saveStateRuntimeConfig()} disabled={isSavingStateRuntime || isLoading}>
+            {isSavingStateRuntime ? "Saving..." : "Save State Runtime Settings"}
           </button>
         </div>
       </section>

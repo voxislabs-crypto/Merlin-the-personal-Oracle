@@ -28,6 +28,8 @@ import {
   setSttRuntimeConfig,
   getSearchRuntimeConfig,
   setSearchRuntimeConfig,
+  getStateRuntimeConfig,
+  setStateRuntimeConfig,
 } from "../models/settingsModel.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -456,6 +458,16 @@ export function getSearchRuntimeSettingsHandler(_req, res) {
 export function saveSearchRuntimeSettingsHandler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const updated = setSearchRuntimeConfig(body);
+  return res.json(updated);
+}
+
+export function getStateRuntimeSettingsHandler(_req, res) {
+  return res.json(getStateRuntimeConfig());
+}
+
+export function saveStateRuntimeSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setStateRuntimeConfig(body);
   return res.json(updated);
 }
 

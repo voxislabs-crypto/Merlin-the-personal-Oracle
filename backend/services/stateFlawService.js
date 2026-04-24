@@ -118,6 +118,21 @@ export function normalizeStateFlaws(input) {
         punctuationWeight: 0.2,
       },
     }),
+    _meta: {
+      lastUpdatedAt: String(root?._meta?.lastUpdatedAt || root?.lastUpdatedAt || "").trim(),
+    },
+  };
+}
+
+function normalizeStateRuntimeConfig(input) {
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    enabled: typeof source.enabled === "boolean" ? source.enabled : false,
+    tickSeconds: Math.max(10, Math.min(3600, Math.round(Number(source.tickSeconds) || 60))),
+    maxCatchUpTicks: Math.max(1, Math.min(720, Math.round(Number(source.maxCatchUpTicks) || 120))),
+    perTickScale: Math.max(0.05, Math.min(5, Number(source.perTickScale) || 1)),
+    applyDecayDuringTicks: typeof source.applyDecayDuringTicks === "boolean" ? source.applyDecayDuringTicks : true,
+    applyRecoveryDuringTicks: typeof source.applyRecoveryDuringTicks === "boolean" ? source.applyRecoveryDuringTicks : true,
   };
 }
 
@@ -161,8 +176,9 @@ export function buildStateDriftDirectives(stateFlaws) {
   };
 }
 
-export function stepStateFlaws({ stateFlaws, userMessage = "", turnCount = 0 }) {
+export function stepStateFlaws({ stateFlaws, userMessage = "", turnCount = 0, nowMs = Date.now(), runtimeConfig = {} }) {
   const normalized = normalizeStateFlaws(stateFlaws);
+  const runtime = normalizeStateRuntimeConfig(runtimeConfig);
   const diagnostics = {};
   const messageText = String(userMessage || "");
   const messageLength = messageText.length;
@@ -189,7 +205,41 @@ export function stepStateFlaws({ stateFlaws, userMessage = "", turnCount = 0 }) 
     fatigue: { ...normalized.fatigue },
     agitation: { ...normalized.agitation },
     focus: { ...normalized.focus },
+    _meta: { ...(normalized._meta || {}) },
   };
+
+  const previousUpdatedAt = String(normalized?._meta?.lastUpdatedAt || "").trim();
+  const lastUpdatedMs = previousUpdatedAt ? Date.parse(previousUpdatedAt) : NaN;
+  const elapsedMs = Number.isFinite(lastUpdatedMs) ? Math.max(0, nowMs - lastUpdatedMs) : 0;
+  const tickDurationMs = runtime.tickSeconds * 1000;
+  const calculatedTicks = runtime.enabled && tickDurationMs > 0 ? Math.floor(elapsedMs / tickDurationMs) : 0;
+  const ticksApplied = Math.max(0, Math.min(runtime.maxCatchUpTicks, calculatedTicks));
+
+  if (runtime.enabled && ticksApplied > 0) {
+    for (let index = 0; index < ticksApplied; index += 1) {
+      const pressureLoss = next.intoxication.level * 0.06 + next.fatigue.level * 0.05 + next.agitation.level * 0.03;
+
+      if (next.intoxication.enabled && runtime.applyDecayDuringTicks) {
+        next.intoxication.level = clamp01(next.intoxication.level - next.intoxication.decayPerTurn * runtime.perTickScale, next.intoxication.level);
+      }
+
+      if (next.fatigue.enabled) {
+        const passiveGain = next.fatigue.passiveGainPerTurn * runtime.perTickScale;
+        const passiveDecay = runtime.applyDecayDuringTicks ? next.fatigue.decayPerTurn * runtime.perTickScale : 0;
+        next.fatigue.level = clamp01(next.fatigue.level + passiveGain - passiveDecay, next.fatigue.level);
+      }
+
+      if (next.agitation.enabled && runtime.applyDecayDuringTicks) {
+        next.agitation.level = clamp01(next.agitation.level - next.agitation.decayPerTurn * runtime.perTickScale, next.agitation.level);
+      }
+
+      if (next.focus.enabled) {
+        const recovery = runtime.applyRecoveryDuringTicks ? next.focus.recoveryPerTurn * runtime.perTickScale : 0;
+        const decay = runtime.applyDecayDuringTicks ? next.focus.decayPerTurn * runtime.perTickScale : 0;
+        next.focus.level = clamp01(next.focus.level + recovery - decay - pressureLoss * runtime.perTickScale, next.focus.level);
+      }
+    }
+  }
 
   const beforeIntox = normalized.intoxication.level;
   if (normalized.intoxication.enabled) {
@@ -253,6 +303,17 @@ export function stepStateFlaws({ stateFlaws, userMessage = "", turnCount = 0 }) 
     matchedKeywords: focusMatches,
     triggerProfile: normalized.focus.triggerProfile,
   };
+
+  diagnostics.timeDrift = {
+    enabled: runtime.enabled,
+    elapsedMs,
+    tickSeconds: runtime.tickSeconds,
+    ticksApplied,
+    ticksCapped: calculatedTicks > runtime.maxCatchUpTicks,
+    maxCatchUpTicks: runtime.maxCatchUpTicks,
+  };
+
+  next._meta.lastUpdatedAt = new Date(nowMs).toISOString();
 
   const directives = buildStateDriftDirectives(next);
 

@@ -71,7 +71,7 @@ import {
   reinforcePersonaPreferences,
   decayPersonaPreferences,
 } from "../models/preferencesModel.js";
-import { getMoodRuntimeConfig, getExpressionSamplingConfig } from "../models/settingsModel.js";
+import { getMoodRuntimeConfig, getExpressionSamplingConfig, getStateRuntimeConfig } from "../models/settingsModel.js";
 import { applyBoundedExpressionSampling } from "../services/expressionSampler.js";
 import {
   searchWeb,
@@ -496,10 +496,13 @@ export async function chatHandler(req, res, next) {
 
     const totalMessages = getChatMessageCount(personalityId);
 
+    const stateFlawRuntime = getStateRuntimeConfig();
     const stateFlawStep = stepStateFlaws({
       stateFlaws: personality.stateFlaws,
       userMessage: message,
       turnCount: totalMessages,
+      nowMs: Date.now(),
+      runtimeConfig: stateFlawRuntime,
     });
     personality.stateFlaws = stateFlawStep.stateFlaws;
     setImmediate(() => {

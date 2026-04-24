@@ -24,6 +24,8 @@ import {
   saveSttRuntimeSettingsHandler,
   getSearchRuntimeSettingsHandler,
   saveSearchRuntimeSettingsHandler,
+  getStateRuntimeSettingsHandler,
+  saveStateRuntimeSettingsHandler,
   getVoiceMapsHandler,
   saveVoiceMapHandler,
   deleteVoiceMapHandler,
@@ -57,6 +59,8 @@ router.get("/settings/stt-runtime", requireAuth, getSttRuntimeSettingsHandler);
 router.put("/settings/stt-runtime", requireAuth, requireAdmin, saveSttRuntimeSettingsHandler);
 router.get("/settings/search-runtime", requireAuth, getSearchRuntimeSettingsHandler);
 router.put("/settings/search-runtime", requireAuth, requireAdmin, saveSearchRuntimeSettingsHandler);
+router.get("/settings/state-runtime", requireAuth, getStateRuntimeSettingsHandler);
+router.put("/settings/state-runtime", requireAuth, requireAdmin, saveStateRuntimeSettingsHandler);
 router.get("/settings/voice-maps", requireAuth, getVoiceMapsHandler);
 router.put("/settings/voice-maps", requireAuth, saveVoiceMapHandler);
 router.delete("/settings/voice-maps/:id", requireAuth, deleteVoiceMapHandler);

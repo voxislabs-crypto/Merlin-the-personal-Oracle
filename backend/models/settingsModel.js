@@ -11,6 +11,7 @@ const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
 const COGNITION_LOOP_CONFIG_KEY = "cognition_loop_config";
 const STT_RUNTIME_CONFIG_KEY = "stt_runtime_config";
 const SEARCH_RUNTIME_CONFIG_KEY = "search_runtime_config";
+const STATE_RUNTIME_CONFIG_KEY = "state_runtime_config";
 function isTtsDebugProviderLockEnabledRuntime() {
   return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 }
@@ -630,6 +631,19 @@ function sanitizeSearchRuntimeConfig(config) {
   };
 }
 
+function sanitizeStateRuntimeConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : false,
+    tickSeconds: Math.round(clampNumber(input.tickSeconds, 10, 3600, 60)),
+    maxCatchUpTicks: Math.round(clampNumber(input.maxCatchUpTicks, 1, 720, 120)),
+    perTickScale: clampNumber(input.perTickScale, 0.05, 5, 1),
+    applyDecayDuringTicks: typeof input.applyDecayDuringTicks === "boolean" ? input.applyDecayDuringTicks : true,
+    applyRecoveryDuringTicks: typeof input.applyRecoveryDuringTicks === "boolean" ? input.applyRecoveryDuringTicks : true,
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
 export function getSttRuntimeConfig() {
   const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(STT_RUNTIME_CONFIG_KEY);
   const parsed = parseJsonObject(row?.value || "") || {};
@@ -660,6 +674,22 @@ export function setSearchRuntimeConfig(config) {
   };
   writeAppSetting(SEARCH_RUNTIME_CONFIG_KEY, payload);
   return getSearchRuntimeConfig();
+}
+
+export function getStateRuntimeConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(STATE_RUNTIME_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeStateRuntimeConfig(parsed);
+}
+
+export function setStateRuntimeConfig(config) {
+  const sanitized = sanitizeStateRuntimeConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(STATE_RUNTIME_CONFIG_KEY, payload);
+  return getStateRuntimeConfig();
 }
 
 export function getExpressionSamplingConfig() {

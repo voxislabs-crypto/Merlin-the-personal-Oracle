@@ -96,4 +96,39 @@ describe("stateFlawService PersonaStateEngine", () => {
 
     expect(high.stateFlaws.agitation.level).toBeGreaterThan(low.stateFlaws.agitation.level);
   });
+
+  it("applies timed between-turn drift when runtime config is enabled", () => {
+    const nowMs = Date.parse("2026-04-24T00:05:00.000Z");
+    const stepped = stepStateFlaws({
+      stateFlaws: {
+        intoxication: {
+          enabled: true,
+          level: 0.6,
+          decayPerTurn: 0.04,
+        },
+        fatigue: {
+          enabled: true,
+          level: 0.2,
+          passiveGainPerTurn: 0.03,
+          decayPerTurn: 0.01,
+        },
+        _meta: {
+          lastUpdatedAt: "2026-04-24T00:00:00.000Z",
+        },
+      },
+      runtimeConfig: {
+        enabled: true,
+        tickSeconds: 60,
+        maxCatchUpTicks: 10,
+        perTickScale: 1,
+      },
+      nowMs,
+    });
+
+    expect(stepped.diagnostics.timeDrift.enabled).toBe(true);
+    expect(stepped.diagnostics.timeDrift.ticksApplied).toBe(5);
+    expect(stepped.stateFlaws.intoxication.level).toBeLessThan(0.6);
+    expect(stepped.stateFlaws.fatigue.level).toBeGreaterThan(0.2);
+    expect(String(stepped.stateFlaws?._meta?.lastUpdatedAt || "")).toContain("2026-04-24T00:05:00.000Z");
+  });
 });
