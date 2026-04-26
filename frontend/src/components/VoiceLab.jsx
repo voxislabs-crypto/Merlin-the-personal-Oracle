@@ -2171,6 +2171,8 @@ export default function VoiceLab({
                     <>
                       <option value="auto">auto (cartesia -&gt; kokoro)</option>
                       <option value="kokoro">kokoro (free local)</option>
+                      <option value="openvoice">openvoice (voice clone)</option>
+                      <option value="kokoro-rvc">kokoro + rvc (voice pack)</option>
                       <option value="cartesia">cartesia (saved key)</option>
                     </>
                   ) : (
@@ -2179,6 +2181,8 @@ export default function VoiceLab({
                       <option value="cloud">cloud</option>
                       <option value="piper">piper</option>
                       <option value="kokoro">kokoro (free local)</option>
+                      <option value="openvoice">openvoice (voice clone)</option>
+                      <option value="kokoro-rvc">kokoro + rvc (voice pack)</option>
                       <option value="elevenlabs">elevenlabs (saved key)</option>
                       <option value="cartesia">cartesia (saved key)</option>
                     </>

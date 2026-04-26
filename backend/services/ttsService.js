@@ -16,6 +16,9 @@ import { interpretEmotionSpectrum } from "./emotionSpectrum.js";
 import { splitIntoChunks } from "./chunkSpeech.js";
 import { getKokoroHfToken, getKokoroLocalPath, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
 import { cleanLyricsForTts } from "./singingEngine.js";
+import { synthesizeOpenVoice } from "./openVoiceAdapter.js";
+import { convertWithRvc } from "./rvcAdapter.js";
+import { getPersonalityCloneMeta } from "../models/voiceCloneModel.js";
 
 const require = createRequire(import.meta.url);
 
@@ -99,8 +102,8 @@ function getAllowedTtsEngines() {
   }
 
   return isTtsDisableKokoroEnabled()
-    ? ["cartesia", "elevenlabs", "cloud", "piper"]
-    : ["kokoro", "cartesia", "elevenlabs", "cloud", "piper"];
+    ? ["cartesia", "elevenlabs", "cloud", "piper", "openvoice", "kokoro-rvc"]
+    : ["kokoro", "cartesia", "elevenlabs", "cloud", "piper", "openvoice", "kokoro-rvc"];
 }
 
 function isTtsDebugProviderLockEnabled() {
@@ -826,6 +829,8 @@ function resolveEngine(voiceProfile) {
   const requested = getRequestedEngine(voiceProfile);
 
   if (requested === "kokoro" && isAllowedTtsEngine("kokoro")) return "kokoro";
+  if (requested === "openvoice" && isAllowedTtsEngine("openvoice")) return "openvoice";
+  if (requested === "kokoro-rvc" && isAllowedTtsEngine("kokoro-rvc")) return "kokoro-rvc";
   if (requested === "elevenlabs" && isAllowedTtsEngine("elevenlabs")) return "elevenlabs";
   if (requested === "cartesia" && isAllowedTtsEngine("cartesia")) return "cartesia";
   if (requested === "piper" && isAllowedTtsEngine("piper")) return "piper";
@@ -923,6 +928,37 @@ function resolveMood(personality = {}) {
   }
 
   return {};
+}
+
+/**
+ * Derive voice identity post-processor parameters from VAD mood state +
+ * prosody envelope. Used by the OpenVoice and RVC adapters to apply
+ * personality-driven expression without modifying the synthesis engine.
+ *
+ * - arousal  → speech rate (high arousal = faster, low = slower)
+ * - valence  → RVC pitch shift (positive valence = slight up, negative = slight down)
+ * - dominance → RVC pitch shift magnitude (high dominance = larger shifts allowed)
+ *
+ * All outputs are clamped to safe ranges so artifacts are bounded.
+ */
+export function deriveMoodVoiceParams(mood = {}, prosodyEnvelope = {}) {
+  const arousal   = Number.isFinite(Number(mood?.arousal))   ? Number(mood.arousal)   : 0;
+  const valence   = Number.isFinite(Number(mood?.valence))   ? Number(mood.valence)   : 0;
+  const dominance = Number.isFinite(Number(mood?.dominance)) ? Number(mood.dominance) : 0;
+
+  // Rate: prosody envelope takes priority; mood arousal adjusts ±0.15 around it
+  const baseRate = Number(prosodyEnvelope?.targetRate || 1);
+  const arousalRateNudge = arousal * 0.15; // –0.15 (very calm) … +0.15 (very excited)
+  const rate = Math.max(0.7, Math.min(1.3, baseRate + arousalRateNudge));
+
+  // Pitch shift (semitones for RVC): valence drives direction, dominance scales magnitude
+  // Range: –3 to +3 semitones — subtle enough to avoid artifacts on CPU
+  const dominanceMagnitude = 0.5 + (Math.abs(dominance) * 1.5); // 0.5–2.0
+  const pitchShift = Math.round(
+    Math.max(-3, Math.min(3, valence * dominanceMagnitude)),
+  );
+
+  return { rate, pitchShift };
 }
 
 export function prepareSpeechSynthesis({ personality, text, voiceProfile, speechHint }) {
@@ -2100,6 +2136,39 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
       case "kokoro":
         audio = await generateKokoroSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
         break;
+      case "openvoice": {
+        const mood = resolveMood(personality);
+        const { rate } = deriveMoodVoiceParams(mood, prosodyEnvelope);
+        audio = await synthesizeOpenVoice({
+          text: synthesisText,
+          personalityId: personality?.id,
+          rate,
+        });
+        break;
+      }
+      case "kokoro-rvc": {
+        // Step 1: Kokoro synthesizes text → WAV
+        const kokoroAudio = await generateKokoroSpeechAudio({
+          text: synthesisText,
+          voiceProfile: effectiveVoiceProfile,
+        });
+        // Step 2: RVC converts the WAV to the target voice identity
+        const cloneMeta = personality?.id ? getPersonalityCloneMeta(personality.id) : null;
+        const packId = cloneMeta?.cloneRvcPackId ?? effectiveVoiceProfile?.cloneRvcPackId;
+        if (!packId) {
+          // No pack configured — return the raw Kokoro audio with a note
+          audio = { ...kokoroAudio, engine: "kokoro", rvcSkipped: true };
+        } else {
+          const mood = resolveMood(personality);
+          const { pitchShift } = deriveMoodVoiceParams(mood, prosodyEnvelope);
+          audio = await convertWithRvc({
+            inputBuffer: kokoroAudio.buffer,
+            packId,
+            pitchShift,
+          });
+        }
+        break;
+      }
       case "elevenlabs":
         audio = await generateElevenLabsSpeechAudio({ text: synthesisText, voiceProfile: effectiveVoiceProfile });
         break;
