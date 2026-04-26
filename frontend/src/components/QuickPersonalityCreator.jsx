@@ -1,7 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 import { getApiErrorMessage } from "../lib/apiResponse.js";
 import AvatarCore from "./AvatarCore.jsx";
+import VoiceSampleSelector from "./VoiceSampleSelector.jsx";
+
+const ANALYZE_PROGRESS_STEPS = [
+  "Collecting persona context",
+  "Mapping traits and quirks",
+  "Drafting speech style",
+  "Preparing editable preview",
+];
+
+const PROSODY_PROGRESS_STEPS = [
+  "Scraping source audio",
+  "Analyzing cadence and rhythm",
+  "Detecting representative voices",
+  "Preparing voice previews",
+];
 
 const styles = `
   .quick-creator-container {
@@ -168,6 +183,58 @@ const styles = `
     color: var(--muted);
     font-size: 0.9rem;
     margin-top: 8px;
+  }
+
+  .loading-progress {
+    width: min(460px, 100%);
+    margin-top: 18px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .loading-progress-step {
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 180, 255, 0.14);
+    background: rgba(0, 180, 255, 0.03);
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  .loading-progress-step.done {
+    border-color: rgba(74, 222, 128, 0.35);
+    background: rgba(74, 222, 128, 0.08);
+    color: #b6ffd6;
+  }
+
+  .loading-progress-step.active {
+    border-color: rgba(0, 180, 255, 0.34);
+    background: rgba(0, 180, 255, 0.12);
+    color: var(--text);
+    box-shadow: 0 0 0 1px rgba(0, 180, 255, 0.12);
+  }
+
+  .loading-progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 180, 255, 0.4);
+    background: transparent;
+  }
+
+  .loading-progress-step.done .loading-progress-dot {
+    border-color: #4ade80;
+    background: #4ade80;
+  }
+
+  .loading-progress-step.active .loading-progress-dot {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 180, 255, 0.35);
   }
 
   .confirmation-screen {
@@ -514,6 +581,115 @@ const styles = `
     background: rgba(0, 180, 255, 0.08);
     border-color: var(--accent);
   }
+
+  .quick-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    padding: 20px;
+    display: grid;
+    place-items: center;
+    background: rgba(2, 8, 18, 0.74);
+    backdrop-filter: blur(8px);
+  }
+
+  .quick-modal {
+    width: min(860px, 100%);
+    max-height: 86vh;
+    overflow: auto;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 180, 255, 0.24);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 26%),
+      linear-gradient(155deg, rgba(6, 18, 34, 0.98), rgba(3, 10, 20, 0.98));
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .quick-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .quick-modal-header h4 {
+    margin: 0 0 6px 0;
+    color: var(--text);
+    font-size: 1rem;
+  }
+
+  .quick-modal-copy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .quick-modal-close {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 180, 255, 0.24);
+    border-radius: 999px;
+    background: rgba(0, 180, 255, 0.06);
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .quick-modal-close:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  .quick-progress-panel {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 180, 255, 0.18);
+    background: rgba(0, 180, 255, 0.03);
+  }
+
+  .quick-progress-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+
+  .quick-progress-step.done,
+  .quick-progress-step.active {
+    color: var(--text);
+  }
+
+  .quick-progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 180, 255, 0.3);
+    background: transparent;
+    flex-shrink: 0;
+  }
+
+  .quick-progress-step.done .quick-progress-dot {
+    border-color: #4ade80;
+    background: #4ade80;
+  }
+
+  .quick-progress-step.active .quick-progress-dot {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .video-hint {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
 `;
 
 export default function QuickPersonalityCreator({ onCreated, onCancel }) {
@@ -539,10 +715,28 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
   const [isExtractingVoice, setIsExtractingVoice] = useState(false);
   const [createdPersonalityId, setCreatedPersonalityId] = useState(null);
   const [editableDialogue, setEditableDialogue] = useState([]);
+  const [analysisProgressIndex, setAnalysisProgressIndex] = useState(0);
+  const [isVoiceSampleModalOpen, setIsVoiceSampleModalOpen] = useState(false);
+  const [prosodyProgressIndex, setProsodyProgressIndex] = useState(0);
+  const [prosodyModalError, setProsodyModalError] = useState("");
+  const [extractedVoiceSamples, setExtractedVoiceSamples] = useState(null);
+
+  useEffect(() => {
+    if (!isAnalyzing) {
+      return undefined;
+    }
+
+    setAnalysisProgressIndex(0);
+    const timer = setInterval(() => {
+      setAnalysisProgressIndex((current) => Math.min(current + 1, ANALYZE_PROGRESS_STEPS.length - 1));
+    }, 1400);
+
+    return () => clearInterval(timer);
+  }, [isAnalyzing]);
 
   const handleAnalyze = async () => {
     if (!formData.name.trim()) {
-      setError("Character name is required");
+      setError("Persona name is required");
       return;
     }
 
@@ -573,9 +767,10 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
       const data = await response.json();
       setAnalysis(data);
       setEditableDialogue(data.sampleDialogue || []);
+      setAnalysisProgressIndex(ANALYZE_PROGRESS_STEPS.length - 1);
       setStep(3);
     } catch (err) {
-      setError(err.message || "Failed to analyze character");
+      setError(err.message || "Failed to analyze persona");
       setStep(1);
     } finally {
       setIsAnalyzing(false);
@@ -642,28 +837,35 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
     }
   };
 
-  const handleExtractVoice = async () => {
-    if (!selectedVideo || !createdPersonalityId) {
-      setError("No video selected or personality not created");
+  const extractVoiceFromVideo = async (video) => {
+    if (!video || !createdPersonalityId) {
+      setError("No video selected or persona not created");
       return;
     }
 
-    console.log("Selected video:", selectedVideo);
-
     // Validate URL before sending
-    if (!selectedVideo.url || !/^https?:\/\//i.test(selectedVideo.url)) {
+    if (!video.url || !/^https?:\/\//i.test(video.url)) {
       setError("Invalid video URL. Please search for videos again.");
       return;
     }
 
+    setSelectedVideo(video);
+    setIsVoiceSampleModalOpen(true);
+    setProsodyModalError("");
+    setProsodyProgressIndex(0);
+    setExtractedVoiceSamples(null);
     setIsExtractingVoice(true);
     setError(null);
+
+    const progressTimer = setInterval(() => {
+      setProsodyProgressIndex((current) => Math.min(current + 1, PROSODY_PROGRESS_STEPS.length - 1));
+    }, 1600);
 
     try {
       const response = await authFetch(`/api/personality/${createdPersonalityId}/prosody-template`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: selectedVideo.url }),
+        body: JSON.stringify({ url: video.url }),
       });
 
       if (!response.ok) {
@@ -671,9 +873,12 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
       }
 
       const data = await response.json();
-      onCreated?.(data.personality);
+      setExtractedVoiceSamples(data.voiceSamples || data.personality?.voiceSampleAnalysis || null);
+      setProsodyProgressIndex(PROSODY_PROGRESS_STEPS.length - 1);
     } catch (err) {
-      setError(err.message || "Failed to extract voice");
+      const message = err.message || "Failed to extract voice";
+      setProsodyModalError(message);
+      setError(message);
       // Delete the persona if voice extraction fails
       try {
         await authFetch(`/api/personality/${createdPersonalityId}`, { method: "DELETE" });
@@ -681,8 +886,17 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
         console.error("Failed to delete persona after voice extraction error:", deleteErr);
       }
     } finally {
+      clearInterval(progressTimer);
       setIsExtractingVoice(false);
     }
+  };
+
+  const handleExtractVoice = async () => {
+    if (!selectedVideo) {
+      setError("Select a video first.");
+      return;
+    }
+    await extractVoiceFromVideo(selectedVideo);
   };
 
   const handleSave = async () => {
@@ -701,8 +915,8 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
         speechStyle: analysis.speechStyle,
         mood: analysis.mood,
         creativeContext: "default",
-        behaviorRules: [`Stay in character as ${analysis.name}. ${analysis.speechStyle || ""}`],
-        goals: ["maintain character consistency"],
+        behaviorRules: [`Stay in persona as ${analysis.name}. ${analysis.speechStyle || ""}`],
+        goals: ["maintain persona consistency"],
         values: allTraits.slice(0, 3),
         notablePhrases: editableDialogue.filter(line => line.trim()),
         moodSensitivity: 1.0,
@@ -721,7 +935,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
       const data = await response.json();
       setCreatedPersonalityId(data.id);
       
-      // Auto-fill YouTube search with character name
+      // Auto-fill YouTube search with persona name
       setYoutubeQuery(`${analysis.name} voice clips interview`);
       
       // Move to voice extraction step
@@ -746,6 +960,8 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
     setAnalysis(null);
     setError(null);
     setCreatedPersonalityId(null);
+    setIsVoiceSampleModalOpen(false);
+    setExtractedVoiceSamples(null);
   };
 
   const handleCancel = async () => {
@@ -765,8 +981,8 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
       <style>{styles}</style>
       <div className="quick-creator-container">
         <div className="quick-creator-header">
-          <h2>Quick Character Creator</h2>
-          <p>Create a personality in seconds with AI-powered analysis</p>
+          <h2>Quick Persona Creator</h2>
+          <p>Create a persona in seconds with AI-powered analysis</p>
         </div>
 
         <div className="step-indicator">
@@ -781,7 +997,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
         {step === 1 && (
           <div>
             <div className="form-field">
-              <label>Character Name *</label>
+              <label>Persona Name *</label>
               <input
                 type="text"
                 value={formData.name}
@@ -795,7 +1011,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="A short description of the character..."
+                placeholder="A short description of the persona..."
               />
             </div>
 
@@ -827,8 +1043,24 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
         {step === 2 && (
           <div className="loading-container">
             <div className="loading-spinner"></div>
-            <div className="loading-text">Analyzing Character</div>
+            <div className="loading-text">Analyzing Persona</div>
             <div className="loading-subtext">Extracting traits, quirks, and voice patterns...</div>
+            <div className="loading-progress" role="status" aria-live="polite">
+              {ANALYZE_PROGRESS_STEPS.map((item, index) => {
+                const stateClass = index < analysisProgressIndex
+                  ? "done"
+                  : index === analysisProgressIndex
+                    ? "active"
+                    : "";
+                return (
+                  <div key={item} className={`loading-progress-step ${stateClass}`.trim()}>
+                    <span className="loading-progress-dot" />
+                    <span>{item}</span>
+                    <span>{index + 1}/{ANALYZE_PROGRESS_STEPS.length}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -979,7 +1211,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
                 onClick={handleSave}
                 disabled={isSaving}
               >
-                {isSaving ? "Creating..." : "Create & Extract Voice"}
+                {isSaving ? "Creating..." : "Create Persona & Extract Voice"}
               </button>
             </div>
           </div>
@@ -1022,7 +1254,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
                     <div
                       key={video.id}
                       className={`video-card ${selectedVideo?.id === video.id ? "selected" : ""}`}
-                      onClick={() => setSelectedVideo(video)}
+                      onClick={() => extractVoiceFromVideo(video)}
                     >
                       <img
                         src={video.thumbnail}
@@ -1037,6 +1269,9 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
                   ))}
                 </div>
               )}
+              {youtubeResults.length > 0 ? (
+                <div className="video-hint">Click a thumbnail to open detected voice previews and choose the best match.</div>
+              ) : null}
             </div>
 
             {isExtractingVoice && (
@@ -1055,12 +1290,84 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
                 onClick={handleExtractVoice}
                 disabled={!selectedVideo || isExtractingVoice}
               >
-                {isExtractingVoice ? "Extracting..." : "Extract Voice"}
+                {isExtractingVoice ? "Extracting..." : "Extract from Selected"}
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {isVoiceSampleModalOpen ? (
+        <div
+          className="quick-modal-overlay"
+          onClick={() => {
+            if (!isExtractingVoice) {
+              setIsVoiceSampleModalOpen(false);
+            }
+          }}
+        >
+          <div className="quick-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="quick-modal-header">
+              <div>
+                <h4>Prosody Extraction</h4>
+                <p className="quick-modal-copy">
+                  Track extraction progress, preview isolated voices, and choose the voice that best matches this persona.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="quick-modal-close"
+                onClick={() => setIsVoiceSampleModalOpen(false)}
+                disabled={isExtractingVoice}
+              >
+                Close
+              </button>
+            </div>
+
+            {(isExtractingVoice || prosodyModalError) ? (
+              <div className="quick-progress-panel">
+                {PROSODY_PROGRESS_STEPS.map((item, index) => {
+                  const stateClass = index < prosodyProgressIndex
+                    ? "done"
+                    : index === prosodyProgressIndex
+                      ? "active"
+                      : "";
+                  return (
+                    <div key={item} className={`quick-progress-step ${stateClass}`.trim()}>
+                      <span className="quick-progress-dot" />
+                      {item}
+                    </div>
+                  );
+                })}
+                {prosodyModalError ? (
+                  <div className="loading-subtext" style={{ color: "#ff8d8d" }}>
+                    {prosodyModalError}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {extractedVoiceSamples ? (
+              <VoiceSampleSelector
+                personality={{ id: createdPersonalityId, name: analysis?.name }}
+                voiceSamples={extractedVoiceSamples}
+                isLoading={isExtractingVoice}
+                onSampleSelected={(updatedPersonality) => {
+                  setIsVoiceSampleModalOpen(false);
+                  onCreated?.(updatedPersonality || { id: createdPersonalityId });
+                }}
+                onStatus={({ type, message }) => {
+                  if (type === "error") {
+                    setError(message || "Voice sample confirmation failed.");
+                  }
+                }}
+              />
+            ) : !isExtractingVoice && !prosodyModalError ? (
+              <div className="loading-subtext">No representative voices were detected from the source.</div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

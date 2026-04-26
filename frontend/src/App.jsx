@@ -2758,8 +2758,8 @@ export default function App() {
                   </h2>
                   <p className="section-copy">
                     {builderMode === "edit"
-                      ? "Load the selected character into the form, refine behavior and expression, then save updates in place. Use Voice Lab for dedicated TTS tuning."
-                      : "Start with a character name and optional source URLs, pull research into the form, then save a profile with a stronger system prompt. Voice tuning happens in Voice Lab after save."}
+                      ? "Load the selected persona into the form, refine behavior and expression, then save updates in place. Use Voice Lab for dedicated TTS tuning."
+                      : "Start with a persona name and optional source URLs, pull research into the form, then save a profile with a stronger system prompt. Voice tuning happens in Voice Lab after save."}
                   </p>
                   <div className="meta-row" style={{ marginBottom: 12 }}>
                     <button
