@@ -1,0 +1,256 @@
+# Voxis Project File Classification
+
+## TTS / Voice System
+
+**Backend Services:**
+- [backend/services/ttsService.js](file:///x:/Voxis/backend/services/ttsService.js:) - Core TTS synthesis service
+- [backend/services/moodVoice.js](file:///x:/Voxis/backend/services/moodVoice.js:) - Mood-based voice modulation
+- [backend/services/kokoroShaper.js](file:///x:/Voxis/backend/services/kokoroShaper.js:) - Kokoro TTS engine shaping
+- [backend/services/speechDirector.js](file:///x:/Voxis/backend/services/speechDirector.js:) - Speech playback direction
+- [backend/services/speechProfiles.js](file:///x:/Voxis/backend/services/speechProfiles.js:) - Voice profile management
+- [backend/services/voicePresetsService.js](file:///x:/Voxis/backend/services/voicePresetsService.js:) - Voice preset handling
+- [backend/services/voiceProfileSanitizer.js](file:///x:/Voxis/backend/services/voiceProfileSanitizer.js:) - Voice profile validation
+- [backend/services/voiceSegmentationService.js](file:///x:/Voxis/backend/services/voiceSegmentationService.js:) - Audio segmentation
+- [backend/services/prosodyCompiler.js](file:///x:/Voxis/backend/services/prosodyCompiler.js:) - Prosody compilation
+- [backend/services/prosodyExtractionService.js](file:///x:/Voxis/backend/services/prosodyExtractionService.js:) - Prosody extraction
+- [backend/services/singingEngine.js](file:///x:/Voxis/backend/services/singingEngine.js:) - Singing synthesis
+- [backend/services/chunkSpeech.js](file:///x:/Voxis/backend/services/chunkSpeech.js:) - Speech chunking
+- [backend/services/sttService.js](file:///x:/Voxis/backend/services/sttService.js:) - Speech-to-Text service
+- [backend/services/cadenceRegulator.js](file:///x:/Voxis/backend/services/cadenceRegulator.js:) - Speech cadence control
+- [backend/services/epfParser.js](file:///x:/Voxis/backend/services/epfParser.js:) - Enhanced Performance Format parser
+
+**Backend Controllers:**
+- [backend/controllers/ttsController.js](file:///x:/Voxis/backend/controllers/ttsController.js:) - TTS API endpoints
+- [backend/controllers/sttController.js](file:///x:/Voxis/backend/controllers/sttController.js:) - STT API endpoints
+- [backend/controllers/prosodyController.js](file:///x:/Voxis/backend/controllers/prosodyController.js:) - Prosody API endpoints
+- [backend/controllers/voiceSampleController.js](file:///x:/Voxis/backend/controllers/voiceSampleController.js:) - Voice sample management
+- [backend/controllers/performanceController.js](file:///x:/Voxis/backend/controllers/performanceController.js:) - Performance playback
+
+**Backend Scripts:**
+- [backend/scripts/preloadKokoroModel.js](file:///x:/Voxis/backend/scripts/preloadKokoroModel.js:) - Kokoro model preloading
+- [backend/scripts/testTtsDiagnostics.js](file:///x:/Voxis/backend/scripts/testTtsDiagnostics.js:) - TTS diagnostics testing
+
+**Frontend Components:**
+- [frontend/src/components/VoiceLab.jsx](file:///x:/Voxis/frontend/src/components/VoiceLab.jsx:) - Voice testing interface
+- [frontend/src/components/VoiceSampleSelector.jsx](file:///x:/Voxis/frontend/src/components/VoiceSampleSelector.jsx:) - Voice sample selection
+- [frontend/src/components/PerformancePlayer.jsx](file:///x:/Voxis/frontend/src/components/PerformancePlayer.jsx:) - Audio performance player
+- [frontend/src/utils/ttsCache.js](file:///x:/Voxis/frontend/src/utils/ttsCache.js:) - TTS caching utility
+
+**Backend Assets:**
+- [backend/loop-cache/](file:///x:/Voxis/backend/loop-cache:) - Audio loop cache directory
+- [backend/voice-samples/](file:///x:/Voxis/backend/voice-samples:) - Voice sample storage
+- [backend/prosody-templates/](file:///x:/Voxis/backend/prosody-templates:) - Prosody template files
+
+---
+
+## LLM / Chat Core
+
+**Backend Services:**
+- [backend/services/llmService.js](file:///x:/Voxis/backend/services/llmService.js:) - LLM API integration
+- [backend/services/councilService.js](file:///x:/Voxis/backend/services/councilService.js:) - Multi-agent council logic
+- [backend/services/cognitionLoopService.js](file:///x:/Voxis/backend/services/cognitionLoopService.js:) - Cognition processing loop
+- [backend/services/modeResponseService.js](file:///x:/Voxis/backend/services/modeResponseService.js:) - Mode-based response handling
+- [backend/services/utterancePlanService.js](file:///x:/Voxis/backend/services/utterancePlanService.js:) - Utterance planning
+- [backend/services/stateFlawService.js](file:///x:/Voxis/backend/services/stateFlawService.js:) - State flaw detection
+- [backend/services/policyService.js](file:///x:/Voxis/backend/services/policyService.js:) - Response policy enforcement
+- [backend/services/webSearchService.js](file:///x:/Voxis/backend/services/webSearchService.js:) - Web search integration
+- [backend/services/researchService.js](file:///x:/Voxis/backend/services/researchService.js:) - Research capability
+- [backend/services/adversarialHarnessService.js](file:///x:/Voxis/backend/services/adversarialHarnessService.js:) - Adversarial testing harness
+
+**Backend Controllers:**
+- [backend/controllers/chatController.js](file:///x:/Voxis/backend/controllers/chatController.js:) - Chat message handling
+- [backend/controllers/cognitionController.js](file:///x:/Voxis/backend/controllers/cognitionController.js:) - Cognition API endpoints
+- [backend/controllers/councilController.js](file:///x:/Voxis/backend/controllers/councilController.js:) - Council API endpoints
+- [backend/controllers/harnessController.js](file:///x:/Voxis/backend/controllers/harnessController.js:) - Harness API endpoints
+- [backend/controllers/researchController.js](file:///x:/Voxis/backend/controllers/researchController.js:) - Research API endpoints
+
+**Backend Routes:**
+- [backend/routes/chatRoutes.js](file:///x:/Voxis/backend/routes/chatRoutes.js:) - Chat routing
+- [backend/routes/cognitionRoutes.js](file:///x:/Voxis/backend/routes/cognitionRoutes.js:) - Cognition routing
+- [backend/routes/councilRoutes.js](file:///x:/Voxis/backend/routes/councilRoutes.js:) - Council routing
+
+**Backend Models:**
+- [backend/models/chatModel.js](file:///x:/Voxis/backend/models/chatModel.js:) - Chat data model
+
+**Backend Scripts:**
+- [backend/scripts/adversarialTranscriptHarness.js](file:///x:/Voxis/backend/scripts/adversarialTranscriptHarness.js:) - Adversarial transcript testing
+
+**Frontend Components:**
+- [frontend/src/components/ChatWindow.jsx](file:///x:/Voxis/frontend/src/components/ChatWindow.jsx:) - Main chat interface
+- [frontend/src/components/LlmSettingsPanel.jsx](file:///x:/Voxis/frontend/src/components/LlmSettingsPanel.jsx:) - LLM configuration UI
+
+---
+
+## Personality / Agents
+
+**Backend Services:**
+- [backend/services/moodEngine.js](file:///x:/Voxis/backend/services/moodEngine.js:) - VAD mood calculation engine
+- [backend/services/emotionSpectrum.js](file:///x:/Voxis/backend/services/emotionSpectrum.js:) - Emotion spectrum mapping
+- [backend/services/emotionMemoryDrift.js](file:///x:/Voxis/backend/services/emotionMemoryDrift.js:) - Emotion memory drift
+- [backend/services/expressionSampler.js](file:///x:/Voxis/backend/services/expressionSampler.js:) - Expression sampling
+- [backend/services/hybridPersonalityService.js](file:///x:/Voxis/backend/services/hybridPersonalityService.js:) - Hybrid personality logic
+- [backend/services/chatPresentationService.js](file:///x:/Voxis/backend/services/chatPresentationService.js:) - Chat presentation logic
+
+**Backend Controllers:**
+- [backend/controllers/personalityController.js](file:///x:/Voxis/backend/controllers/personalityController.js:) - Personality CRUD
+- [backend/controllers/preferencesController.js](file:///x:/Voxis/backend/controllers/preferencesController.js:) - User preferences
+
+**Backend Models:**
+- [backend/models/personalityModel.js](file:///x:/Voxis/backend/models/personalityModel.js:) - Personality data model
+- [backend/models/preferencesModel.js](file:///x:/Voxis/backend/models/preferencesModel.js:) - Preferences data model
+
+**Backend Routes:**
+- [backend/routes/personalityRoutes.js](file:///x:/Voxis/backend/routes/personalityRoutes.js:) - Personality routing
+
+**Backend Scripts:**
+- [backend/scripts/seedAraPersonas.js](file:///x:/Voxis/backend/scripts/seedAraPersonas.js:) - Persona seeding
+- [backend/scripts/checkMoodState.js](file:///x:/Voxis/backend/scripts/checkMoodState.js:) - Mood state verification
+- [backend/scripts/fixVadBaselines.js](file:///x:/Voxis/backend/scripts/fixVadBaselines.js:) - VAD baseline fixes
+
+**Frontend Components:**
+- [frontend/src/components/PersonaEditor.jsx](file:///x:/Voxis/frontend/src/components/PersonaEditor.jsx:) - Personality editing
+- [frontend/src/components/PersonalityForm.jsx](file:///x:/Voxis/frontend/src/components/PersonalityForm.jsx:) - Personality creation form
+- [frontend/src/components/PersonalityList.jsx](file:///x:/Voxis/frontend/src/components/PersonalityList.jsx:) - Personality listing
+- [frontend/src/components/AlignmentGrid.jsx](file:///x:/Voxis/frontend/src/components/AlignmentGrid.jsx:) - Alignment visualization
+- [frontend/src/components/BigFiveRadar.jsx](file:///x:/Voxis/frontend/src/components/BigFiveRadar.jsx:) - Big Five traits radar
+- [frontend/src/components/HybridPreview.jsx](file:///x:/Voxis/frontend/src/components/HybridPreview.jsx:) - Hybrid personality preview
+- [frontend/src/components/MoodRuntimeSettings.jsx](file:///x:/Voxis/frontend/src/components/MoodRuntimeSettings.jsx:) - Mood runtime config
+- [frontend/src/components/ExpressionSamplingSettings.jsx](file:///x:/Voxis/frontend/src/components/ExpressionSamplingSettings.jsx:) - Expression sampling config
+- [frontend/src/components/HarnessReport.jsx](file:///x:/Voxis/frontend/src/components/HarnessReport.jsx:) - Harness testing report
+- [frontend/src/state/PersonaStateContext.jsx](file:///x:/Voxis/frontend/src/state/PersonaStateContext.jsx:) - Personality state management
+
+**Frontend Libs:**
+- [frontend/src/lib/emotionSpectrum.js](file:///x:/Voxis/frontend/src/lib/emotionSpectrum.js:) - Emotion spectrum utilities
+- [frontend/src/lib/mapToVoxisPersonality.js](file:///x:/Voxis/frontend/src/lib/mapToVoxisPersonality.js:) - Personality mapping
+
+---
+
+## UI / Frontend
+
+**Frontend Components:**
+- [frontend/src/App.jsx](file:///x:/Voxis/frontend/src/App.jsx:) - Main app component
+- [frontend/src/main.jsx](file:///x:/Voxis/frontend/src/main.jsx:) - Entry point
+- [frontend/src/components/AvatarCore.jsx](file:///x:/Voxis/frontend/src/components/AvatarCore.jsx:) - Avatar visualization
+- [frontend/src/components/NeuralCore.jsx](file:///x:/Voxis/frontend/src/components/NeuralCore.jsx:) - Neural network visualization
+- [frontend/src/components/BrainTab.jsx](file:///x:/Voxis/frontend/src/components/BrainTab.jsx:) - Brain visualization tab
+- [frontend/src/components/MemoryJournal.jsx](file:///x:/Voxis/frontend/src/components/MemoryJournal.jsx:) - Memory journal UI
+- [frontend/src/components/ApiDiagnosticsPanel.jsx](file:///x:/Voxis/frontend/src/components/ApiDiagnosticsPanel.jsx:) - API diagnostics
+- [frontend/src/components/ui/FuturisticUIKit.jsx](file:///x:/Voxis/frontend/src/components/ui/FuturisticUIKit.jsx:) - UI component library
+
+**Neural Core Components:**
+- [frontend/src/components/neuralCore/NeuralCoreRenderer.jsx](file:///x:/Voxis/frontend/src/components/neuralCore/NeuralCoreRenderer.jsx:) - Neural renderer
+- [frontend/src/components/neuralCore/NeuralCoreSvgScene.jsx](file:///x:/Voxis/frontend/src/components/neuralCore/NeuralCoreSvgScene.jsx:) - SVG scene
+- [frontend/src/components/neuralCore/NeuralCoreThreeScene.jsx](file:///x:/Voxis/frontend/src/components/neuralCore/NeuralCoreThreeScene.jsx:) - Three.js scene
+- [frontend/src/components/neuralCore/NeuralSceneV2.jsx](file:///x:/Voxis/frontend/src/components/neuralCore/NeuralSceneV2.jsx:) - Neural scene v2
+- [frontend/src/components/neuralCore/NeuralCoreForceGraphStub.jsx](file:///x:/Voxis/frontend/src/components/neuralCore/NeuralCoreForceGraphStub.jsx:) - Force graph stub
+- [frontend/src/components/neuralCore/neuralCoreModel.js](file:///x:/Voxis/frontend/src/components/neuralCore/neuralCoreModel.js:) - Neural model
+- [frontend/src/components/neuralCore/neuralCoreThreeModel.js](file:///x:/Voxis/frontend/src/components/neuralCore/neuralCoreThreeModel.js:) - Three.js model
+
+**Frontend Contexts:**
+- [frontend/src/contexts/MockAuthContext.jsx](file:///x:/Voxis/frontend/src/contexts/MockAuthContext.jsx:) - Mock authentication
+
+**Frontend Hooks:**
+- [frontend/src/hooks/useAuthFetch.js](file:///x:/Voxis/frontend/src/hooks/useAuthFetch.js:) - Authenticated fetch hook
+- [frontend/src/hooks/usePrefersReducedMotion.js](file:///x:/Voxis/frontend/src/hooks/usePrefersReducedMotion.js:) - Motion preference hook
+
+**Frontend Libs:**
+- [frontend/src/lib/apiResponse.js](file:///x:/Voxis/frontend/src/lib/apiResponse.js:) - API response utilities
+- [frontend/src/lib/memoryPresentation.js](file:///x:/Voxis/frontend/src/lib/memoryPresentation.js:) - Memory presentation
+- [frontend/src/lib/runtimeTelemetry.js](file:///x:/Voxis/frontend/src/lib/runtimeTelemetry.js:) - Runtime telemetry
+
+**Frontend Styles:**
+- [frontend/src/styles/futuristic-ui-kit.css](file:///x:/Voxis/frontend/src/styles/futuristic-ui-kit.css:) - UI kit styles
+- [frontend/src/components/BrainTab.css](file:///x:/Voxis/frontend/src/components/BrainTab.css:) - Brain tab styles
+
+**Frontend Config:**
+- [frontend/vite.config.js](file:///x:/Voxis/frontend/vite.config.js:) - Vite build config
+- [frontend/index.html](file:///x:/Voxis/frontend/index.html:) - HTML entry
+- [frontend/package.json](file:///x:/Voxis/frontend/package.json:) - Frontend dependencies
+
+**Frontend Public:**
+- `frontend/public/loops/` - Public audio loops
+
+---
+
+## Settings & Config
+
+**Backend Controllers:**
+- [backend/controllers/settingsController.js](file:///x:/Voxis/backend/controllers/settingsController.js:) - Settings management
+- [backend/controllers/userController.js](file:///x:/Voxis/backend/controllers/userController.js:) - User management
+
+**Backend Models:**
+- [backend/models/settingsModel.js](file:///x:/Voxis/backend/models/settingsModel.js:) - Settings data model
+- [backend/models/userModel.js](file:///x:/Voxis/backend/models/userModel.js:) - User data model
+
+**Backend Routes:**
+- [backend/routes/settingsRoutes.js](file:///x:/Voxis/backend/routes/settingsRoutes.js:) - Settings routing
+- [backend/routes/userRoutes.js](file:///x:/Voxis/backend/routes/userRoutes.js:) - User routing
+
+**Backend Config:**
+- [backend/package.json](file:///x:/Voxis/backend/package.json:) - Backend dependencies
+- `backend/.env.example` - Environment variables template
+- [backend/server.js](file:///x:/Voxis/backend/server.js:) - Server entry point
+
+**Root Config:**
+- [package.json](file:///x:/Voxis/package.json:) - Root dependencies
+- [ecosystem.config.cjs](file:///x:/Voxis/ecosystem.config.cjs:) - PM2 process manager config
+- `.gitignore` - Git ignore rules
+
+**Deploy Scripts:**
+- [deploy/setup-ubuntu.sh](file:///x:/Voxis/deploy/setup-ubuntu.sh:) - Ubuntu setup
+- [deploy/install-piper.sh](file:///x:/Voxis/deploy/install-piper.sh:) - Piper installation
+- [deploy/preload-kokoro-model.sh](file:///x:/Voxis/deploy/preload-kokoro-model.sh:) - Kokoro preloading
+- [deploy/configure-openrouter-piper.sh](file:///x:/Voxis/deploy/configure-openrouter-piper.sh:) - OpenRouter/Piper config
+- [deploy/enable-ssl.sh](file:///x:/Voxis/deploy/enable-ssl.sh:) - SSL setup
+- [deploy/check-stack.sh](file:///x:/Voxis/deploy/check-stack.sh:) - Stack health check
+- [deploy/diagnose-auth-stack.sh](file:///x:/Voxis/deploy/diagnose-auth-stack.sh:) - Auth diagnostics
+- [deploy/update-app.sh](file:///x:/Voxis/deploy/update-app.sh:) - App update
+- [deploy/nginx-merlin.template.conf](file:///x:/Voxis/deploy/nginx-merlin.template.conf:) - Nginx config template
+
+---
+
+## Other / Utils
+
+**Memory System:**
+- [backend/controllers/memoryController.js](file:///x:/Voxis/backend/controllers/memoryController.js:) - Memory CRUD
+- [backend/controllers/userMemoryController.js](file:///x:/Voxis/backend/controllers/userMemoryController.js:) - User memory
+- [backend/services/userMemoryService.js](file:///x:/Voxis/backend/services/userMemoryService.js:) - User memory service
+- [backend/services/memoryConflictService.js](file:///x:/Voxis/backend/services/memoryConflictService.js:) - Memory conflict resolution
+- [backend/models/memoryModel.js](file:///x:/Voxis/backend/models/memoryModel.js:) - Memory data model
+- [backend/models/userMemoryModel.js](file:///x:/Voxis/backend/models/userMemoryModel.js:) - User memory model
+- [backend/routes/loopRoutes.js](file:///x:/Voxis/backend/routes/loopRoutes.js:) - Loop routing
+
+**SFX System:**
+- [backend/controllers/sfxController.js](file:///x:/Voxis/backend/controllers/sfxController.js:) - Sound effects
+- [backend/services/sfxCacheService.js](file:///x:/Voxis/backend/services/sfxCacheService.js:) - SFX caching
+- [backend/services/loopCacheService.js](file:///x:/Voxis/backend/services/loopCacheService.js:) - Loop caching
+- [backend/routes/sfxRoutes.js](file:///x:/Voxis/backend/routes/sfxRoutes.js:) - SFX routing
+
+**Backend Database:**
+- [backend/db/db.js](file:///x:/Voxis/backend/db/db.js:) - Database connection
+- [backend/check-db.js](file:///x:/Voxis/backend/check-db.js:) - Database check utility
+
+**Backend Middleware:**
+- [backend/middleware/requireAuth.js](file:///x:/Voxis/backend/middleware/requireAuth.js:) - Auth middleware
+
+**Backend Scripts:**
+- [backend/scripts/backfillChatEmbeddings.js](file:///x:/Voxis/backend/scripts/backfillChatEmbeddings.js:) - Chat embedding backfill
+- [backend/scripts/backfillMemoryEmbeddings.js](file:///x:/Voxis/backend/scripts/backfillMemoryEmbeddings.js:) - Memory embedding backfill
+- [backend/scripts/backfillUserMemoryEmbeddings.js](file:///x:/Voxis/backend/scripts/backfillUserMemoryEmbeddings.js:) - User memory embedding backfill
+
+**Frontend Mocks:**
+- [frontend/src/mocks/clerk.jsx](file:///x:/Voxis/frontend/src/mocks/clerk.jsx:) - Clerk auth mock
+
+**Documentation:**
+- [README.md](file:///x:/Voxis/README.md:) - Project README
+- [NEXT_STEPS.md](file:///x:/Voxis/NEXT_STEPS.md:) - Next steps documentation
+- [docs/DUAL_MODE_PRODUCT_SPEC.md](file:///x:/Voxis/docs/DUAL_MODE_PRODUCT_SPEC.md:) - Dual mode spec
+- [docs/HYBRID_PERSONALITY_MAPPING.md](file:///x:/Voxis/docs/HYBRID_PERSONALITY_MAPPING.md:) - Hybrid personality mapping
+- [docs/RECENT_IMPLEMENTATION_CONNECTION_MATRIX.md](file:///x:/Voxis/docs/RECENT_IMPLEMENTATION_CONNECTION_MATRIX.md:) - Implementation matrix
+- [docs/TTS_EVOLUTION_CHECKLIST.md](file:///x:/Voxis/docs/TTS_EVOLUTION_CHECKLIST.md:) - TTS evolution checklist
+- [docs/VOXIS_FUTURISTIC_UI_KIT_V1.md](file:///x:/Voxis/docs/VOXIS_FUTURISTIC_UI_KIT_V1.md:) - UI kit documentation
+
+**Other:**
+- [deploy-safe.sh](file:///x:/Voxis/deploy-safe.sh:) - Safe deployment script
+- `.github/copilot-instructions.md` - Copilot instructions
+- [concepts/](file:///x:/Voxis/concepts:) - Concept exploration directory

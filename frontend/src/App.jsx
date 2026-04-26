@@ -3,8 +3,10 @@ import { useAuth, UserButton, SignIn, SignUp } from "@clerk/react";
 
 import { useAuthFetch } from "./hooks/useAuthFetch.js";
 import usePrefersReducedMotion from "./hooks/usePrefersReducedMotion.js";
+import QuickPersonalityCreator from "./components/QuickPersonalityCreator.jsx";
 import PersonalityForm from "./components/PersonalityForm.jsx";
 import PersonalityList from "./components/PersonalityList.jsx";
+import PersonaBrowser from "./components/PersonaBrowser.jsx";
 import ChatWindow from "./components/ChatWindow.jsx";
 import VoiceLab from "./components/VoiceLab.jsx";
 import MemoryJournal from "./components/MemoryJournal.jsx";
@@ -13,6 +15,8 @@ import HarnessReport from "./components/HarnessReport.jsx";
 import LlmSettingsPanel from "./components/LlmSettingsPanel.jsx";
 import MoodRuntimeSettings from "./components/MoodRuntimeSettings.jsx";
 import ExpressionSamplingSettings from "./components/ExpressionSamplingSettings.jsx";
+import CognitionLoopSettings from "./components/CognitionLoopSettings.jsx";
+import ProfaneFilterSettings from "./components/ProfaneFilterSettings.jsx";
 import ApiDiagnosticsPanel from "./components/ApiDiagnosticsPanel.jsx";
 import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
@@ -2256,6 +2260,7 @@ export default function App() {
   }
 
   function handleSelectPersonality(id) {
+    console.log("[VOXIS DEBUG] Personality selected - selectedId:", id);
     setSelectedId(id);
     setStatus({ type: "", message: "" });
   }
@@ -2270,6 +2275,7 @@ export default function App() {
     }
 
     const personalityId = selectedPersonality.id;
+    console.log("[VOXIS DEBUG] Sending message - personalityId:", personalityId, "personality.name:", selectedPersonality.name);
 
     setStatus({ type: "", message: "" });
     setIsSending(true);
@@ -2588,7 +2594,7 @@ export default function App() {
         setEditorTarget={setPersonaEditorTarget}
       >
       <div className="voxis-futuristic-root app-shell">
-        <section className="hero">
+        <section className="hero glass-panel holographic-border">
           <div className="hero-grid">
             <div>
               <span className="eyebrow">Voxis Synaptic OS</span>
@@ -2641,10 +2647,10 @@ export default function App() {
         </section>
 
         <section className={`workspace ${isSidebarOpen ? "" : "sidebar-collapsed"}`}>
-          <aside className={`panel sidebar ${isSidebarOpen ? "" : "collapsed"}`}>
+          <aside className={`panel sidebar glass-panel holographic-border ${isSidebarOpen ? "" : "collapsed"}`}>
             <button
               type="button"
-              className="sidebar-toggle"
+              className="sidebar-toggle futuristic-btn"
               onClick={() => setIsSidebarOpen((current) => !current)}
             >
               {isSidebarOpen ? "Hide Personas" : `Saved Personas${personalities.length ? ` (${personalities.length})` : ""}`}
@@ -2677,63 +2683,70 @@ export default function App() {
             )}
           </aside>
 
-          <main className="panel main-panel">
+          <main className="panel main-panel glass-panel holographic-border">
             <div className="tabs">
               <button
                 type="button"
-                className={`tab ${activeView === "builder" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "builder" ? "active" : ""}`}
                 onClick={() => setActiveView("builder")}
               >
                 Character Request
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "chat" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "chat" ? "active" : ""}`}
                 onClick={() => setActiveView("chat")}
               >
                 Character Chat
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "journal" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "journal" ? "active" : ""}`}
                 onClick={() => setActiveView("journal")}
               >
                 Memory Journal
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "persona-editor" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "persona-editor" ? "active" : ""}`}
                 onClick={() => setActiveView("persona-editor")}
               >
                 Persona Editor
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "voice" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "voice" ? "active" : ""}`}
                 onClick={() => setActiveView("voice")}
               >
                 Voice Lab
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "settings" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "settings" ? "active" : ""}`}
                 onClick={() => setActiveView("settings")}
               >
                 Settings
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "eval" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "eval" ? "active" : ""}`}
                 onClick={() => setActiveView("eval")}
               >
                 Adversarial Eval
               </button>
               <button
                 type="button"
-                className={`tab ${activeView === "brain" ? "active" : ""}`}
+                className={`tab futuristic-btn ${activeView === "brain" ? "active" : ""}`}
                 onClick={() => setActiveView("brain")}
               >
-                Brain
+                Brain Core
+              </button>
+              <button
+                type="button"
+                className={`tab futuristic-btn ${activeView === "browser" ? "active" : ""}`}
+                onClick={() => setActiveView("browser")}
+              >
+                3D Browser
               </button>
             </div>
 
@@ -2751,6 +2764,13 @@ export default function App() {
                   <div className="meta-row" style={{ marginBottom: 12 }}>
                     <button
                       type="button"
+                      className={`tab ${builderMode === "quick" ? "active" : ""}`}
+                      onClick={() => setBuilderMode("quick")}
+                    >
+                      Quick Create
+                    </button>
+                    <button
+                      type="button"
                       className={`tab ${builderMode === "create" ? "active" : ""}`}
                       onClick={() => setBuilderMode("create")}
                     >
@@ -2765,14 +2785,21 @@ export default function App() {
                       Edit Selected
                     </button>
                   </div>
-                  <PersonalityForm
-                    onCreated={handlePersonalityCreated}
-                    onUpdated={handlePersonalityUpdated}
-                    onError={setStatus}
-                    onOpenVoiceLab={() => setActiveView("voice")}
-                    personalities={personalities}
-                    editingPersonality={builderMode === "edit" ? selectedPersonality : null}
-                  />
+                  {builderMode === "quick" ? (
+                    <QuickPersonalityCreator
+                      onCreated={handlePersonalityCreated}
+                      onCancel={() => setBuilderMode("create")}
+                    />
+                  ) : (
+                    <PersonalityForm
+                      onCreated={handlePersonalityCreated}
+                      onUpdated={handlePersonalityUpdated}
+                      onError={setStatus}
+                      onOpenVoiceLab={() => setActiveView("voice")}
+                      personalities={personalities}
+                      editingPersonality={builderMode === "edit" ? selectedPersonality : null}
+                    />
+                  )}
                 </>
               ) : activeView === "journal" ? (
                 <MemoryJournal personality={selectedPersonality} />
@@ -2806,6 +2833,24 @@ export default function App() {
                   personality={selectedPersonality}
                   livePhase={liveChatState[selectedId]?.phase || ""}
                 />
+              ) : activeView === "browser" ? (
+                <>
+                  <h2 className="section-heading">3D Persona Browser</h2>
+                  <p className="section-copy">
+                    Explore your personas in dramatic 3D space. Click a card to select and enter the neural link.
+                  </p>
+                  <PersonaBrowser
+                    personas={personalities}
+                    onSelectPersona={(persona) => {
+                      setSelectedId(persona.id);
+                      setActiveView("chat");
+                      setStatus({
+                        type: "success",
+                        message: `${persona.name} is ready. Start chatting now.`,
+                      });
+                    }}
+                  />
+                </>
               ) : activeView === "eval" ? (
                 <>
                   <h2 className="section-heading">Pressure-test the active character</h2>
@@ -2821,7 +2866,7 @@ export default function App() {
                   <p className="section-copy">
                     Manage platform options, runtime providers, global voice routing, and voice provider credentials in one place.
                   </p>
-                  <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
+                  <div className="panel glass-panel holographic-border" style={{ padding: 16, marginBottom: 16 }}>
                     <h3 style={{ marginTop: 0 }}>Visual Effects</h3>
                     <p className="section-copy" style={{ marginBottom: 12 }}>
                       Control cyberpunk background intensity. Phase color palettes still react to live chat state at any non-off level.
@@ -2841,7 +2886,7 @@ export default function App() {
                     <p className="fx-option-note">
                       Off: static atmosphere only. Low: lighter motion + lower glow. Full: cinematic video + full shader energy.
                     </p>
-                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "var(--muted)" }}>
+                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "#87a8b9" }}>
                       <input
                         type="checkbox"
                         checked={disableNeuronMap3d}
@@ -2853,7 +2898,7 @@ export default function App() {
                       Keeps Brain tab and in-chat Brain button available, while forcing layout/list mode and hiding 3D rendering.
                     </p>
                   </div>
-                  <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
+                  <div className="panel glass-panel holographic-border" style={{ padding: 16, marginBottom: 16 }}>
                     <h3 style={{ marginTop: 0 }}>User Policy Profile</h3>
                     <p className="section-copy" style={{ marginBottom: 12 }}>
                       Configure default mode, Neural Core intensity, and teen supervision controls for the selected profile.
@@ -2933,7 +2978,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "var(--muted)" }}>
+                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "#87a8b9" }}>
                       <input
                         type="checkbox"
                         checked={profileDraft.voiceNarrationEnabled}
@@ -2947,7 +2992,7 @@ export default function App() {
                       Enable Kids Mode mood narration when the orb brightens positively
                     </label>
 
-                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "var(--muted)" }}>
+                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "#87a8b9" }}>
                       <input
                         type="checkbox"
                         checked={profileDraft.supervisedAdvancedMode}
@@ -2992,6 +3037,20 @@ export default function App() {
                     </p>
                   </div>
                   <ExpressionSamplingSettings onStatus={setStatus} />
+                  <div style={{ marginTop: 24 }}>
+                    <h3 className="section-heading">Cognition Loop</h3>
+                    <p className="section-copy">
+                      Configure background personality reflection, autonomous decision-making, and reach-out delivery settings.
+                    </p>
+                  </div>
+                  <CognitionLoopSettings onStatus={setStatus} />
+                  <div style={{ marginTop: 24 }}>
+                    <h3 className="section-heading">Profane Filter</h3>
+                    <p className="section-copy">
+                      Toggle content safety restrictions and customize the disclaimer shown when the filter is disabled.
+                    </p>
+                  </div>
+                  <ProfaneFilterSettings onStatus={setStatus} />
                 </>
               ) : (
                 <>

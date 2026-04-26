@@ -82,7 +82,7 @@ installRuntimeGuards();
 const clerkPubKey =
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
   import.meta.env.VITE_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
-  "";
+  "pk_test_placeholder_for_development"; // Fallback for development
 
 const clerkKeyPrefix = clerkPubKey
   ? clerkPubKey.startsWith("pk_live_")

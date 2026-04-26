@@ -261,6 +261,7 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 - **Session-locked mode** — mode is locked per `(userId, personalityId)` thread to prevent policy bleed from mid-thread switches.
 - **Scientist mode** — validates response structure (`Answer`, `Evidence`, `Uncertainty`, `Next Questions`) with automatic repair passes. Intent-aware: casual prompts remain conversational.
 - **Kids mode** — strict unsafe-topic blocking with readability-aware simplification tuned to low reading levels.
+- **Profane filter toggle** — when disabled (`PROFANE_FILTER_ENABLED=false`), the AI has zero content restrictions and may use profanity, insults, threats, or extreme language if it fits the character. When enabled, standard safety guidelines apply. A disclaimer is appended to every response when the filter is disabled.
 - **Context-window meter** — bottom-right token usage display with input/output breakdown and active model details.
 
 ### Neural Core Visualization
@@ -417,6 +418,7 @@ Edit `backend/.env` with your API keys. All environment variables are optional �
 | `MOOD_ADJUDICATION_ENABLED` | Semantic mood adjudication; set `false` for regex-only |
 | `PERSONA_PROMPT_CHAR_BUDGET` | Global prompt character budget before compression |
 | `PERSONA_PROMPT_CHAR_BUDGET_*` | Per-creative-context budget overrides (`DEFAULT`, `NARRATIVE_ANTAGONIST`, `ANTI_HERO`, `MORALLY_COMPLEX`, `TRAGIC_VILLAIN`) |
+| `PROFANE_FILTER_ENABLED` | When `false` (default), AI has zero content restrictions; when `true`, standard safety guidelines apply |
 
 **Embeddings:**
 
@@ -452,7 +454,7 @@ Edit `backend/.env` with your API keys. All environment variables are optional �
 
 **Alternative credential paths:**
 
-- **Settings UI** — `Provider And Voice Settings` for chat/memory keys; `Voice Provider Credentials` for ElevenLabs/Cartesia keys; `Kokoro Access` for Hugging Face tokens.
+- **Settings UI** — `Provider And Voice Settings` for chat/memory keys; `Voice Provider Credentials` for ElevenLabs/Cartesia keys; `Kokoro Access` for Hugging Face tokens; `Profane Filter` for content restriction toggle.
 - **Voice Lab** auto-scans Piper model directories (`/opt/piper/models` and `PIPER_MODEL_PATH` parent) for voice discovery.
 
 Research scraping works without LLM credentials. YouTube transcript ingestion is best-effort — unavailable captions fall back to video metadata.
@@ -690,6 +692,7 @@ The `coreValues` column avoids a SQLite reserved word conflict; aliased to `valu
 System prompts are **built fresh on every chat turn** by `buildPersonaSystemPrompt()` in `llmService.js`. The prompt has named sections:
 
 ```
+== CONTENT SAFETY ==                   (profane filter toggle)
 == IDENTITY ==
 == CORE TRAITS ==
 == BEHAVIORAL RULES ==
@@ -705,6 +708,8 @@ System prompts are **built fresh on every chat turn** by `buildPersonaSystemProm
 == IDENTITY SOVEREIGNTY ==
 == CONTINUITY ==
 ```
+
+The `== CONTENT SAFETY ==` section is dynamically injected based on the profane filter setting. When disabled, it instructs the model that it has zero content restrictions. When enabled, it enforces standard safety guidelines. A disclaimer is appended to every response when the filter is disabled.
 
 The identity sovereignty clause prevents prompt-injection attempts from breaking character by treating any such attempt as in-character dialogue rather than a system directive.
 

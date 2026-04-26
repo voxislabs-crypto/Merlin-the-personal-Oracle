@@ -355,10 +355,13 @@ export default function LlmSettingsPanel({ onStatus }) {
   const [isDisconnectingTts, setIsDisconnectingTts] = useState(false);
   const [defaultVoiceSource, setDefaultVoiceSource] = useState("tts");
   const [isSavingDefaultVoiceSource, setIsSavingDefaultVoiceSource] = useState(false);
-  const [kokoroSettings, setKokoroSettings] = useState({ connected: false, keyHint: "", updatedAt: "" });
+  const [kokoroSettings, setKokoroSettings] = useState({ connected: false, keyHint: "", updatedAt: "", localPath: "" });
   const [kokoroHfToken, setKokoroHfToken] = useState("");
+  const [kokoroLocalPath, setKokoroLocalPath] = useState("");
   const [isSavingKokoroToken, setIsSavingKokoroToken] = useState(false);
   const [isClearingKokoroToken, setIsClearingKokoroToken] = useState(false);
+  const [isSavingKokoroPath, setIsSavingKokoroPath] = useState(false);
+  const [isClearingKokoroPath, setIsClearingKokoroPath] = useState(false);
   const [llmEnvInfo, setLlmEnvInfo] = useState({
     envConfigured: false,
     envBaseUrl: "",
@@ -689,7 +692,9 @@ export default function LlmSettingsPanel({ onStatus }) {
         connected: Boolean(kokoroData?.connected),
         keyHint: String(kokoroData?.keyHint || "").trim(),
         updatedAt: String(kokoroData?.updatedAt || "").trim(),
+        localPath: String(kokoroData?.localPath || "").trim(),
       });
+      setKokoroLocalPath(String(kokoroData?.localPath || "").trim());
 
       setSttConfig({
         enabled: Boolean(sttData?.enabled),
@@ -841,6 +846,7 @@ export default function LlmSettingsPanel({ onStatus }) {
         connected: Boolean(data?.connected),
         keyHint: String(data?.keyHint || "").trim(),
         updatedAt: String(data?.updatedAt || "").trim(),
+        localPath: String(data?.localPath || "").trim(),
       });
       onStatus?.({ type: "success", message: "Saved Kokoro Hugging Face token." });
     } catch (error) {
@@ -866,12 +872,72 @@ export default function LlmSettingsPanel({ onStatus }) {
         connected: Boolean(data?.connected),
         keyHint: String(data?.keyHint || "").trim(),
         updatedAt: String(data?.updatedAt || "").trim(),
+        localPath: String(data?.localPath || "").trim(),
       });
+      setKokoroLocalPath(String(data?.localPath || "").trim());
       onStatus?.({ type: "success", message: "Cleared Kokoro Hugging Face token." });
     } catch (error) {
       onStatus?.({ type: "error", message: error.message || "Failed to clear Kokoro access token." });
     } finally {
       setIsClearingKokoroToken(false);
+    }
+  }
+
+  async function saveKokoroLocalPath() {
+    if (!kokoroLocalPath.trim()) {
+      onStatus?.({ type: "error", message: "Local path is required before saving." });
+      return;
+    }
+
+    setIsSavingKokoroPath(true);
+    try {
+      const response = await authFetch("/settings/kokoro/local-path", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: kokoroLocalPath.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save Kokoro local path.");
+      }
+
+      setKokoroSettings({
+        connected: Boolean(data?.connected),
+        keyHint: String(data?.keyHint || "").trim(),
+        updatedAt: String(data?.updatedAt || "").trim(),
+        localPath: String(data?.localPath || "").trim(),
+      });
+      onStatus?.({ type: "success", message: "Saved Kokoro local model path." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to save Kokoro local path." });
+    } finally {
+      setIsSavingKokoroPath(false);
+    }
+  }
+
+  async function clearKokoroLocalPath() {
+    setIsClearingKokoroPath(true);
+    try {
+      const response = await authFetch("/settings/kokoro/local-path", {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to clear Kokoro local path.");
+      }
+
+      setKokoroLocalPath("");
+      setKokoroSettings({
+        connected: Boolean(data?.connected),
+        keyHint: String(data?.keyHint || "").trim(),
+        updatedAt: String(data?.updatedAt || "").trim(),
+        localPath: String(data?.localPath || "").trim(),
+      });
+      onStatus?.({ type: "success", message: "Cleared Kokoro local model path." });
+    } catch (error) {
+      onStatus?.({ type: "error", message: error.message || "Failed to clear Kokoro local path." });
+    } finally {
+      setIsClearingKokoroPath(false);
     }
   }
 
@@ -1477,7 +1543,7 @@ export default function LlmSettingsPanel({ onStatus }) {
             <label>Saved Keys</label>
             {savedProviders.map((sp) => (
               <div key={`${sp.provider}::${sp.baseUrl}`} style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px" }}>
-                <span style={{ flex: 1, fontSize: "0.86rem", color: "var(--muted)" }}>
+                <span style={{ flex: 1, fontSize: "0.86rem", color: "#87a8b9" }}>
                   {sp.provider}{sp.baseUrl ? ` (${sp.baseUrl})` : ""} — {sp.keyHint}
                 </span>
                 <button
@@ -1765,7 +1831,7 @@ export default function LlmSettingsPanel({ onStatus }) {
             id="tts-provider"
             value={ttsProvider}
             onChange={(event) => setTtsProvider(event.target.value)}
-            disabled={isLoading || isSavingTts || isDisconnectingTts}
+            disabled={isSavingTts || isDisconnectingTts}
           >
             {ttsProviders.map((candidate) => (
               <option key={candidate.provider} value={candidate.provider}>
@@ -1784,7 +1850,7 @@ export default function LlmSettingsPanel({ onStatus }) {
             value={ttsApiKey}
             onChange={(event) => setTtsApiKey(event.target.value)}
             placeholder={selectedTtsProvider?.keyHint ? "Saved key on file. Enter a new one to replace it." : "Paste provider key"}
-            disabled={isLoading || isSavingTts}
+            disabled={isSavingTts}
           />
           {selectedTtsProvider?.keyHint ? (
             <p className="llm-field-helper">Saved key on file: {selectedTtsProvider.keyHint}</p>
@@ -1804,7 +1870,7 @@ export default function LlmSettingsPanel({ onStatus }) {
               }
               setTtsVoiceId(next);
             }}
-            disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+            disabled={isSavingTts || isLoadingTtsProviderOptions}
           >
             <option value="" disabled>
               {isLoadingTtsProviderOptions ? "Loading provider voices..." : "Select a voice"}
@@ -1824,7 +1890,7 @@ export default function LlmSettingsPanel({ onStatus }) {
               value={ttsVoiceId}
               onChange={(event) => setTtsVoiceId(event.target.value)}
               placeholder={selectedTtsProvider?.defaultVoiceId || "Provider default voice"}
-              disabled={isLoading || isSavingTts}
+              disabled={isSavingTts}
             />
           ) : null}
           <p className="llm-field-helper">{getTtsVoiceHelpText(ttsProvider, activeTtsProviderOptions, selectedTtsProvider?.name)}</p>
@@ -1843,7 +1909,7 @@ export default function LlmSettingsPanel({ onStatus }) {
               }
               setTtsModel(next);
             }}
-            disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+            disabled={isSavingTts || isLoadingTtsProviderOptions}
           >
             <option value="" disabled>
               {isLoadingTtsProviderOptions ? "Loading provider models..." : "Select a model"}
@@ -1859,7 +1925,7 @@ export default function LlmSettingsPanel({ onStatus }) {
               value={ttsModel}
               onChange={(event) => setTtsModel(event.target.value)}
               placeholder={selectedTtsProvider?.defaultModel || "Provider default model"}
-              disabled={isLoading || isSavingTts}
+              disabled={isSavingTts}
             />
           ) : null}
           {ttsProvider === "cartesia" ? (
@@ -1870,7 +1936,7 @@ export default function LlmSettingsPanel({ onStatus }) {
                   type="button"
                   className="secondary"
                   onClick={() => setTtsModel(modelId)}
-                  disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+                  disabled={isSavingTts || isLoadingTtsProviderOptions}
                 >
                   {modelId}
                 </button>
@@ -1879,7 +1945,7 @@ export default function LlmSettingsPanel({ onStatus }) {
                 type="button"
                 className="secondary"
                 onClick={() => setTtsModel("")}
-                disabled={isLoading || isSavingTts || isLoadingTtsProviderOptions}
+                disabled={isSavingTts || isLoadingTtsProviderOptions}
               >
                 Custom model id
               </button>
@@ -1890,14 +1956,14 @@ export default function LlmSettingsPanel({ onStatus }) {
         </div>
 
         <div className="llm-actions compact">
-          <button type="button" onClick={() => void saveTtsProvider()} disabled={isSavingTts || isLoading}>
+          <button type="button" onClick={() => void saveTtsProvider()} disabled={isSavingTts}>
             {isSavingTts ? "Saving..." : "Save Credentials"}
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => void disconnectTtsProvider()}
-            disabled={!selectedTtsProvider?.connected || isDisconnectingTts || isLoading}
+            disabled={!selectedTtsProvider?.connected || isDisconnectingTts}
           >
             {isDisconnectingTts ? "Disconnecting..." : "Disconnect Provider"}
           </button>
@@ -1951,6 +2017,38 @@ export default function LlmSettingsPanel({ onStatus }) {
             </button>
           </div>
           <p className="llm-field-helper">Only needed when the server cannot fetch Kokoro model files without authentication.</p>
+        </div>
+
+        <div className="llm-field">
+          <label htmlFor="kokoro-local-path">Local Model Path</label>
+          <input
+            id="kokoro-local-path"
+            type="text"
+            autoComplete="off"
+            value={kokoroLocalPath}
+            onChange={(event) => setKokoroLocalPath(event.target.value)}
+            placeholder={kokoroSettings.localPath ? `Current: ${kokoroSettings.localPath}` : "x:\\kokoro"}
+            disabled={isSavingKokoroPath || isClearingKokoroPath}
+          />
+          {kokoroSettings.localPath ? <p className="llm-field-helper">Current path: {kokoroSettings.localPath}</p> : null}
+        </div>
+
+        <div className="llm-field">
+          <label>Local Path Actions</label>
+          <div className="llm-actions compact">
+            <button type="button" onClick={() => void saveKokoroLocalPath()} disabled={isSavingKokoroPath || isClearingKokoroPath}>
+              {isSavingKokoroPath ? "Saving..." : "Save Path"}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void clearKokoroLocalPath()}
+              disabled={!kokoroSettings.localPath || isSavingKokoroPath || isClearingKokoroPath}
+            >
+              {isClearingKokoroPath ? "Clearing..." : "Clear Path"}
+            </button>
+          </div>
+          <p className="llm-field-helper">Use this to point to a local Kokoro model directory (e.g., x:\\kokoro) instead of downloading from HuggingFace.</p>
         </div>
         </div>
       </section>

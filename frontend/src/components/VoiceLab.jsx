@@ -2143,7 +2143,7 @@ export default function VoiceLab({
                         The <strong>cloud</strong> TTS path needs a direct <strong>OpenAI API key</strong>
                         {" "}(separate from your LLM key) to synthesise voice. Your options:
                       </p>
-                      <ul style={{ margin: "8px 0 0 0", paddingLeft: 18, fontSize: "0.78rem", lineHeight: 1.65, color: "var(--muted)" }}>
+                      <ul style={{ margin: "8px 0 0 0", paddingLeft: 18, fontSize: "0.78rem", lineHeight: 1.65, color: "#87a8b9" }}>
                         <li><strong style={{ color: "#fcd34d" }}>Kokoro (recommended):</strong> Switch the engine to <em>kokoro</em> above — free, runs locally, no key needed.</li>
                         <li><strong style={{ color: "#fcd34d" }}>ElevenLabs / Cartesia:</strong> Switch to one of those engines and paste your API key below.</li>
                         <li><strong style={{ color: "#fcd34d" }}>OpenAI TTS key:</strong> Add <code style={{ background: "rgba(255,255,255,0.07)", padding: "1px 4px", borderRadius: 4 }}>TTS_API_KEY=sk-…</code> to <em>backend/.env</em> (requires server restart).</li>
@@ -2178,8 +2178,14 @@ export default function VoiceLab({
                       <p className="vlab-callout-copy">
                         Kokoro runs the 82 M ONNX model on your server. It does not require a paid TTS provider key and works regardless of your LLM provider.
                         On restricted hosts, the model download from HuggingFace may require a token for first-time cache warmup.
+                        {" "}If you have a local Kokoro model (e.g., at x:\\kokoro), configure the path in <strong>Settings → Kokoro Access</strong> to use it instead of downloading.
                       </p>
                     </div>
+                    {onOpenSettings ? (
+                      <button type="button" className="vlab-btn sec" onClick={onOpenSettings}>
+                        Open Settings
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -2285,7 +2291,7 @@ export default function VoiceLab({
                                 updateVoiceField("preferredVoice", voice.id);
                               }}
                             >
-                              <span style={{ flex: 1, fontSize: "0.85rem", color: isSelected ? "#00eaff" : "var(--text)" }}>
+                              <span style={{ flex: 1, fontSize: "0.85rem", color: isSelected ? "#00eaff" : "#dcf7ff" }}>
                                 {voice.label}
                               </span>
                               <button

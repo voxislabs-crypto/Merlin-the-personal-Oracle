@@ -6,10 +6,11 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c cyan,magenta \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
+    "dev": "concurrently -n backend,frontend -c cyan,magenta \"npm run dev --workspace backend\" \"wait-on http://localhost:3101/health && npm run dev --workspace frontend\"",
     "build": "npm run build --workspace frontend"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "wait-on": "^9.0.5"
   }
 }

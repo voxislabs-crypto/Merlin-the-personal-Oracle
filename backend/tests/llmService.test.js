@@ -7,6 +7,7 @@ const mockFetchProviderModels = vi.fn();
 vi.mock("../models/settingsModel.js", () => ({
   getLlmRuntimeConfig: mockGetLlmRuntimeConfig,
   setLlmRuntimeConfig: mockSetLlmRuntimeConfig,
+  getProfaneFilterConfig: vi.fn(() => ({ enabled: false })),
 }));
 
 vi.mock("../services/providerDiscoveryService.js", () => ({

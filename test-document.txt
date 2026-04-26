@@ -1,0 +1,17 @@
+This is a test document for the Voxis file attachment feature.
+
+It contains some sample text that should be extracted and made available to the LLM when the user uploads this file.
+
+Key points:
+- This is plain text format
+- It should be easily readable by the file parser
+- The content should be injected into the LLM context
+- The AI should be able to reference this content in responses
+
+The file attachment system supports multiple formats:
+- TXT files (like this one)
+- PDF files
+- DOCX files  
+- Image files (with OCR placeholder)
+
+This demonstrates that the file upload, parsing, storage, and LLM integration is working correctly.

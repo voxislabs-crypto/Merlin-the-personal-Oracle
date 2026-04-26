@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { execSync } from "node:child_process";
 
 import {
   getPersonalityById,
@@ -10,6 +11,65 @@ import {
   extractProsodyTemplateFromAudioUpload,
 } from "../services/prosodyExtractionService.js";
 import { analyzeAudioSegments } from "../services/voiceSegmentationService.js";
+
+export async function searchYouTubeHandler(req, res, next) {
+  try {
+    const query = String(req.query.q || "").trim();
+    if (!query) {
+      return res.status(400).json({ error: "A search query is required." });
+    }
+
+    try {
+      const whichCmd = process.platform === "win32" ? "where" : "which";
+      let ytDlpPath = "yt-dlp";
+      try {
+        ytDlpPath = execSync(`${whichCmd} yt-dlp`, { encoding: "utf-8" })
+          .toString()
+          .split("\n")[0]
+          .trim();
+      } catch (pathError) {
+        // Fall back to just "yt-dlp" if where/which fails
+        console.log("Could not find yt-dlp path with where/which, using 'yt-dlp' directly");
+      }
+
+      const searchResults = execSync(
+        `"${ytDlpPath}" "ytsearch5:${query}" --dump-json --flat-playlist`,
+        { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 }
+      ).toString();
+
+      const videos = searchResults
+        .trim()
+        .split("\n")
+        .filter(line => line.trim())
+        .map(line => {
+          try {
+            const video = JSON.parse(line);
+            return {
+              id: video.id,
+              title: video.title,
+              thumbnail: video.thumbnail || `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`,
+              url: video.webpage_url,
+            };
+          } catch (parseError) {
+            console.error("Failed to parse yt-dlp JSON line:", line, parseError);
+            return null;
+          }
+        })
+        .filter(Boolean);
+
+      return res.json({ results: videos });
+    } catch (error) {
+      console.error("YouTube search error:", error);
+      const wrapped = new Error(
+        "YouTube search failed. Make sure yt-dlp is installed and accessible."
+      );
+      wrapped.statusCode = 500;
+      throw wrapped;
+    }
+  } catch (error) {
+    return next(error);
+  }
+}
 
 export async function extractProsodyTemplateHandler(req, res, next) {
   try {

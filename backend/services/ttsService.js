@@ -14,7 +14,7 @@ import {
 import { shapeForKokoro } from "./kokoroShaper.js";
 import { interpretEmotionSpectrum } from "./emotionSpectrum.js";
 import { splitIntoChunks } from "./chunkSpeech.js";
-import { getKokoroHfToken, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
+import { getKokoroHfToken, getKokoroLocalPath, getTtsCredential, getVoiceDefaults } from "../models/settingsModel.js";
 import { cleanLyricsForTts } from "./singingEngine.js";
 
 const require = createRequire(import.meta.url);
@@ -930,6 +930,8 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
   const speechContext = classifySpeechContext({ text, speechHint, personality });
   const resolvedEngine = resolveEngine(voiceProfile);
 
+  console.log("[VOXIS DEBUG] TTS prepareSpeechSynthesis - mood:", mood, "voiceProfile:", voiceProfile);
+
   // stylizeSpeech may prepend [BURP] markers for Rick-style personas.
   // We strip them here — before TTS sees the text — and return them as sfx
   // metadata so the performance controller can emit sfx events to the frontend.
@@ -1492,8 +1494,10 @@ async function generatePiperSpeechAudio({ text, voiceProfile }) {
 
 function getKokoroConfig() {
   let dbToken = null;
+  let dbLocalPath = null;
   try {
     dbToken = getKokoroHfToken();
+    dbLocalPath = getKokoroLocalPath();
   } catch {
     // DB may not be ready during early startup.
   }
@@ -1502,6 +1506,7 @@ function getKokoroConfig() {
     voice: process.env.KOKORO_DEFAULT_VOICE || "af_heart",
     dtype: process.env.KOKORO_DTYPE || "q8",
     hfToken: String(dbToken?.token || process.env.KOKORO_HF_TOKEN || process.env.HF_TOKEN || "").trim(),
+    localPath: String(dbLocalPath || process.env.KOKORO_LOCAL_PATH || "").trim(),
   };
 }
 
@@ -1593,9 +1598,11 @@ async function loadKokoroTts() {
   }
 
   const loadTimeoutMs = getKokoroLoadTimeoutMs();
+  const modelPath = config.localPath || "onnx-community/Kokoro-82M-v1.0-ONNX";
+  
   _kokoroInitPromise = withOpTimeout(
     loadKokoroModule()
-      .then(({ KokoroTTS }) => KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+      .then(({ KokoroTTS }) => KokoroTTS.from_pretrained(modelPath, {
         dtype: config.dtype,
       }))
       .then((tts) => {

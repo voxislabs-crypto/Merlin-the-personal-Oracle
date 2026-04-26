@@ -1,5 +1,8 @@
 import express from "express";
 import cors from "cors";
+import portfinder from "portfinder";
+import fs from "fs";
+import path from "path";
 
 // Prevent unhandled async errors (e.g. from Clerk middleware in @clerk/express) from crashing
 // the Node process. Express catches synchronous errors, but some middleware throws outside
@@ -31,7 +34,8 @@ try {
 }
 
 const app = express();
-const port = Number(process.env.PORT || 3101);
+const basePort = Number(process.env.PORT || 3101);
+const PORT_FILE = path.join(process.cwd(), "..", "shared", "ports.json");
 
 function getReleaseInfo() {
   return {
@@ -96,6 +100,16 @@ app.get("/health/tts/config", (_req, res) => {
     },
     env: strFrom("NODE_ENV", "production"),
   });
+});
+
+app.get("/ports.json", (_req, res) => {
+  res.sendFile(PORT_FILE);
+});
+
+app.get("/voxis-config.js", (req, res) => {
+  const port = req.socket.localPort || basePort;
+  res.set("Content-Type", "application/javascript");
+  res.send(`window.__VOXIS_BACKEND_URL__ = "http://localhost:${port}";`);
 });
 
 app.use(personalityRoutes);
@@ -168,28 +182,42 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-app.listen(port, () => {
-  const release = getReleaseInfo();
-  console.log(
-    `Voxis backend listening on port ${port} (branch=${release.branch || "unknown"}, sha=${release.gitSha || "unknown"})`,
-  );
-  // Non-blocking SFX pre-fetch on startup
-  initSfxCache().catch((err) => console.warn("[SFX Cache] init error:", err.message));
-  // Pre-load Kokoro model in the background so the first TTS request is instant.
-  // Skip if a different engine is forced via TTS_ENGINE env to avoid crash loops
-  // when Kokoro's HuggingFace model files are unavailable.
-  const _forcedEngine = String(process.env.TTS_ENGINE || "auto").trim().toLowerCase();
-  const _kokoroDisabled = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
-  if (!_kokoroDisabled && (_forcedEngine === "auto" || _forcedEngine === "kokoro")) {
-    preloadKokoro().catch((err) => console.warn("[Kokoro] preload error:", err.message));
-  } else {
-    console.log(`[Kokoro] Preload skipped (TTS_ENGINE=${_forcedEngine}, TTS_DISABLE_KOKORO=${_kokoroDisabled}).`);
-  }
-
-  const cognitionStatus = startCognitionLoop();
-  console.log("[CognitionLoop] started", {
-    enabled: cognitionStatus.config.enabled,
-    intervalMinutes: cognitionStatus.config.intervalMinutes,
-    nextRunAt: cognitionStatus.nextRunAt,
+async function startServer() {
+  const port = await portfinder.getPortPromise({
+    port: basePort,
+    stopPort: basePort + 100,
   });
-});
+
+  // Write port to shared file
+  const sharedDir = path.dirname(PORT_FILE);
+  fs.mkdirSync(sharedDir, { recursive: true });
+  fs.writeFileSync(PORT_FILE, JSON.stringify({ backend: port }, null, 2));
+
+  app.listen(port, () => {
+    const release = getReleaseInfo();
+    console.log(
+      `Voxis backend listening on port ${port} (branch=${release.branch || "unknown"}, sha=${release.gitSha || "unknown"})`,
+    );
+    // Non-blocking SFX pre-fetch on startup
+    initSfxCache().catch((err) => console.warn("[SFX Cache] init error:", err.message));
+    // Pre-load Kokoro model in the background so the first TTS request is instant.
+    // Skip if a different engine is forced via TTS_ENGINE env to avoid crash loops
+    // when Kokoro's HuggingFace model files are unavailable.
+    const _forcedEngine = String(process.env.TTS_ENGINE || "auto").trim().toLowerCase();
+    const _kokoroDisabled = String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
+    if (!_kokoroDisabled && (_forcedEngine === "auto" || _forcedEngine === "kokoro")) {
+      preloadKokoro().catch((err) => console.warn("[Kokoro] preload error:", err.message));
+    } else {
+      console.log(`[Kokoro] Preload skipped (TTS_ENGINE=${_forcedEngine}, TTS_DISABLE_KOKORO=${_kokoroDisabled}).`);
+    }
+
+    const cognitionStatus = startCognitionLoop();
+    console.log("[CognitionLoop] started", {
+      enabled: cognitionStatus.config.enabled,
+      intervalMinutes: cognitionStatus.config.intervalMinutes,
+      nextRunAt: cognitionStatus.nextRunAt,
+    });
+  });
+}
+
+startServer();

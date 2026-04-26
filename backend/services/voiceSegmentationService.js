@@ -1,6 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
+import { execSync } from "node:child_process";
 
 const DEFAULT_CLIP_SECONDS = 4;
 const MAX_CANDIDATE_CLIPS = 12;
@@ -13,6 +14,20 @@ function clamp(value, min, max) {
 function parseNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function resolveCommand(command) {
+  try {
+    const whichCmd = process.platform === "win32" ? "where" : "which";
+    const resolvedPath = execSync(`${whichCmd} ${command}`, { encoding: "utf-8" })
+      .toString()
+      .split("\n")[0]
+      .trim();
+    return resolvedPath || command;
+  } catch (error) {
+    console.warn(`[VoiceSegmentation] Could not resolve path for '${command}', using fallback`);
+    return command;
+  }
 }
 
 function classifyVoiceBand(spectralCentroid) {
@@ -123,8 +138,8 @@ export async function analyzeAudioSegments({
   maxClips = MAX_CANDIDATE_CLIPS,
   deps = {},
 }) {
-  const ffprobeCommand = deps.ffprobeCommand || process.env.PROSODY_FFPROBE_COMMAND || "ffprobe";
-  const ffmpegCommand = deps.ffmpegCommand || process.env.PROSODY_FFMPEG_COMMAND || "ffmpeg";
+  const ffprobeCommand = deps.ffprobeCommand || process.env.PROSODY_FFPROBE_COMMAND || resolveCommand("ffprobe");
+  const ffmpegCommand = deps.ffmpegCommand || process.env.PROSODY_FFMPEG_COMMAND || resolveCommand("ffmpeg");
   const run = deps.runCommand || runCommand;
   const workspaceDir = deps.workspaceDir || await fs.mkdtemp(path.join(os.tmpdir(), "voxis-voice-segments-"));
 

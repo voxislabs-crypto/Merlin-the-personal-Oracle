@@ -508,10 +508,23 @@ const chatStyles = `
     background: rgba(0, 180, 255, 0.02);
   }
 
+  .composer.dragging {
+    border-color: rgba(0, 180, 255, 0.4);
+    background: rgba(0, 180, 255, 0.08);
+  }
+
+  .composer-input-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .composer textarea {
     width: 100%;
     min-height: 88px;
     padding: 13px 16px;
+    padding-right: 100px;
     border: 1px solid rgba(0, 180, 255, 0.14);
     border-radius: 16px;
     background: rgba(6, 14, 28, 0.90);
@@ -527,6 +540,86 @@ const chatStyles = `
     outline: none;
     border-color: rgba(0, 180, 255, 0.42);
     box-shadow: 0 0 0 3px rgba(0, 180, 255, 0.08);
+  }
+
+  .composer-actions {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .composer-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(0, 180, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(0, 180, 255, 0.06);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 150ms, border-color 150ms, transform 100ms;
+  }
+
+  .composer-icon-btn:hover {
+    background: rgba(0, 180, 255, 0.12);
+    border-color: rgba(0, 180, 255, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .composer-icon-btn.recording {
+    background: rgba(255, 96, 96, 0.2);
+    border-color: rgba(255, 96, 96, 0.5);
+    color: #ff6060;
+    animation: recordingPulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes recordingPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 96, 96, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(255, 96, 96, 0); }
+  }
+
+  .composer-icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .composer-file-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(0, 180, 255, 0.06);
+    border: 1px solid rgba(0, 180, 255, 0.2);
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+
+  .composer-file-preview-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .composer-file-preview-remove {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 96, 96, 0.15);
+    color: #ff6060;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 150ms;
+  }
+
+  .composer-file-preview-remove:hover {
+    background: rgba(255, 96, 96, 0.25);
   }
 
   .composer button {
@@ -1927,6 +2020,9 @@ export default function ChatWindow({
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const authFetch = useAuthFetch();
   const [draft, setDraft] = useState("");
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [voiceProfile, setVoiceProfile] = useState({
     enabled: true,
     autoplay: false,
@@ -1972,6 +2068,8 @@ export default function ChatWindow({
   const streamPendingSentenceQueueRef = useRef([]);
   const streamReadyAudioQueueRef = useRef([]);
   const streamQueueProcessingRef = useRef(false);
+  const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
   const streamPlaybackActiveRef = useRef(false);
   const streamAutoplayUsedRef = useRef(false);
   const autoplayAssistantBaselineRef = useRef(0);
@@ -3120,7 +3218,97 @@ export default function ChatWindow({
     }
 
     setDraft("");
+    setAttachedFile(null);
     await onSend(message);
+  }
+
+  function handleKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSubmit(event);
+    }
+  }
+
+  function handleFileSelect(event) {
+    const file = event.target.files?.[0];
+    if (file) {
+      setAttachedFile(file);
+    }
+  }
+
+  function handleFileButtonClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleRemoveFile() {
+    setAttachedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      setAttachedFile(file);
+    }
+  }
+
+  function toggleRecording() {
+    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+      onStatus?.({ type: "error", message: "Speech recognition is not supported in this browser." });
+      return;
+    }
+
+    if (isRecording) {
+      // Stop recording
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setDraft((prev) => prev + (prev ? " " : "") + transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsRecording(false);
+        onStatus?.({ type: "error", message: "Speech recognition failed. Please try again." });
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsRecording(true);
+    }
   }
 
   if (!personality) {
@@ -3567,7 +3755,7 @@ export default function ChatWindow({
               >
                 {TTS_DEBUG_PROVIDER_LOCK ? (
                   <>
-                    <option value="auto">{TTS_DISABLE_KOKORO ? "Auto (cartesia only)" : "Auto (cartesia -&gt; kokoro)"}</option>
+                    <option value="auto">{TTS_DISABLE_KOKORO ? "Auto (cartesia only)" : "Auto (cartesia → kokoro)"}</option>
                     {TTS_DISABLE_KOKORO ? null : <option value="kokoro">Kokoro (local, free)</option>}
                     <option value="cartesia">Cartesia</option>
                   </>
@@ -4020,12 +4208,70 @@ export default function ChatWindow({
             </div>
           ) : null}
 
-          <form className="composer" onSubmit={handleSubmit}>
-            <textarea
-              placeholder={`Message ${personality.name}...`}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-            />
+          <form 
+            className={`composer ${isDragging ? "dragging" : ""}`}
+            onSubmit={handleSubmit}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="composer-input-wrap">
+              <textarea
+                placeholder={`Message ${personality.name}...`}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              <div className="composer-actions">
+                <button
+                  type="button"
+                  className={`composer-icon-btn ${isRecording ? "recording" : ""}`}
+                  onClick={toggleRecording}
+                  title={isRecording ? "Stop recording" : "Start voice input"}
+                >
+                  {isRecording ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="composer-icon-btn"
+                  onClick={handleFileButtonClick}
+                  title="Attach file"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: "none" }}
+                  onChange={handleFileSelect}
+                />
+              </div>
+              {attachedFile && (
+                <div className="composer-file-preview">
+                  <span className="composer-file-preview-name">{attachedFile.name}</span>
+                  <button
+                    type="button"
+                    className="composer-file-preview-remove"
+                    onClick={handleRemoveFile}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
             <button type="submit" disabled={isSending || !draft.trim()}>
               {isSending ? "Sending..." : "Send"}
             </button>

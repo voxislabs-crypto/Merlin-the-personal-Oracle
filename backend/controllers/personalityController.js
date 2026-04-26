@@ -9,6 +9,7 @@ import {
   updatePersonality,
   updatePersonalityVoiceProfile,
 } from "../models/personalityModel.js";
+import { generateChatCompletion } from "../services/llmService.js";
 import { clearChatMessagesForPersonality } from "../models/chatModel.js";
 import { clearPersonalityMemory } from "../models/memoryModel.js";
 import { moodFromLabel } from "../services/moodEngine.js";
@@ -798,12 +799,68 @@ export async function deletePersonalityHandler(req, res, next) {
     await removePersonaArtifacts(personality);
     deletePersonality(personalityId);
 
+    return res.json({ success: true, deletedName: personality.name, message: "Personality deleted successfully." });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function analyzeCharacterHandler(req, res, next) {
+  try {
+    const { name, description, sourceUrls } = req.body;
+
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return res.status(400).json({ error: "Character name is required." });
+    }
+
+    const analysisPrompt = `You are a character analysis expert. Analyze the following character and extract their key personality traits and quirks.
+
+Character Name: ${name}
+${description ? `Description: ${description}` : ""}
+${sourceUrls && sourceUrls.length > 0 ? `Source URLs: ${sourceUrls.join(", ")}` : ""}
+
+Return a JSON object with this exact structure:
+{
+  "traits": ["trait1", "trait2", "trait3"],
+  "quirks": ["quirk1", "quirk2", "quirk3"],
+  "sampleDialogue": ["sample line 1", "sample line 2", "sample line 3"],
+  "speechStyle": "brief description of speech style",
+  "mood": "primary mood"
+}
+
+Keep traits and quirks to 3-5 items each. Make sample dialogue authentic to the character's voice.`;
+
+    const messages = [
+      { role: "system", content: "You are a character analysis expert. Always return valid JSON." },
+      { role: "user", content: analysisPrompt },
+    ];
+
+    const response = await generateChatCompletion(messages);
+
+    let analysis;
+    try {
+      analysis = JSON.parse(response);
+    } catch (parseError) {
+      // Try to extract JSON from response if it's wrapped in markdown
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("Failed to parse analysis response");
+      }
+    }
+
     return res.json({
-      ok: true,
-      deletedId: personalityId,
-      deletedName: personality.name,
+      name: name.trim(),
+      description: description?.trim() || "",
+      traits: Array.isArray(analysis.traits) ? analysis.traits : [],
+      quirks: Array.isArray(analysis.quirks) ? analysis.quirks : [],
+      sampleDialogue: Array.isArray(analysis.sampleDialogue) ? analysis.sampleDialogue : [],
+      speechStyle: analysis.speechStyle || "",
+      mood: analysis.mood || "neutral",
     });
   } catch (error) {
+    console.error("Character analysis error:", error);
     return next(error);
   }
 }

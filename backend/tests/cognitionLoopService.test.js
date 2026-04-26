@@ -455,7 +455,7 @@ describe("cognitionLoopService", () => {
     const summary = await mod.runCognitionLoopOnce({ reason: "manual" });
 
     const writeTypes = mockUpsertMemoryFactWithEmbedding.mock.calls.map((c) => c[2]);
-    expect(writeTypes).toContain("reach_out_delivery");
-    expect(summary.deliveredReachOut).toBe(1);
+    expect(writeTypes).toContain("reach_out_candidate");
+    expect(summary.deliveredReachOut).toBe(0);
   });
 });

@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "backfill-memory-embeddings": "node scripts/backfillMemoryEmbeddings.js",
+    "backfill-chat-embeddings": "node scripts/backfillChatEmbeddings.js",
+    "backfill-user-memory-embeddings": "node scripts/backfillUserMemoryEmbeddings.js",
     "seed-ara-personas": "node scripts/seedAraPersonas.js",
     "adversarial-harness": "node scripts/adversarialTranscriptHarness.js",
     "tts-diagnostics": "node scripts/testTtsDiagnostics.js",
@@ -24,6 +26,7 @@
     "express": "^4.21.2",
     "jsdom": "^26.1.0",
     "kokoro-js": "^1.2.1",
+    "portfinder": "^1.0.38",
     "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {

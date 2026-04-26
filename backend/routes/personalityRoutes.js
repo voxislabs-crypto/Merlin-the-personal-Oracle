@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   claimLegacyPersonalitiesHandler,
+  analyzeCharacterHandler,
   createPersonalityHandler,
   deletePersonalityHandler,
   getPersonalityHandler,
@@ -22,7 +23,7 @@ import {
   listProviderStatusHandler,
   listProviderOptionsHandler,
 } from "../controllers/ttsController.js";
-import { extractProsodyTemplateHandler } from "../controllers/prosodyController.js";
+import { extractProsodyTemplateHandler, searchYouTubeHandler } from "../controllers/prosodyController.js";
 import {
   extractVoiceSamplesHandler,
   confirmVoiceSampleHandler,
@@ -50,6 +51,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 const router = Router();
 
 router.post("/personality", requireAuth, createPersonalityHandler);
+router.post("/analyze-character", requireAuth, analyzeCharacterHandler);
 router.post("/research-profile", requireAuth, researchProfileHandler);
 router.get("/personalities", requireAuth, listPersonalitiesHandler);
 router.post("/personalities/claim-legacy", requireAuth, claimLegacyPersonalitiesHandler);
@@ -74,6 +76,7 @@ router.get("/tts/kokoro-voices", requireAuth, listKokoroVoicesHandler);
 router.get("/tts/providers", requireAuth, listProviderStatusHandler);
 router.get("/tts/provider-options", requireAuth, listProviderOptionsHandler);
 router.post("/personality/:id/tts", requireAuth, generateSpeechHandler);
+router.get("/youtube/search", requireAuth, searchYouTubeHandler);
 router.post("/personality/:id/prosody-template", requireAuth, extractProsodyTemplateHandler);
 router.post("/personality/:id/voice-samples", requireAuth, extractVoiceSamplesHandler);
 router.get("/personality/:id/voice-samples", requireAuth, getVoiceSamplesHandler);

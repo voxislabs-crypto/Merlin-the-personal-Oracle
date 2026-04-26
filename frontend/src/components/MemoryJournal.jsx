@@ -469,7 +469,7 @@ function MemoryRow({ fact, onSave, onDelete, isConflicting, onQuickPatch }) {
                   <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
                 ))}
               </select>
-              <label style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
+              <label style={{ fontSize: "0.82rem", color: "#87a8b9" }}>
                 Importance
                 <input
                   type="number"
@@ -500,7 +500,7 @@ function MemoryRow({ fact, onSave, onDelete, isConflicting, onQuickPatch }) {
           <>
             <p className="memory-content">{fact.content}</p>
             <div className="memory-quick-controls">
-              <label style={{ fontSize: "0.78rem", color: "var(--muted)" }}>
+              <label style={{ fontSize: "0.78rem", color: "#87a8b9" }}>
                 Importance
                 <input
                   className="memory-slider"

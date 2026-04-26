@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "sourceUrl": "https://youtu.be/YxLbeVVNYUo",
+  "extractedAt": "2026-04-25T20:09:32.885Z",
+  "rhythm": {
+    "label": "dense",
+    "speechDensity": 0.969,
+    "pauseRatio": 0.031
+  },
+  "cadence": {
+    "label": "deliberate",
+    "avgPauseSeconds": 2.101,
+    "pauseCount": 8
+  },
+  "prosody": {
+    "contour": "elongated",
+    "intensity": "high"
+  },
+  "audio": {
+    "durationSeconds": 545.536,
+    "sampleRate": 48000,
+    "channels": 2
+  }
+}

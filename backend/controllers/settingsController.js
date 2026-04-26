@@ -9,6 +9,8 @@ import {
   setLlmRuntimeConfig,
   upsertSavedLlmCredential,
   removeSavedLlmCredential,
+  getProfaneFilterConfig,
+  setProfaneFilterConfig,
   getAllTtsCredentials,
   getTtsCredential,
   setTtsCredential,
@@ -20,6 +22,9 @@ import {
   getKokoroHfToken,
   setKokoroHfToken,
   clearKokoroHfToken,
+  getKokoroLocalPath,
+  setKokoroLocalPath,
+  clearKokoroLocalPath,
   getMoodRuntimeConfig,
   setMoodRuntimeConfig,
   getExpressionSamplingConfig,
@@ -30,6 +35,8 @@ import {
   setSearchRuntimeConfig,
   getStateRuntimeConfig,
   setStateRuntimeConfig,
+  getCognitionLoopConfig,
+  setCognitionLoopConfig,
 } from "../models/settingsModel.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -315,11 +322,13 @@ function toPublicTtsCredential(cred) {
 
 function toPublicKokoroSettings() {
   const saved = getKokoroHfToken();
+  const localPath = getKokoroLocalPath();
   return {
     provider: "kokoro",
     connected: Boolean(saved?.token),
     keyHint: saved?.token ? maskApiKey(saved.token) : "",
     updatedAt: saved?.updatedAt || "",
+    localPath: localPath || "",
   };
 }
 
@@ -421,6 +430,29 @@ export function clearKokoroHfTokenHandler(_req, res, next) {
   }
 }
 
+export function saveKokoroLocalPathHandler(req, res, next) {
+  try {
+    const path = String(req.body?.path || "").trim();
+    if (!path) {
+      return res.status(400).json({ error: "path is required." });
+    }
+
+    setKokoroLocalPath({ path });
+    return res.json(toPublicKokoroSettings());
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export function clearKokoroLocalPathHandler(_req, res, next) {
+  try {
+    clearKokoroLocalPath();
+    return res.json(toPublicKokoroSettings());
+  } catch (error) {
+    return next(error);
+  }
+}
+
 export function getMoodRuntimeSettingsHandler(_req, res) {
   return res.json(getMoodRuntimeConfig());
 }
@@ -468,6 +500,26 @@ export function getStateRuntimeSettingsHandler(_req, res) {
 export function saveStateRuntimeSettingsHandler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const updated = setStateRuntimeConfig(body);
+  return res.json(updated);
+}
+
+export function getCognitionLoopSettingsHandler(_req, res) {
+  return res.json(getCognitionLoopConfig());
+}
+
+export function saveCognitionLoopSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setCognitionLoopConfig(body);
+  return res.json(updated);
+}
+
+export function getProfaneFilterSettingsHandler(_req, res) {
+  return res.json(getProfaneFilterConfig());
+}
+
+export function saveProfaneFilterSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setProfaneFilterConfig(body);
   return res.json(updated);
 }
 

@@ -71,7 +71,7 @@ import {
   reinforcePersonaPreferences,
   decayPersonaPreferences,
 } from "../models/preferencesModel.js";
-import { getMoodRuntimeConfig, getExpressionSamplingConfig, getStateRuntimeConfig } from "../models/settingsModel.js";
+import { getMoodRuntimeConfig, getExpressionSamplingConfig, getStateRuntimeConfig, getProfaneFilterConfig } from "../models/settingsModel.js";
 import { applyBoundedExpressionSampling } from "../services/expressionSampler.js";
 import {
   searchWeb,
@@ -97,6 +97,15 @@ import {
   describeDriftState,
   checkSingingTrigger,
 } from "../services/emotionMemoryDrift.js";
+import {
+  generateSessionId,
+  observePersonalityLoad,
+  observeMoodTransition,
+  observeMemoryInjection,
+  observePromptConstruction,
+  observeLLMGeneration,
+  observeUtterancePlan,
+} from "../services/brainObserver.js";
 import {
   normalizeSingingProfile,
   computeSingingChance,
@@ -472,6 +481,8 @@ export async function chatHandler(req, res, next) {
     const requestedMode = String(req.body.mode || "").trim().toLowerCase();
     const forceWebSearch = req.body.enableSearch === true;
 
+    console.log("[VOXIS DEBUG] Backend received - personalityId:", personalityId);
+
     if (!Number.isInteger(personalityId)) {
       return res.status(400).json({ error: "A valid personalityId is required." });
     }
@@ -493,6 +504,9 @@ export async function chatHandler(req, res, next) {
     if (!personality) {
       return res.status(404).json({ error: "Personality not found." });
     }
+
+    const sessionId = generateSessionId();
+    observePersonalityLoad(sessionId, personality);
 
     const totalMessages = getChatMessageCount(personalityId);
 
@@ -551,6 +565,8 @@ export async function chatHandler(req, res, next) {
       "valence" in personality.moodState
         ? personality.moodState
         : { ...moodBaseline };
+
+    console.log("[VOXIS DEBUG] Mood before LLM call - currentMood:", currentMood);
 
     if (policy.activeMode === "kids") {
       const blocked = detectKidsUnsafeInput(message);
@@ -625,6 +641,10 @@ export async function chatHandler(req, res, next) {
     });
     const newMood = moodStep.mood;
     const moodLabel = moodToLabel(newMood);
+
+    console.log("[VOXIS DEBUG] Mood after update - newMood:", newMood, "moodLabel:", moodLabel);
+
+    observeMoodTransition(sessionId, { before: currentMood, after: newMood, label: moodLabel, stepDiagnostics: moodStep.diagnostics });
 
     // Persist synchronously before the LLM call so mood influences this response.
     updateMoodState(personalityId, newMood);
@@ -743,6 +763,9 @@ export async function chatHandler(req, res, next) {
       ? await getRelevantUserMemory(policy.userId, message, 4)
       : [];
 
+    console.log("[VOXIS MEMORY DEBUG] Retrieved memory entries:", memoryFacts.length);
+    console.log("[VOXIS MEMORY DEBUG] Memory entries:", memoryFacts.map(m => ({ content: m.content, importance: m.importance, type: m.memoryType })));
+
     // Layer 2: raw conversation history retrieval — only for recall/personal queries.
     const rawHistoryTurns = isPersonalQuery(message)
       ? await searchRawChatHistory(personalityId, message, 3).catch(() => [])
@@ -752,6 +775,27 @@ export async function chatHandler(req, res, next) {
       conversationKey: `${personalityId}:${userScopedId ?? "anon"}`,
     });
     const systemPrompt = promptPackage.prompt;
+
+    console.log("[VOXIS DEBUG] Final prompt sent to LLM (first 500 chars):", systemPrompt.substring(0, 500));
+    console.log("[VOXIS DEBUG] Personality behavioral impact - name:", personality.name);
+    console.log("[VOXIS DEBUG] Top 3 traits:", (personality.traits || []).slice(0, 3));
+    console.log("[VOXIS DEBUG] Behavioral directives sent to LLM (first 300 chars):", (personality.behaviorRules || []).join(" ").substring(0, 300));
+    console.log("[VOXIS MEMORY DEBUG] Selected memory used in prompt:", (promptPackage.debug?.injectedMemories || []).map(m => ({ content: m.content, injectedAs: m.injectedAs })));
+    console.log("[VOXIS MEMORY DEBUG] Final memory block injected into LLM (first 400 chars):", systemPrompt.substring(systemPrompt.indexOf("== IMMUTABLE IDENTITY ANCHORS =="), systemPrompt.indexOf("== IMMUTABLE IDENTITY ANCHORS ==") + 400));
+
+    observeMemoryInjection(sessionId, {
+      retrieved: memoryFacts,
+      injected: promptPackage.debug?.injectedMemories || [],
+      promptSection: systemPrompt.substring(systemPrompt.indexOf("== IMMUTABLE IDENTITY ANCHORS =="), systemPrompt.indexOf("== IMMUTABLE IDENTITY ANCHORS ==") + 400),
+    });
+
+    observePromptConstruction(sessionId, {
+      promptPackage,
+      moodLabel,
+      activeGoal: promptPackage.activeGoal,
+      activeResponseLens: promptPackage.activeResponseLens,
+    });
+
     streamedDebugData.goal = promptPackage.activeGoal;
     streamedDebugData.responseLens = promptPackage.activeResponseLens;
     streamedDebugData.memoryRetrieved = memoryFacts.map((memory) => ({
@@ -981,6 +1025,8 @@ export async function chatHandler(req, res, next) {
     });
     let reply = generation.reply;
     let usage = generation.usage;
+
+    observeLLMGeneration(sessionId, { inputTokens: inputTokenEstimate, model: process.env.LLM_MODEL || "unknown", usage });
     const rateLimit = generation.rateLimit;
     const usedFallbackReply = generation.usedFallbackReply;
     let scientistValidation = null;
@@ -1309,9 +1355,18 @@ export async function chatHandler(req, res, next) {
       mode: policy.activeMode,
     });
 
+    observeUtterancePlan(sessionId, { utterancePlan, reply });
+
+    // Check profane filter and add disclaimer if disabled
+    const profaneFilterConfig = getProfaneFilterConfig();
+    const profaneFilterEnabled = profaneFilterConfig.enabled === true;
+    const disclaimerText = profaneFilterEnabled 
+      ? "" 
+      : `\n\n[${profaneFilterConfig.disclaimer}]`;
+    
     const responsePayload = {
-      reply: utterancePlan.rawText,
-      displayReply: utterancePlan.displayText,
+      reply: utterancePlan.rawText + disclaimerText,
+      displayReply: utterancePlan.displayText + disclaimerText,
       isPerformanceOutput: utterancePlan.isPerformanceOutput,
       utterancePlan,
       expressionReplayId: sampled.replayId || "",

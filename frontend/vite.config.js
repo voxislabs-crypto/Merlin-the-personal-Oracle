@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "path";
+
+const backendUrl = "http://localhost:3101";
 
 export default defineConfig({
   plugins: [react()],
@@ -12,23 +15,94 @@ export default defineConfig({
       "@react-three/drei",
       "@react-three/postprocessing",
     ],
+    alias: {
+      "@clerk/react": path.resolve(__dirname, "./src/mocks/clerk.jsx"),
+    },
   },
   server: {
     port: 3100,
     proxy: {
-      "/api": "http://localhost:3101",
-      "/health": "http://localhost:3101",
-      "/me": "http://localhost:3101",
-      "/users": "http://localhost:3101",
-      "/memory": "http://localhost:3101",
-      "/personality": "http://localhost:3101",
-      "/personality-preference": "http://localhost:3101",
-      "/personalities": "http://localhost:3101",
-      "/research-profile": "http://localhost:3101",
-      "/chat": "http://localhost:3101",
-      "/settings": "http://localhost:3101",
-      "/tts": "http://localhost:3101",
-      "/voice-presets": "http://localhost:3101",
+      "/api": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      "/health": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/me": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/users": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/memory": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/personality": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/personality-preference": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/personalities": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/research-profile": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/chat": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/settings": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/tts": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/voice-presets": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/youtube": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/ports.json": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/voxis-config.js": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

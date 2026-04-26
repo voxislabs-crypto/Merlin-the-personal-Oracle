@@ -114,6 +114,27 @@ export const clerkVerify = async (req, res, next) => {
 
 export async function requireAuth(req, res, next) {
   try {
+    // Development bypass when ALLOW_MISSING_CLERK_KEYS is set
+    if (allowMissingClerkKeys) {
+      const devUserId = "1"; // Match mock Clerk userId
+      req.clerkUserId = devUserId;
+      
+      let voxisUser = getUserByClerkId(devUserId);
+      
+      if (!voxisUser) {
+        const { user } = createUser({
+          displayName: "Dev User",
+          ageBand: "adult",
+          defaultMode: "scientist",
+          clerkId: devUserId,
+        });
+        voxisUser = user;
+      }
+      
+      req.voxisUser = voxisUser;
+      return next();
+    }
+
     const clerkUserId = req.auth?.userId || null;
 
     if (!clerkUserId) {

@@ -16,6 +16,8 @@ import {
   getKokoroSettingsHandler,
   saveKokoroHfTokenHandler,
   clearKokoroHfTokenHandler,
+  saveKokoroLocalPathHandler,
+  clearKokoroLocalPathHandler,
   getMoodRuntimeSettingsHandler,
   saveMoodRuntimeSettingsHandler,
   getExpressionSamplingSettingsHandler,
@@ -26,6 +28,10 @@ import {
   saveSearchRuntimeSettingsHandler,
   getStateRuntimeSettingsHandler,
   saveStateRuntimeSettingsHandler,
+  getCognitionLoopSettingsHandler,
+  saveCognitionLoopSettingsHandler,
+  getProfaneFilterSettingsHandler,
+  saveProfaneFilterSettingsHandler,
   getVoiceMapsHandler,
   saveVoiceMapHandler,
   deleteVoiceMapHandler,
@@ -51,6 +57,8 @@ router.delete("/settings/tts/:provider", requireAuth, requireAdmin, clearTtsCred
 router.get("/settings/kokoro", requireAuth, getKokoroSettingsHandler);
 router.put("/settings/kokoro", requireAuth, requireAdmin, saveKokoroHfTokenHandler);
 router.delete("/settings/kokoro", requireAuth, requireAdmin, clearKokoroHfTokenHandler);
+router.put("/settings/kokoro/local-path", requireAuth, requireAdmin, saveKokoroLocalPathHandler);
+router.delete("/settings/kokoro/local-path", requireAuth, requireAdmin, clearKokoroLocalPathHandler);
 router.get("/settings/mood-runtime", requireAuth, getMoodRuntimeSettingsHandler);
 router.put("/settings/mood-runtime", requireAuth, requireAdmin, saveMoodRuntimeSettingsHandler);
 router.get("/settings/expression-sampling", requireAuth, getExpressionSamplingSettingsHandler);
@@ -61,6 +69,10 @@ router.get("/settings/search-runtime", requireAuth, getSearchRuntimeSettingsHand
 router.put("/settings/search-runtime", requireAuth, requireAdmin, saveSearchRuntimeSettingsHandler);
 router.get("/settings/state-runtime", requireAuth, getStateRuntimeSettingsHandler);
 router.put("/settings/state-runtime", requireAuth, requireAdmin, saveStateRuntimeSettingsHandler);
+router.get("/settings/cognition-loop", requireAuth, getCognitionLoopSettingsHandler);
+router.put("/settings/cognition-loop", requireAuth, requireAdmin, saveCognitionLoopSettingsHandler);
+router.get("/settings/profane-filter", requireAuth, getProfaneFilterSettingsHandler);
+router.put("/settings/profane-filter", requireAuth, requireAdmin, saveProfaneFilterSettingsHandler);
 router.get("/settings/voice-maps", requireAuth, getVoiceMapsHandler);
 router.put("/settings/voice-maps", requireAuth, saveVoiceMapHandler);
 router.delete("/settings/voice-maps/:id", requireAuth, deleteVoiceMapHandler);

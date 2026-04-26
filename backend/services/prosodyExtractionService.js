@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { existsSync, promises as fs } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 
 const TEMPLATE_DIR = path.resolve(process.cwd(), "prosody-templates");
 const AUDIO_EXTENSIONS = new Set([".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac"]);
@@ -30,6 +30,21 @@ function createMissingToolError(command, error) {
   return wrapped;
 }
 
+function resolveCommand(command) {
+  try {
+    const whichCmd = process.platform === "win32" ? "where" : "which";
+    const resolvedPath = execSync(`${whichCmd} ${command}`, { encoding: "utf-8" })
+      .toString()
+      .split("\n")[0]
+      .trim();
+    return resolvedPath;
+  } catch (error) {
+    // Fall back to just the command name if where/which fails
+    console.log(`Could not resolve path for ${command} with where/which, using command directly`);
+    return command;
+  }
+}
+
 function getProsodyYtDlpCommand() {
   const configured = String(process.env.PROSODY_YTDLP_COMMAND || "").trim();
   if (configured) {
@@ -37,7 +52,11 @@ function getProsodyYtDlpCommand() {
   }
 
   const localBinary = path.join(os.homedir(), ".local", "bin", "yt-dlp");
-  return existsSync(localBinary) ? localBinary : "yt-dlp";
+  if (existsSync(localBinary)) {
+    return localBinary;
+  }
+
+  return resolveCommand("yt-dlp");
 }
 
 function runCommand(command, args, options = {}) {
@@ -173,8 +192,8 @@ function parseSilenceDurations(stderr) {
 }
 
 async function defaultAnalyzeAudio({ audioPath }) {
-  const ffprobeCommand = process.env.PROSODY_FFPROBE_COMMAND || "ffprobe";
-  const ffmpegCommand = process.env.PROSODY_FFMPEG_COMMAND || "ffmpeg";
+  const ffprobeCommand = process.env.PROSODY_FFPROBE_COMMAND || resolveCommand("ffprobe");
+  const ffmpegCommand = process.env.PROSODY_FFMPEG_COMMAND || resolveCommand("ffmpeg");
 
   const probe = await runCommand(ffprobeCommand, [
     "-v",

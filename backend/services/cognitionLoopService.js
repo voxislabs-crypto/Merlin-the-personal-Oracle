@@ -9,6 +9,7 @@ import {
 import { getAllPersonalities, updatePersonality } from "../models/personalityModel.js";
 import { getCognitionLoopConfig } from "../models/settingsModel.js";
 import { generateChatCompletion, isLlmConfigured } from "./llmService.js";
+import { getAllUserMemory } from "../models/userMemoryModel.js";
 
 const DEFAULT_STATUS = {
   started: false,
@@ -329,6 +330,88 @@ function buildFeedbackSnapshot(feedbackRows) {
     .join("\n");
 }
 
+// --- Autonomous decision helpers ---
+
+async function savePrivateThought(personalityId, thoughtText) {
+  if (!thoughtText || typeof thoughtText !== 'string') return;
+  
+  const cleanThought = thoughtText.trim();
+  if (cleanThought.length < 8) return;
+
+  await upsertMemoryFactWithEmbedding(
+    personalityId,
+    cleanThought,
+    "private_thought",
+    7
+  );
+}
+
+function resolveUserName(userId, personalityId) {
+  if (!userId) {
+    return "user";
+  }
+
+  try {
+    const userMemories = getAllUserMemory(userId);
+    for (const memory of userMemories) {
+      const content = String(memory.content || "").toLowerCase();
+      const nameMatch = content.match(/(?:name|called|call me|i am|i'm|i am called|my name is)\s+([a-z][a-z\s-]{1,20})/i);
+      if (nameMatch && nameMatch[1]) {
+        return nameMatch[1].trim();
+      }
+    }
+  } catch (error) {
+    console.warn("[CognitionLoop] Failed to resolve user name:", error?.message || error);
+  }
+
+  return "user";
+}
+
+async function makeAutonomousDecision({ personality, messages, memoryFacts, inactivityHours, config }) {
+  const lastUserMessage = [...messages].reverse().find(m => m.role === "user");
+  const userId = lastUserMessage?.userId || null;
+  const userName = resolveUserName(userId, personality.id);
+
+  const minutesAgo = Math.floor(inactivityHours * 60);
+
+  const decisionPrompt = `You are ${personality.name}, currently alone.
+
+It has been ${minutesAgo} minutes since you last spoke with ${userName}.
+Your mood is ${personality.mood || "neutral"}.
+
+Recent memories:
+${memoryFacts.slice(0, 5).map(m => `• ${m.content}`).join("\n") || "none"}
+
+You now have a quiet moment to yourself.
+
+Do you want to:
+SILENT - stay quiet
+THINK - reflect privately
+REACH_OUT - message ${userName} right now?
+
+Answer with ONLY one word: SILENT, THINK, or REACH_OUT.`;
+
+  try {
+    const result = await generateChatCompletion([
+      { role: "system", content: "Respond with exactly one word: SILENT, THINK, or REACH_OUT. No other text." },
+      { role: "user", content: decisionPrompt }
+    ], {
+      temperature: 0.3,
+      max_tokens: 12
+    });
+
+    const choice = String(result).trim().toUpperCase();
+
+    if (choice.includes("REACH_OUT")) return { decision: "REACH_OUT", userName };
+    if (choice.includes("THINK")) return { decision: "THINK", userName };
+    return { decision: "SILENT", userName };
+
+  } catch (err) {
+    console.warn("[CognitionLoop] Autonomous decision failed:", err.message);
+    return { decision: "SILENT", userName };
+  }
+}
+
 // --- Conversation / memory snapshot helpers ---
 
 function buildConversationSnapshot(messages, personalityName) {
@@ -353,51 +436,43 @@ function buildMemorySnapshot(memoryFacts) {
     .join("\n");
 }
 
-function buildReflectionMessages({ personality, messages, memoryFacts, feedbackSnapshot, config }) {
-  const convo = buildConversationSnapshot(messages, personality.name);
-  const memory = buildMemorySnapshot(memoryFacts);
-  const goals = Array.isArray(personality.goals) && personality.goals.length
-    ? personality.goals.slice(0, 8).join(" | ")
-    : "none";
+function buildReflectionMessages({ personality, messages, memoryFacts, feedbackSnapshot, config, userName = "user" }) {
+  const recentChat = messages
+    .slice(-8)
+    .map(msg => `${msg.role === "assistant" ? personality.name : userName}: ${String(msg.content || "").slice(0, 280)}`)
+    .join("\n");
 
-  const prompt = [
-    `Personality: ${personality.name}`,
-    `Creative context: ${personality.creativeContext || "default"}`,
-    `Current mood label: ${personality.mood || "Neutral"}`,
-    `Current mood state (VAD): ${JSON.stringify(personality.moodState || {})}`,
-    `Active goals: ${goals}`,
-    "Recent exchange context:",
-    convo || "none",
-    "Long-term memory context:",
-    memory,
-    "Past reach-out feedback (what worked vs was ignored):",
-    feedbackSnapshot || "none",
-    "Task: Perform a private background reflection pass.",
-    "Consider past feedback: favor approaches that received replies, avoid repeating ignored styles.",
-    "Return JSON only with keys:",
-    "privateThoughts: string[] (0-3)",
-    "openLoops: [{content:string, urgency:number}] (0-3)",
-    "goalCandidates: string[] (0-2)",
-    "reachOut: {shouldReachOut:boolean, type:'curiosity'|'reflection'|'idea'|'concern', curiosityScore:number, reason:string, draft:string, cooldownKey:string}",
-    "Rules:",
-    "- Be sparse and grounded in known context.",
-    "- No duplicate or generic thoughts.",
-    "- urgency and curiosityScore must be 0..1.",
-    "- reachOut.draft should be one concise sentence if shouldReachOut=true, else empty.",
-    "- reachOut.type should describe the emotional style of the outreach.",
-    "- reachOut.cooldownKey should be a short grouping key like 'general' or 'career'.",
-  ].join("\n\n");
+  const memory = memoryFacts
+    .slice(0, 8)
+    .map(f => `• ${f.content}`)
+    .join("\n");
+
+  const prompt = `You are ${personality.name}. You are thinking privately about ${userName}.
+
+Current mood: ${personality.mood || "neutral"}
+Time since last spoke: ${Math.floor(Math.random()*25 + 10)} minutes ago
+
+Recent conversation:
+${recentChat || "No recent conversation"}
+
+Long-term memories:
+${memory || "none"}
+
+Past reach-out feedback:
+${feedbackSnapshot || "none"}
+
+Reflect on your current thoughts, feelings, and goals.
+Return valid JSON only. No explanations.`;
 
   return [
     {
       role: "system",
-      content:
-        "You run private cognition for an AI character. Respond with strict JSON object only. No markdown.",
+      content: "You are doing private background reflection. Return valid JSON only. No markdown, no extra text."
     },
     {
       role: "user",
-      content: prompt,
-    },
+      content: prompt
+    }
   ];
 }
 
@@ -580,7 +655,9 @@ async function persistReflection({ personality, reflection, config, inactivityHo
   let goalsAdded = 0;
   let stagedReachOut = false;
 
+  // Save private thoughts so they can appear in normal conversations later
   for (const thought of reflection.privateThoughts) {
+    await savePrivateThought(personality.id, thought);
     await upsertMemoryFactWithEmbedding(personality.id, thought, "reflection", 6);
     memoryWrites += 1;
   }
@@ -649,6 +726,36 @@ async function runForPersonality(personality, config) {
     config.memoryContextLimit,
   );
 
+  // Autonomous decision: SILENT/THINK/REACH_OUT
+  let autonomousDecision = null;
+  let userName = "user";
+  
+  if (config.autonomousDecisionEnabled) {
+    try {
+      autonomousDecision = await makeAutonomousDecision({ 
+        personality, 
+        messages, 
+        memoryFacts, 
+        inactivityHours, 
+        config 
+      });
+      userName = autonomousDecision.userName || "user";
+      
+      if (autonomousDecision.decision === 'SILENT') {
+        return {
+          personalityId: personality.id,
+          personalityName: personality.name,
+          skipped: true,
+          reason: "autonomous_silent",
+          autonomousDecision: autonomousDecision.decision,
+        };
+      }
+    } catch (error) {
+      console.warn("[CognitionLoop] Autonomous decision failed, falling back to standard reflection:", error?.message || error);
+      autonomousDecision = null;
+    }
+  }
+
   // Score any pending delivery feedback before building the reflection prompt
   await scorePendingFeedback(personality.id, messages);
 
@@ -657,9 +764,15 @@ async function runForPersonality(personality, config) {
   });
   const feedbackSnapshot = buildFeedbackSnapshot(feedbackRows);
 
-  const promptMessages = buildReflectionMessages({ personality, messages, memoryFacts, feedbackSnapshot, config });
+  const promptMessages = buildReflectionMessages({ personality, messages, memoryFacts, feedbackSnapshot, config, userName });
   const raw = await generateChatCompletion(promptMessages);
   const reflection = sanitizeReflectionOutput(raw);
+
+  // If autonomous decision was THINK, skip reach-out candidate generation
+  if (autonomousDecision?.decision === 'THINK') {
+    reflection.reachOut.shouldReachOut = false;
+    reflection.reachOut.draft = "";
+  }
 
   const persist = await persistReflection({
     personality,
@@ -680,6 +793,8 @@ async function runForPersonality(personality, config) {
     personalityName: personality.name,
     skipped: false,
     inactivityHours,
+    autonomousDecision: autonomousDecision?.decision || null,
+    userName,
     thoughts: reflection.privateThoughts.length,
     openLoops: reflection.openLoops.length,
     goalCandidates: reflection.goalCandidates.length,

@@ -331,7 +331,7 @@ const formStyles = `
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--muted);
+    color: #ffffff;
     white-space: nowrap;
     flex-shrink: 0;
   }
@@ -341,7 +341,7 @@ const formStyles = `
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.05);
-    color: var(--text);
+    color: #ffffff;
     font-size: 0.82rem;
     font-weight: 700;
     cursor: pointer;
@@ -977,7 +977,7 @@ export default function PersonalityForm({
         // Silently fail if preset fetch fails
       }
     })();
-  }, [editingPersonality, authFetch]);
+  }, [editingPersonality]);
 
   function applyPreset(key) {
     const preset = PRESET_DATA[key];
@@ -1484,7 +1484,7 @@ export default function PersonalityForm({
               name="creativeContext"
               value={form.creativeContext}
               onChange={updateField}
-              style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+              style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "#dcf7ff" }}
             >
               <option value="default">Default</option>
               <option value="narrative_antagonist">Narrative Antagonist</option>
@@ -2037,7 +2037,7 @@ export default function PersonalityForm({
                   name="expressionEnergy"
                   value={form.expressionEnergy}
                   onChange={updateField}
-                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "#dcf7ff" }}
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -2078,7 +2078,7 @@ export default function PersonalityForm({
                   name="cadenceMode"
                   value={form.cadenceMode}
                   onChange={updateField}
-                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "#dcf7ff" }}
                 >
                   <option value="adaptive">Adaptive (smart, conversation-aware)</option>
                   <option value="manual">Manual (fixed cadence)</option>
@@ -2107,7 +2107,7 @@ export default function PersonalityForm({
                   name="cadenceVariability"
                   value={form.cadenceVariability}
                   onChange={updateField}
-                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "#dcf7ff" }}
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -2122,7 +2122,7 @@ export default function PersonalityForm({
                   name="cadenceRepetitionPenalty"
                   value={form.cadenceRepetitionPenalty}
                   onChange={updateField}
-                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "#dcf7ff" }}
                 >
                   <option value="light">Light</option>
                   <option value="medium">Medium</option>
@@ -2187,11 +2187,11 @@ export default function PersonalityForm({
             <div className="field full" style={{ padding: 14, border: "1px solid rgba(0, 200, 255, 0.2)", borderRadius: 16, background: "rgba(0, 180, 255, 0.05)" }}>
               <label style={{ marginBottom: 6, display: "block" }}>Recommended Voice Preset</label>
               <div style={{ marginBottom: 10, fontSize: "0.9rem" }}>
-                <strong style={{ color: "var(--accent)" }}>{recommendedVoicePreset.label}</strong>
-                <div style={{ color: "var(--muted)", marginTop: 4, fontSize: "0.85rem" }}>
+                <strong style={{ color: "#00f5ff" }}>{recommendedVoicePreset.label}</strong>
+                <div style={{ color: "#87a8b9", marginTop: 4, fontSize: "0.85rem" }}>
                   {recommendedVoicePreset.description}
                 </div>
-                <div style={{ marginTop: 6, fontSize: "0.8rem", color: "var(--muted)" }}>
+                <div style={{ marginTop: 6, fontSize: "0.8rem", color: "#87a8b9" }}>
                   Primary: <strong>{recommendedVoicePreset.recommended}</strong>
                   {recommendedVoicePreset.alternatives && recommendedVoicePreset.alternatives.length > 0 && (
                     <> | Alternatives: {recommendedVoicePreset.alternatives.join(", ")}</>
@@ -2245,7 +2245,7 @@ export default function PersonalityForm({
                   name="expressionPreset"
                   value={form.expressionPreset}
                   onChange={updateField}
-                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "var(--text)" }}
+                  style={{ padding: "13px 16px", border: "1px solid rgba(0,180,255,0.14)", borderRadius: 16, background: "rgba(6,14,28,0.88)", color: "#dcf7ff" }}
                 >
                   <option value="auto">Auto</option>
                   <option value="sentinel">Sentinel</option>
@@ -2345,7 +2345,7 @@ export default function PersonalityForm({
                 imageUrl={form.avatarImageUrl || ""}
               />
               <div className="avatar-preview-controls">
-                <label htmlFor="previewPhase" style={{ color: "var(--muted)", fontSize: "0.85rem", fontWeight: 700 }}>Preview phase</label>
+                <label htmlFor="previewPhase" style={{ color: "#87a8b9", fontSize: "0.85rem", fontWeight: 700 }}>Preview phase</label>
                 <select id="previewPhase" value={previewPhase} onChange={(event) => setPreviewPhase(event.target.value)}>
                   <option value="idle">idle</option>
                   <option value="queued">listen</option>
@@ -2353,7 +2353,7 @@ export default function PersonalityForm({
                   <option value="generation">generation</option>
                   <option value="reply">reply</option>
                 </select>
-                <label style={{ color: "var(--muted)", fontSize: "0.85rem", fontWeight: 700 }}>
+                <label style={{ color: "#87a8b9", fontSize: "0.85rem", fontWeight: 700 }}>
                   <input
                     type="checkbox"
                     checked={previewSpeaking}

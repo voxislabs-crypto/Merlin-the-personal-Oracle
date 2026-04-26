@@ -6,12 +6,14 @@ const TTS_CREDENTIALS_KEY = "tts_credentials";
 const VOICE_DEFAULTS_KEY = "voice_defaults";
 const VOICE_MAPS_KEY = "voice_maps";
 const KOKORO_HF_TOKEN_KEY = "kokoro_hf_token";
+const KOKORO_LOCAL_PATH_KEY = "kokoro_local_path";
 const MOOD_RUNTIME_CONFIG_KEY = "mood_runtime_config";
 const EXPRESSION_SAMPLING_CONFIG_KEY = "expression_sampling_config";
 const COGNITION_LOOP_CONFIG_KEY = "cognition_loop_config";
 const STT_RUNTIME_CONFIG_KEY = "stt_runtime_config";
 const SEARCH_RUNTIME_CONFIG_KEY = "search_runtime_config";
 const STATE_RUNTIME_CONFIG_KEY = "state_runtime_config";
+const PROFANE_FILTER_CONFIG_KEY = "profane_filter_config";
 function isTtsDebugProviderLockEnabledRuntime() {
   return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 }
@@ -469,6 +471,25 @@ export function clearKokoroHfToken() {
   db.prepare(`DELETE FROM app_settings WHERE key = ?`).run(KOKORO_HF_TOKEN_KEY);
 }
 
+export function getKokoroLocalPath() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(KOKORO_LOCAL_PATH_KEY);
+  if (!row) return null;
+  const parsed = parseJsonObject(row.value);
+  return parsed?.path || null;
+}
+
+export function setKokoroLocalPath({ path }) {
+  writeAppSetting(KOKORO_LOCAL_PATH_KEY, {
+    path: String(path || "").trim(),
+    updatedAt: new Date().toISOString(),
+  });
+  return getKokoroLocalPath();
+}
+
+export function clearKokoroLocalPath() {
+  db.prepare(`DELETE FROM app_settings WHERE key = ?`).run(KOKORO_LOCAL_PATH_KEY);
+}
+
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -526,6 +547,7 @@ function sanitizeCognitionLoopConfig(config) {
     quietHoursStartHour: Math.round(clampNumber(input.quietHoursStartHour, 0, 23, 1)),
     quietHoursEndHour: Math.round(clampNumber(input.quietHoursEndHour, 0, 23, 7)),
     startupGraceMinutes: Math.round(clampNumber(input.startupGraceMinutes, 0, 120, 10)),
+    autonomousDecisionEnabled: typeof input.autonomousDecisionEnabled === "boolean" ? input.autonomousDecisionEnabled : false,
     updatedAt: String(input.updatedAt || "").trim(),
   };
 }
@@ -644,6 +666,15 @@ function sanitizeStateRuntimeConfig(config) {
   };
 }
 
+function sanitizeProfaneFilterConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : false,
+    disclaimer: String(input.disclaimer || "").trim(),
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
 export function getSttRuntimeConfig() {
   const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(STT_RUNTIME_CONFIG_KEY);
   const parsed = parseJsonObject(row?.value || "") || {};
@@ -706,4 +737,28 @@ export function setExpressionSamplingConfig(config) {
   };
   writeAppSetting(EXPRESSION_SAMPLING_CONFIG_KEY, payload);
   return getExpressionSamplingConfig();
+}
+
+export function getProfaneFilterConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(PROFANE_FILTER_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  // Check environment variable for default override
+  const envEnabled = process.env.PROFANE_FILTER_ENABLED !== undefined
+    ? String(process.env.PROFANE_FILTER_ENABLED).trim().toLowerCase() === "true"
+    : null;
+  return {
+    enabled: envEnabled !== null ? envEnabled : (typeof parsed.enabled === "boolean" ? parsed.enabled : false),
+    disclaimer: String(parsed.disclaimer || "").trim(),
+    updatedAt: String(parsed.updatedAt || "").trim(),
+  };
+}
+
+export function setProfaneFilterConfig(config) {
+  const sanitized = sanitizeProfaneFilterConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(PROFANE_FILTER_CONFIG_KEY, payload);
+  return getProfaneFilterConfig();
 }

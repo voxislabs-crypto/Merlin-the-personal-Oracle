@@ -368,7 +368,7 @@ export default function VoiceSampleSelector({
       <div className="voice-sample-shell">
         <div className="voice-sample-header">
             <span className="voice-sample-title">Voice Samples</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+          <span style={{ fontSize: "0.75rem", color: "#87a8b9" }}>
             {representatives.length} sample{representatives.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -383,7 +383,7 @@ export default function VoiceSampleSelector({
               <div className="voice-sample-card-check">{selectedIndex === index ? "OK" : ""}</div>
 
               <div className="voice-sample-info">
-                <div style={{ fontSize: "0.8rem", fontWeight: "700", color: "var(--accent)" }}>
+                <div style={{ fontSize: "0.8rem", fontWeight: "700", color: "#00f5ff" }}>
                   {getVoiceLabel(sample)}
                 </div>
                 <div className="voice-sample-pitch">

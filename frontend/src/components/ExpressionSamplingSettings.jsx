@@ -375,7 +375,7 @@ export default function ExpressionSamplingSettings({ onStatus }) {
                   className="expression-settings-slider"
                   disabled={!profile.enabled}
                 />
-                <span style={{ minWidth: 40, textAlign: "right", fontWeight: 600, fontSize: "0.85rem", color: "var(--accent)" }}>
+                <span style={{ minWidth: 40, textAlign: "right", fontWeight: 600, fontSize: "0.85rem", color: "#00f5ff" }}>
                   {profile.temperature.toFixed(2)}
                 </span>
               </div>
