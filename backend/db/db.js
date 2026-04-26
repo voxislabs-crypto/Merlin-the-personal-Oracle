@@ -100,6 +100,28 @@ ensureColumn(
   `TEXT NOT NULL DEFAULT '{"frequency":0.15,"items":[]}'`,
 );
 
+// ── Voice clone metadata ─────────────────────────────────────────────────────
+// Stores which clone engine is active and where reference files live on disk.
+// Audio/model files are stored as files; only paths are persisted here.
+ensureColumn("personalities", "cloneEngine", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("personalities", "cloneReferenceClipPath", "TEXT NOT NULL DEFAULT ''");
+ensureColumn("personalities", "cloneRvcPackId", "INTEGER");
+ensureColumn("personalities", "cloneUpdatedAt", "TEXT NOT NULL DEFAULT ''");
+
+// ── RVC Voice Packs ──────────────────────────────────────────────────────────
+// Pre-trained RVC models that can be linked to any persona as a voice pack.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rvc_voice_packs (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    modelPath TEXT NOT NULL,
+    samplePath TEXT NOT NULL DEFAULT '',
+    ownerId INTEGER,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY,

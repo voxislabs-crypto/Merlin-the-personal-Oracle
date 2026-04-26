@@ -5,6 +5,7 @@ import { getApiErrorMessage, readApiResponsePayload } from "../lib/apiResponse.j
 import { buildTtsCacheKey, getTtsCache, setTtsCache } from "../utils/ttsCache.js";
 import { interpretEmotionSpectrum } from "../lib/emotionSpectrum.js";
 import VoiceSampleSelector from "./VoiceSampleSelector.jsx";
+import VoiceCloneTab from "./VoiceCloneTab.jsx";
 
 const voiceLabStyles = `
   @keyframes vlab-scanline {
@@ -75,6 +76,40 @@ const voiceLabStyles = `
     pointer-events: none;
     z-index: 10;
     animation: vlab-scanline 9s linear infinite;
+  }
+
+  /* ── Tab Bar ───────────────────────────────────────────────── */
+  .vlab-tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(0, 200, 255, 0.12);
+    background: rgba(0, 10, 24, 0.6);
+    position: relative;
+    z-index: 4;
+  }
+
+  .vlab-tab-btn {
+    flex: 1;
+    padding: 0.55rem 1rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    color: rgba(100, 180, 210, 0.55);
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+
+  .vlab-tab-btn:hover {
+    color: rgba(125, 249, 255, 0.75);
+    background: rgba(0, 180, 255, 0.04);
+  }
+
+  .vlab-tab-btn.active {
+    color: #7df9ff;
+    border-bottom-color: #00b4ff;
+    background: rgba(0, 180, 255, 0.06);
   }
 
   /* ── Header ───────────────────────────────────────────────── */
@@ -978,6 +1013,7 @@ export default function VoiceLab({
     realismEnabled: false,
     realismPreset: "conversational",
   });
+  const [vlabTab, setVlabTab] = useState("config"); // "config" | "clone"
   const [sampleText, setSampleText] = useState("");
   const [prosodyUrl, setProsodyUrl] = useState("");
   const [prosodyFile, setProsodyFile] = useState(null);
@@ -2092,7 +2128,31 @@ export default function VoiceLab({
           </div>
         </div>
 
-        <div className="vlab-body">
+        {/* ── Tab Bar ── */}
+        <div className="vlab-tab-bar">
+          <button
+            type="button"
+            className={`vlab-tab-btn ${vlabTab === "config" ? "active" : ""}`}
+            onClick={() => setVlabTab("config")}
+          >
+            ◈ VOICE CONFIG
+          </button>
+          <button
+            type="button"
+            className={`vlab-tab-btn ${vlabTab === "clone" ? "active" : ""}`}
+            onClick={() => setVlabTab("clone")}
+          >
+            ◈ VOICE CLONE
+          </button>
+        </div>
+
+        {/* ── Voice Clone Tab ── */}
+        {vlabTab === "clone" && (
+          <VoiceCloneTab personality={personality} onStatus={onStatus} />
+        )}
+
+        {/* ── Voice Config Body (existing content) ── */}
+        <div className="vlab-body" style={vlabTab !== "config" ? { display: "none" } : {}}>
 
           {/* ── Engine Config ── */}
           <div className="vlab-section">

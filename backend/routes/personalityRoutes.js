@@ -46,6 +46,14 @@ import {
   performanceHandler,
   parsePerformanceHandler,
 } from "../controllers/performanceController.js";
+import {
+  startVoiceCloneHandler,
+  removeVoiceCloneHandler,
+  getVoiceCloneStatusHandler,
+  listRvcPacksHandler,
+  uploadRvcPackHandler,
+  deleteRvcPackHandler,
+} from "../controllers/voiceCloneController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
@@ -85,5 +93,13 @@ router.get("/personality/:id/voice-samples/audio/:clipFile", requireAuth, stream
 router.patch("/personality/:id/voice", requireAuth, updateVoiceProfileHandler);
 router.post("/personality/:id/performance", requireAuth, performanceHandler);
 router.post("/personality/:id/performance/parse", requireAuth, parsePerformanceHandler);
+
+// ── Voice Clone routes ───────────────────────────────────────────────────────
+router.get("/personality/:id/voice-clone", requireAuth, getVoiceCloneStatusHandler);
+router.post("/personality/:id/voice-clone", requireAuth, ...startVoiceCloneHandler);
+router.delete("/personality/:id/voice-clone", requireAuth, removeVoiceCloneHandler);
+router.get("/voice-clone/rvc-packs", requireAuth, listRvcPacksHandler);
+router.post("/voice-clone/rvc-packs", requireAuth, ...uploadRvcPackHandler);
+router.delete("/voice-clone/rvc-packs/:packId", requireAuth, deleteRvcPackHandler);
 
 export default router;
