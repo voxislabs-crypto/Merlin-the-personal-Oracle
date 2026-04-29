@@ -2251,7 +2251,20 @@ export default function ChatWindow({
   );
 
   const neuralSignal = useMemo(() => {
-    const mood = displayDebug?.mood?.after || personality?.moodState || { valence: 0, arousal: 0, dominance: 0 };
+    const debugMood = displayDebug?.mood?.after;
+    const personalityMood = personality?.moodState;
+    
+    // Parse personality.moodState if it's a JSON string
+    let parsedPersonalityMood = personalityMood;
+    if (typeof personalityMood === 'string') {
+      try {
+        parsedPersonalityMood = JSON.parse(personalityMood);
+      } catch (e) {
+        parsedPersonalityMood = {};
+      }
+    }
+    
+    const mood = debugMood || parsedPersonalityMood || { valence: 0, arousal: 0, dominance: 0 };
     const memoryActive = ((displayDebug?.memoryInjected || []).length + (displayDebug?.userMemoryRetrieved || []).length) > 0;
     const intentActive = Boolean(displayDebug?.goal?.goal);
     const identityActive = Boolean(displayDebug?.flags?.reconditioned);
@@ -2265,10 +2278,22 @@ export default function ChatWindow({
     };
   }, [displayDebug, personality?.moodState]);
 
-  const avatarMood = useMemo(
-    () => displayDebug?.mood?.after || personality?.moodState || { valence: 0, arousal: 0, dominance: 0 },
-    [displayDebug, personality?.moodState],
-  );
+  const avatarMood = useMemo(() => {
+    const debugMood = displayDebug?.mood?.after;
+    const personalityMood = personality?.moodState;
+    
+    // Parse personality.moodState if it's a JSON string
+    let parsedPersonalityMood = personalityMood;
+    if (typeof personalityMood === 'string') {
+      try {
+        parsedPersonalityMood = JSON.parse(personalityMood);
+      } catch (e) {
+        parsedPersonalityMood = {};
+      }
+    }
+    
+    return debugMood || parsedPersonalityMood || { valence: 0, arousal: 0, dominance: 0 };
+  }, [displayDebug, personality?.moodState]);
 
   const emotionSpectrum = useMemo(
     () => interpretEmotionSpectrum(avatarMood),
@@ -2671,7 +2696,20 @@ export default function ChatWindow({
   ]);
 
   useEffect(() => {
-    const valence = Number(latestAssistantDebug?.mood?.after?.valence ?? personality?.moodState?.valence ?? 0);
+    const debugMood = latestAssistantDebug?.mood?.after;
+    const personalityMood = personality?.moodState;
+    
+    // Parse personality.moodState if it's a JSON string
+    let parsedPersonalityMood = personalityMood;
+    if (typeof personalityMood === 'string') {
+      try {
+        parsedPersonalityMood = JSON.parse(personalityMood);
+      } catch (e) {
+        parsedPersonalityMood = {};
+      }
+    }
+    
+    const valence = Number(debugMood?.valence ?? parsedPersonalityMood?.valence ?? 0);
     const canNarrate =
       activeMode === "kids" &&
       Boolean(neuralProfile?.voiceNarrationEnabled) &&

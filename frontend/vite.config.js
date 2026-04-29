@@ -22,6 +22,11 @@ export default defineConfig({
   server: {
     port: 3100,
     proxy: {
+      "/api/voxis": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
       "/api": {
         target: backendUrl,
         changeOrigin: true,

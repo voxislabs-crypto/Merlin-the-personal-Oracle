@@ -6,6 +6,7 @@ import usePrefersReducedMotion from "./hooks/usePrefersReducedMotion.js";
 import QuickPersonalityCreator from "./components/QuickPersonalityCreator.jsx";
 import PersonalityForm from "./components/PersonalityForm.jsx";
 import PersonalityList from "./components/PersonalityList.jsx";
+import VoxisTab from "./components/VoxisTab.jsx";
 import PersonaBrowser from "./components/PersonaBrowser.jsx";
 import ChatWindow from "./components/ChatWindow.jsx";
 import VoiceLab from "./components/VoiceLab.jsx";
@@ -1285,10 +1286,21 @@ export default function App() {
 
   const backgroundMood = useMemo(() => {
     const rawMood = selectedPersonality?.moodState || {};
+    
+    // Parse personality.moodState if it's a JSON string
+    let parsedMood = rawMood;
+    if (typeof rawMood === 'string') {
+      try {
+        parsedMood = JSON.parse(rawMood);
+      } catch (e) {
+        parsedMood = {};
+      }
+    }
+    
     return {
-      valence: clamp(Number(rawMood.valence || 0), -1, 1),
-      arousal: clamp(Number(rawMood.arousal || 0.35), 0, 1),
-      dominance: clamp(Number(rawMood.dominance || 0), -1, 1),
+      valence: clamp(Number(parsedMood.valence || 0), -1, 1),
+      arousal: clamp(Number(parsedMood.arousal || 0.35), 0, 1),
+      dominance: clamp(Number(parsedMood.dominance || 0), -1, 1),
     };
   }, [selectedPersonality]);
 
@@ -2687,6 +2699,13 @@ export default function App() {
             <div className="tabs">
               <button
                 type="button"
+                className={`tab futuristic-btn ${activeView === "voxis" ? "active" : ""}`}
+                onClick={() => setActiveView("voxis")}
+              >
+                Voxis AI Guide
+              </button>
+              <button
+                type="button"
                 className={`tab futuristic-btn ${activeView === "builder" ? "active" : ""}`}
                 onClick={() => setActiveView("builder")}
               >
@@ -2751,7 +2770,19 @@ export default function App() {
             </div>
 
             <div className="main-content">
-              {activeView === "builder" ? (
+              {activeView === "voxis" ? (
+                <>
+                  <h2 className="section-heading">Voxis AI Guide</h2>
+                  <p className="section-copy">
+                    Talk to Voxis to create new personalities or modify existing ones through natural language. Voxis understands intent and translates it into precise system changes.
+                  </p>
+                  <VoxisTab
+                    selectedPersonality={selectedPersonality}
+                    onPersonalityUpdated={handlePersonalityUpdated}
+                    onStatus={setStatus}
+                  />
+                </>
+              ) : activeView === "builder" ? (
                 <>
                   <h2 className="section-heading">
                     {builderMode === "edit" ? "Refine an existing personality" : "Shape a new personality"}
@@ -2774,7 +2805,7 @@ export default function App() {
                       className={`tab ${builderMode === "create" ? "active" : ""}`}
                       onClick={() => setBuilderMode("create")}
                     >
-                      Create New
+                      Advanced
                     </button>
                     <button
                       type="button"

@@ -1841,7 +1841,20 @@ export default function NeuralCore({
     return () => window.clearTimeout(timeoutId);
   }, [livePhase, liveSeq]);
 
-  const mood = latestDebug?.mood?.after || personality?.moodState || { valence: 0, arousal: 0, dominance: 0 };
+  const debugMood = latestDebug?.mood?.after;
+  const personalityMood = personality?.moodState;
+  
+  // Parse personality.moodState if it's a JSON string
+  let parsedPersonalityMood = personalityMood;
+  if (typeof personalityMood === 'string') {
+    try {
+      parsedPersonalityMood = JSON.parse(personalityMood);
+    } catch (e) {
+      parsedPersonalityMood = {};
+    }
+  }
+  
+  const mood = debugMood || parsedPersonalityMood || { valence: 0, arousal: 0, dominance: 0 };
   const valence = Number(mood?.valence || 0);
   const arousal = Number(mood?.arousal || 0);
   const dominance = Number(mood?.dominance || 0);

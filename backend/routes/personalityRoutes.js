@@ -12,6 +12,9 @@ import {
   updateVoiceProfileHandler,
   getVoicePresetsHandler,
   getRecommendedVoicePresetHandler,
+  extractPersonaHandler,
+  explainBehaviorHandler,
+  classifyIntentHandler,
 } from "../controllers/personalityController.js";
 import { runHarnessHandler } from "../controllers/harnessController.js";
 import { researchProfileHandler } from "../controllers/researchController.js";
@@ -60,6 +63,9 @@ const router = Router();
 
 router.post("/personality", requireAuth, createPersonalityHandler);
 router.post("/analyze-character", requireAuth, analyzeCharacterHandler);
+router.post("/extract-persona", requireAuth, extractPersonaHandler);
+router.post("/explain-behavior", requireAuth, explainBehaviorHandler);
+router.post("/classify-intent", requireAuth, classifyIntentHandler);
 router.post("/research-profile", requireAuth, researchProfileHandler);
 router.get("/personalities", requireAuth, listPersonalitiesHandler);
 router.post("/personalities/claim-legacy", requireAuth, claimLegacyPersonalitiesHandler);

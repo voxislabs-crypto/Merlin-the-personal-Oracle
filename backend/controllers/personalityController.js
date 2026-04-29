@@ -20,6 +20,9 @@ import {
 import { getAllVoicePresets, recommendVoicePreset } from "../services/voicePresetsService.js";
 import { sanitizeVoiceProfile } from "../services/voiceProfileSanitizer.js";
 import { normalizeStateFlaws } from "../services/stateFlawService.js";
+import { extractPersonaFromConversation, classifyIntent } from "../services/personaExtractionService.js";
+import { explainBehavior } from "../services/explanationService.js";
+import { extractUserPreferences, storeUserPreferences } from "../services/preferenceLearningService.js";
 import path from "path";
 import { rm, unlink } from "fs/promises";
 
@@ -861,6 +864,78 @@ Keep traits and quirks to 3-5 items each. Make sample dialogue authentic to the 
     });
   } catch (error) {
     console.error("Character analysis error:", error);
+    return next(error);
+  }
+}
+
+export async function extractPersonaHandler(req, res, next) {
+  try {
+    const { conversation, mode = "create", currentPersona } = req.body;
+
+    if (!Array.isArray(conversation)) {
+      return res.status(400).json({ error: "conversation must be an array of messages" });
+    }
+
+    const result = await extractPersonaFromConversation(conversation, mode, currentPersona);
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    // Learn user preferences from this interaction (async, don't block response)
+    if (req.voxisUser?.id && result.success && result.data) {
+      extractUserPreferences(conversation, result.data)
+        .then(prefResult => {
+          if (prefResult.success && prefResult.preferences.length > 0) {
+            storeUserPreferences(req.voxisUser.id, prefResult.preferences);
+          }
+        })
+        .catch(err => {
+          console.error("[PreferenceLearning] Background learning error:", err);
+        });
+    }
+    
+    return res.json(result);
+  } catch (error) {
+    console.error("Persona extraction handler error:", error);
+    return next(error);
+  }
+}
+
+export async function explainBehaviorHandler(req, res, next) {
+  try {
+    const { personality, memories, mood, observerTrace, sessionId } = req.body;
+
+    const result = await explainBehavior({ personality, memories, mood, observerTrace, sessionId });
+    
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+    
+    return res.json({
+      success: true,
+      explanation: result.explanation,
+      traceSummary: result.traceSummary,
+    });
+  } catch (error) {
+    console.error("Behavior explanation handler error:", error);
+    return next(error);
+  }
+}
+
+export async function classifyIntentHandler(req, res, next) {
+  try {
+    const { message, hasSelectedPersona } = req.body;
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "message is required" });
+    }
+
+    const result = await classifyIntent(message, hasSelectedPersona);
+    
+    return res.json(result);
+  } catch (error) {
+    console.error("Intent classification handler error:", error);
     return next(error);
   }
 }

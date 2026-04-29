@@ -1357,16 +1357,9 @@ export async function chatHandler(req, res, next) {
 
     observeUtterancePlan(sessionId, { utterancePlan, reply });
 
-    // Check profane filter and add disclaimer if disabled
-    const profaneFilterConfig = getProfaneFilterConfig();
-    const profaneFilterEnabled = profaneFilterConfig.enabled === true;
-    const disclaimerText = profaneFilterEnabled 
-      ? "" 
-      : `\n\n[${profaneFilterConfig.disclaimer}]`;
-    
     const responsePayload = {
-      reply: utterancePlan.rawText + disclaimerText,
-      displayReply: utterancePlan.displayText + disclaimerText,
+      reply: utterancePlan.rawText,
+      displayReply: utterancePlan.displayText,
       isPerformanceOutput: utterancePlan.isPerformanceOutput,
       utterancePlan,
       expressionReplayId: sampled.replayId || "",

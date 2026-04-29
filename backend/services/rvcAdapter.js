@@ -9,14 +9,12 @@
  * Voice Packs are pre-trained RVC models registered in the rvc_voice_packs
  * SQLite table. Each pack has a .pth model file + optional index file.
  *
- * Python dependencies (install once on the server):
- *   pip install rvc-python
- *   # OR the full RVC project:
- *   # git clone https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
+ * Architecture:
+ * - Uses a separate Python 3.10 microservice for RVC processing
+ * - Communicates via HTTP to avoid dependency conflicts with Python 3.12
  *
  * Expected environment variables (optional):
- *   RVC_PYTHON      — python3 binary (default: "python3")
- *   RVC_SCRIPTS_DIR — override scripts directory path
+ *   RVC_SERVICE_URL — RVC microservice URL (default: "http://127.0.0.1:7861")
  *   RVC_F0_METHOD   — pitch extraction method: rmvpe (default, best on CPU)
  */
 
@@ -24,67 +22,28 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
-import { spawn } from "node:child_process";
+import FormData from "form-data";
 import { getRvcPackDir } from "./voiceCloneService.js";
 
-const SCRIPTS_DIR =
-  process.env.RVC_SCRIPTS_DIR ||
-  path.join(path.dirname(new URL(import.meta.url).pathname), "..", "voice-clone-scripts");
-
-const PYTHON_BIN = process.env.RVC_PYTHON || "python3";
+const RVC_SERVICE_URL = process.env.RVC_SERVICE_URL || "http://127.0.0.1:7861";
 const F0_METHOD = process.env.RVC_F0_METHOD || "rmvpe";
 
 // RVC on CPU is slower — allow enough time for a paragraph of speech
 const RVC_TIMEOUT_MS = 90_000;
 
 /**
- * Run the RVC conversion Python script as a subprocess.
- */
-function runRvcScript(args, timeoutMs = RVC_TIMEOUT_MS) {
-  return new Promise((resolve, reject) => {
-    const script = path.join(SCRIPTS_DIR, "rvc_convert.py");
-    const proc = spawn(PYTHON_BIN, [script, ...args], { stdio: ["pipe", "pipe", "pipe"] });
-
-    const stderr = [];
-    proc.stderr.on("data", (d) => stderr.push(d));
-
-    const timer = setTimeout(() => {
-      proc.kill("SIGTERM");
-      const err = new Error(`RVC conversion timed out after ${timeoutMs}ms.`);
-      err.statusCode = 503;
-      reject(err);
-    }, timeoutMs);
-
-    proc.on("close", (code) => {
-      clearTimeout(timer);
-      if (code !== 0) {
-        const errText = Buffer.concat(stderr).toString("utf8").slice(0, 800);
-        const err = new Error(`RVC script exited with code ${code}: ${errText}`);
-        err.statusCode = 502;
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-
-    proc.on("error", (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
-}
-
-/**
- * Check if the RVC Python environment is available.
+ * Check if the RVC microservice is available.
  */
 export async function isRvcInstalled() {
-  return new Promise((resolve) => {
-    const proc = spawn(PYTHON_BIN, ["-c", "import rvc_python"], {
-      stdio: ["pipe", "pipe", "pipe"],
+  try {
+    const response = await fetch(`${RVC_SERVICE_URL}/health`, {
+      method: "GET",
+      signal: AbortSignal.timeout(5000),
     });
-    proc.on("close", (code) => resolve(code === 0));
-    proc.on("error", () => resolve(false));
-  });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -119,7 +78,7 @@ export async function resolveIndexPath(packId) {
 }
 
 /**
- * Convert a WAV buffer using an RVC voice pack.
+ * Convert a WAV buffer using an RVC voice pack via the microservice.
  *
  * @param {object} opts
  * @param {Buffer} opts.inputBuffer   WAV audio to convert (e.g. Kokoro output)
@@ -137,27 +96,40 @@ export async function convertWithRvc({ inputBuffer, packId, pitchShift = 0 }) {
 
   const indexPath = (await resolveIndexPath(packId)) || "";
 
-  const tmpIn = path.join(os.tmpdir(), `voxis-rvc-in-${randomUUID()}.wav`);
-  const tmpOut = path.join(os.tmpdir(), `voxis-rvc-out-${randomUUID()}.wav`);
+  const formData = new FormData();
+  formData.append("input_audio", inputBuffer, {
+    filename: "input.wav",
+    contentType: "audio/wav",
+  });
+  formData.append("model_path", modelPath);
+  if (indexPath) {
+    formData.append("index_path", indexPath);
+  }
+  formData.append("f0_method", F0_METHOD);
+  formData.append("f0_up_key", String(Math.round(Number(pitchShift) || 0)));
 
   try {
-    await fs.writeFile(tmpIn, inputBuffer);
+    const response = await fetch(`${RVC_SERVICE_URL}/convert`, {
+      method: "POST",
+      body: formData,
+      signal: AbortSignal.timeout(RVC_TIMEOUT_MS),
+    });
 
-    await runRvcScript([
-      "--model", modelPath,
-      "--input", tmpIn,
-      "--output", tmpOut,
-      "--f0-method", F0_METHOD,
-      "--pitch", String(Math.round(Number(pitchShift) || 0)),
-      ...(indexPath ? ["--index", indexPath] : []),
-    ]);
+    if (!response.ok) {
+      const errorText = await response.text();
+      const err = new Error(`RVC service error: ${response.status} - ${errorText}`);
+      err.statusCode = response.status;
+      throw err;
+    }
 
-    const buffer = await fs.readFile(tmpOut);
+    const buffer = Buffer.from(await response.arrayBuffer());
     return { buffer, contentType: "audio/wav", engine: "kokoro-rvc" };
-  } finally {
-    await Promise.all([
-      fs.unlink(tmpIn).catch(() => {}),
-      fs.unlink(tmpOut).catch(() => {}),
-    ]);
+  } catch (error) {
+    if (error.name === "AbortError") {
+      const err = new Error(`RVC conversion timed out after ${RVC_TIMEOUT_MS}ms.`);
+      err.statusCode = 503;
+      throw err;
+    }
+    throw error;
   }
 }

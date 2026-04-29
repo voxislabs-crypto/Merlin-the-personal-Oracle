@@ -22,13 +22,18 @@ import userRoutes from "./routes/userRoutes.js";
 import loopRoutes from "./routes/loopRoutes.js";
 import sfxRoutes from "./routes/sfxRoutes.js";
 import cognitionRoutes from "./routes/cognitionRoutes.js";
+import voxisRoutes from "./routes/voxisRoutes.js";
 import { initSfxCache } from "./services/sfxCacheService.js";
 import { getTtsHealthStatus, preloadKokoro } from "./services/ttsService.js";
 import { startCognitionLoop } from "./services/cognitionLoopService.js";
 import { clerkVerify } from "./middleware/requireAuth.js";
 
 try {
-  await import("dotenv/config");
+  const dotenv = await import("dotenv");
+  const path = await import("path");
+  const envPath = path.resolve(process.cwd(), ".env");
+  dotenv.config({ path: envPath });
+  console.log("[Env] Loaded .env from:", envPath);
 } catch {
   console.warn("[Env] dotenv not installed; relying on PM2/system environment only.");
 }
@@ -119,6 +124,7 @@ app.use(userRoutes);
 app.use(loopRoutes);
 app.use(sfxRoutes);
 app.use(cognitionRoutes);
+app.use('/api/voxis', voxisRoutes);
 
 // Temporary diagnostic: test Cartesia connectivity directly without going through ttsService.
 // Remove after confirming Cartesia API key/model works.

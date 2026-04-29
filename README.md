@@ -285,6 +285,35 @@ Each turn updates emotional state, selects relevant context and intent, and writ
 - **Health endpoints** — `GET /health` for process liveness, `GET /health/tts` for engine status, capabilities, and routing diagnostics.
 - **Runtime error capture** — frontend bootstrap guards (`window.error`, `unhandledrejection`) with capped `localStorage` buffering and optional telemetry forwarding.
 
+### Voxis AI Guide — System Interpreter
+
+- **Intent-to-Parameter Translation** — converts natural language requests into structured personality parameter changes through a dedicated INTENT → PATCH prompt system
+- **Dual-Mode Operation** — Create mode for building new personalities from conversation, Modify mode for surgical patching of existing personas
+- **Intent Classification** — lightweight classifier determines whether user wants to create or modify, with confidence gating for ambiguous requests
+- **Human-Readable Diffs** — proper diff generator compares current vs patch state, displaying changes as "Increase energy from 0.60 → 0.85" instead of raw JSON
+- **Confidence Gating** — low-confidence interpretations (< 0.6) trigger clarification requests instead of silent application
+- **Deep Merge Patching** — safe patch application prevents object overwrites by recursively merging nested structures
+- **Behavior Explanation Engine** — "Why?" button explains AI responses by analyzing brainObserver traces through a structured pipeline
+- **Trace Compiler** — converts raw brainObserver events into structured explanation context (personality signals, mood state, memory influence, prompt structure)
+- **Causal Reasoning** — explanation engine uses compiled traces to explain "what caused what" in AI responses
+- **User Preference Learning** — extracts and stores user preference patterns (likes high energy, prefers chaotic personas) in memory for future biasing
+- **System-Level Agent** — Voxis is a system interpreter (not a persona) with permissions to modify personalities, explain behavior, read memory, and adjust parameters
+
+**Architecture Pipeline:**
+```
+User Request → Intent Classifier → Mode Selection → LLM Extraction → Validation → Diff Generation → Preview → Confirmation → Apply
+```
+
+**Explanation Pipeline:**
+```
+User "Why?" → brainObserver Trace → Trace Compiler → Structured Context → LLM Explanation → Causal Reasoning → Display
+```
+
+**API Endpoints:**
+- `POST /extract-persona` — extract persona from conversation (mode: create/modify)
+- `POST /classify-intent` — classify user intent (create/modify/unknown)
+- `POST /explain-behavior` — explain AI behavior using trace data
+
 ### Security & Hardening
 
 - **Identity sovereignty** — override-resistance prompt layer prevents prompt-injection attempts from breaking character.

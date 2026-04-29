@@ -1816,7 +1816,19 @@ export default function VoiceLab({
         }
       }
 
-      const fallbackMood = personality?.moodState || personality?.moodBaseline || {};
+      const personalityMood = personality?.moodState;
+      
+      // Parse personality.moodState if it's a JSON string
+      let parsedPersonalityMood = personalityMood;
+      if (typeof personalityMood === 'string') {
+        try {
+          parsedPersonalityMood = JSON.parse(personalityMood);
+        } catch (e) {
+          parsedPersonalityMood = {};
+        }
+      }
+      
+      const fallbackMood = parsedPersonalityMood || personality?.moodBaseline || {};
       const emotionFrame = ttsTelemetry?.emotionFrame || interpretEmotionSpectrum(fallbackMood);
 
       setDirectedPreview(directedHeader ? decodeURIComponent(directedHeader) : text);
