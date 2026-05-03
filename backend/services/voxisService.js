@@ -1,34 +1,15 @@
-// backend/services/voxisService.js
-import Groq from 'groq-sdk';
-import voxisSystemPrompt from '../prompts/voxisSystemPrompt.js';
+import { generateChatCompletion } from './llmService.js';
+import { buildVoxisPrompt } from '../prompts/voxisSystemPrompt.js';
 import { createPersonaFromConversation } from './personaFromVoxis.js';
 
-let groq = null;
-
-function getGroqClient() {
-  if (!groq) {
-    groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY,
-    });
-  }
-  return groq;
-}
-
-export const chatWithVoxis = async (messages, isFinalStep = false) => {
+export const chatWithVoxis = async (messages, isFinalStep = false, currentPersona = null) => {
   try {
-    const client = getGroqClient();
-    const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: voxisSystemPrompt },
-        ...messages
-      ],
-      temperature: 0.78,
-      max_tokens: 950,
-      top_p: 0.9,
-    });
+    const promptMessages = [
+      { role: "system", content: buildVoxisPrompt(currentPersona) },
+      ...messages
+    ];
 
-    const reply = completion.choices[0]?.message?.content?.trim();
+    const reply = await generateChatCompletion(promptMessages);
 
     let extractedPersona = null;
 
@@ -45,7 +26,7 @@ export const chatWithVoxis = async (messages, isFinalStep = false) => {
     };
 
   } catch (error) {
-    console.error("Groq error in Voxis service:", error);
+    console.error("LLM error in Voxis service:", error);
 
     return {
       success: false,

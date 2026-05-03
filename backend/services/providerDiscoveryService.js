@@ -59,6 +59,13 @@ const PROVIDERS = [
     auth: "anthropic",
     modelsPath: "/models",
   },
+  {
+    id: "awan",
+    name: "Awan LLM",
+    baseUrl: "https://api.awanllm.com/v1",
+    auth: "bearer",
+    modelsPath: "/models",
+  },
 ];
 
 const PROVIDER_MAP = new Map(PROVIDERS.map((provider) => [provider.id, provider]));

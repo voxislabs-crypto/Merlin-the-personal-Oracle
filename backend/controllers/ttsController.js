@@ -194,6 +194,9 @@ export async function generateSpeechHandler(req, res, next) {
     setEncodedJsonHeader(res, "X-Voxis-Tts-Telemetry", audio.telemetry || {}, { maxBytes: 1400 });
     setEncodedHeader(res, "X-Voxis-Tts-Realism-Chain", encodeURIComponent(String(audio?.realism?.chain || "disabled")), { maxBytes: 1200 });
     setEncodedJsonHeader(res, "X-Voxis-Tts-Realism", audio.realism || {}, { maxBytes: 1400 });
+    // New SFX timeline header with timing data
+    setEncodedJsonHeader(res, "X-Voxis-Tts-Sfx-Timeline", Array.isArray(audio.sfx) ? audio.sfx : [], { maxBytes: 800 });
+    // Backward compatibility: keep old header name
     setEncodedJsonHeader(res, "X-Voxis-Tts-Sfx", Array.isArray(audio.sfx) ? audio.sfx : [], { maxBytes: 800 });
     return res.send(audio.buffer);
   } catch (error) {

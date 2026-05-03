@@ -1,4 +1,5 @@
 import { getSpeechProfile } from "./speechProfiles.js";
+import { isValidSfxTag, getAvailableSfxTags } from "./sfxCacheService.js";
 
 const DEFAULT_STOP_WORDS = new Set([
   "the",
@@ -257,6 +258,16 @@ function buildVoiceTagEvent(signals = {}, emotion = "neutral") {
     };
   }
 
+  if (signals.assertive) {
+    return {
+      type: "voice-tag",
+      tag: "assertive-tone",
+      delivery: "overlay",
+      intensity: 0.7,
+      emotion,
+    };
+  }
+
   if (signals.calm) {
     return {
       type: "voice-tag",
@@ -290,6 +301,91 @@ function buildPersonalityEvents({ injectedPhrase, appendInjectedPhrase, channel,
   }
 
   return events;
+}
+
+/**
+ * Inject SFX markers into speech based on persona's vocalMannerisms configuration
+ * @param {string} text - The speech text
+ * @param {object} personality - The personality object
+ * @param {string} inputSeed - Seed for deterministic RNG
+ * @param {boolean} precisionMode - Whether precision mode is enabled
+ * @returns {object} { text: string, sfxEvents: array }
+ */
+function injectSfxMarkers(text, personality, inputSeed, precisionMode) {
+  const vocalMannerisms = personality.vocalMannerisms || {};
+  const sfxTags = Array.isArray(vocalMannerisms.sfxTags) ? vocalMannerisms.sfxTags : [];
+  const sfxFrequency = Number(vocalMannerisms.sfxFrequency) ?? 0.25;
+  const sfxPlacement = String(vocalMannerisms.sfxPlacement || "random").toLowerCase();
+
+  // Filter to valid SFX tags only
+  const validTags = sfxTags.filter((tag) => isValidSfxTag(tag));
+
+  if (!validTags.length || precisionMode) {
+    return { text, sfxEvents: [] };
+  }
+
+  // Determine if SFX should be injected based on frequency
+  if (!shouldInject(`${inputSeed}:sfx`, sfxFrequency)) {
+    return { text, sfxEvents: [] };
+  }
+
+  // Select a random SFX tag from valid tags
+  const tagIndex = Math.floor(hashString(`${inputSeed}:sfx:tag`) * validTags.length);
+  const selectedTag = validTags[tagIndex];
+
+  const sfxEvents = [];
+  let output = text;
+
+  // Handle placement modes
+  switch (sfxPlacement) {
+    case "start":
+      output = `[SFX:${selectedTag}] ${output}`;
+      sfxEvents.push({ tag: selectedTag, position: "before", ms: 0 });
+      break;
+
+    case "end":
+      output = `${output} [SFX:${selectedTag}]`;
+      sfxEvents.push({ tag: selectedTag, position: "after", ms: 0 });
+      break;
+
+    case "throughout": {
+      // Split into sentences and inject randomly throughout
+      const sentences = output.split(/(?<=[.!?])\s+/);
+      const injectCount = Math.max(1, Math.floor(sentences.length * 0.3));
+      const injectIndices = new Set();
+      
+      while (injectIndices.size < Math.min(injectCount, sentences.length)) {
+        const idx = Math.floor(hashString(`${inputSeed}:sfx:throughout:${injectIndices.size}`) * sentences.length);
+        injectIndices.add(idx);
+      }
+
+      let sentenceOffset = 0;
+      injectIndices.forEach((idx) => {
+        if (sentences[idx]) {
+          sentences[idx] = `[SFX:${selectedTag}] ${sentences[idx]}`;
+          sfxEvents.push({ tag: selectedTag, position: "throughout", wordIndex: idx });
+        }
+      });
+
+      output = sentences.join(" ");
+      break;
+    }
+
+    case "random":
+    default:
+      // Random position: 50% chance at start, 50% at end
+      const atStart = hashString(`${inputSeed}:sfx:random`) < 0.5;
+      if (atStart) {
+        output = `[SFX:${selectedTag}] ${output}`;
+        sfxEvents.push({ tag: selectedTag, position: "before", ms: 0 });
+      } else {
+        output = `${output} [SFX:${selectedTag}]`;
+        sfxEvents.push({ tag: selectedTag, position: "after", ms: 0 });
+      }
+      break;
+  }
+
+  return { text: output, sfxEvents };
 }
 
 export function buildSpeechPacket(rawText, personality = {}, moodOverride = null, options = {}) {
@@ -396,10 +492,19 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
     output = output.replace(/\b([A-Za-z][A-Za-z']{3,})\b/, (word) => `${word[0]}-${word}`);
   }
 
-  if (!precisionMode && String(personality.name || "").toLowerCase().includes("rick") && shouldInject(`${input}:rick`, 0.28)) {
+  // Backward compatibility: Rick personas without sfxTags configured get the old burp behavior
+  const isRick = String(personality.name || "").toLowerCase().includes("rick");
+  const hasSfxTags = Array.isArray(personality.vocalMannerisms?.sfxTags) && personality.vocalMannerisms.sfxTags.length > 0;
+  
+  if (!precisionMode && isRick && !hasSfxTags && shouldInject(`${input}:rick`, 0.28)) {
     output = output.replace(/\bI\b/g, "I-uh-I");
     output = `[BURP] ${output}`;  // marker stripped in ttsService before reaching TTS engine
   }
+
+  // New tag-based SFX system
+  const sfxInjection = injectSfxMarkers(output, personality, input, precisionMode);
+  output = sfxInjection.text;
+  const sfxEvents = sfxInjection.sfxEvents;
 
   output = stripSpeechMarkup(output);
 
@@ -433,7 +538,7 @@ export function buildSpeechPacket(rawText, personality = {}, moodOverride = null
     expressive,
     events,
     overlays: [],
-    sfx: [],
+    sfx: sfxEvents,
     gestures: [],
     injectedPhrase,
     tts: {

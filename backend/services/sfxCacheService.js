@@ -25,13 +25,59 @@ const FREESOUND_BASE = "https://freesound.org/apiv2";
 // Each entry defines the Freesound search parameters for that effect.
 const SFX_CATALOG = {
   burp: {
-    // Broader queries return more CC-licensed results; "burp single short" filtered
-    // almost everything out. We try "belch" first (more hits) then fall back to "burp".
+    // Broader queries return more CC-licensed results
     query: "belch burp",
     durationMin: 0.3,
     durationMax: 4.0,
   },
+  giggle: {
+    query: "giggle laugh female",
+    durationMin: 0.4,
+    durationMax: 3.0,
+  },
+  chuckle: {
+    query: "chuckle male laugh",
+    durationMin: 0.5,
+    durationMax: 3.0,
+  },
+  cough: {
+    query: "cough clear throat",
+    durationMin: 0.3,
+    durationMax: 2.0,
+  },
+  sigh: {
+    query: "sigh exhale breath",
+    durationMin: 0.5,
+    durationMax: 3.0,
+  },
+  snort: {
+    query: "snort laugh funny",
+    durationMin: 0.3,
+    durationMax: 2.0,
+  },
+  hiccup: {
+    query: "hiccup",
+    durationMin: 0.2,
+    durationMax: 1.5,
+  },
 };
+
+/**
+ * Get list of available SFX tags
+ * @returns {string[]} Array of available SFX tag names
+ */
+export function getAvailableSfxTags() {
+  return Object.keys(SFX_CATALOG);
+}
+
+/**
+ * Check if a tag is a valid SFX tag
+ * @param {string} tag - Tag to check
+ * @returns {boolean}
+ */
+export function isValidSfxTag(tag) {
+  return Boolean(tag && SFX_CATALOG[tag]);
+}
 
 const ACCEPTED_LICENSES = [
   "https://creativecommons.org/publicdomain/zero/1.0/",

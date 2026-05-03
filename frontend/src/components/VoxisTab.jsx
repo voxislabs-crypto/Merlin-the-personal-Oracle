@@ -1,750 +1,2174 @@
-import { useState } from "react";
-import { useAuthFetch } from "../hooks/useAuthFetch.js";
-import VoxisThinking from "./VoxisThinking.jsx";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const styles = `
-  .voxis-tab {
+import { useAuthFetch } from "../hooks/useAuthFetch.js";
+
+const forgeStyles = `
+  .forge {
+    position: relative;
+    min-height: 720px;
+    border-radius: 24px;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 50%, rgba(38, 255, 255, 0.05), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 90% 0%, rgba(255, 43, 214, 0.10), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 0% 100%, rgba(38, 255, 255, 0.10), transparent 70%),
+      linear-gradient(180deg, #050015 0%, #07041c 40%, #04020f 100%);
+    border: 1px solid rgba(255, 43, 214, 0.18);
+    box-shadow: 0 30px 80px rgba(255, 43, 214, 0.08), 0 0 0 1px rgba(38, 255, 255, 0.04) inset;
+    color: #f5e9ff;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .forge::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(38, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 43, 214, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 40%, transparent 100%);
+    z-index: 0;
+  }
+
+  .forge-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 26px;
+    border-bottom: 1px solid rgba(255, 43, 214, 0.15);
+    background: linear-gradient(90deg, rgba(255, 43, 214, 0.08), transparent 60%);
+  }
+
+  .forge-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #ff2bd6;
+    text-shadow: 0 0 12px rgba(255, 43, 214, 0.55), 0 0 36px rgba(255, 43, 214, 0.3);
+  }
+
+  .forge-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #26ffff;
+    font-weight: 700;
+  }
+
+  .forge-link::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #26ffff;
+    box-shadow: 0 0 12px #26ffff;
+    animation: forgePulseDot 1.4s ease-in-out infinite;
+  }
+
+  @keyframes forgePulseDot {
+    0%, 100% { opacity: 0.7; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+
+  .forge-body {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr) minmax(0, 1.05fr);
+    gap: 18px;
+    padding: 22px 22px 12px;
+  }
+
+  .forge-panel {
+    position: relative;
+    border-radius: 18px;
+    background: rgba(8, 4, 24, 0.72);
+    border: 1px solid rgba(38, 255, 255, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255, 43, 214, 0.06), 0 12px 36px rgba(2, 0, 12, 0.55);
+    padding: 18px;
+    backdrop-filter: blur(8px);
+  }
+
+  .forge-panel-title {
+    margin: 0 0 14px;
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: #26ffff;
+    text-shadow: 0 0 10px rgba(38, 255, 255, 0.4);
+    text-align: center;
+  }
+
+  .forge-panel-empty {
+    color: rgba(245, 233, 255, 0.55);
+    font-size: 0.86rem;
+    text-align: center;
+    padding: 60px 12px;
+    line-height: 1.6;
+  }
+
+  /* Left refinement panel */
+  .refine-panel {
+    min-height: 480px;
+    transition: opacity 240ms ease, transform 240ms ease;
+  }
+
+  .refine-panel.is-hidden {
+    opacity: 0.35;
+    transform: translateX(-8px);
+  }
+
+  .refine-prompt {
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: rgba(245, 233, 255, 0.78);
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(38, 255, 255, 0.06);
+    border-left: 2px solid #26ffff;
+  }
+
+  .refine-options {
+    display: grid;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(38,255,255,0.2) transparent;
+  }
+
+  .refine-check-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255, 43, 214, 0.06), rgba(38, 255, 255, 0.03));
+    border: 1px solid rgba(255, 43, 214, 0.22);
+    color: #f5e9ff;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  }
+
+  .refine-check-row:hover {
+    border-color: rgba(255, 43, 214, 0.5);
+    background: linear-gradient(135deg, rgba(255, 43, 214, 0.12), rgba(38, 255, 255, 0.06));
+  }
+
+  .refine-check-row.is-checked {
+    border-color: #ff2bd6;
+    background: linear-gradient(135deg, rgba(255, 43, 214, 0.18), rgba(38, 255, 255, 0.08));
+    box-shadow: 0 0 14px rgba(255, 43, 214, 0.25);
+  }
+
+  .refine-checkbox {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid rgba(38, 255, 255, 0.5);
+    background: rgba(2, 0, 10, 0.8);
+    display: grid;
+    place-items: center;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  }
+
+  .refine-check-row.is-checked .refine-checkbox {
+    border-color: #ff2bd6;
+    background: rgba(255, 43, 214, 0.25);
+    box-shadow: 0 0 8px rgba(255, 43, 214, 0.5);
+  }
+
+  .refine-checkbox-tick {
+    display: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #ff2bd6;
+    box-shadow: 0 0 6px #ff2bd6;
+  }
+
+  .refine-check-row.is-checked .refine-checkbox-tick {
+    display: block;
+  }
+
+  .refine-check-label {
+    flex: 1;
+  }
+
+  .refine-option-tag {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #26ffff;
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
+
+  .refine-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .refine-lock-btn {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ff2bd6 0%, #6e0848 100%);
+    border: none;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    box-shadow: 0 0 22px rgba(255, 43, 214, 0.5);
+    transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+  }
+
+  .refine-lock-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 32px rgba(255, 43, 214, 0.8);
+  }
+
+  .refine-lock-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .refine-clear {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px dashed rgba(38, 255, 255, 0.32);
+    color: rgba(245, 233, 255, 0.7);
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .refine-clear:hover {
+    border-color: #26ffff;
+    color: #26ffff;
+  }
+
+  /* Center: waveform + stats */
+  .center-panel {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
+    min-height: 480px;
   }
 
-  .voxis-header {
-    font-size: 1.1rem;
+  .waveform-frame {
+    position: relative;
+    height: 220px;
+    border-radius: 14px;
+    background: rgba(2, 0, 10, 0.72);
+    border: 1px solid rgba(255, 43, 214, 0.22);
+    overflow: hidden;
+    box-shadow: inset 0 0 60px rgba(255, 43, 214, 0.10);
+  }
+
+  .waveform-meta {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245, 233, 255, 0.7);
+    background: linear-gradient(0deg, rgba(2, 0, 10, 0.85), transparent);
+  }
+
+  .waveform-meta strong {
+    display: block;
+    color: #26ffff;
+    font-size: 0.84rem;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+
+  .waveform-tag {
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #ff2bd6;
     font-weight: 700;
-    color: var(--text);
-    margin-bottom: 8px;
   }
 
-  .voxis-hint {
-    font-size: 0.85rem;
-    color: var(--muted);
-    margin-bottom: 16px;
+  .waveform-tag-right {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #26ffff;
+    font-weight: 700;
   }
 
-  .chat-container {
+  .stats-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: 1.15fr 4fr 0.9fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(8, 4, 24, 0.55);
+    border: 1px solid rgba(38, 255, 255, 0.14);
+  }
+
+  .stat-label {
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(245, 233, 255, 0.75);
+    font-weight: 700;
+  }
+
+  .stat-bar {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(38, 255, 255, 0.08);
+    overflow: hidden;
+  }
+
+  .stat-bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff2bd6, #26ffff);
+    box-shadow: 0 0 12px rgba(255, 43, 214, 0.5);
+    transition: width 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .stat-value {
+    text-align: right;
+    color: #f5e9ff;
+    font-weight: 800;
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* Right: orbital array */
+  .orbital-panel {
+    min-height: 480px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 16px;
-    border: 1px solid rgba(0, 180, 255, 0.2);
-    border-radius: 12px;
-    background: rgba(14, 22, 40, 0.6);
   }
 
-  .chat-message {
-    padding: 10px 14px;
-    border-radius: 8px;
-    max-width: 80%;
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
-
-  .chat-message.user {
-    align-self: flex-end;
-    background: rgba(0, 180, 255, 0.2);
-    color: var(--text);
-  }
-
-  .chat-message.assistant {
-    align-self: flex-start;
-    background: rgba(100, 100, 100, 0.2);
-    color: var(--text);
-  }
-
-  .chat-input-area {
-    display: flex;
-    gap: 8px;
-  }
-
-  .chat-input {
+  .orbital-stage {
+    position: relative;
     flex: 1;
-    padding: 12px;
-    border: 1px solid rgba(0, 180, 255, 0.3);
-    border-radius: 8px;
-    background: rgba(6, 10, 20, 0.8);
-    color: var(--text);
-    font-size: 0.9rem;
-    font-family: inherit;
-    resize: none;
-    min-height: 44px;
+    min-height: 420px;
+    margin-top: 4px;
   }
 
-  .chat-input:focus {
-    outline: none;
-    border-color: rgba(0, 180, 255, 0.5);
-    box-shadow: 0 0 8px rgba(0, 180, 255, 0.2);
-  }
-
-  .chat-button {
-    padding: 12px 20px;
-    border: 1px solid rgba(0, 180, 255, 0.3);
-    border-radius: 8px;
-    background: rgba(0, 180, 255, 0.15);
-    color: var(--text);
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .chat-button:hover {
-    background: rgba(0, 180, 255, 0.25);
-    box-shadow: 0 0 12px rgba(0, 180, 255, 0.25);
-  }
-
-  .chat-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .action-button {
-    padding: 12px 20px;
-    border: 1px solid rgba(0, 180, 255, 0.5);
-    border-radius: 8px;
-    background: rgba(0, 180, 255, 0.25);
-    color: var(--text);
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .action-button:hover {
-    background: rgba(0, 180, 255, 0.35);
-    box-shadow: 0 0 12px rgba(0, 180, 255, 0.3);
-  }
-
-  .action-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .action-button.primary {
-    background: rgba(0, 255, 136, 0.2);
-    border-color: rgba(0, 255, 136, 0.5);
-  }
-
-  .action-button.primary:hover {
-    background: rgba(0, 255, 136, 0.3);
-  }
-
-  .preview-section {
-    padding: 16px;
-    border: 1px solid rgba(0, 180, 255, 0.2);
-    border-radius: 12px;
-    background: rgba(14, 22, 40, 0.6);
-  }
-
-  .preview-header {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 12px;
-  }
-
-  .preview-content {
-    font-family: monospace;
-    font-size: 0.85rem;
-    color: #00ff88;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .error-message {
-    padding: 12px;
-    border: 1px solid rgba(255, 100, 100, 0.3);
-    border-radius: 8px;
-    background: rgba(100, 20, 20, 0.4);
-    color: #ff9999;
-    font-size: 0.85rem;
-  }
-
-  .mode-selector {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .mode-button {
-    padding: 8px 16px;
-    border: 1px solid rgba(0, 180, 255, 0.3);
-    border-radius: 6px;
-    background: rgba(6, 10, 20, 0.8);
-    color: var(--text);
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .mode-button.active {
-    background: rgba(0, 180, 255, 0.25);
-    border-color: rgba(0, 180, 255, 0.5);
-  }
-
-  .mode-button:hover:not(.active) {
-    background: rgba(0, 180, 255, 0.15);
-  }
-
-  /* Persona Preview Panel */
-  .persona-preview-panel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
+  .orbital-ring {
+    position: absolute;
+    inset: 50% auto auto 50%;
     transform: translate(-50%, -50%);
-    width: 520px;
-    max-width: 92%;
-    background: linear-gradient(145deg, #14141f, #0a0a12);
-    border: 2px solid #C0262E;
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 0 60px rgba(192, 38, 46, 0.6);
-    z-index: 1000;
+    border: 1px dashed rgba(38, 255, 255, 0.18);
+    border-radius: 50%;
+    pointer-events: none;
   }
 
-  .persona-preview-panel h3 {
-    color: #FF1F3A;
-    text-align: center;
-    margin-bottom: 1.5rem;
-    letter-spacing: 0.06em;
-  }
-
-  .persona-preview-content {
-    background: rgba(15, 15, 23, 0.7);
-    padding: 1.2rem;
-    border-radius: 10px;
-    margin-bottom: 1.8rem;
-    line-height: 1.7;
-    font-size: 0.98rem;
-    color: #ffffff;
-  }
-
-  .persona-preview-content strong {
-    color: #FF1F3A;
-  }
-
-  .persona-preview-buttons {
+  .orbital-core {
+    --core-rgb: 255, 43, 214;
+    --core-glow-max: 48px;
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    width: 144px;
+    height: 144px;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--core-rgb), 0.52);
     display: flex;
-    gap: 1rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-align: center;
+    color: #fff;
+    padding: 14px;
+    animation: corePulse 3s ease-in-out infinite;
+    transition: border-color 0.9s ease, background 0.9s ease, text-shadow 0.9s ease;
   }
 
-  .persona-preview-buttons button {
-    flex: 1;
-    padding: 1rem;
-    border-radius: 10px;
+  .core-label-text {
+    font-weight: 800;
+    font-size: 0.88rem;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(var(--core-rgb), 0.65);
+  }
+
+  .core-mood-badge {
+    font-size: 0.58rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
     font-weight: 700;
+    opacity: 0.72;
+    color: rgba(var(--core-rgb), 1);
+    text-shadow: 0 0 8px rgba(var(--core-rgb), 0.8);
+    transition: color 0.9s ease, text-shadow 0.9s ease;
+  }
+
+  @keyframes corePulse {
+    0%, 100% { box-shadow: 0 0 24px rgba(var(--core-rgb), 0.45), inset 0 0 18px rgba(var(--core-rgb), 0.25); }
+    50% { box-shadow: 0 0 var(--core-glow-max) rgba(var(--core-rgb), 0.85), inset 0 0 30px rgba(var(--core-rgb), 0.42); }
+  }
+
+  .orbital-trait {
+    --flare: 0;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 38% 32%, rgba(38, 255, 255, 0.22), transparent 68%),
+      radial-gradient(circle at 50% 50%, rgba(8, 4, 28, 0.95), rgba(2, 0, 14, 0.98));
+    border: 1.5px solid rgba(38, 255, 255, 0.55);
+    box-shadow:
+      0 0 14px rgba(38, 255, 255, 0.22),
+      inset 0 0 18px rgba(38, 255, 255, 0.08);
+    color: #e8d6ff;
+    font-weight: 800;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.25;
     cursor: pointer;
-    transition: all 0.3s ease;
+    display: grid;
+    place-items: center;
+    padding: 8px;
+    transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+    overflow: hidden;
+    word-break: break-word;
+    hyphens: auto;
   }
 
-  .persona-preview-buttons button:first-child {
-    background: #C0262E;
-    color: white;
-    border: none;
+  .orbital-trait::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    border: 1px solid rgba(38, 255, 255, 0.12);
+    pointer-events: none;
   }
 
-  .persona-preview-buttons button:last-child {
+  .orbital-trait:hover {
+    transform: translate(-50%, -50%) scale(1.12);
+    border-color: #ff2bd6;
+    box-shadow:
+      0 0 28px rgba(255, 43, 214, 0.65),
+      inset 0 0 20px rgba(255, 43, 214, 0.18);
+    color: #fff;
+    background:
+      radial-gradient(circle at 38% 32%, rgba(255, 43, 214, 0.3), transparent 68%),
+      radial-gradient(circle at 50% 50%, rgba(20, 4, 36, 0.97), rgba(6, 0, 20, 0.98));
+  }
+
+  .orbital-trait.is-active {
+    border-color: #ff2bd6;
+    background:
+      radial-gradient(circle at 38% 32%, rgba(255, 43, 214, 0.45), transparent 65%),
+      radial-gradient(circle at 50% 50%, rgba(22, 4, 40, 0.97), rgba(8, 0, 22, 0.98));
+    box-shadow:
+      0 0 32px rgba(255, 43, 214, 0.75),
+      inset 0 0 24px rgba(255, 43, 214, 0.25);
+    color: #fff;
+    text-shadow: 0 0 8px rgba(255, 43, 214, 0.6);
+  }
+
+  .orbital-trait.has-flare {
+    transform: translate(-50%, -50%) scale(calc(1 + var(--flare) * 0.28));
+    border-color: #ff2bd6;
+    background:
+      radial-gradient(circle at 38% 32%, rgba(255, 43, 214, calc(0.3 + var(--flare) * 0.45)), transparent 65%),
+      radial-gradient(circle at 50% 50%, rgba(22, 4, 40, 0.97), rgba(8, 0, 22, 0.98));
+    box-shadow:
+      0 0 calc(14px + var(--flare) * 36px) rgba(255, 43, 214, calc(0.45 + var(--flare) * 0.5)),
+      0 0 calc(28px + var(--flare) * 60px) rgba(38, 255, 255, calc(var(--flare) * 0.45)),
+      inset 0 0 20px rgba(255, 43, 214, calc(var(--flare) * 0.3));
+    color: #fff;
+    text-shadow: 0 0 calc(var(--flare) * 12px) rgba(255, 255, 255, var(--flare));
+    z-index: 3;
+  }
+
+  .orbital-trait.has-flare::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 43, 214, calc(var(--flare) * 0.65));
+    box-shadow: 0 0 calc(var(--flare) * 22px) rgba(255, 43, 214, calc(var(--flare) * 0.55));
+    pointer-events: none;
+    opacity: var(--flare);
+    transform: scale(calc(1 + var(--flare) * 0.35));
+  }
+
+  .orbital-empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(245, 233, 255, 0.5);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  /* Bottom row */
+  .forge-footer {
+    position: relative;
+    z-index: 2;
+    padding: 14px 22px 22px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .footer-wave {
+    height: 60px;
+    border-radius: 12px;
+    background: rgba(2, 0, 10, 0.7);
+    border: 1px solid rgba(38, 255, 255, 0.18);
+    overflow: hidden;
+  }
+
+  .speak-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border-radius: 16px;
+    background: linear-gradient(90deg, rgba(255, 43, 214, 0.10), rgba(38, 255, 255, 0.06));
+    border: 1px solid rgba(255, 43, 214, 0.32);
+    box-shadow: 0 0 24px rgba(255, 43, 214, 0.15);
+  }
+
+  .mic-button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, #ff2bd6, #6e0848 80%);
+    border: 1px solid rgba(255, 43, 214, 0.65);
+    box-shadow: 0 0 28px rgba(255, 43, 214, 0.65), inset 0 -6px 16px rgba(0, 0, 0, 0.35);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .mic-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 36px rgba(255, 43, 214, 0.85);
+  }
+
+  .mic-button.is-listening {
+    animation: micListen 1s ease-in-out infinite;
+  }
+
+  @keyframes micListen {
+    0%, 100% { box-shadow: 0 0 22px rgba(255, 43, 214, 0.55); }
+    50% { box-shadow: 0 0 48px rgba(255, 43, 214, 0.95), 0 0 80px rgba(38, 255, 255, 0.35); }
+  }
+
+  .speak-input {
+    flex: 1;
     background: transparent;
-    color: #c0c0d8;
-    border: 2px solid #666688;
+    border: none;
+    color: #f5e9ff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    outline: none;
+    padding: 6px 4px;
+    text-shadow: 0 0 10px rgba(255, 43, 214, 0.35);
   }
 
-  .persona-preview-buttons button:hover {
-    transform: translateY(-2px);
+  .speak-input::placeholder {
+    color: rgba(245, 233, 255, 0.45);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 0.92rem;
   }
 
-  .persona-preview-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 999;
+  .speak-submit {
+    padding: 11px 18px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #26ffff, #2bb6ff);
+    border: none;
+    color: #04021a;
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    box-shadow: 0 0 18px rgba(38, 255, 255, 0.55);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  .speak-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 26px rgba(38, 255, 255, 0.85);
+  }
+
+  .speak-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .forge-status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 10px 22px 18px;
+    color: rgba(245, 233, 255, 0.6);
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .forge-status-bar strong {
+    color: #26ffff;
+  }
+
+  .forge-toast {
+    margin: 0 22px 14px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(38, 255, 255, 0.08);
+    border: 1px solid rgba(38, 255, 255, 0.36);
+    color: #c9f6ff;
+    font-size: 0.86rem;
+    text-shadow: 0 0 8px rgba(38, 255, 255, 0.25);
+  }
+
+  .forge-toast.is-error {
+    background: rgba(255, 64, 96, 0.08);
+    border-color: rgba(255, 64, 96, 0.4);
+    color: #ffc0c8;
+  }
+
+  .persona-echo {
+    margin: 0 22px 12px;
+    padding: 14px 18px 16px;
+    border-radius: 16px;
+    background:
+      linear-gradient(135deg, rgba(255, 43, 214, 0.08), rgba(38, 255, 255, 0.05));
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    box-shadow: 0 0 24px rgba(38, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 43, 214, 0.05);
+    position: relative;
+  }
+
+  .persona-echo-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #26ffff;
+    margin-bottom: 8px;
+    text-shadow: 0 0 8px rgba(38, 255, 255, 0.4);
+  }
+
+  .persona-echo-head::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff2bd6;
+    box-shadow: 0 0 12px #ff2bd6;
+    animation: forgePulseDot 1.4s ease-in-out infinite;
+  }
+
+  .persona-echo-head .echo-name {
+    color: #ff2bd6;
+    text-shadow: 0 0 10px rgba(255, 43, 214, 0.5);
+    letter-spacing: 0.18em;
+  }
+
+  .persona-echo-body {
+    color: #f5e9ff;
+    font-size: 0.96rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    text-shadow: 0 0 6px rgba(255, 43, 214, 0.18);
+    min-height: 1.5em;
+  }
+
+  .persona-echo-body.is-thinking::after {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    margin-left: 6px;
+    vertical-align: -2px;
+    background: #26ffff;
+    box-shadow: 0 0 10px #26ffff;
+    animation: echoCaret 0.9s steps(2) infinite;
+  }
+
+  @keyframes echoCaret {
+    0%, 49% { opacity: 0.95; }
+    50%, 100% { opacity: 0.05; }
+  }
+
+  .persona-echo-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: rgba(245, 233, 255, 0.5);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+
+  .persona-echo-dismiss:hover {
+    color: #ff2bd6;
+    background: rgba(255, 43, 214, 0.08);
+  }
+
+  .persona-echo-error {
+    border-color: rgba(255, 64, 96, 0.45);
+    background: rgba(255, 64, 96, 0.08);
+    box-shadow: 0 0 18px rgba(255, 64, 96, 0.18);
+  }
+
+  .persona-echo-error .persona-echo-head {
+    color: #ff8090;
+  }
+
+  .persona-echo-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .echo-speak-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(38, 255, 255, 0.06);
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    color: rgba(245, 233, 255, 0.8);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .echo-speak-toggle.is-on {
+    background: rgba(255, 43, 214, 0.12);
+    border-color: rgba(255, 43, 214, 0.6);
+    color: #ff2bd6;
+    box-shadow: 0 0 14px rgba(255, 43, 214, 0.35);
+  }
+
+  .echo-speak-toggle.is-on.is-speaking {
+    animation: micListen 1.2s ease-in-out infinite;
+  }
+
+  .echo-speak-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 1100px) {
+    .forge-body {
+      grid-template-columns: 1fr;
+    }
+    .orbital-stage {
+      min-height: 360px;
+    }
+    .refine-panel,
+    .center-panel,
+    .orbital-panel {
+      min-height: auto;
+    }
   }
 `;
 
-export default function VoxisTab({ selectedPersonality, onPersonalityUpdated, onStatus }) {
+const STAT_KEYWORDS = {
+  confidence: [
+    "confident", "bold", "assertive", "fearless", "decisive",
+    "alpha", "dominant", "commanding", "powerful", "regal",
+  ],
+  dominance: [
+    "dominant", "dommy", "alpha", "controlling", "possessive",
+    "strict", "ruthless", "tyrant", "mistress", "master", "owner",
+  ],
+  obsession: [
+    "obsessed", "obsessive", "fixated", "devoted", "worship",
+    "yandere", "stalker", "infatuated", "consumed", "bunny",
+  ],
+  deviance: [
+    "evil", "sadistic", "chaotic", "untamed", "deviant",
+    "cruel", "wicked", "twisted", "malicious", "feral",
+  ],
+  loyalty: [
+    "loyal", "devoted", "faithful", "mine", "protective",
+    "loving", "tender", "sweet", "caring", "obsessive",
+  ],
+};
+
+const MOODS = {
+  aggressive: {
+    key: "aggressive",
+    label: "Aggressive",
+    rgb: "255, 60, 40",
+    duration: "1.0s",
+    glowMax: "64px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,60,40,0.52), rgba(255,60,40,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,100,50,0.16), rgba(255,100,50,0) 60%)",
+  },
+  dominant: {
+    key: "dominant",
+    label: "Dominant",
+    rgb: "255, 20, 120",
+    duration: "1.6s",
+    glowMax: "56px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,20,120,0.52), rgba(255,20,120,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,43,214,0.18), rgba(255,43,214,0) 60%)",
+  },
+  obsessive: {
+    key: "obsessive",
+    label: "Obsessive",
+    rgb: "140, 30, 255",
+    duration: "1.8s",
+    glowMax: "52px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(140,30,255,0.52), rgba(140,30,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(180,80,255,0.16), rgba(180,80,255,0) 60%)",
+  },
+  chaotic: {
+    key: "chaotic",
+    label: "Chaotic",
+    rgb: "38, 180, 255",
+    duration: "2.2s",
+    glowMax: "52px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(38,180,255,0.46), rgba(38,180,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(38,255,255,0.18), rgba(38,255,255,0) 60%)",
+  },
+  loyal: {
+    key: "loyal",
+    label: "Loyal",
+    rgb: "255, 195, 40",
+    duration: "3.5s",
+    glowMax: "40px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,195,40,0.42), rgba(255,195,40,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,220,80,0.16), rgba(255,220,80,0) 60%)",
+  },
+  calm: {
+    key: "calm",
+    label: "Calm",
+    rgb: "80, 160, 255",
+    duration: "4.5s",
+    glowMax: "36px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(80,160,255,0.42), rgba(80,160,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(100,200,255,0.18), rgba(100,200,255,0) 60%)",
+  },
+  forming: {
+    key: "forming",
+    label: "Forming",
+    rgb: "255, 43, 214",
+    duration: "3s",
+    glowMax: "48px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,43,214,0.45), rgba(255,43,214,0) 70%), radial-gradient(circle at 50% 50%, rgba(38,255,255,0.18), rgba(38,255,255,0) 60%)",
+  },
+};
+
+function deriveMood(stats) {
+  if (!stats || Object.keys(stats).length === 0) return MOODS.forming;
+  const { dominance = 40, obsession = 40, confidence = 40, deviance = 40, loyalty = 40 } = stats;
+  if (dominance + obsession > 145) return MOODS.aggressive;
+  if (dominance > 62 && confidence > 58) return MOODS.dominant;
+  if (obsession > 62 && deviance > 52) return MOODS.obsessive;
+  if (deviance > 62) return MOODS.chaotic;
+  if (loyalty > 62 && dominance < 55) return MOODS.loyal;
+  if (Math.max(dominance, obsession, deviance) < 48) return MOODS.calm;
+  return MOODS.forming;
+}
+
+const REFINEMENT_LIBRARY = {
+  evil: [
+    { label: "Chaotic Evil", tag: "Alignment" },
+    { label: "True Evil", tag: "Alignment" },
+    { label: "Sadistic Evil", tag: "Style" },
+    { label: "Cunning Evil", tag: "Tactics" },
+    { label: "Cold Evil", tag: "Mood" },
+  ],
+  good: [
+    { label: "Lawful Good", tag: "Alignment" },
+    { label: "Chaotic Good", tag: "Alignment" },
+    { label: "Selfless Good", tag: "Style" },
+  ],
+  sadistic: [
+    { label: "Cold Sadist", tag: "Style" },
+    { label: "Playful Sadist", tag: "Style" },
+    { label: "Calculated Sadist", tag: "Tactics" },
+    { label: "Tender Sadist", tag: "Style" },
+  ],
+  obsessive: [
+    { label: "Worship-driven", tag: "Mode" },
+    { label: "Possessive", tag: "Trait" },
+    { label: "Hyperfixated", tag: "Trait" },
+    { label: "Devotional", tag: "Mode" },
+    { label: "Yandere Streak", tag: "Style" },
+  ],
+  obsessed: [
+    { label: "Worship-driven", tag: "Mode" },
+    { label: "Possessive", tag: "Trait" },
+    { label: "Hyperfixated", tag: "Trait" },
+    { label: "Devotional", tag: "Mode" },
+  ],
+  chaotic: [
+    { label: "Wildcard", tag: "Style" },
+    { label: "Trickster", tag: "Style" },
+    { label: "Unpredictable Genius", tag: "Mode" },
+    { label: "Anarchic", tag: "Alignment" },
+  ],
+  dommy: [
+    { label: "Strict Disciplinarian", tag: "Style" },
+    { label: "Velvet Domme", tag: "Style" },
+    { label: "Cold Goddess", tag: "Mode" },
+    { label: "Doting Mistress", tag: "Style" },
+  ],
+  dominant: [
+    { label: "Quiet Authority", tag: "Style" },
+    { label: "Loud Command", tag: "Style" },
+    { label: "Predator Energy", tag: "Mode" },
+    { label: "Caretaker Dominant", tag: "Mode" },
+  ],
+  possessive: [
+    { label: "Jealous Possessive", tag: "Style" },
+    { label: "Quietly Possessive", tag: "Style" },
+    { label: "Branding Possessive", tag: "Style" },
+  ],
+  tease: [
+    { label: "Slow Burn Tease", tag: "Style" },
+    { label: "Brutal Tease", tag: "Style" },
+    { label: "Sweet Tease", tag: "Style" },
+  ],
+  loyal: [
+    { label: "Loyal to a Fault", tag: "Trait" },
+    { label: "Conditionally Loyal", tag: "Trait" },
+    { label: "Quiet Devotion", tag: "Mode" },
+  ],
+  shy: [
+    { label: "Anxious Shy", tag: "Mode" },
+    { label: "Cute Shy", tag: "Style" },
+    { label: "Stoic Shy", tag: "Mode" },
+  ],
+  caring: [
+    { label: "Maternal Care", tag: "Mode" },
+    { label: "Stern Care", tag: "Mode" },
+    { label: "Soft Care", tag: "Style" },
+  ],
+};
+
+function genericRefinements(seed) {
+  const trimmed = seed.trim();
+  if (!trimmed) return [];
+  return [
+    { label: `More ${trimmed}`, tag: "Amplify" },
+    { label: `Quietly ${trimmed}`, tag: "Style" },
+    { label: `Aggressively ${trimmed}`, tag: "Style" },
+    { label: `Subtly ${trimmed}`, tag: "Style" },
+    { label: `Obsessively ${trimmed}`, tag: "Mode" },
+  ];
+}
+
+function lookupRefinements(seed) {
+  if (!seed) return [];
+  const key = seed.trim().toLowerCase();
+  if (REFINEMENT_LIBRARY[key]) {
+    return REFINEMENT_LIBRARY[key];
+  }
+  for (const k of Object.keys(REFINEMENT_LIBRARY)) {
+    if (key.includes(k)) {
+      return REFINEMENT_LIBRARY[k];
+    }
+  }
+  return genericRefinements(seed);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computeStats(traits) {
+  const list = Array.isArray(traits) ? traits : [];
+  const blob = list.join(" ").toLowerCase();
+  const stats = {};
+  for (const [key, words] of Object.entries(STAT_KEYWORDS)) {
+    let hits = 0;
+    for (const w of words) {
+      if (blob.includes(w)) hits += 1;
+    }
+    const base = 38 + hits * 14;
+    const jitter = ((key.charCodeAt(0) + list.length) % 7) - 3;
+    stats[key] = clamp(Math.round(base + jitter), 12, 99);
+  }
+  return stats;
+}
+
+function selectOrbitalTraits(personality) {
+  if (!personality) return [];
+  const traits = Array.isArray(personality.traits) ? personality.traits : [];
+  const core = Array.isArray(personality.coreValues) ? personality.coreValues : [];
+  const merged = [...traits, ...core]
+    .map((t) => (typeof t === "string" ? t.trim() : ""))
+    .filter(Boolean);
+  const seen = new Set();
+  const unique = [];
+  for (const t of merged) {
+    const key = t.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(t);
+    }
+  }
+  return unique.slice(0, 8);
+}
+
+function deriveCoreLabel(personality) {
+  if (!personality) return "Forge a Persona";
+  const phrase =
+    Array.isArray(personality.notablePhrases) && personality.notablePhrases.length
+      ? personality.notablePhrases[0]
+      : null;
+  if (phrase) {
+    const words = phrase.replace(/[^\w\s]/g, "").trim().split(/\s+/).slice(0, 3);
+    if (words.length) return words.join(" ");
+  }
+  return personality.name || "Unnamed Forge";
+}
+
+function Waveform({ intensity = 0.5, listening = false, seed = 0, speaking = false, levelRef = null }) {
+  const canvasRef = useRef(null);
+  const stateRef = useRef({ phase: 0, energy: intensity });
+
+  useEffect(() => {
+    stateRef.current.energy = intensity;
+  }, [intensity]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let raf = 0;
+    let cancelled = false;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+
+    function frame() {
+      if (cancelled) return;
+      const { width, height } = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, width, height);
+      const speechLevel = speaking && levelRef ? clamp(levelRef.current || 0, 0, 1) : 0;
+      stateRef.current.phase += 0.045 + (listening ? 0.04 : 0) + speechLevel * 0.12;
+      const energy = clamp(
+        stateRef.current.energy + (listening ? 0.25 : 0) + speechLevel * 0.95,
+        0.15,
+        1.6,
+      );
+      const mid = height / 2;
+      const cycles = 6;
+
+      const drawBand = (color, amplitudeScale, phaseShift, lineWidth) => {
+        ctx.beginPath();
+        for (let x = 0; x <= width; x += 2) {
+          const t = x / width;
+          const wobble =
+            Math.sin(t * Math.PI * cycles + stateRef.current.phase + phaseShift) *
+              0.55 +
+            Math.sin(t * Math.PI * cycles * 2.4 + stateRef.current.phase * 1.6 + phaseShift) *
+              0.30 +
+            Math.sin(t * Math.PI * cycles * 0.7 + stateRef.current.phase * 0.6 + seed) *
+              0.18;
+          const amp = mid * 0.78 * energy * amplitudeScale * (0.6 + Math.sin(t * Math.PI) * 0.4);
+          const y = mid + wobble * amp;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = color;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      };
+
+      drawBand("rgba(255, 43, 214, 0.85)", 1.0, 0, 1.6);
+      drawBand("rgba(38, 255, 255, 0.65)", 0.6, Math.PI / 2, 1.1);
+      drawBand("rgba(255, 43, 214, 0.35)", 0.35, Math.PI, 0.8);
+
+      raf = requestAnimationFrame(frame);
+    }
+    frame();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [listening, seed, speaking, levelRef]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ width: "100%", height: "100%", display: "block" }}
+    />
+  );
+}
+
+function FooterMiniWave({ listening }) {
+  return <Waveform intensity={0.3} listening={listening} seed={42} />;
+}
+
+function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef = null, speaking = false, mood = null }) {
+  const stageRef = useRef(null);
+  const trailCanvasRef = useRef(null);
+  const [size, setSize] = useState({ w: 360, h: 360 });
+  const rotationRef = useRef(0);
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    if (!stageRef.current) return;
+    const el = stageRef.current;
+    const ro = new ResizeObserver(() => {
+      const rect = el.getBoundingClientRect();
+      setSize({ w: rect.width, h: rect.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = 0;
+    let cancelled = false;
+    let frameBudget = 0;
+    const loop = (t) => {
+      if (cancelled) return;
+      const dt = last ? Math.min(t - last, 60) : 16;
+      last = t;
+      rotationRef.current += dt * 0.00015;
+      frameBudget += dt;
+      if (frameBudget >= 33) {
+        frameBudget = 0;
+        forceUpdate((v) => (v + 1) % 1000000);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = trailCanvasRef.current;
+    if (!canvas || !traits.length) {
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      return;
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    if (!w || !h) return;
+
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = Math.max(110, Math.min(w, h) / 2 - 50);
+    const ir = Math.max(70, r * 0.6);
+    const count = traits.length;
+    const STEPS = 18;
+    const TRAIL_ARC = Math.PI * 0.55;
+    const now = performance.now();
+
+    traits.forEach((trait, i) => {
+      const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
+      const clockwise = i % 2 === 0;
+      const dir = clockwise ? 1 : -1;
+      const angle = baseAngle + rotationRef.current * dir;
+      const orbRadius = clockwise ? r : ir;
+
+      const flareTime = flaresRef?.current?.[trait] || 0;
+      const age = flareTime ? now - flareTime : Infinity;
+      const rawFlare = age < 1200 ? Math.max(0, 1 - age / 1200) : 0;
+      const flare = rawFlare * rawFlare * (3 - 2 * rawFlare);
+
+      const [cr, cg, cb] = clockwise ? [255, 43, 214] : [38, 255, 255];
+
+      ctx.save();
+      ctx.lineCap = "round";
+
+      for (let s = 0; s < STEPS; s++) {
+        const t0 = s / STEPS;
+        const t1 = (s + 1) / STEPS;
+        const alpha = t1 * t1 * (0.42 + flare * 0.4);
+        const lw = 1.0 + t1 * (2.2 + flare * 2.0);
+
+        let a0, a1;
+        if (clockwise) {
+          a0 = angle - TRAIL_ARC * (1 - t0);
+          a1 = angle - TRAIL_ARC * (1 - t1);
+        } else {
+          a0 = angle + TRAIL_ARC * (1 - t0);
+          a1 = angle + TRAIL_ARC * (1 - t1);
+        }
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, orbRadius, a0, a1, !clockwise);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(3)})`;
+        ctx.lineWidth = lw;
+
+        if (t1 > 0.65) {
+          ctx.shadowBlur = 5 + flare * 14;
+          ctx.shadowColor = `rgba(${cr},${cg},${cb},${(alpha * 0.65).toFixed(3)})`;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        ctx.stroke();
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+  });
+
+  const radius = Math.max(110, Math.min(size.w, size.h) / 2 - 50);
+  const innerRadius = Math.max(70, radius * 0.6);
+
+  const count = traits.length;
+  const positions = count === 0 ? [] : traits.map((trait, i) => {
+    const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    const dir = i % 2 === 0 ? 1 : -1;
+    const angle = baseAngle + rotationRef.current * dir;
+    const r = i % 2 === 0 ? radius : innerRadius;
+    return {
+      trait,
+      x: Math.cos(angle) * r,
+      y: Math.sin(angle) * r,
+    };
+  });
+
+  return (
+    <div className="orbital-stage" ref={stageRef}>
+      <div
+        className="orbital-ring"
+        style={{ width: radius * 2 + 28, height: radius * 2 + 28 }}
+      />
+      <div
+        className="orbital-ring"
+        style={{ width: innerRadius * 2 + 28, height: innerRadius * 2 + 28 }}
+      />
+      <canvas
+        ref={trailCanvasRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        className="orbital-core"
+        style={{
+          "--core-rgb": mood ? mood.rgb : "255, 43, 214",
+          "--core-glow-max": mood ? mood.glowMax : "48px",
+          animationDuration: mood ? mood.duration : "3s",
+          background: mood ? mood.bg : undefined,
+        }}
+      >
+        <span className="core-label-text">{coreLabel}</span>
+        {mood && mood.key !== "forming" && (
+          <span className="core-mood-badge">{mood.label}</span>
+        )}
+      </div>
+      {positions.length === 0 ? (
+        <div className="orbital-empty">
+          No traits yet — speak to the forge below to define this persona.
+        </div>
+      ) : (
+        positions.map((p) => {
+          const flareTime = flaresRef?.current?.[p.trait] || 0;
+          const age = flareTime ? performance.now() - flareTime : Infinity;
+          const strength = age < 1200 ? Math.max(0, 1 - age / 1200) : 0;
+          const eased = strength * strength * (3 - 2 * strength);
+          return (
+            <button
+              type="button"
+              key={p.trait}
+              className={`orbital-trait ${
+                activeTrait && activeTrait.toLowerCase() === p.trait.toLowerCase()
+                  ? "is-active"
+                  : ""
+              } ${eased > 0.02 ? "has-flare" : ""}`}
+              style={{
+                left: `calc(50% + ${p.x}px)`,
+                top: `calc(50% + ${p.y}px)`,
+                "--flare": eased.toFixed(3),
+              }}
+              onClick={() => onSelectTrait(p.trait)}
+            >
+              {p.trait}
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+export default function VoxisTab({
+  selectedPersonality: personality,
+  onPersonalityUpdated,
+  onSelectPersonality,
+  personalities = [],
+  userId = null,
+  mode = "scientist",
+}) {
   const authFetch = useAuthFetch();
-  const [mode, setMode] = useState(selectedPersonality ? "modify" : "create");
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hi! I'm Voxis, your AI guide. I can help you create new personalities or modify existing ones. What would you like to do?" }
+  const [activeTrait, setActiveTrait] = useState(null);
+  const [pendingSeed, setPendingSeed] = useState("");
+  const [refinements, setRefinements] = useState([]);
+  const [refinePrompt, setRefinePrompt] = useState("");
+  const [checkedRefinements, setCheckedRefinements] = useState(new Set());
+  const [inputValue, setInputValue] = useState("");
+  const [listening, setListening] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [echo, setEcho] = useState(null);
+  const [echoStreaming, setEchoStreaming] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsBusy, setTtsBusy] = useState(false);
+  const recognitionRef = useRef(null);
+  const echoAbortRef = useRef(null);
+  const ttsAbortRef = useRef(null);
+  const audioRef = useRef(null);
+  const audioUrlRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const analyserDataRef = useRef(null);
+  const audioLevelRef = useRef(0);
+  const levelRafRef = useRef(0);
+  const flaresRef = useRef({});
+  const traitKeywordsRef = useRef([]);
+  const replyTextRef = useRef("");
+  const lastSpokenIndexRef = useRef(0);
+
+  const traits = useMemo(() => selectOrbitalTraits(personality), [personality]);
+
+  useEffect(() => {
+    traitKeywordsRef.current = traits
+      .map((trait) => {
+        const keys = String(trait || "")
+          .toLowerCase()
+          .split(/[^a-z0-9]+/)
+          .filter((w) => w.length >= 3);
+        const unique = Array.from(new Set(keys));
+        if (!unique.length) return { trait, re: null };
+        const escaped = unique.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        return { trait, re: new RegExp(`\\b(?:${escaped.join("|")})`, "i") };
+      })
+      .filter((entry) => entry.re);
+  }, [traits]);
+  const stats = useMemo(() => computeStats([...(personality?.traits || []), ...(personality?.coreValues || [])]), [
+    personality,
   ]);
-  const [input, setInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [preview, setPreview] = useState(null);
-  const [error, setError] = useState(null);
-  const [explanation, setExplanation] = useState(null);
-  const [isExplaining, setIsExplaining] = useState(false);
-  
-  // VoxisThinking state
-  const [isVoxisThinking, setIsVoxisThinking] = useState(false);
-  const [currentPhase, setCurrentPhase] = useState("thinking");
-  const [currentPersonaName, setCurrentPersonaName] = useState("");
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const mood = useMemo(() => deriveMood(stats), [stats]);
+  const coreLabel = useMemo(() => deriveCoreLabel(personality), [personality]);
 
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
+  const showToast = (text, isError = false) => {
+    setToast({ text, isError });
+    setTimeout(() => setToast(null), 3600);
+  };
 
-    const userMessage = input.trim();
-    const userMessageObj = { role: "user", content: userMessage };
-    const updatedMessages = [...messages, userMessageObj];
-    setMessages(updatedMessages);
-    setInput("");
-    setIsProcessing(true);
-    setIsVoxisThinking(true);
-    setCurrentPhase("thinking");
+  const handleSelectOrbital = (trait) => {
+    setActiveTrait(trait);
+    setPendingSeed(trait);
+    setRefinements(lookupRefinements(trait));
+    setRefinePrompt(`Refine "${trait}" — check the flavors you want and hit Lock In.`);
+    setCheckedRefinements(new Set());
+  };
 
-    // Detect if this is the final step
-    const isFinal = userMessage.toLowerCase().includes("done") || 
-                    userMessage.toLowerCase().includes("create it") ||
-                    userMessage.toLowerCase().includes("make it") ||
-                    userMessage.toLowerCase().includes("lock it in") ||
-                    userMessage.toLowerCase().includes("generate preview");
+  const clearRefinements = () => {
+    setActiveTrait(null);
+    setRefinements([]);
+    setPendingSeed("");
+    setRefinePrompt("");
+    setCheckedRefinements(new Set());
+  };
+
+  const handleToggleRefinement = (label) => {
+    setCheckedRefinements((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
+  const handleLockIn = async () => {
+    const toAdd = refinements.filter((r) => checkedRefinements.has(r.label));
+    if (!toAdd.length) return;
+    let anyAdded = false;
+    for (const r of toAdd) {
+      const ok = await submitTraitToBackend(r.label);
+      if (ok) anyAdded = true;
+    }
+    if (anyAdded) {
+      const names = toAdd.map((r) => r.label).join(", ");
+      clearRefinements();
+      sendForgeMessage(
+        `The forge just welded these traits into you: ${names}. React in character — embody them.`
+      );
+    }
+  };
+
+  const submitTraitToBackend = async (newTrait) => {
+    if (!personality?.id) {
+      showToast("Select a persona first to forge new traits.", true);
+      return false;
+    }
+    const cleaned = newTrait.trim();
+    if (!cleaned) return false;
+
+    const existing = Array.isArray(personality.traits) ? personality.traits : [];
+    const exists = existing.some((t) => t.trim().toLowerCase() === cleaned.toLowerCase());
+    if (exists) {
+      showToast(`"${cleaned}" is already part of ${personality.name}.`);
+      return false;
+    }
+
+    const nextTraits = [...existing, cleaned];
+    setBusy(true);
+    try {
+      const res = await authFetch(`/personality/${personality.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ traits: nextTraits }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Failed (${res.status})`);
+      }
+      const updated = await res.json();
+      onPersonalityUpdated?.(updated);
+      showToast(`Forged "${cleaned}" into ${personality.name}.`);
+      return true;
+    } catch (err) {
+      showToast(err.message || "The forge sparked but failed.", true);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stopLevelLoop = () => {
+    if (levelRafRef.current) {
+      cancelAnimationFrame(levelRafRef.current);
+      levelRafRef.current = 0;
+    }
+    audioLevelRef.current = 0;
+  };
+
+  const startLevelLoop = () => {
+    stopLevelLoop();
+    const tick = () => {
+      const analyser = analyserRef.current;
+      const data = analyserDataRef.current;
+      if (!analyser || !data) {
+        audioLevelRef.current = 0;
+        return;
+      }
+      analyser.getByteTimeDomainData(data);
+      let sumSq = 0;
+      for (let i = 0; i < data.length; i += 1) {
+        const v = (data[i] - 128) / 128;
+        sumSq += v * v;
+      }
+      const rms = Math.sqrt(sumSq / data.length);
+      const target = clamp(rms * 2.4, 0, 1);
+      audioLevelRef.current = audioLevelRef.current * 0.55 + target * 0.45;
+
+      const audio = audioRef.current;
+      const text = replyTextRef.current;
+      if (audio && text && audio.duration > 0 && Number.isFinite(audio.duration)) {
+        const progress = clamp(audio.currentTime / audio.duration, 0, 1);
+        const idx = Math.floor(progress * text.length);
+        if (idx > lastSpokenIndexRef.current) {
+          const slice = text.slice(lastSpokenIndexRef.current, idx);
+          const now = performance.now();
+          for (const { trait, re } of traitKeywordsRef.current) {
+            if (re.test(slice)) {
+              const last = flaresRef.current[trait] || 0;
+              if (now - last > 350) {
+                flaresRef.current[trait] = now;
+              }
+            }
+          }
+          lastSpokenIndexRef.current = idx;
+        }
+      }
+
+      levelRafRef.current = requestAnimationFrame(tick);
+    };
+    levelRafRef.current = requestAnimationFrame(tick);
+  };
+
+  const ensureAnalyser = (audioEl) => {
+    if (analyserRef.current) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const source = ctx.createMediaElementSource(audioEl);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.6;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+      analyserDataRef.current = new Uint8Array(analyser.fftSize);
+    } catch {
+      /* analyser optional — playback still works without it */
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (ttsAbortRef.current) {
+      try {
+        ttsAbortRef.current.abort();
+      } catch {
+        /* ignore */
+      }
+      ttsAbortRef.current = null;
+    }
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    stopLevelLoop();
+    replyTextRef.current = "";
+    lastSpokenIndexRef.current = 0;
+    setIsSpeaking(false);
+    setTtsBusy(false);
+  };
+
+  const speakText = async (text) => {
+    if (!personality?.id) return;
+    const cleaned = (text || "").trim();
+    if (!cleaned) return;
+
+    stopSpeaking();
+    const controller = new AbortController();
+    ttsAbortRef.current = controller;
+    setTtsBusy(true);
+
+    replyTextRef.current = cleaned.toLowerCase();
+    lastSpokenIndexRef.current = 0;
+    flaresRef.current = {};
+
+    const voiceProfile = personality.voiceProfile || {};
 
     try {
-      const response = await authFetch("/api/voxis/chat", {
+      const response = await authFetch(`/personality/${personality.id}/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: updatedMessages, isFinalStep: isFinal }),
+        body: JSON.stringify({ text: cleaned, voiceProfile }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get response from Voxis");
+        let errMsg = `TTS failed (${response.status})`;
+        try {
+          const errBody = await response.json();
+          errMsg = errBody.error || errMsg;
+        } catch {
+          /* ignore */
+        }
+        showToast(errMsg, true);
+        setTtsBusy(false);
+        ttsAbortRef.current = null;
+        return;
       }
 
-      const data = await response.json();
-      setMessages([...updatedMessages, { role: "assistant", content: data.reply }]);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      audioUrlRef.current = url;
 
-      // Smart phase detection based on reply content
-      const replyLower = data.reply.toLowerCase();
-      if (replyLower.includes("forging") || replyLower.includes("creating") || replyLower.includes("building")) {
-        setCurrentPhase("forging");
-      } else if (replyLower.includes("analyzing") || replyLower.includes("understanding")) {
-        setCurrentPhase("analyzing");
-      } else if (replyLower.includes("resolving") || replyLower.includes("contradiction")) {
-        setCurrentPhase("resolving");
-      } else if (replyLower.includes("stabilizing") || replyLower.includes("finalizing")) {
-        setCurrentPhase("stabilizing");
-      } else if (replyLower.includes("birth") || replyLower.includes("bringing into existence")) {
-        setCurrentPhase("birthing");
+      if (!audioRef.current) {
+        const el = new Audio();
+        el.crossOrigin = "anonymous";
+        audioRef.current = el;
+      }
+      const audio = audioRef.current;
+      audio.src = url;
+      ensureAnalyser(audio);
+      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+        try {
+          await audioCtxRef.current.resume();
+        } catch {
+          /* ignore */
+        }
+      }
+      audio.onplay = () => {
+        setIsSpeaking(true);
+        startLevelLoop();
+      };
+      audio.onpause = () => {
+        stopLevelLoop();
+      };
+      audio.onended = () => {
+        setIsSpeaking(false);
+        stopLevelLoop();
+        if (audioUrlRef.current) {
+          URL.revokeObjectURL(audioUrlRef.current);
+          audioUrlRef.current = null;
+        }
+      };
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        stopLevelLoop();
+      };
+
+      await audio.play().catch((err) => {
+        showToast(err.message || "Browser blocked playback.", true);
+      });
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        showToast(err.message || "TTS failed.", true);
+      }
+    } finally {
+      setTtsBusy(false);
+      ttsAbortRef.current = null;
+    }
+  };
+
+  const sendForgeMessage = async (message) => {
+    if (!personality?.id) return;
+    const text = message.trim();
+    if (!text) return;
+
+    if (echoAbortRef.current) {
+      try {
+        echoAbortRef.current.abort();
+      } catch {
+        /* ignore */
+      }
+    }
+    const controller = new AbortController();
+    echoAbortRef.current = controller;
+
+    stopSpeaking();
+    setEcho({ name: personality.name, body: "", error: false });
+    setEchoStreaming(true);
+    let finalReply = "";
+
+    try {
+      const response = await authFetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalityId: personality.id,
+          userId: userId ?? undefined,
+          mode,
+          message: text,
+          streamDebug: true,
+        }),
+        signal: controller.signal,
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok) {
+        let errMsg = `Forge link failed (${response.status})`;
+        try {
+          const errBody = await response.json();
+          errMsg = errBody.error || errMsg;
+        } catch {
+          /* ignore */
+        }
+        setEcho({ name: personality.name, body: errMsg, error: true });
+        setEchoStreaming(false);
+        return;
+      }
+
+      if (contentType.includes("text/event-stream") && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let accumulated = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
+          for (const raw of events) {
+            const lines = raw.split("\n");
+            let eventName = "message";
+            let dataLine = "";
+            for (const ln of lines) {
+              if (ln.startsWith("event:")) eventName = ln.slice(6).trim();
+              else if (ln.startsWith("data:")) dataLine += ln.slice(5).trim();
+            }
+            if (!dataLine) continue;
+            let payload = null;
+            try {
+              payload = JSON.parse(dataLine);
+            } catch {
+              continue;
+            }
+            if (eventName === "token" && typeof payload.delta === "string") {
+              accumulated += payload.delta;
+              setEcho({ name: personality.name, body: accumulated, error: false });
+            } else if (eventName === "final" && typeof payload.reply === "string") {
+              accumulated = payload.reply;
+              finalReply = payload.reply;
+              setEcho({ name: personality.name, body: accumulated, error: false });
+            } else if (eventName === "error") {
+              setEcho({
+                name: personality.name,
+                body: payload.error || "Forge link failed.",
+                error: true,
+              });
+            }
+          }
+        }
+        if (!finalReply) finalReply = accumulated;
       } else {
-        setCurrentPhase("thinking");
-      }
-
-      // If Voxis gave us a persona, show preview modal
-      if (data.extractedPersona) {
-        console.log("✅ Persona ready:", data.extractedPersona);
-        setPreview(data.extractedPersona);
-        setShowPreviewModal(true);
-        onStatus?.({
-          type: "success",
-          message: "Persona extracted from conversation!",
+        const data = await response.json();
+        finalReply = data.reply || "";
+        setEcho({
+          name: personality.name,
+          body: data.reply || "(silence from the forge)",
+          error: false,
         });
       }
     } catch (err) {
-      setError(err.message || "Failed to send message");
-      setMessages([...updatedMessages, { role: "assistant", content: "I'm having trouble connecting right now. Please try again." }]);
+      if (err.name !== "AbortError") {
+        setEcho({
+          name: personality.name,
+          body: err.message || "Forge link failed.",
+          error: true,
+        });
+      }
     } finally {
-      setIsProcessing(false);
-      setIsVoxisThinking(false);
+      setEchoStreaming(false);
+      echoAbortRef.current = null;
+      if (autoSpeak && finalReply) {
+        void speakText(finalReply);
+      }
     }
   };
 
-  const handleGeneratePreview = async () => {
-    if (messages.length < 2) {
-      setError("Need at least one user message to generate preview.");
+  const handlePickRefinement = async (refinement) => {
+    const ok = await submitTraitToBackend(refinement.label);
+    if (ok) {
+      clearRefinements();
+      sendForgeMessage(
+        `The forge just welded a new trait into you: "${refinement.label}". React in character — embody it.`,
+      );
+    }
+  };
+
+  const handleSpeakSubmit = (event) => {
+    event.preventDefault();
+    const value = inputValue.trim();
+    if (!value) return;
+    setInputValue("");
+    setActiveTrait(value);
+    setPendingSeed(value);
+    setRefinements(lookupRefinements(value));
+    setRefinePrompt(`You spoke "${value}" to the forge — choose how it should manifest.`);
+    sendForgeMessage(value);
+  };
+
+  const startListening = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setListening(true);
+      showToast("Voice capture isn't available in this browser. Type instead.", true);
+      setTimeout(() => setListening(false), 1400);
       return;
     }
-
-    setIsProcessing(true);
-    setIsVoxisThinking(true);
-    setCurrentPhase("analyzing");
-    setCurrentPersonaName(preview?.name || selectedPersonality?.name || "");
-    setError(null);
-    setPreview(null);
-
-    try {
-      setCurrentPhase("forging");
-      
-      const response = await authFetch("/extract-persona", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          conversation: messages,
-          mode,
-          currentPersona: selectedPersonality || null
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Extraction failed");
-      }
-
-      const text = await response.text();
-      const result = JSON.parse(text || "{}");
-      
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      
-      setCurrentPhase("stabilizing");
-      setPreview(result.data);
-      onStatus?.({
-        type: "success",
-        message: "Preview generated successfully!",
-      });
-    } catch (err) {
-      setError(err.message || "Failed to generate preview");
-      onStatus?.({
-        type: "error",
-        message: `Preview failed: ${err.message}`,
-      });
-    } finally {
-      setIsProcessing(false);
-      setIsVoxisThinking(false);
-    }
-  };
-
-  const handleApplyChanges = async () => {
-    if (!preview || !selectedPersonality) {
-      setError("No preview or no selected personality to modify.");
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
       return;
     }
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.onstart = () => setListening(true);
+    rec.onresult = (event) => {
+      const text = Array.from(event.results)
+        .map((r) => r[0].transcript)
+        .join(" ");
+      setInputValue(text);
+    };
+    rec.onerror = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    rec.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = rec;
+    rec.start();
+  };
 
-    setIsProcessing(true);
-    setIsVoxisThinking(true);
-    setCurrentPhase("resolving");
-    setCurrentPersonaName(selectedPersonality.name);
-    setError(null);
-
-    try {
-      const response = await authFetch(`/personality/${selectedPersonality.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preview),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to apply changes");
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          /* ignore */
+        }
       }
-
-      setCurrentPhase("stabilizing");
-      const updated = await response.json();
-      onPersonalityUpdated?.(updated);
-      onStatus?.({
-        type: "success",
-        message: "Changes applied successfully!",
-      });
-      setPreview(null);
-      setMessages([
-        { role: "assistant", content: "Changes applied successfully! What else would you like to do?" }
-      ]);
-    } catch (err) {
-      setError(err.message || "Failed to apply changes");
-      onStatus?.({
-        type: "error",
-        message: `Apply failed: ${err.message}`,
-      });
-    } finally {
-      setIsProcessing(false);
-      setIsVoxisThinking(false);
-    }
-  };
-
-  const handleCreatePersona = async () => {
-    if (!preview) {
-      setError("No preview to create persona from.");
-      return;
-    }
-
-    setIsProcessing(true);
-    setIsVoxisThinking(true);
-    setCurrentPhase("birthing");
-    setCurrentPersonaName(preview.name || "New Persona");
-    setError(null);
-
-    try {
-      const response = await authFetch("/personality", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: preview.name || "New Persona",
-          ...preview,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create persona");
+      if (echoAbortRef.current) {
+        try {
+          echoAbortRef.current.abort();
+        } catch {
+          /* ignore */
+        }
       }
-
-      setCurrentPhase("stabilizing");
-      const created = await response.json();
-      onPersonalityUpdated?.(created);
-      onStatus?.({
-        type: "success",
-        message: "Persona created successfully!",
-      });
-      setPreview(null);
-      setMessages([
-        { role: "assistant", content: "Persona created successfully! What else would you like to do?" }
-      ]);
-    } catch (err) {
-      setError(err.message || "Failed to create persona");
-      onStatus?.({
-        type: "error",
-        message: `Create failed: ${err.message}`,
-      });
-    } finally {
-      setIsProcessing(false);
-      setIsVoxisThinking(false);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleReset = () => {
-    setMessages([{ role: "assistant", content: "Hi! I'm Voxis, your AI guide. I can help you create new personalities or modify existing ones. What would you like to do?" }]);
-    setPreview(null);
-    setError(null);
-    setExplanation(null);
-  };
-
-  const handleExplainBehavior = async () => {
-    if (!selectedPersonality) {
-      setError("Select a personality to explain its behavior.");
-      return;
-    }
-
-    setIsExplaining(true);
-    setError(null);
-    setExplanation(null);
-
-    try {
-      const response = await authFetch("/explain-behavior", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personality: selectedPersonality,
-          sessionId: null, // Would need to be passed from chat context
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Explanation failed");
+      if (ttsAbortRef.current) {
+        try {
+          ttsAbortRef.current.abort();
+        } catch {
+          /* ignore */
+        }
       }
-
-      const text = await response.text();
-      const result = JSON.parse(text || "{}");
-      
-      if (result.error) {
-        throw new Error(result.error);
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+        } catch {
+          /* ignore */
+        }
       }
-      
-      setExplanation(result.explanation);
-    } catch (err) {
-      setError(err.message || "Failed to generate explanation");
-    } finally {
-      setIsExplaining(false);
-    }
-  };
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+      if (levelRafRef.current) {
+        cancelAnimationFrame(levelRafRef.current);
+        levelRafRef.current = 0;
+      }
+      if (audioCtxRef.current) {
+        try {
+          audioCtxRef.current.close();
+        } catch {
+          /* ignore */
+        }
+        audioCtxRef.current = null;
+        analyserRef.current = null;
+        analyserDataRef.current = null;
+      }
+    };
+  }, []);
+
+  const intensity = useMemo(() => {
+    const sum = Object.values(stats).reduce((a, b) => a + b, 0);
+    return clamp(sum / (Object.keys(stats).length * 100) + 0.1, 0.2, 1);
+  }, [stats]);
+
+  const showSelector = !personality && personalities.length > 0;
 
   return (
-    <>
-      <style>{styles}</style>
-      <div className="voxis-tab">
-        <div className="mode-selector">
-          <button
-            className={`mode-button ${mode === "create" ? "active" : ""}`}
-            onClick={() => {
-              setMode("create");
-              handleReset();
-            }}
-          >
-            Create New
-          </button>
-          <button
-            className={`mode-button ${mode === "modify" ? "active" : ""}`}
-            onClick={() => {
-              setMode("modify");
-              handleReset();
-            }}
-            disabled={!selectedPersonality}
-          >
-            Modify Selected
-          </button>
+    <div className="forge">
+      <style>{forgeStyles}</style>
+
+      <header className="forge-header">
+        <div className="forge-title">Personality Forge</div>
+        <div className="forge-link">Neural Link · Stable</div>
+      </header>
+
+      {showSelector ? (
+        <div className="forge-toast">
+          Select a persona on the left to begin forging — or use the form to create one first.
         </div>
+      ) : null}
 
-        <h3 className="voxis-header">
-          {mode === "create" ? "Create New Personality" : `Modify: ${selectedPersonality?.name || "No persona selected"}`}
-        </h3>
-        {mode === "modify" && !selectedPersonality && (
-          <p className="voxis-hint">Select a personality from the sidebar to modify it.</p>
-        )}
-        {mode === "modify" && selectedPersonality && (
-          <p className="voxis-hint">Describe the changes you want to make to this personality.</p>
-        )}
-        {mode === "create" && (
-          <p className="voxis-hint">Describe the personality you want to create through natural language.</p>
-        )}
+      {toast ? (
+        <div className={`forge-toast ${toast.isError ? "is-error" : ""}`}>{toast.text}</div>
+      ) : null}
 
-        <div className="chat-container">
-          {messages.map((msg, idx) => (
-            <div key={idx} className={`chat-message ${msg.role}`}>
-              {msg.content}
+      {echo ? (
+        <div className={`persona-echo ${echo.error ? "persona-echo-error" : ""}`}>
+          <button
+            type="button"
+            className="persona-echo-dismiss"
+            aria-label="Dismiss persona response"
+            onClick={() => {
+              if (echoAbortRef.current) {
+                try {
+                  echoAbortRef.current.abort();
+                } catch {
+                  /* ignore */
+                }
+              }
+              stopSpeaking();
+              setEcho(null);
+              setEchoStreaming(false);
+            }}
+          >
+            ×
+          </button>
+          <div className="persona-echo-head">
+            <span className="echo-name">{echo.name}</span>
+            <span>{echo.error ? "Forge link error" : "responds in character"}</span>
+            <div className="persona-echo-controls">
+              <button
+                type="button"
+                className={`echo-speak-toggle ${autoSpeak ? "is-on" : ""} ${
+                  isSpeaking ? "is-speaking" : ""
+                }`}
+                onClick={() => {
+                  const next = !autoSpeak;
+                  setAutoSpeak(next);
+                  if (!next) stopSpeaking();
+                  else if (echo?.body && !echoStreaming && !echo.error) {
+                    void speakText(echo.body);
+                  }
+                }}
+                disabled={ttsBusy && autoSpeak}
+                aria-pressed={autoSpeak}
+              >
+                {isSpeaking ? "◉ Speaking" : ttsBusy ? "◌ Synth" : autoSpeak ? "◉ Voice" : "○ Muted"}
+              </button>
             </div>
-          ))}
-        </div>
-
-        <div className="chat-input-area">
-          <textarea
-            className="chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Describe what you want..."
-            rows={2}
-            disabled={isProcessing}
-          />
-          <button className="chat-button" onClick={handleSendMessage} disabled={!input.trim() || isProcessing}>
-            Send
-          </button>
-        </div>
-
-        <div className="action-buttons">
-          <button
-            className="action-button"
-            onClick={handleGeneratePreview}
-            disabled={isProcessing || messages.length < 2}
+          </div>
+          <div
+            className={`persona-echo-body ${echoStreaming && !echo.error ? "is-thinking" : ""}`}
           >
-            {isProcessing ? "Processing..." : "Generate Preview"}
-          </button>
-          <button className="action-button" onClick={handleReset} disabled={isProcessing}>
-            Reset
-          </button>
-          {selectedPersonality && (
-            <button
-              className="action-button"
-              onClick={handleExplainBehavior}
-              disabled={isExplaining}
-            >
-              {isExplaining ? "Explaining..." : "Why?"}
-            </button>
-          )}
-          {preview && mode === "modify" && (
-            <button
-              className="action-button primary"
-              onClick={handleApplyChanges}
-              disabled={isProcessing}
-            >
-              Apply Changes
-            </button>
-          )}
-          {preview && mode === "create" && (
-            <button
-              className="action-button primary"
-              onClick={handleCreatePersona}
-              disabled={isProcessing}
-            >
-              Create Persona
-            </button>
-          )}
+            {echo.body || (echoStreaming ? "" : "(no reply)")}
+          </div>
         </div>
+      ) : null}
 
-        {error && <div className="error-message">{error}</div>}
-
-        {explanation && (
-          <div className="preview-section">
-            <h3 className="preview-header">Behavior Explanation</h3>
-            <p style={{ color: "#87a8b9", fontSize: "0.9rem", lineHeight: 1.5 }}>{explanation}</p>
-          </div>
-        )}
-
-        {preview && (
-          <div className="preview-section">
-            <h3 className="preview-header">Preview</h3>
-            {preview.humanReadableDiff && preview.humanReadableDiff.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ fontSize: "0.9rem", color: "#00ff88", marginBottom: 8 }}>Proposed Changes:</h4>
-                <ul style={{ margin: 0, paddingLeft: 20, color: "#87a8b9", fontSize: "0.85rem" }}>
-                  {preview.humanReadableDiff.map((diff, idx) => (
-                    <li key={idx}>{diff}</li>
-                  ))}
-                </ul>
+      <div className="forge-body">
+        <section className={`forge-panel refine-panel ${refinements.length === 0 ? "is-hidden" : ""}`}>
+          <h3 className="forge-panel-title">Refine</h3>
+          {refinements.length === 0 ? (
+            <p className="forge-panel-empty">
+              Click a trait orb on the right to summon refinement options.
+            </p>
+          ) : (
+            <>
+              <div className="refine-prompt">{refinePrompt}</div>
+              <div className="refine-options">
+                {refinements.map((r) => {
+                  const checked = checkedRefinements.has(r.label);
+                  return (
+                    <button
+                      key={r.label}
+                      type="button"
+                      className={`refine-check-row ${checked ? "is-checked" : ""}`}
+                      onClick={() => handleToggleRefinement(r.label)}
+                      disabled={busy}
+                    >
+                      <div className="refine-checkbox">
+                        <div className="refine-checkbox-tick" />
+                      </div>
+                      <span className="refine-check-label">{r.label}</span>
+                      <span className="refine-option-tag">{r.tag}</span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            {preview.reasoning && (
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ fontSize: "0.9rem", color: "#00ff88", marginBottom: 8 }}>Reasoning:</h4>
-                <p style={{ margin: 0, color: "#87a8b9", fontSize: "0.85rem" }}>{preview.reasoning}</p>
+              <div className="refine-actions">
+                <button
+                  type="button"
+                  className="refine-lock-btn"
+                  onClick={handleLockIn}
+                  disabled={busy || checkedRefinements.size === 0}
+                >
+                  {busy ? "Forging…" : `Lock In${checkedRefinements.size > 0 ? ` (${checkedRefinements.size})` : ""}`}
+                </button>
+                <button type="button" className="refine-clear" onClick={clearRefinements}>
+                  Dismiss
+                </button>
               </div>
-            )}
-            <details>
-              <summary style={{ cursor: "pointer", color: "#00b4ff", fontSize: "0.85rem", marginBottom: 8 }}>
-                Show raw JSON
-              </summary>
-              <pre className="preview-content">{JSON.stringify(preview, null, 2)}</pre>
-            </details>
+            </>
+          )}
+        </section>
+
+        <section className="forge-panel center-panel">
+          <h3 className="forge-panel-title">Voice Synapse Matrix</h3>
+          <div className="waveform-frame">
+            <div className="waveform-tag">Live Input</div>
+            <div className="waveform-tag-right">Cortex Feed</div>
+            <Waveform
+              intensity={intensity}
+              listening={listening}
+              seed={traits.length}
+              speaking={isSpeaking}
+              levelRef={audioLevelRef}
+            />
+            <div className="waveform-meta">
+              <div>
+                Frequency
+                <strong>{(7.4 + intensity * 1.6).toFixed(2)} kHz</strong>
+              </div>
+              <div>
+                Emotion
+                <strong>{intensity > 0.6 ? "Dominant" : "Forming"}</strong>
+              </div>
+              <div>
+                Intent
+                <strong>{activeTrait ? "Refining" : "Transform"}</strong>
+              </div>
+            </div>
           </div>
-        )}
+
+          <div className="stats-grid">
+            {Object.entries(stats).map(([key, value]) => (
+              <div className="stat-row" key={key}>
+                <div className="stat-label">{key}</div>
+                <div className="stat-bar">
+                  <div className="stat-bar-fill" style={{ width: `${value}%` }} />
+                </div>
+                <div className="stat-value">{value}.{((key.length * value) % 9)}%</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="forge-panel orbital-panel">
+          <h3 className="forge-panel-title">Trait Orbital Array</h3>
+          <OrbitalArray
+            traits={traits}
+            coreLabel={coreLabel}
+            activeTrait={activeTrait}
+            onSelectTrait={handleSelectOrbital}
+            flaresRef={flaresRef}
+            speaking={isSpeaking}
+            mood={mood}
+          />
+        </section>
       </div>
-      
-      <VoxisThinking 
-        isActive={isVoxisThinking}
-        phase={currentPhase}
-        personaName={currentPersonaName}
-        onDismiss={() => setIsVoxisThinking(false)}
-      />
 
-      {/* Persona Preview Modal */}
-      {showPreviewModal && preview && (
-        <>
-          <div 
-            className="persona-preview-overlay" 
-            onClick={() => setShowPreviewModal(false)}
+      <div className="forge-footer">
+        <div className="footer-wave">
+          <FooterMiniWave listening={listening} />
+        </div>
+        <form className="speak-row" onSubmit={handleSpeakSubmit}>
+          <button
+            type="button"
+            className={`mic-button ${listening ? "is-listening" : ""}`}
+            onClick={startListening}
+            aria-label="Speak to the Forge"
+          >
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 14c1.66 0 3-1.34 3-3V5a3 3 0 1 0-6 0v6c0 1.66 1.34 3 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <input
+            className="speak-input"
+            type="text"
+            placeholder="Speak to the Forge…"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            disabled={busy}
           />
-          <div className="persona-preview-panel">
-            <h3>Proposed Persona</h3>
-            <div className="persona-preview-content">
-              <strong>Name:</strong> {preview.name}<br/>
-              <strong>Description:</strong> {preview.description}<br/>
-              <strong>Traits:</strong> {preview.traits?.join(", ") || "None"}<br/>
-              <strong>Dark Humor:</strong> {preview.darkHumor ? "Yes" : "No"}
-            </div>
-            <div className="persona-preview-buttons">
-              <button onClick={() => {
-                handleCreatePersona();
-                setShowPreviewModal(false);
-              }}>
-                ✅ Create This Persona
-              </button>
-              <button onClick={() => {
-                setShowPreviewModal(false);
-                setPreview(null);
-              }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </>
+          <button type="submit" className="speak-submit" disabled={busy || !inputValue.trim()}>
+            Forge
+          </button>
+        </form>
+      </div>
+
+      <div className="forge-status-bar">
+        <span>
+          Active Persona <strong>{personality?.name || "—"}</strong>
+        </span>
+        <span>
+          Traits Forged <strong>{personality?.traits?.length || 0}</strong>
+        </span>
+        <span>
+          Active Protocol <strong>Personality Forging</strong>
+        </span>
+      </div>
+    </div>
   );
 }

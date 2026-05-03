@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.post('/chat', async (req, res) => {
   try {
-    const { messages, isFinalStep } = req.body;
+    const { messages, isFinalStep, currentPersona } = req.body;
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({
@@ -14,7 +14,7 @@ router.post('/chat', async (req, res) => {
       });
     }
 
-    const result = await chatWithVoxis(messages, isFinalStep);
+    const result = await chatWithVoxis(messages, isFinalStep, currentPersona);
 
     return res.json(result);
 

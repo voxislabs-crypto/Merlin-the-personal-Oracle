@@ -968,10 +968,9 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
 
   console.log("[VOXIS DEBUG] TTS prepareSpeechSynthesis - mood:", mood, "voiceProfile:", voiceProfile);
 
-  // stylizeSpeech may prepend [BURP] markers for Rick-style personas.
-  // We strip them here — before TTS sees the text — and return them as sfx
+  // stylizeSpeech may prepend [SFX:tag] markers for personas with SFX tags.
+  // We strip them here — before TTS sees the text — and return them as sfxTimeline
   // metadata so the performance controller can emit sfx events to the frontend.
-  const sfx = [];
   const speechPacket = buildSpeechPacket(text, personality, mood, {
     styleMode: speechContext.styleMode,
     channel: "tts",
@@ -979,7 +978,28 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
     ttsEngine: resolvedEngine,
   });
   let directedText = String(speechPacket?.speech || text || "").trim();
-  directedText = directedText.replace(/\[BURP\]\s*/g, () => { sfx.push("burp"); return ""; }).trim();
+  
+  // Strip [SFX:tag] markers and build sfxTimeline
+  const sfxTimeline = [];
+  const sfxEvents = speechPacket?.sfx || [];
+  
+  // Remove [SFX:tag] markers from text
+  directedText = directedText.replace(/\[SFX:([a-zA-Z0-9_-]+)\]\s*/g, (match, tag) => {
+    sfxTimeline.push({ tag, position: "inline" });
+    return "";
+  }).trim();
+  
+  // Backward compatibility: handle old [BURP] marker
+  directedText = directedText.replace(/\[BURP\]\s*/g, () => {
+    sfxTimeline.push({ tag: "burp", position: "inline" });
+    return "";
+  }).trim();
+  
+  // If speechPacket has sfxEvents with timing info, use those
+  if (sfxEvents.length > 0) {
+    sfxTimeline.push(...sfxEvents);
+  }
+  
   directedText = stripInlineMetadataTokens(directedText);
   directedText = normalizeDashesForSpeech(directedText);
 
@@ -1006,7 +1026,7 @@ export function prepareSpeechSynthesis({ personality, text, voiceProfile, speech
     prosodyEnvelope,
     speechContext,
     speechPacket,
-    sfx,
+    sfx: sfxTimeline,
   };
 }
 

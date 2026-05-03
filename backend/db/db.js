@@ -97,7 +97,7 @@ ensureColumn(
 ensureColumn(
   "personalities",
   "vocalMannerisms",
-  `TEXT NOT NULL DEFAULT '{"frequency":0.15,"items":[]}'`,
+  `TEXT NOT NULL DEFAULT '{"frequency":0.15,"items":[],"sfxTags":[],"sfxFrequency":0.25,"sfxPlacement":"random"}'`,
 );
 
 // ── Voice clone metadata ─────────────────────────────────────────────────────

@@ -122,6 +122,9 @@ function normalizeRow(row) {
     vocalMannerisms: parseJsonObject(row.vocalMannerisms, {
       frequency: 0.15,
       items: [],
+      sfxTags: [],
+      sfxFrequency: 0.25,
+      sfxPlacement: "random",
     }),
   };
 }

@@ -668,6 +668,9 @@ const initialForm = {
   notablePhrases: "",
   vocalMannerismItems: "",
   vocalMannerismFrequency: 0.15,
+  sfxTags: "",
+  sfxFrequency: 0.25,
+  sfxPlacement: "random",
   intoxicationEnabled: false,
   intoxicationLevel: 0,
   intoxicationDecayPerTurn: 0.02,
@@ -781,6 +784,9 @@ function mapPersonalityToForm(personality) {
     notablePhrases: toCommaList(personality.notablePhrases),
     vocalMannerismItems: toLineList(personality.vocalMannerisms?.items),
     vocalMannerismFrequency: String(Number(personality.vocalMannerisms?.frequency ?? 0.15)),
+    sfxTags: toCommaList(personality.vocalMannerisms?.sfxTags),
+    sfxFrequency: String(Number(personality.vocalMannerisms?.sfxFrequency ?? 0.25)),
+    sfxPlacement: String(personality.vocalMannerisms?.sfxPlacement ?? "random"),
     intoxicationEnabled: Boolean(intoxication.enabled),
     intoxicationLevel: String(Number(intoxication.level ?? 0)),
     intoxicationDecayPerTurn: String(Number(intoxication.decayPerTurn ?? 0.02)),
@@ -1033,6 +1039,9 @@ export default function PersonalityForm({
           vocalMannerisms: {
             items: splitLineSeparated(form.vocalMannerismItems),
             frequency: Number(form.vocalMannerismFrequency) || 0,
+            sfxTags: splitCommaSeparated(form.sfxTags),
+            sfxFrequency: Number(form.sfxFrequency) || 0.25,
+            sfxPlacement: form.sfxPlacement || "random",
           },
           stateFlaws: {
             intoxication: {
@@ -1639,6 +1648,49 @@ export default function PersonalityForm({
               onChange={updateField}
             />
             <small>Approximate share of replies where mannerisms appear. 0.15 = 15%.</small>
+          </div>
+
+          <div className="field full">
+            <label htmlFor="sfxTags">SFX Tags (comma-separated)</label>
+            <input
+              id="sfxTags"
+              name="sfxTags"
+              placeholder="burp, giggle, cough, sigh, snort, hiccup"
+              value={form.sfxTags}
+              onChange={updateField}
+            />
+            <small>Available SFX: burp, giggle, chuckle, cough, sigh, snort, hiccup</small>
+          </div>
+
+          <div className="field">
+            <label htmlFor="sfxFrequency">SFX Frequency (0-1)</label>
+            <input
+              id="sfxFrequency"
+              name="sfxFrequency"
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={form.sfxFrequency}
+              onChange={updateField}
+            />
+            <small>Probability of SFX injection per utterance. 0.25 = 25%.</small>
+          </div>
+
+          <div className="field">
+            <label htmlFor="sfxPlacement">SFX Placement</label>
+            <select
+              id="sfxPlacement"
+              name="sfxPlacement"
+              value={form.sfxPlacement}
+              onChange={updateField}
+            >
+              <option value="random">Random (start or end)</option>
+              <option value="start">Start of speech</option>
+              <option value="end">End of speech</option>
+              <option value="throughout">Throughout (between sentences)</option>
+            </select>
+            <small>Where SFX should be placed in the speech.</small>
           </div>
 
           <label className="checkbox-row" style={{ paddingTop: 36 }}>

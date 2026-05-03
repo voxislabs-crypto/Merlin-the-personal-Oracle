@@ -2880,53 +2880,26 @@ export default function ChatWindow({
       }
     }
 
+    const ttsSfxTimelineHeader = response.headers.get("X-Voxis-Tts-Sfx-Timeline");
     const ttsSfxHeader = response.headers.get("X-Voxis-Tts-Sfx");
-    let parsedSfx = [];
-    if (ttsSfxHeader) {
+    let parsedSfxTimeline = [];
+    
+    // Try new timeline header first, fall back to old header for backward compatibility
+    if (ttsSfxTimelineHeader) {
       try {
-        parsedSfx = JSON.parse(decodeURIComponent(ttsSfxHeader));
+        parsedSfxTimeline = JSON.parse(decodeURIComponent(ttsSfxTimelineHeader));
       } catch {
-        parsedSfx = [];
+        parsedSfxTimeline = [];
       }
-    }
-
-    if (Array.isArray(parsedSfx) && parsedSfx.length > 0) {
-      onStatus?.({
-        type: "info",
-        message: `SFX included: ${parsedSfx.join(", ")}`,
-      });
-
-      for (const sfxName of parsedSfx) {
-        const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxName)}`;
-        fetch(sfxUrl)
-          .then(async (sfxResponse) => {
-            if (!sfxResponse.ok) {
-              onStatus?.({
-                type: "warn",
-                message: `SFX cue received but audio is unavailable for: ${sfxName}.`,
-              });
-              return;
-            }
-
-            const sfxBlob = await sfxResponse.blob();
-            const sfxObjectUrl = URL.createObjectURL(sfxBlob);
-            const sfxAudio = new Audio(sfxObjectUrl);
-            sfxAudio.volume = 0.88;
-
-            const cleanup = () => {
-              URL.revokeObjectURL(sfxObjectUrl);
-            };
-
-            sfxAudio.addEventListener("ended", cleanup, { once: true });
-            sfxAudio.addEventListener("error", cleanup, { once: true });
-            void sfxAudio.play().catch(cleanup);
-          })
-          .catch(() => {
-            onStatus?.({
-              type: "warn",
-              message: `SFX cue failed to load: ${sfxName}.`,
-            });
-          });
+    } else if (ttsSfxHeader) {
+      // Backward compatibility: convert old simple array to timeline format
+      try {
+        const oldSfx = JSON.parse(decodeURIComponent(ttsSfxHeader));
+        if (Array.isArray(oldSfx)) {
+          parsedSfxTimeline = oldSfx.map((tag, index) => ({ tag, position: "inline", ms: index * 100 }));
+        }
+      } catch {
+        parsedSfxTimeline = [];
       }
     }
 
@@ -2934,6 +2907,44 @@ export default function ChatWindow({
     setTtsCache(cacheKey, blob);
     const nextAudioUrl = URL.createObjectURL(blob);
     const requestMs = Math.round(performance.now() - requestStartedAt);
+
+    let sfxBuffers = null;
+    if (Array.isArray(parsedSfxTimeline) && parsedSfxTimeline.length > 0) {
+      onStatus?.({
+        type: "info",
+        message: `SFX timeline: ${parsedSfxTimeline.map((s) => s.tag).join(", ")}`,
+      });
+
+      // Pre-fetch all SFX audio buffers
+      sfxBuffers = new Map();
+      const sfxPromises = parsedSfxTimeline.map(async (sfxEvent) => {
+        const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxEvent.tag)}`;
+        try {
+          const sfxResponse = await fetch(sfxUrl);
+          if (!sfxResponse.ok) {
+            onStatus?.({
+              type: "warn",
+              message: `SFX audio unavailable for: ${sfxEvent.tag}.`,
+            });
+            return null;
+          }
+          const sfxBlob = await sfxResponse.blob();
+          const sfxArrayBuffer = await sfxBlob.arrayBuffer();
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const audioBuffer = await audioContext.decodeAudioData(sfxArrayBuffer);
+          sfxBuffers.set(sfxEvent.tag, audioBuffer);
+          return { tag: sfxEvent.tag, buffer: audioBuffer };
+        } catch (err) {
+          onStatus?.({
+            type: "warn",
+            message: `SFX failed to load: ${sfxEvent.tag}.`,
+          });
+          return null;
+        }
+      });
+
+      const loadedSfx = (await Promise.all(sfxPromises)).filter(Boolean);
+    }
 
     const telemetry = parsedTelemetry
       ? {
@@ -2949,6 +2960,8 @@ export default function ChatWindow({
     return {
       url: nextAudioUrl,
       telemetry,
+      sfxTimeline: parsedSfxTimeline.length > 0 ? parsedSfxTimeline : undefined,
+      sfxBuffers,
     };
   }
 
