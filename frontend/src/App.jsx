@@ -2027,18 +2027,98 @@ export default function App() {
     }
   }
 
-  function handlePersonalityCreated(personality) {
-    setPersonalities((current) => [personality, ...(Array.isArray(current) ? current : [])]);
-    setSelectedId(personality.id);
-    setChatLogs((current) => ({
-      ...current,
-      [personality.id]: [],
-    }));
-    setActiveView("chat");
-    setStatus({
-      type: "success",
-      message: `${personality.name} is ready. Start chatting now, or open Voice Lab to dial in TTS.`,
-    });
+  async function fetchPersonalityById(personalityId) {
+    const response = await authFetch(`/personality/${personalityId}`);
+    const data = await readApiResponsePayload(response);
+    if (!response.ok) {
+      throw new Error(getApiErrorMessage(response, data, "Failed to load created personality."));
+    }
+    return data;
+  }
+
+  async function triggerPersonaOpener(personality) {
+    if (!personality?.id) {
+      return;
+    }
+
+    try {
+      const response = await authFetch(`/personality/${personality.id}/opener`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          mode: selectedMode,
+        }),
+      });
+      const data = await readApiResponsePayload(response);
+
+      if (response.status === 409) {
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, data, "Failed to generate opener."));
+      }
+
+      const opener = String(data?.reply || "").trim();
+      if (!opener) {
+        return;
+      }
+
+      setChatLogs((current) => {
+        const existing = current[personality.id] || [];
+        if (existing.some((entry) => entry.role === "assistant")) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [personality.id]: [
+            ...existing,
+            normalizeChatMessage({ role: "assistant", content: opener }),
+          ],
+        };
+      });
+    } catch {
+      // Opener generation is best-effort; chat remains usable if this fails.
+    }
+  }
+
+  async function handlePersonalityCreated(personality) {
+    try {
+      let resolved = personality;
+      if (!resolved?.id) {
+        throw new Error("Created personality payload is missing id.");
+      }
+      if (!resolved?.name || !resolved?.description) {
+        resolved = await fetchPersonalityById(resolved.id);
+      }
+
+      setPersonalities((current) => {
+        const list = Array.isArray(current) ? current : [];
+        const withoutDuplicate = list.filter((item) => item.id !== resolved.id);
+        return [resolved, ...withoutDuplicate];
+      });
+      setSelectedId(resolved.id);
+      setChatLogs((current) => ({
+        ...current,
+        [resolved.id]: current[resolved.id] || [],
+      }));
+      setActiveView("chat");
+      setStatus({
+        type: "success",
+        message: `${resolved.name} is ready. Initiating first contact now.`,
+      });
+
+      void triggerPersonaOpener(resolved);
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Persona created, but handoff to chat failed.",
+      });
+    }
   }
 
   function handlePersonalityUpdated(personality) {

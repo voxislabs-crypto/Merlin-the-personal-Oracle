@@ -166,6 +166,110 @@ const avatarStyles = `
     opacity: 0.92;
   }
 
+  .avatar-likeness-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .avatar-hair-shape {
+    position: absolute;
+    left: 50%;
+    top: 6%;
+    transform: translateX(-50%);
+    width: 78%;
+    height: 30%;
+    border-radius: 52% 52% 36% 36%;
+    background: rgba(var(--hair-rgb, 205, 228, 255), 0.38);
+    filter: drop-shadow(0 0 8px rgba(var(--hair-rgb, 205, 228, 255), 0.48));
+  }
+
+  .avatar-hair-shape.spiky {
+    clip-path: polygon(0% 85%, 8% 55%, 15% 75%, 24% 40%, 34% 68%, 44% 28%, 54% 66%, 65% 36%, 74% 70%, 84% 44%, 92% 76%, 100% 84%, 100% 100%, 0% 100%);
+    border-radius: 0;
+  }
+
+  .avatar-hair-shape.long {
+    height: 38%;
+    border-radius: 46% 46% 40% 40%;
+  }
+
+  .avatar-hair-shape.curly {
+    border-radius: 60% 60% 52% 52%;
+    filter: drop-shadow(0 0 9px rgba(var(--hair-rgb, 205, 228, 255), 0.56));
+  }
+
+  .avatar-headwear {
+    position: absolute;
+    left: 50%;
+    top: 5%;
+    transform: translateX(-50%);
+    width: 72%;
+    height: 19%;
+    border-radius: 50% 50% 28% 28%;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    background: rgba(130, 72, 255, 0.2);
+    box-shadow: 0 0 10px rgba(130, 72, 255, 0.25);
+  }
+
+  .avatar-headwear.crown {
+    top: 2%;
+    height: 20%;
+    clip-path: polygon(0% 100%, 8% 54%, 20% 80%, 33% 36%, 50% 78%, 67% 36%, 80% 80%, 92% 54%, 100% 100%);
+    border-radius: 0;
+    background: rgba(255, 195, 95, 0.3);
+    border-color: rgba(255, 222, 149, 0.65);
+  }
+
+  .avatar-eye-accessory {
+    position: absolute;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    width: 56%;
+    height: 17%;
+    border: 1.2px solid rgba(145, 228, 255, 0.7);
+    border-radius: 999px;
+    box-shadow: 0 0 10px rgba(145, 228, 255, 0.25);
+  }
+
+  .avatar-eye-accessory::before,
+  .avatar-eye-accessory::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 30%;
+    height: 85%;
+    transform: translateY(-50%);
+    border: inherit;
+    border-radius: 999px;
+  }
+
+  .avatar-eye-accessory::before {
+    left: 6%;
+  }
+
+  .avatar-eye-accessory::after {
+    right: 6%;
+  }
+
+  .avatar-eye-accessory.goggles {
+    border-color: rgba(255, 171, 82, 0.78);
+    box-shadow: 0 0 12px rgba(255, 171, 82, 0.35);
+  }
+
+  .avatar-scar-mark {
+    position: absolute;
+    left: 60%;
+    top: 44%;
+    width: 2px;
+    height: 22%;
+    background: rgba(255, 114, 136, 0.75);
+    transform: rotate(17deg);
+    box-shadow: 0 0 6px rgba(255, 114, 136, 0.3);
+  }
+
   .energy-mouth {
     position: absolute;
     left: 50%;
@@ -327,6 +431,32 @@ function resolvePersonaPreset(seed, mode, explicitPreset = "auto") {
 
   const presets = ["sentinel", "oracle", "echo", "wisp", "rogue"];
   return presets[hashSeed(seed) % presets.length];
+}
+
+function resolveHairColor(text) {
+  const source = String(text || "").toLowerCase();
+  if (/white|silver|platinum/.test(source)) return [218, 226, 244];
+  if (/black|dark/.test(source)) return [142, 150, 170];
+  if (/blond|blonde|gold/.test(source)) return [255, 214, 120];
+  if (/red|crimson/.test(source)) return [255, 125, 122];
+  if (/blue|azure|cyan/.test(source)) return [124, 204, 255];
+  if (/pink|rose/.test(source)) return [255, 152, 220];
+  if (/green|emerald/.test(source)) return [132, 232, 175];
+  return [205, 228, 255];
+}
+
+function resolveLikenessProfile({ likenessHint = "", personalitySeed = "", mode = "scientist" } = {}) {
+  const text = `${likenessHint} ${personalitySeed}`.toLowerCase();
+  const has = (re) => re.test(text);
+
+  return {
+    hairVariant: has(/spiky|wild|messy|anime hair/) ? "spiky" : has(/long|flowing|ponytail|braid/) ? "long" : has(/curly|wavy/) ? "curly" : "short",
+    hairColor: resolveHairColor(text),
+    headwear: has(/crown|royal|king|queen/) ? "crown" : has(/hat|cap|helmet|headband|hood/) ? "band" : "",
+    eyewear: has(/goggles/) ? "goggles" : has(/glasses|spectacles|visor/) ? "glasses" : "",
+    scar: has(/scar|battle worn|warrior/),
+    enabled: Boolean(likenessHint) || mode === "kids",
+  };
 }
 
 function resolveTargetState({ phase, speaking }) {
@@ -559,6 +689,7 @@ export default function AvatarCore({
   preResponseState = null,
   speechEnergy = 0,
   imageUrl = "",
+  likenessHint = "",
 }) {
   const [gaze, setGaze] = useState({ x: 0, y: 0 });
   const [animState, setAnimState] = useState("idle");
@@ -673,6 +804,10 @@ export default function AvatarCore({
     () => resolvePersonaPreset(personalitySeed, mode, expressionPreset),
     [expressionPreset, mode, personalitySeed],
   );
+  const likeness = useMemo(
+    () => resolveLikenessProfile({ likenessHint, personalitySeed, mode }),
+    [likenessHint, personalitySeed, mode],
+  );
 
   const pupilOffsetX = clamp(gaze.x * 2.3, -2.2, 2.2);
   const pupilOffsetY = clamp(gaze.y * 1.8, -1.6, 1.6);
@@ -772,6 +907,14 @@ export default function AvatarCore({
         />
       ) : (
         <>
+          {likeness.enabled && (
+            <div className="avatar-likeness-layer" style={{ "--hair-rgb": likeness.hairColor.join(", ") }}>
+              <div className={`avatar-hair-shape ${likeness.hairVariant}`} />
+              {likeness.headwear ? <div className={`avatar-headwear ${likeness.headwear}`} /> : null}
+              {likeness.eyewear ? <div className={`avatar-eye-accessory ${likeness.eyewear}`} /> : null}
+              {likeness.scar ? <div className="avatar-scar-mark" /> : null}
+            </div>
+          )}
           <svg className="avatar-face" viewBox="0 0 100 100" preserveAspectRatio="none">
             <path
               className="brow"

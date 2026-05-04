@@ -387,6 +387,81 @@ const forgeStyles = `
     flex-direction: column;
   }
 
+  .orbital-subtitle {
+    margin: 0 0 12px;
+    color: rgba(245, 233, 255, 0.68);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .orbital-subtitle strong {
+    color: #ff2bd6;
+    text-shadow: 0 0 8px rgba(255, 43, 214, 0.35);
+  }
+
+  .orbital-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin: -2px 0 8px;
+  }
+
+  .orbital-mode-toggle {
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    background: rgba(38, 255, 255, 0.06);
+    color: rgba(245, 233, 255, 0.84);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  }
+
+  .orbital-mode-toggle:hover {
+    border-color: rgba(38, 255, 255, 0.62);
+    background: rgba(38, 255, 255, 0.12);
+  }
+
+  .orbital-mode-toggle.is-active {
+    border-color: rgba(255, 43, 214, 0.74);
+    background: rgba(255, 43, 214, 0.16);
+    color: #ffdcfb;
+    box-shadow: 0 0 16px rgba(255, 43, 214, 0.32);
+  }
+
+  .constellation-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 2px 0 10px;
+  }
+
+  .constellation-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--chip-rgb), 0.48);
+    background: rgba(var(--chip-rgb), 0.12);
+    color: rgba(245, 233, 255, 0.92);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .constellation-chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(var(--chip-rgb), 0.95);
+    box-shadow: 0 0 8px rgba(var(--chip-rgb), 0.52);
+  }
+
   .orbital-stage {
     position: relative;
     flex: 1;
@@ -454,9 +529,11 @@ const forgeStyles = `
     --flare: 0;
     position: absolute;
     transform: translate(-50%, -50%);
-    width: 76px;
-    height: 76px;
-    border-radius: 50%;
+    width: 88px;
+    height: 88px;
+    aspect-ratio: 1 / 1;
+    border-radius: 999px;
+    clip-path: circle(49% at 50% 50%);
     background:
       radial-gradient(circle at 38% 32%, rgba(38, 255, 255, 0.22), transparent 68%),
       radial-gradient(circle at 50% 50%, rgba(8, 4, 28, 0.95), rgba(2, 0, 14, 0.98));
@@ -474,11 +551,20 @@ const forgeStyles = `
     cursor: pointer;
     display: grid;
     place-items: center;
-    padding: 8px;
+    padding: 10px;
     transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
     overflow: hidden;
-    word-break: break-word;
-    hyphens: auto;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  .orbital-trait-label {
+    display: block;
+    max-width: 58px;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .orbital-trait::before {
@@ -500,6 +586,18 @@ const forgeStyles = `
     background:
       radial-gradient(circle at 38% 32%, rgba(255, 43, 214, 0.3), transparent 68%),
       radial-gradient(circle at 50% 50%, rgba(20, 4, 36, 0.97), rgba(6, 0, 20, 0.98));
+  }
+
+  .orbital-trait:focus-visible,
+  .mic-button:focus-visible,
+  .speak-submit:focus-visible,
+  .refine-lock-btn:focus-visible,
+  .refine-clear:focus-visible,
+  .refine-check-row:focus-visible,
+  .echo-speak-toggle:focus-visible,
+  .persona-echo-dismiss:focus-visible {
+    outline: 2px solid rgba(38, 255, 255, 0.85);
+    outline-offset: 3px;
   }
 
   .orbital-trait.is-active {
@@ -571,6 +669,7 @@ const forgeStyles = `
 
   .speak-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     align-items: center;
     padding: 14px;
@@ -578,6 +677,18 @@ const forgeStyles = `
     background: linear-gradient(90deg, rgba(255, 43, 214, 0.10), rgba(38, 255, 255, 0.06));
     border: 1px solid rgba(255, 43, 214, 0.32);
     box-shadow: 0 0 24px rgba(255, 43, 214, 0.15);
+  }
+
+  .speak-row-status {
+    flex-basis: 100%;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(245, 233, 255, 0.62);
+  }
+
+  .speak-row-status strong {
+    color: #26ffff;
   }
 
   .mic-button {
@@ -829,6 +940,51 @@ const forgeStyles = `
       min-height: auto;
     }
   }
+
+  @media (max-width: 700px) {
+    .forge-header,
+    .forge-body,
+    .forge-footer,
+    .forge-status-bar {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .persona-echo {
+      margin-left: 16px;
+      margin-right: 16px;
+    }
+
+    .persona-echo-head {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      padding-right: 28px;
+    }
+
+    .persona-echo-controls {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    .mic-button {
+      width: 56px;
+      height: 56px;
+    }
+
+    .speak-input,
+    .speak-submit {
+      width: 100%;
+    }
+
+    .stat-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .stat-value {
+      text-align: left;
+    }
+  }
 `;
 
 const STAT_KEYWORDS = {
@@ -1002,18 +1158,6 @@ const REFINEMENT_LIBRARY = {
   ],
 };
 
-function genericRefinements(seed) {
-  const trimmed = seed.trim();
-  if (!trimmed) return [];
-  return [
-    { label: `More ${trimmed}`, tag: "Amplify" },
-    { label: `Quietly ${trimmed}`, tag: "Style" },
-    { label: `Aggressively ${trimmed}`, tag: "Style" },
-    { label: `Subtly ${trimmed}`, tag: "Style" },
-    { label: `Obsessively ${trimmed}`, tag: "Mode" },
-  ];
-}
-
 function lookupRefinements(seed) {
   if (!seed) return [];
   const key = seed.trim().toLowerCase();
@@ -1025,7 +1169,7 @@ function lookupRefinements(seed) {
       return REFINEMENT_LIBRARY[k];
     }
   }
-  return genericRefinements(seed);
+  return [];
 }
 
 function clamp(value, min, max) {
@@ -1065,6 +1209,66 @@ function selectOrbitalTraits(personality) {
     }
   }
   return unique.slice(0, 8);
+}
+
+const TRAIT_CATEGORY_COLORS = {
+  confidence: [255, 197, 78],
+  dominance: [255, 43, 214],
+  obsession: [188, 82, 255],
+  deviance: [255, 103, 103],
+  loyalty: [38, 255, 255],
+  other: [170, 176, 230],
+};
+
+const CONSTELLATION_LEGEND = [
+  { key: "dominance", label: "Dominance" },
+  { key: "obsession", label: "Obsession" },
+  { key: "loyalty", label: "Loyalty" },
+  { key: "deviance", label: "Deviance" },
+  { key: "confidence", label: "Confidence" },
+];
+
+function getTraitCategory(trait) {
+  const text = String(trait || "").toLowerCase();
+  if (!text) return "other";
+
+  let bestKey = "other";
+  let bestScore = 0;
+
+  for (const [key, words] of Object.entries(STAT_KEYWORDS)) {
+    let score = 0;
+    for (const word of words) {
+      if (text.includes(word)) {
+        score += 1;
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = key;
+    }
+  }
+
+  return bestScore > 0 ? bestKey : "other";
+}
+
+function computeOrbitalPositions(traits, rotation, radius, innerRadius) {
+  const count = Array.isArray(traits) ? traits.length : 0;
+  if (!count) return [];
+
+  return traits.map((trait, i) => {
+    const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    const dir = i % 2 === 0 ? 1 : -1;
+    const angle = baseAngle + rotation * dir;
+    const orbitRadius = i % 2 === 0 ? radius : innerRadius;
+    const category = getTraitCategory(trait);
+
+    return {
+      trait,
+      category,
+      x: Math.cos(angle) * orbitRadius,
+      y: Math.sin(angle) * orbitRadius,
+    };
+  });
 }
 
 function deriveCoreLabel(personality) {
@@ -1171,7 +1375,16 @@ function FooterMiniWave({ listening }) {
   return <Waveform intensity={0.3} listening={listening} seed={42} />;
 }
 
-function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef = null, speaking = false, mood = null }) {
+function OrbitalArray({
+  traits,
+  coreLabel,
+  activeTrait,
+  onSelectTrait,
+  flaresRef = null,
+  speaking = false,
+  mood = null,
+  constellationMode = false,
+}) {
   const stageRef = useRef(null);
   const trailCanvasRef = useRef(null);
   const [size, setSize] = useState({ w: 360, h: 360 });
@@ -1213,9 +1426,13 @@ function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef
     };
   }, []);
 
+  const radius = Math.max(110, Math.min(size.w, size.h) / 2 - 50);
+  const innerRadius = Math.max(70, radius * 0.6);
+  const positions = computeOrbitalPositions(traits, rotationRef.current, radius, innerRadius);
+
   useEffect(() => {
     const canvas = trailCanvasRef.current;
-    if (!canvas || !traits.length) {
+    if (!canvas || !positions.length) {
       if (canvas) {
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1240,19 +1457,65 @@ function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef
 
     const cx = w / 2;
     const cy = h / 2;
-    const r = Math.max(110, Math.min(w, h) / 2 - 50);
-    const ir = Math.max(70, r * 0.6);
-    const count = traits.length;
     const STEPS = 18;
     const TRAIL_ARC = Math.PI * 0.55;
     const now = performance.now();
 
-    traits.forEach((trait, i) => {
+    if (constellationMode) {
+      const groups = new Map();
+      for (const item of positions) {
+        if (!groups.has(item.category)) {
+          groups.set(item.category, []);
+        }
+        groups.get(item.category).push(item);
+      }
+
+      const pulse = 0.72 + Math.sin(now / 760) * 0.22;
+
+      for (const [category, nodes] of groups.entries()) {
+        if (nodes.length < 2 || category === "other") {
+          continue;
+        }
+
+        const color = TRAIT_CATEGORY_COLORS[category] || TRAIT_CATEGORY_COLORS.other;
+        for (let i = 0; i < nodes.length; i += 1) {
+          for (let j = i + 1; j < nodes.length; j += 1) {
+            const a = nodes[i];
+            const b = nodes[j];
+            const ax = cx + a.x;
+            const ay = cy + a.y;
+            const bx = cx + b.x;
+            const by = cy + b.y;
+            const dx = bx - ax;
+            const dy = by - ay;
+            const distance = Math.hypot(dx, dy);
+            const maxReach = Math.max(radius * 1.45, 1);
+            const closeness = Math.max(0, 1 - distance / maxReach);
+            if (closeness <= 0.06) continue;
+
+            const alpha = (0.08 + closeness * 0.18) * pulse;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(bx, by);
+            ctx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha.toFixed(3)})`;
+            ctx.lineWidth = 0.6 + closeness * 1.1;
+            ctx.shadowBlur = 8 + closeness * 10;
+            ctx.shadowColor = `rgba(${color[0]},${color[1]},${color[2]},${(alpha * 0.85).toFixed(3)})`;
+            ctx.stroke();
+          }
+        }
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    positions.forEach((point, i) => {
+      const trait = point.trait;
+      const count = positions.length;
       const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
       const clockwise = i % 2 === 0;
       const dir = clockwise ? 1 : -1;
       const angle = baseAngle + rotationRef.current * dir;
-      const orbRadius = clockwise ? r : ir;
+      const orbRadius = clockwise ? radius : innerRadius;
 
       const flareTime = flaresRef?.current?.[trait] || 0;
       const age = flareTime ? now - flareTime : Infinity;
@@ -1296,23 +1559,7 @@ function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef
       ctx.shadowBlur = 0;
       ctx.restore();
     });
-  });
-
-  const radius = Math.max(110, Math.min(size.w, size.h) / 2 - 50);
-  const innerRadius = Math.max(70, radius * 0.6);
-
-  const count = traits.length;
-  const positions = count === 0 ? [] : traits.map((trait, i) => {
-    const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
-    const dir = i % 2 === 0 ? 1 : -1;
-    const angle = baseAngle + rotationRef.current * dir;
-    const r = i % 2 === 0 ? radius : innerRadius;
-    return {
-      trait,
-      x: Math.cos(angle) * r,
-      y: Math.sin(angle) * r,
-    };
-  });
+  }, [positions, constellationMode, radius, innerRadius, flaresRef]);
 
   return (
     <div className="orbital-stage" ref={stageRef}>
@@ -1367,6 +1614,8 @@ function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef
                   ? "is-active"
                   : ""
               } ${eased > 0.02 ? "has-flare" : ""}`}
+              aria-pressed={Boolean(activeTrait && activeTrait.toLowerCase() === p.trait.toLowerCase())}
+              title={`Refine ${p.trait}`}
               style={{
                 left: `calc(50% + ${p.x}px)`,
                 top: `calc(50% + ${p.y}px)`,
@@ -1374,7 +1623,7 @@ function OrbitalArray({ traits, coreLabel, activeTrait, onSelectTrait, flaresRef
               }}
               onClick={() => onSelectTrait(p.trait)}
             >
-              {p.trait}
+              <span className="orbital-trait-label">{p.trait}</span>
             </button>
           );
         })
@@ -1406,6 +1655,7 @@ export default function VoxisTab({
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsBusy, setTtsBusy] = useState(false);
+  const [constellationMode, setConstellationMode] = useState(false);
   const recognitionRef = useRef(null);
   const echoAbortRef = useRef(null);
   const ttsAbortRef = useRef(null);
@@ -1449,10 +1699,19 @@ export default function VoxisTab({
   };
 
   const handleSelectOrbital = (trait) => {
+    if (activeTrait && activeTrait.toLowerCase() === String(trait).toLowerCase()) {
+      clearRefinements();
+      return;
+    }
+    const options = lookupRefinements(trait);
     setActiveTrait(trait);
     setPendingSeed(trait);
-    setRefinements(lookupRefinements(trait));
-    setRefinePrompt(`Refine "${trait}" — check the flavors you want and hit Lock In.`);
+    setRefinements(options);
+    setRefinePrompt(
+      options.length
+        ? `Refine "${trait}" — check the flavors you want and hit Lock In.`
+        : `No preset variants for "${trait}" yet. Ask the forge for trait or quirk suggestions.`,
+    );
     setCheckedRefinements(new Set());
   };
 
@@ -1463,6 +1722,34 @@ export default function VoxisTab({
     setRefinePrompt("");
     setCheckedRefinements(new Set());
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (echo) {
+        if (echoAbortRef.current) {
+          try {
+            echoAbortRef.current.abort();
+          } catch {
+            /* ignore */
+          }
+        }
+        stopSpeaking();
+        setEcho(null);
+        setEchoStreaming(false);
+      }
+
+      if (activeTrait || refinements.length) {
+        clearRefinements();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTrait, echo, refinements.length]);
 
   const handleToggleRefinement = (label) => {
     setCheckedRefinements((prev) => {
@@ -1719,7 +2006,7 @@ export default function VoxisTab({
     }
   };
 
-  const sendForgeMessage = async (message) => {
+  const sendForgeMessage = async (message, options = {}) => {
     if (!personality?.id) return;
     const text = message.trim();
     if (!text) return;
@@ -1738,6 +2025,7 @@ export default function VoxisTab({
     setEcho({ name: personality.name, body: "", error: false });
     setEchoStreaming(true);
     let finalReply = "";
+    let finalRefinementSuggestions = [];
 
     try {
       const response = await authFetch("/chat", {
@@ -1800,6 +2088,9 @@ export default function VoxisTab({
             } else if (eventName === "final" && typeof payload.reply === "string") {
               accumulated = payload.reply;
               finalReply = payload.reply;
+              if (Array.isArray(payload.refinementSuggestions)) {
+                finalRefinementSuggestions = payload.refinementSuggestions;
+              }
               setEcho({ name: personality.name, body: accumulated, error: false });
             } else if (eventName === "error") {
               setEcho({
@@ -1814,6 +2105,9 @@ export default function VoxisTab({
       } else {
         const data = await response.json();
         finalReply = data.reply || "";
+        if (Array.isArray(data.refinementSuggestions)) {
+          finalRefinementSuggestions = data.refinementSuggestions;
+        }
         setEcho({
           name: personality.name,
           body: data.reply || "(silence from the forge)",
@@ -1831,6 +2125,21 @@ export default function VoxisTab({
     } finally {
       setEchoStreaming(false);
       echoAbortRef.current = null;
+      if (options.populateRefinementsFromReply && finalReply) {
+        if (finalRefinementSuggestions.length) {
+          setActiveTrait(options.seedText || null);
+          setPendingSeed(options.seedText || "");
+          setRefinements(finalRefinementSuggestions);
+          setCheckedRefinements(new Set());
+          setRefinePrompt(
+            finalRefinementSuggestions.some((item) => item.tag === "Clarify")
+              ? "The forge asked for clarification. Select what to lock in."
+              : "The forge suggested these trait/quirk refinements. Select what to lock in.",
+          );
+        } else {
+          clearRefinements();
+        }
+      }
       if (autoSpeak && finalReply) {
         void speakText(finalReply);
       }
@@ -1852,11 +2161,11 @@ export default function VoxisTab({
     const value = inputValue.trim();
     if (!value) return;
     setInputValue("");
-    setActiveTrait(value);
-    setPendingSeed(value);
-    setRefinements(lookupRefinements(value));
-    setRefinePrompt(`You spoke "${value}" to the forge — choose how it should manifest.`);
-    sendForgeMessage(value);
+    clearRefinements();
+    sendForgeMessage(value, {
+      populateRefinementsFromReply: true,
+      seedText: value,
+    });
   };
 
   const startListening = () => {
@@ -2114,6 +2423,42 @@ export default function VoxisTab({
 
         <section className="forge-panel orbital-panel">
           <h3 className="forge-panel-title">Trait Orbital Array</h3>
+          <div className="orbital-toolbar">
+            <button
+              type="button"
+              className={`orbital-mode-toggle ${constellationMode ? "is-active" : ""}`}
+              onClick={() => setConstellationMode((prev) => !prev)}
+            >
+              Constellation {constellationMode ? "On" : "Off"}
+            </button>
+          </div>
+          {constellationMode && (
+            <div className="constellation-legend" aria-label="Constellation categories">
+              {CONSTELLATION_LEGEND.map((item) => {
+                const rgb = (TRAIT_CATEGORY_COLORS[item.key] || TRAIT_CATEGORY_COLORS.other).join(", ");
+                return (
+                  <span key={item.key} className="constellation-chip" style={{ "--chip-rgb": rgb }}>
+                    <span className="constellation-chip-dot" />
+                    {item.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <p className="orbital-subtitle">
+            {activeTrait ? (
+              <>
+                Refining <strong>{activeTrait}</strong>. Click the orb again or press Escape to clear.
+              </>
+            ) : traits.length ? (
+              <>
+                Click any orb to push that trait into the refinement panel.
+                {constellationMode ? " Related categories are now linked as a trait constellation." : ""}
+              </>
+            ) : (
+              <>Speak a trait below to seed the array and start shaping the persona.</>
+            )}
+          </p>
           <OrbitalArray
             traits={traits}
             coreLabel={coreLabel}
@@ -2122,6 +2467,7 @@ export default function VoxisTab({
             flaresRef={flaresRef}
             speaking={isSpeaking}
             mood={mood}
+            constellationMode={constellationMode}
           />
         </section>
       </div>
@@ -2131,6 +2477,15 @@ export default function VoxisTab({
           <FooterMiniWave listening={listening} />
         </div>
         <form className="speak-row" onSubmit={handleSpeakSubmit}>
+          <div className="speak-row-status">
+            {activeTrait ? (
+              <>
+                Focus Trait <strong>{activeTrait}</strong>
+              </>
+            ) : (
+              <>Speak a trait, mood, or behavior to seed the forge.</>
+            )}
+          </div>
           <button
             type="button"
             className={`mic-button ${listening ? "is-listening" : ""}`}
@@ -2166,7 +2521,10 @@ export default function VoxisTab({
           Traits Forged <strong>{personality?.traits?.length || 0}</strong>
         </span>
         <span>
-          Active Protocol <strong>Personality Forging</strong>
+          Focus Trait <strong>{activeTrait || "—"}</strong>
+        </span>
+        <span>
+          Active Protocol <strong>{activeTrait ? "Trait Refinement" : "Personality Forging"}</strong>
         </span>
       </div>
     </div>

@@ -73,6 +73,37 @@ function createSourceId(url, index) {
   return `${index + 1}-${Buffer.from(url).toString("base64url").slice(0, 12)}`;
 }
 
+function isLikelyAnimeQuery(query) {
+  const text = String(query || "").toLowerCase();
+  if (!text) return false;
+  return /(anime|manga|otaku|isekai|shonen|shojo|senpai|chan|kun|sama|jutsu|hokage|kamehameha|one piece|naruto|bleach|dragon ball)/i.test(text);
+}
+
+function buildSuggestedReferenceUrls(query) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+
+  const encoded = encodeURIComponent(q);
+  const base = [
+    `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
+    `https://www.wikiquote.org/w/index.php?search=${encoded}`,
+    `https://www.fandom.com/?s=${encoded}`,
+  ];
+
+  if (!isLikelyAnimeQuery(q)) {
+    return base;
+  }
+
+  return [
+    ...base,
+    `https://myanimelist.net/anime.php?q=${encoded}&cat=anime`,
+    `https://myanimelist.net/manga.php?q=${encoded}&cat=manga`,
+    `https://anilist.co/search/anime?search=${encoded}`,
+    `https://anilist.co/search/manga?search=${encoded}`,
+    `https://myanimelist.net/character.php?q=${encoded}&cat=character`,
+  ];
+}
+
 async function getYouTubeTranscriptFetcher() {
   if (!youtubeTranscriptFetcherPromise) {
     youtubeTranscriptFetcherPromise = import("youtube-transcript/dist/youtube-transcript.esm.js")
@@ -154,6 +185,18 @@ function extractQuirks(text) {
       .filter((sentence) => /(often|tends to|signature|habit|usually|frequently|known for)/i.test(sentence))
       .map((sentence) => truncate(normalizeWhitespace(sentence), 140)),
   ).slice(0, 5);
+}
+
+function buildAvatarLikenessHint({ name, description, sourceQuery, sourceNotes }) {
+  const text = normalizeWhitespace(
+    [description, ...((sourceNotes || []).map((note) => note?.text || ""))].join(" "),
+  );
+  const visualSentence = text
+    .split(/(?<=[.!?])\s+/)
+    .find((sentence) => /(hair|eyes|outfit|armor|robe|cloak|jacket|mask|glasses|goggles|scar|aura|smile|expression|silhouette|look|appearance)/i.test(sentence));
+
+  const base = visualSentence || `${name || sourceQuery} inspired silhouette with expressive eyes and distinctive aura`;
+  return truncate(normalizeWhitespace(base), 120);
 }
 
 async function fetchWikipediaSummary(query) {
@@ -275,11 +318,31 @@ async function fetchReadablePage(url) {
       return null;
     }
 
+    const host = (() => {
+      try {
+        return new URL(url).hostname.toLowerCase();
+      } catch {
+        return "";
+      }
+    })();
+
+    const sourceType = host.includes("myanimelist.net")
+      ? "myanimelist"
+      : host.includes("anilist.co")
+        ? "anilist"
+        : host.includes("fandom.com")
+          ? "fandom"
+          : host.includes("wiki")
+            ? "wiki"
+            : /wikipedia\.org/.test(url)
+              ? "wikipedia"
+              : "web";
+
     return {
       url,
       title: truncate(title, 140),
       text: truncate(text, 1200),
-      sourceType: /wikipedia\.org/.test(url) ? "wikipedia" : "web",
+      sourceType,
       transcriptAvailable: false,
     };
   } catch {
@@ -326,6 +389,12 @@ function buildFallbackProfile({ name, description, sourceQuery, sourceUrls, sour
     sourceQuery,
     sourceUrls,
     sources: sourceNotes,
+    avatarLikenessHint: buildAvatarLikenessHint({
+      name,
+      description,
+      sourceQuery,
+      sourceNotes,
+    }),
   };
 }
 
@@ -351,6 +420,10 @@ function rankSources(sourceNotes, query) {
     .map((source) => {
       const typeWeight = {
         wikipedia: 0.92,
+        myanimelist: 0.9,
+        anilist: 0.86,
+        fandom: 0.79,
+        wiki: 0.82,
         youtube: source.transcriptAvailable ? 0.88 : 0.62,
         web: 0.74,
       }[source.sourceType] || 0.68;
@@ -368,6 +441,15 @@ function rankSources(sourceNotes, query) {
       const reasons = [];
       if (source.sourceType === "wikipedia") {
         reasons.push("High-trust reference source");
+      }
+      if (source.sourceType === "myanimelist") {
+        reasons.push("Anime metadata source matched to query");
+      }
+      if (source.sourceType === "anilist") {
+        reasons.push("Anime database cross-reference");
+      }
+      if (source.sourceType === "fandom") {
+        reasons.push("Character/franchise wiki context");
       }
       if (source.sourceType === "youtube" && source.transcriptAvailable) {
         reasons.push("Transcript captured from video dialogue");
@@ -396,7 +478,9 @@ function rankSources(sourceNotes, query) {
 
 export async function buildResearchProfile({ name, description, sourceQuery, sourceUrls, creativeContext = "default" }) {
   const query = String(sourceQuery || name || "").trim();
-  const urls = dedupe((sourceUrls || []).map((url) => String(url).trim()));
+  const userUrls = dedupe((sourceUrls || []).map((url) => String(url).trim()));
+  const seededUrls = buildSuggestedReferenceUrls(query);
+  const urls = dedupe([...userUrls, ...seededUrls]);
 
   const wikipediaSource = await fetchWikipediaSummary(query);
   const remoteSources = await Promise.all(urls.map((url) => fetchSource(url)));
@@ -410,7 +494,7 @@ export async function buildResearchProfile({ name, description, sourceQuery, sou
     sourceNotes,
     creativeContext,
   });
-  fallbackProfile.avatarImageUrl = wikipediaSource?.imageUrl || "";
+  fallbackProfile.avatarImageUrl = "";
 
   if (!sourceNotes.length || !isLlmConfigured()) {
     return fallbackProfile;

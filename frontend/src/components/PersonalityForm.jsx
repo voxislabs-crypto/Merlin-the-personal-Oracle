@@ -2395,6 +2395,7 @@ export default function PersonalityForm({
                   gazeDrift: Number(form.expressionGazeDrift),
                 }}
                 imageUrl={form.avatarImageUrl || ""}
+                likenessHint={`${form.name || ""} ${form.description || ""} ${form.traits || ""} ${form.quirks || ""}`.trim()}
               />
               <div className="avatar-preview-controls">
                 <label htmlFor="previewPhase" style={{ color: "#87a8b9", fontSize: "0.85rem", fontWeight: 700 }}>Preview phase</label>

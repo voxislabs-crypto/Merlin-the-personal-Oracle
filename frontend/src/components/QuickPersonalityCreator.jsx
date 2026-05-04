@@ -720,6 +720,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
   const [prosodyProgressIndex, setProsodyProgressIndex] = useState(0);
   const [prosodyModalError, setProsodyModalError] = useState("");
   const [extractedVoiceSamples, setExtractedVoiceSamples] = useState(null);
+  const [characterConfirmation, setCharacterConfirmation] = useState(null);
 
   useEffect(() => {
     if (!isAnalyzing) {
@@ -734,7 +735,9 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
     return () => clearInterval(timer);
   }, [isAnalyzing]);
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (options = {}) => {
+    const { confirm = false } = options;
+
     if (!formData.name.trim()) {
       setError("Persona name is required");
       return;
@@ -757,6 +760,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
           name: formData.name,
           description: formData.description,
           sourceUrls,
+          confirmCharacterName: confirm ? characterConfirmation?.canonicalName || "" : "",
         }),
       });
 
@@ -765,6 +769,18 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
       }
 
       const data = await response.json();
+
+      if (data?.needsConfirmation) {
+        setCharacterConfirmation({
+          canonicalName: data.canonicalName || "",
+          franchise: data.franchise || "",
+          confirmationPrompt: data.confirmationPrompt || "Please confirm the character identity.",
+        });
+        setStep(1);
+        return;
+      }
+
+      setCharacterConfirmation(null);
       setAnalysis(data);
       setEditableDialogue(data.sampleDialogue || []);
       setAnalysisProgressIndex(ANALYZE_PROGRESS_STEPS.length - 1);
@@ -959,6 +975,7 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
     setStep(1);
     setAnalysis(null);
     setError(null);
+    setCharacterConfirmation(null);
     setCreatedPersonalityId(null);
     setIsVoiceSampleModalOpen(false);
     setExtractedVoiceSamples(null);
@@ -1001,7 +1018,10 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  setCharacterConfirmation(null);
+                }}
                 placeholder="e.g., Rick Sanchez"
               />
             </div>
@@ -1010,7 +1030,10 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
               <label>Brief Description (optional)</label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+                  setCharacterConfirmation(null);
+                }}
                 placeholder="A short description of the persona..."
               />
             </div>
@@ -1019,11 +1042,39 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
               <label>Supporting Links (optional, one per line)</label>
               <textarea
                 value={formData.sourceUrls}
-                onChange={(e) => setFormData({ ...formData, sourceUrls: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, sourceUrls: e.target.value });
+                  setCharacterConfirmation(null);
+                }}
                 placeholder="https://youtube.com/watch?v=..."
                 style={{ minHeight: "80px" }}
               />
             </div>
+
+            {characterConfirmation && (
+              <div className="voice-preview-section" role="status" aria-live="polite">
+                <div className="section-title">Confirm Character</div>
+                <p style={{ margin: 0, color: "var(--text)", lineHeight: 1.45 }}>
+                  {characterConfirmation.confirmationPrompt}
+                </p>
+                <div className="action-bar" style={{ marginTop: 12 }}>
+                  <button
+                    className="secondary-button"
+                    onClick={() => setCharacterConfirmation(null)}
+                    disabled={isAnalyzing}
+                  >
+                    Edit Name
+                  </button>
+                  <button
+                    className="primary-button"
+                    onClick={() => handleAnalyze({ confirm: true })}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing ? "Analyzing..." : `Confirm ${characterConfirmation.canonicalName}`}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="action-bar">
               <button className="secondary-button" onClick={handleCancel}>
@@ -1042,6 +1093,13 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
 
         {step === 2 && (
           <div className="loading-container">
+            <div className="character-avatar" style={{ marginBottom: 14 }}>
+              <AvatarCore
+                personalitySeed={`draft:${formData.name}:${formData.description}`}
+                likenessHint={analysis?.avatarLikenessHint || `${formData.name} ${formData.description}`}
+                size={80}
+              />
+            </div>
             <div className="loading-spinner"></div>
             <div className="loading-text">Analyzing Persona</div>
             <div className="loading-subtext">Extracting traits, quirks, and voice patterns...</div>
@@ -1068,7 +1126,12 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
           <div className="confirmation-screen">
             <div className="character-header">
               <div className="character-avatar">
-                <AvatarCore personality={{ name: analysis.name }} size={80} />
+                <AvatarCore
+                  personality={{ name: analysis.name }}
+                  personalitySeed={`analysis:${analysis.name}`}
+                  likenessHint={analysis.avatarLikenessHint || `${analysis.name} ${analysis.description || ""}`}
+                  size={80}
+                />
               </div>
               <div className="character-info">
                 <h3>{analysis.name}</h3>
@@ -1221,7 +1284,12 @@ export default function QuickPersonalityCreator({ onCreated, onCancel }) {
           <div>
             <div className="character-header">
               <div className="character-avatar">
-                <AvatarCore personality={{ name: analysis.name }} size={80} />
+                <AvatarCore
+                  personality={{ name: analysis.name }}
+                  personalitySeed={`voice-step:${analysis.name}`}
+                  likenessHint={analysis.avatarLikenessHint || `${analysis.name} ${analysis.description || ""}`}
+                  size={80}
+                />
               </div>
               <div className="character-info">
                 <h3>{analysis.name}</h3>

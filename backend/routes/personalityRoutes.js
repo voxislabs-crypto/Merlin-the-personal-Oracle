@@ -18,7 +18,7 @@ import {
 } from "../controllers/personalityController.js";
 import { runHarnessHandler } from "../controllers/harnessController.js";
 import { researchProfileHandler } from "../controllers/researchController.js";
-import { chatHistoryHandler } from "../controllers/chatController.js";
+import { chatHistoryHandler, personaOpenerHandler } from "../controllers/chatController.js";
 import {
   generateSpeechHandler,
   listPiperVoicesHandler,
@@ -77,6 +77,7 @@ router.post("/personality/:id/reset", requireAuth, resetPersonalityHandler);
 router.delete("/personality/:id", requireAuth, deletePersonalityHandler);
 router.post("/personality/:id/harness", requireAuth, runHarnessHandler);
 router.get("/personality/:id/messages", requireAuth, chatHistoryHandler);
+router.post("/personality/:id/opener", requireAuth, personaOpenerHandler);
 router.get("/personality/:id/memory", requireAuth, listMemoryHandler);
 router.post("/personality/:id/memory/backfill", requireAuth, backfillMemoryEmbeddingsHandler);
 router.put("/memory/:memoryId", requireAuth, updateMemoryHandler);

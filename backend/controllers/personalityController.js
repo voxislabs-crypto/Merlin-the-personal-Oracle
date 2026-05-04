@@ -125,6 +125,259 @@ function hasMatchingConfirmation(existingName, confirmName) {
   return String(confirmName || "").trim() === String(existingName || "").trim();
 }
 
+const CHARACTER_CONFIRMATION_CONFIG = {
+  suggestMinConfidence: 0.66,
+  autoProceedConfidence: 0.9,
+};
+
+const CHARACTER_CONFIRMATION_LIBRARY = [
+  {
+    canonicalName: "Rick Sanchez",
+    franchise: "Rick and Morty",
+    aliases: ["rick sanchez", "rick c-137", "rick from rick and morty", "rick morty"],
+  },
+  {
+    canonicalName: "Morty Smith",
+    franchise: "Rick and Morty",
+    aliases: ["morty", "morty smith", "morty from rick and morty"],
+  },
+  {
+    canonicalName: "Dora the Explorer",
+    franchise: "Dora the Explorer",
+    aliases: ["dora the explorer", "dora explorer", "dora", "dora cartoon"],
+  },
+  {
+    canonicalName: "Boots",
+    franchise: "Dora the Explorer",
+    aliases: ["boots", "boots monkey", "boots from dora"],
+  },
+  {
+    canonicalName: "SpongeBob SquarePants",
+    franchise: "SpongeBob SquarePants",
+    aliases: ["spongebob", "spongebob squarepants", "sponge bob", "bob esponja"],
+  },
+  {
+    canonicalName: "Patrick Star",
+    franchise: "SpongeBob SquarePants",
+    aliases: ["patrick", "patrick star", "patrick from spongebob"],
+  },
+  {
+    canonicalName: "Bugs Bunny",
+    franchise: "Looney Tunes",
+    aliases: ["bugs bunny", "bugs", "bugs from looney tunes"],
+  },
+  {
+    canonicalName: "Scooby-Doo",
+    franchise: "Scooby-Doo",
+    aliases: ["scooby", "scooby doo", "scooby-doo"],
+  },
+  {
+    canonicalName: "Shaggy Rogers",
+    franchise: "Scooby-Doo",
+    aliases: ["shaggy", "shaggy rogers", "norville rogers"],
+  },
+  {
+    canonicalName: "Mickey Mouse",
+    franchise: "Disney",
+    aliases: ["mickey", "mickey mouse"],
+  },
+  {
+    canonicalName: "Donald Duck",
+    franchise: "Disney",
+    aliases: ["donald", "donald duck"],
+  },
+  {
+    canonicalName: "Elsa",
+    franchise: "Frozen",
+    aliases: ["elsa", "queen elsa", "elsa frozen"],
+  },
+  {
+    canonicalName: "Anna",
+    franchise: "Frozen",
+    aliases: ["anna frozen", "princess anna"],
+  },
+  {
+    canonicalName: "Goku",
+    franchise: "Dragon Ball",
+    aliases: ["goku", "son goku", "kakarot"],
+  },
+  {
+    canonicalName: "Vegeta",
+    franchise: "Dragon Ball",
+    aliases: ["vegeta", "prince vegeta"],
+  },
+  {
+    canonicalName: "Naruto Uzumaki",
+    franchise: "Naruto",
+    aliases: ["naruto", "naruto uzumaki", "hokage naruto"],
+  },
+  {
+    canonicalName: "Sasuke Uchiha",
+    franchise: "Naruto",
+    aliases: ["sasuke", "sasuke uchiha"],
+  },
+  {
+    canonicalName: "Monkey D. Luffy",
+    franchise: "One Piece",
+    aliases: ["luffy", "monkey d luffy", "straw hat luffy"],
+  },
+  {
+    canonicalName: "Roronoa Zoro",
+    franchise: "One Piece",
+    aliases: ["zoro", "roronoa zoro"],
+  },
+  {
+    canonicalName: "Tony Stark",
+    franchise: "Marvel",
+    aliases: ["tony stark", "iron man", "ironman"],
+  },
+  {
+    canonicalName: "Peter Parker",
+    franchise: "Marvel",
+    aliases: ["peter parker", "spider man", "spiderman", "spider-man"],
+  },
+  {
+    canonicalName: "Bruce Wayne",
+    franchise: "DC",
+    aliases: ["bruce wayne", "batman", "the batman"],
+  },
+  {
+    canonicalName: "Clark Kent",
+    franchise: "DC",
+    aliases: ["clark kent", "superman", "kal-el"],
+  },
+  {
+    canonicalName: "Harry Potter",
+    franchise: "Harry Potter",
+    aliases: ["harry potter", "harry"],
+  },
+  {
+    canonicalName: "Hermione Granger",
+    franchise: "Harry Potter",
+    aliases: ["hermione", "hermione granger"],
+  },
+  {
+    canonicalName: "Darth Vader",
+    franchise: "Star Wars",
+    aliases: ["darth vader", "vader", "anakin skywalker"],
+  },
+  {
+    canonicalName: "Luke Skywalker",
+    franchise: "Star Wars",
+    aliases: ["luke skywalker", "luke"],
+  },
+];
+
+function normalizeCharacterName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function levenshteinDistance(a, b) {
+  const source = String(a || "");
+  const target = String(b || "");
+  if (!source) return target.length;
+  if (!target) return source.length;
+
+  const dp = Array.from({ length: source.length + 1 }, () => new Array(target.length + 1).fill(0));
+  for (let i = 0; i <= source.length; i += 1) dp[i][0] = i;
+  for (let j = 0; j <= target.length; j += 1) dp[0][j] = j;
+
+  for (let i = 1; i <= source.length; i += 1) {
+    for (let j = 1; j <= target.length; j += 1) {
+      const cost = source[i - 1] === target[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  return dp[source.length][target.length];
+}
+
+function scoreAliasConfidence(normalizedInput, normalizedAlias) {
+  if (!normalizedInput || !normalizedAlias) {
+    return 0;
+  }
+  if (normalizedInput === normalizedAlias) {
+    return 1;
+  }
+
+  const inputTokens = new Set(normalizedInput.split(" ").filter(Boolean));
+  const aliasTokens = new Set(normalizedAlias.split(" ").filter(Boolean));
+  const union = new Set([...inputTokens, ...aliasTokens]);
+  let overlapCount = 0;
+  for (const token of inputTokens) {
+    if (aliasTokens.has(token)) {
+      overlapCount += 1;
+    }
+  }
+  const jaccard = union.size ? overlapCount / union.size : 0;
+
+  const maxLen = Math.max(normalizedInput.length, normalizedAlias.length, 1);
+  const distance = levenshteinDistance(normalizedInput, normalizedAlias);
+  const editScore = Math.max(0, 1 - distance / maxLen);
+
+  const containsBonus =
+    normalizedAlias.includes(normalizedInput) || normalizedInput.includes(normalizedAlias)
+      ? 0.08
+      : 0;
+
+  const ambiguousSingleTokenPenalty =
+    inputTokens.size === 1 && aliasTokens.size === 1
+      ? 0.22
+      : 0;
+
+  const shortTokenPenalty =
+    Math.min(normalizedInput.length, normalizedAlias.length) <= 5
+      ? 0.07
+      : 0;
+
+  const blended = editScore * 0.62 + jaccard * 0.38 + containsBonus - ambiguousSingleTokenPenalty - shortTokenPenalty;
+  return Math.min(1, Math.max(0, blended));
+}
+
+function resolveCharacterConfirmation(name) {
+  const normalizedInput = normalizeCharacterName(name);
+  if (!normalizedInput) {
+    return null;
+  }
+
+  let bestMatch = null;
+
+  for (const entry of CHARACTER_CONFIRMATION_LIBRARY) {
+    const aliases = [entry.canonicalName, ...(entry.aliases || [])].map(normalizeCharacterName).filter(Boolean);
+    for (const alias of aliases) {
+      const confidence = scoreAliasConfidence(normalizedInput, alias);
+      if (!bestMatch || confidence > bestMatch.confidence) {
+        bestMatch = { entry, alias, confidence };
+      }
+    }
+  }
+
+  if (!bestMatch || bestMatch.confidence < CHARACTER_CONFIRMATION_CONFIG.suggestMinConfidence) {
+    return null;
+  }
+
+  return {
+    ...bestMatch,
+    normalizedInput,
+    canonicalName: bestMatch.entry.canonicalName,
+    franchise: bestMatch.entry.franchise,
+    requiresConfirmation: bestMatch.confidence < CHARACTER_CONFIRMATION_CONFIG.autoProceedConfidence,
+  };
+}
+
+function buildCharacterConfirmationPrompt(match) {
+  if (!match?.canonicalName) return "Please confirm the character identity.";
+  return `Did you mean ${match.canonicalName} from ${match.franchise}? Confirm and I will proceed to build the persona.`;
+}
+
 async function removePersonaArtifacts(personality) {
   const personalityId = Number(personality?.id);
   if (Number.isInteger(personalityId)) {
@@ -810,15 +1063,29 @@ export async function deletePersonalityHandler(req, res, next) {
 
 export async function analyzeCharacterHandler(req, res, next) {
   try {
-    const { name, description, sourceUrls } = req.body;
+    const { name, description, sourceUrls, confirmCharacterName } = req.body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return res.status(400).json({ error: "Character name is required." });
     }
 
+    const matchedCharacter = resolveCharacterConfirmation(name);
+    const isConfirmed = hasMatchingConfirmation(matchedCharacter?.canonicalName, confirmCharacterName);
+    if (matchedCharacter?.requiresConfirmation && !isConfirmed) {
+      return res.json({
+        needsConfirmation: true,
+        canonicalName: matchedCharacter.canonicalName,
+        franchise: matchedCharacter.franchise,
+        confidence: Number(matchedCharacter.confidence.toFixed(3)),
+        confirmationPrompt: buildCharacterConfirmationPrompt(matchedCharacter),
+      });
+    }
+
+    const canonicalName = matchedCharacter?.canonicalName || name.trim();
+
     const analysisPrompt = `You are a character analysis expert. Analyze the following character and extract their key personality traits and quirks.
 
-Character Name: ${name}
+Character Name: ${canonicalName}
 ${description ? `Description: ${description}` : ""}
 ${sourceUrls && sourceUrls.length > 0 ? `Source URLs: ${sourceUrls.join(", ")}` : ""}
 
@@ -828,10 +1095,12 @@ Return a JSON object with this exact structure:
   "quirks": ["quirk1", "quirk2", "quirk3"],
   "sampleDialogue": ["sample line 1", "sample line 2", "sample line 3"],
   "speechStyle": "brief description of speech style",
-  "mood": "primary mood"
+  "mood": "primary mood",
+  "avatarLikenessHint": "5-12 words describing a generic non-copyright visual vibe (e.g. spiky-haired scientist with portal-tech aura)"
 }
 
-Keep traits and quirks to 3-5 items each. Make sample dialogue authentic to the character's voice.`;
+Keep traits and quirks to 3-5 items each. Make sample dialogue authentic to the character's voice.
+Do not mention trademarked logos, exact costume replicas, or protected artwork in avatarLikenessHint.`;
 
     const messages = [
       { role: "system", content: "You are a character analysis expert. Always return valid JSON." },
@@ -854,13 +1123,16 @@ Keep traits and quirks to 3-5 items each. Make sample dialogue authentic to the 
     }
 
     return res.json({
-      name: name.trim(),
+      name: canonicalName,
       description: description?.trim() || "",
       traits: Array.isArray(analysis.traits) ? analysis.traits : [],
       quirks: Array.isArray(analysis.quirks) ? analysis.quirks : [],
       sampleDialogue: Array.isArray(analysis.sampleDialogue) ? analysis.sampleDialogue : [],
       speechStyle: analysis.speechStyle || "",
       mood: analysis.mood || "neutral",
+      avatarLikenessHint: String(
+        analysis.avatarLikenessHint || `${canonicalName} inspired portrait silhouette`,
+      ).trim(),
     });
   } catch (error) {
     console.error("Character analysis error:", error);

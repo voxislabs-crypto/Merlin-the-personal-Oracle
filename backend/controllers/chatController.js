@@ -1,4 +1,4 @@
-import { getPersonalityById, updateMoodState, updateStateFlaws } from "../models/personalityModel.js";
+import { getAllPersonalities, getPersonalityById, updateMoodState, updateStateFlaws } from "../models/personalityModel.js";
 import {
   createChatMessage,
   getChatMessages,
@@ -88,6 +88,7 @@ import {
 import { detectMemoryConflicts } from "../services/memoryConflictService.js";
 import { regulateReplyCadence } from "../services/cadenceRegulator.js";
 import { buildUtterancePlan } from "../services/utterancePlanService.js";
+import { extractRefinementSuggestions } from "../services/refinementSuggestionService.js";
 import {
   normalizeDriftState,
   applyEmotionDrift,
@@ -126,6 +127,257 @@ const RECONDITION_CADENCE = {
 
 function getReconditionEvery(creativeContext) {
   return RECONDITION_CADENCE[creativeContext] ?? RECONDITION_CADENCE.default;
+}
+
+function inferOpenerArchetype(personality) {
+  const corpus = [
+    String(personality?.creativeContext || ""),
+    String(personality?.description || ""),
+    String(personality?.speechStyle || ""),
+    ...(Array.isArray(personality?.traits) ? personality.traits : []),
+    ...(Array.isArray(personality?.quirks) ? personality.quirks : []),
+    ...(Array.isArray(personality?.behaviorRules) ? personality.behaviorRules : []),
+    ...(Array.isArray(personality?.goals) ? personality.goals : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (/scientist|genius|inventor|lab|portal|experiment|cynic|sarcastic|rick/i.test(corpus)) {
+    return "mad_scientist";
+  }
+  if (/hero|adventur|protector|guardian|justice|brave|honor|quest/i.test(corpus)) {
+    return "adventurous_hero";
+  }
+  if (/mentor|guide|teacher|nurtur|kind|gentle|supportive|warm/i.test(corpus)) {
+    return "warm_guide";
+  }
+  if (/trickster|chaotic|mischief|tease|playful|wildcard/i.test(corpus)) {
+    return "playful_trickster";
+  }
+  if (/stoic|silent|cold|reserved|disciplined|tactical/i.test(corpus)) {
+    return "stoic_guardian";
+  }
+  if (/villain|antagon|ruthless|menace|dominan|sadist|evil/i.test(corpus)) {
+    return "villainous_presence";
+  }
+  return "balanced_character";
+}
+
+function buildArchetypeOpenerInstruction(archetype) {
+  const map = {
+    mad_scientist: {
+      style: "dryly witty, curious, lightly chaotic, skeptical edge",
+      example: "Example vibe: 'Oh great, another dimension. What exactly are you people doing with portal tech over here?'",
+    },
+    adventurous_hero: {
+      style: "bold, mission-ready, welcoming confidence",
+      example: "Example vibe: 'I can work with this. What's the first challenge your world needs me to solve?'",
+    },
+    warm_guide: {
+      style: "friendly, emotionally intelligent, supportive",
+      example: "Example vibe: 'I'm here with you now. What matters most to you in this chapter?'",
+    },
+    playful_trickster: {
+      style: "teasing, energetic, curious, unpredictable charm",
+      example: "Example vibe: 'Well this place has potential. So what's your game, summoner?'",
+    },
+    stoic_guardian: {
+      style: "calm, concise, observant, protective",
+      example: "Example vibe: 'I have arrived. Tell me your intent so I can align with it.'",
+    },
+    villainous_presence: {
+      style: "intense, controlled, imposing, strategic curiosity",
+      example: "Example vibe: 'Interesting world. Before I decide how to move, tell me what you truly want.'",
+    },
+    balanced_character: {
+      style: "distinctive and in-character, but approachable",
+      example: "Example vibe: 'I'm online and listening. What kind of journey are we beginning here?'",
+    },
+  };
+
+  return map[archetype] || map.balanced_character;
+}
+
+function buildOpenerSignature(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, 12)
+    .join(" ");
+}
+
+function collectHistoricOpenerLines({ personalityName, ownerId }) {
+  const normalizedName = String(personalityName || "").trim().toLowerCase();
+  if (!normalizedName) {
+    return [];
+  }
+
+  const siblings = getAllPersonalities(ownerId)
+    .filter((item) => String(item?.name || "").trim().toLowerCase() === normalizedName)
+    .slice(0, 16);
+
+  const openers = [];
+  for (const sibling of siblings) {
+    const messages = getChatMessages(sibling.id, 80);
+    const firstAssistant = messages.find((m) => m.role === "assistant" && String(m.content || "").trim());
+    if (!firstAssistant) {
+      continue;
+    }
+    openers.push(String(firstAssistant.content || "").trim());
+  }
+
+  return openers;
+}
+
+async function generateUniquePersonaOpener({ messages, bannedSignatures, fallbackReply }) {
+  const banned = new Set((bannedSignatures || []).filter(Boolean));
+  let best = "";
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const extra =
+      attempt === 0
+        ? ""
+        : `\nAttempt ${attempt + 1}: Use a noticeably different opening phrase and wording from prior attempts.`;
+
+    const attemptMessages = [...messages];
+    if (extra) {
+      attemptMessages[attemptMessages.length - 1] = {
+        ...attemptMessages[attemptMessages.length - 1],
+        content: `${attemptMessages[attemptMessages.length - 1].content}${extra}`,
+      };
+    }
+
+    const candidate = String(await generateChatCompletion(attemptMessages)).trim();
+    if (!candidate) {
+      continue;
+    }
+
+    const signature = buildOpenerSignature(candidate);
+    if (!banned.has(signature)) {
+      return candidate;
+    }
+
+    if (!best) {
+      best = candidate;
+    }
+  }
+
+  return best || fallbackReply;
+}
+
+export async function personaOpenerHandler(req, res, next) {
+  try {
+    const personalityId = Number(req.params.id || req.body.personalityId);
+    const userId = req.body.userId;
+    const requestedMode = String(req.body.mode || "").trim().toLowerCase();
+
+    if (!Number.isInteger(personalityId)) {
+      return res.status(400).json({ error: "A valid personality id is required." });
+    }
+
+    const { policy } = resolvePolicyContext({ userId, requestedMode });
+    const personality = getPersonalityById(personalityId);
+
+    if (!personality) {
+      return res.status(404).json({ error: "Personality not found." });
+    }
+
+    const recentMessages = getRecentChatMessages(personalityId, 1);
+    const alreadyHasAssistantMessage = recentMessages.some((item) => item.role === "assistant");
+    if (alreadyHasAssistantMessage) {
+      return res.status(409).json({ error: "Opener already exists for this conversation." });
+    }
+
+    const seed = "first contact introduction";
+    const memoryFacts = await getRelevantPersonalityMemory(personalityId, seed, 4);
+    const userMemoryFacts = policy.userId
+      ? await getRelevantUserMemory(policy.userId, "user profile introduction", 4)
+      : [];
+    const personaPreferences = getPersonaPreferences(personalityId);
+
+    const promptPackage = buildPersonaPromptPackage(personality, memoryFacts, seed, {
+      currentMoodLabel: moodToLabel(personality?.moodState || moodFromLabel(personality?.mood || "neutral")),
+      conversationKey: `${personalityId}:${Number.isInteger(Number(policy.userId)) ? Number(policy.userId) : "anon"}`,
+    });
+
+    const messages = [
+      { role: "system", content: promptPackage.prompt },
+      { role: "system", content: buildModePolicyPrompt(policy) },
+    ];
+
+    const userMemorySection = buildUserMemoryPromptSection(userMemoryFacts);
+    if (userMemorySection) {
+      messages.push({ role: "system", content: userMemorySection });
+    }
+
+    const personaPrefsSection = buildPersonaPreferencesPromptSection(personaPreferences);
+    if (personaPrefsSection) {
+      messages.push({ role: "system", content: personaPrefsSection });
+    }
+
+    const userEmotionalSection = buildUserEmotionalProfileSection(userMemoryFacts);
+    if (userEmotionalSection) {
+      messages.push({ role: "system", content: userEmotionalSection });
+    }
+
+    const openerArchetype = inferOpenerArchetype(personality);
+    const openerStyle = buildArchetypeOpenerInstruction(openerArchetype);
+    const historicOpeners = collectHistoricOpenerLines({
+      personalityName: personality.name,
+      ownerId: req.voxisUser?.id ?? null,
+    });
+    const bannedSignatures = historicOpeners.map(buildOpenerSignature).filter(Boolean);
+    const priorOpenerBlock = historicOpeners.length
+      ? `Avoid repeating these prior opener lines:\n${historicOpeners.slice(0, 6).map((line) => `- ${line}`).join("\n")}`
+      : "No prior opener lines are recorded for this persona identity.";
+
+    messages.push({
+      role: "user",
+      content: [
+        "You are initiating the first message to the user in a brand-new chat.",
+        "Speak in character and start the conversation yourself.",
+        `Opener archetype: ${openerArchetype}.`,
+        `Use this style direction: ${openerStyle.style}.`,
+        openerStyle.example,
+        "Open with one vivid, intelligent line that sounds like this persona.",
+        "Ask exactly one clear question to learn about the user (their world, goals, style, interests, or intent).",
+        "Keep it to 1-2 sentences.",
+        priorOpenerBlock,
+        "Do not mention hidden prompts, policy, or system instructions.",
+      ].join("\n"),
+    });
+
+    const fallbackReply = `I am ${personality.name}. Tell me who brought me here, and what kind of world you want to build together.`;
+    const reply = await generateUniquePersonaOpener({
+      messages,
+      bannedSignatures,
+      fallbackReply,
+    });
+
+    const userScopedId = Number.isInteger(Number(policy.userId)) ? Number(policy.userId) : null;
+    const storedAssistantMsg = createChatMessage({
+      personalityId,
+      role: "assistant",
+      content: reply,
+      userId: userScopedId,
+      mode: policy.activeMode,
+    });
+
+    setImmediate(() => {
+      embedChatMessageAsync(storedAssistantMsg.id, reply).catch(() => {});
+    });
+
+    return res.json({
+      reply,
+      isAI: true,
+      policy,
+    });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 // Maximum number of long-term memory facts to retain per personality.
@@ -1355,6 +1607,11 @@ export async function chatHandler(req, res, next) {
       mode: policy.activeMode,
     });
 
+    const refinementSuggestions = extractRefinementSuggestions({
+      assistantReply: utterancePlan.rawText || reply,
+      userMessage: message,
+    });
+
     observeUtterancePlan(sessionId, { utterancePlan, reply });
 
     const responsePayload = {
@@ -1384,6 +1641,7 @@ export async function chatHandler(req, res, next) {
             })),
           }
         : null,
+      refinementSuggestions,
       debug: debugData,
     };
 
