@@ -5,11 +5,12 @@ import { Html } from '@react-three/drei';
 
 const PersonaCard3D = ({ persona, position, onClick, isHovered, onHover }) => {
   const groupRef = useRef();
+  const baseZ = Array.isArray(position) ? Number(position[2] || 0) : 0;
 
   useFrame((state) => {
     if (!groupRef.current) return;
 
-    const targetZ = isHovered ? 4.2 : 0;
+    const targetZ = isHovered ? baseZ + 0.7 : baseZ;
     const currentZ = groupRef.current.position.z;
     groupRef.current.position.z = currentZ * 0.88 + targetZ * 0.12;
 
@@ -25,7 +26,7 @@ const PersonaCard3D = ({ persona, position, onClick, isHovered, onHover }) => {
   return (
     <group 
       ref={groupRef} 
-      position={[position[0], position[1], 0]}
+      position={[position[0], position[1], baseZ]}
     >
       <mesh
         onClick={onClick}

@@ -527,20 +527,28 @@ const forgeStyles = `
 
   .orbital-trait {
     --flare: 0;
+    --trait-rgb: 38, 255, 255;
+    --trait-rgb-soft: 190, 255, 255;
+    --orb-scale: 1;
     position: absolute;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(var(--orb-scale));
     width: 88px;
     height: 88px;
     aspect-ratio: 1 / 1;
     border-radius: 999px;
     clip-path: circle(49% at 50% 50%);
     background:
-      radial-gradient(circle at 38% 32%, rgba(38, 255, 255, 0.22), transparent 68%),
-      radial-gradient(circle at 50% 50%, rgba(8, 4, 28, 0.95), rgba(2, 0, 14, 0.98));
-    border: 1.5px solid rgba(38, 255, 255, 0.55);
+      radial-gradient(circle at 30% 28%, rgba(var(--trait-rgb-soft), 0.42), rgba(var(--trait-rgb), 0.18) 30%, transparent 66%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), 0.18), transparent 62%),
+      linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(var(--trait-rgb), 0.1) 44%, rgba(7, 10, 30, 0.36) 100%);
+    border: 1.5px solid rgba(var(--trait-rgb), 0.66);
     box-shadow:
-      0 0 14px rgba(38, 255, 255, 0.22),
-      inset 0 0 18px rgba(38, 255, 255, 0.08);
+      0 0 18px rgba(var(--trait-rgb), 0.28),
+      0 0 34px rgba(var(--trait-rgb), 0.18),
+      inset 0 0 18px rgba(var(--trait-rgb), 0.18),
+      inset 0 0 38px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(6px) saturate(130%);
+    -webkit-backdrop-filter: blur(6px) saturate(130%);
     color: #e8d6ff;
     font-weight: 800;
     font-size: 0.62rem;
@@ -552,7 +560,7 @@ const forgeStyles = `
     display: grid;
     place-items: center;
     padding: 10px;
-    transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+    transition: transform 260ms cubic-bezier(0.22, 0.8, 0.24, 1), border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
     overflow: hidden;
     word-break: normal;
     hyphens: none;
@@ -572,20 +580,38 @@ const forgeStyles = `
     position: absolute;
     inset: 3px;
     border-radius: 50%;
-    border: 1px solid rgba(38, 255, 255, 0.12);
+    border: 1px solid rgba(var(--trait-rgb-soft), 0.34);
+    box-shadow:
+      inset 0 0 14px rgba(var(--trait-rgb), 0.2),
+      0 0 12px rgba(var(--trait-rgb), 0.16);
     pointer-events: none;
   }
 
+  .orbital-trait::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--trait-rgb), 0.24), rgba(var(--trait-rgb), 0.08) 34%, transparent 72%);
+    filter: blur(4px);
+    opacity: 0.88;
+    pointer-events: none;
+    z-index: -1;
+  }
+
   .orbital-trait:hover {
-    transform: translate(-50%, -50%) scale(1.12);
-    border-color: #ff2bd6;
+    --orb-scale: 1.03;
+    border-color: rgba(var(--trait-rgb-soft), 0.96);
     box-shadow:
-      0 0 28px rgba(255, 43, 214, 0.65),
-      inset 0 0 20px rgba(255, 43, 214, 0.18);
+      0 0 24px rgba(var(--trait-rgb), 0.55),
+      0 0 42px rgba(var(--trait-rgb), 0.34),
+      inset 0 0 24px rgba(var(--trait-rgb), 0.28),
+      inset 0 0 44px rgba(255, 255, 255, 0.1);
     color: #fff;
     background:
-      radial-gradient(circle at 38% 32%, rgba(255, 43, 214, 0.3), transparent 68%),
-      radial-gradient(circle at 50% 50%, rgba(20, 4, 36, 0.97), rgba(6, 0, 20, 0.98));
+      radial-gradient(circle at 32% 30%, rgba(var(--trait-rgb-soft), 0.56), rgba(var(--trait-rgb), 0.2) 34%, transparent 70%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), 0.3), transparent 62%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.2), rgba(var(--trait-rgb), 0.14) 42%, rgba(7, 10, 30, 0.4) 100%);
   }
 
   .orbital-trait:focus-visible,
@@ -601,42 +627,48 @@ const forgeStyles = `
   }
 
   .orbital-trait.is-active {
-    border-color: #ff2bd6;
+    border-color: rgba(var(--trait-rgb-soft), 0.96);
     background:
-      radial-gradient(circle at 38% 32%, rgba(255, 43, 214, 0.45), transparent 65%),
-      radial-gradient(circle at 50% 50%, rgba(22, 4, 40, 0.97), rgba(8, 0, 22, 0.98));
+      radial-gradient(circle at 30% 28%, rgba(var(--trait-rgb-soft), 0.62), rgba(var(--trait-rgb), 0.28) 34%, transparent 68%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), 0.32), transparent 62%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.2), rgba(var(--trait-rgb), 0.16) 42%, rgba(7, 10, 30, 0.42) 100%);
     box-shadow:
-      0 0 32px rgba(255, 43, 214, 0.75),
-      inset 0 0 24px rgba(255, 43, 214, 0.25);
+      0 0 32px rgba(var(--trait-rgb), 0.64),
+      0 0 54px rgba(var(--trait-rgb), 0.4),
+      inset 0 0 28px rgba(var(--trait-rgb), 0.34),
+      inset 0 0 52px rgba(255, 255, 255, 0.11);
     color: #fff;
-    text-shadow: 0 0 8px rgba(255, 43, 214, 0.6);
+    text-shadow: 0 0 8px rgba(var(--trait-rgb), 0.72);
   }
 
   .orbital-trait.has-flare {
-    transform: translate(-50%, -50%) scale(calc(1 + var(--flare) * 0.28));
-    border-color: #ff2bd6;
+    --orb-scale: calc(1 + var(--flare) * 0.08);
+    border-color: rgba(var(--trait-rgb-soft), calc(0.8 + var(--flare) * 0.2));
     background:
-      radial-gradient(circle at 38% 32%, rgba(255, 43, 214, calc(0.3 + var(--flare) * 0.45)), transparent 65%),
-      radial-gradient(circle at 50% 50%, rgba(22, 4, 40, 0.97), rgba(8, 0, 22, 0.98));
+      radial-gradient(circle at 30% 28%, rgba(var(--trait-rgb-soft), calc(0.45 + var(--flare) * 0.45)), rgba(var(--trait-rgb), calc(0.24 + var(--flare) * 0.22)) 36%, transparent 68%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), calc(0.26 + var(--flare) * 0.22)), transparent 64%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.2), rgba(var(--trait-rgb), calc(0.16 + var(--flare) * 0.18)) 42%, rgba(7, 10, 30, 0.4) 100%);
     box-shadow:
-      0 0 calc(14px + var(--flare) * 36px) rgba(255, 43, 214, calc(0.45 + var(--flare) * 0.5)),
-      0 0 calc(28px + var(--flare) * 60px) rgba(38, 255, 255, calc(var(--flare) * 0.45)),
-      inset 0 0 20px rgba(255, 43, 214, calc(var(--flare) * 0.3));
+      0 0 calc(16px + var(--flare) * 36px) rgba(var(--trait-rgb), calc(0.46 + var(--flare) * 0.44)),
+      0 0 calc(28px + var(--flare) * 66px) rgba(var(--trait-rgb-soft), calc(0.2 + var(--flare) * 0.35)),
+      inset 0 0 24px rgba(var(--trait-rgb), calc(0.28 + var(--flare) * 0.28));
     color: #fff;
     text-shadow: 0 0 calc(var(--flare) * 12px) rgba(255, 255, 255, var(--flare));
     z-index: 3;
   }
 
   .orbital-trait.has-flare::after {
-    content: "";
-    position: absolute;
-    inset: -10px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 43, 214, calc(var(--flare) * 0.65));
-    box-shadow: 0 0 calc(var(--flare) * 22px) rgba(255, 43, 214, calc(var(--flare) * 0.55));
-    pointer-events: none;
-    opacity: var(--flare);
-    transform: scale(calc(1 + var(--flare) * 0.35));
+    inset: -14px;
+    border: 1px solid rgba(var(--trait-rgb-soft), calc(var(--flare) * 0.75));
+    box-shadow:
+      0 0 calc(8px + var(--flare) * 22px) rgba(var(--trait-rgb), calc(0.3 + var(--flare) * 0.42)),
+      0 0 calc(16px + var(--flare) * 34px) rgba(var(--trait-rgb-soft), calc(var(--flare) * 0.48));
+    opacity: calc(0.7 + var(--flare) * 0.3);
+    transform: scale(calc(1.05 + var(--flare) * 0.35));
+  }
+
+  .orbital-trait:hover.has-flare {
+    --orb-scale: calc(1.03 + var(--flare) * 0.05);
   }
 
   .orbital-empty {
@@ -1220,6 +1252,45 @@ const TRAIT_CATEGORY_COLORS = {
   other: [170, 176, 230],
 };
 
+function mixRgb(color, target, amount) {
+  return color.map((value, index) => Math.round(value + (target[index] - value) * amount));
+}
+
+function rgba(color, alpha) {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+}
+
+function buildTraitOrbVisual(category, { isActive = false, flare = 0 } = {}) {
+  const base = TRAIT_CATEGORY_COLORS[category] || TRAIT_CATEGORY_COLORS.other;
+  const highlight = mixRgb(base, [255, 255, 255], 0.42);
+  const glow = mixRgb(base, [255, 255, 255], 0.18);
+  const deep = mixRgb(base, [12, 18, 44], 0.82);
+  const haze = mixRgb(base, [20, 24, 56], 0.68);
+  const borderAlpha = isActive ? 1 : 0.88;
+  const auraAlpha = isActive ? 0.68 : 0.46;
+  const innerAlpha = isActive ? 0.42 : 0.3;
+  const flareBoost = 0.12 + flare * 0.54;
+
+  return {
+    "--trait-rgb": base.join(", "),
+    "--trait-rgb-soft": highlight.join(", "),
+    background: [
+      `radial-gradient(circle at 28% 26%, ${rgba(highlight, 0.95)}, ${rgba(highlight, 0.36)} 18%, ${rgba(base, 0.26)} 34%, transparent 62%)`,
+      `radial-gradient(circle at 72% 72%, ${rgba(glow, 0.5 + flareBoost)} 0%, transparent 58%)`,
+      `radial-gradient(circle at 50% 50%, ${rgba(haze, 0.64)} 0%, ${rgba(deep, 0.82)} 58%, rgba(5, 8, 24, 0.96) 100%)`,
+    ].join(", "),
+    borderColor: rgba(highlight, borderAlpha),
+    boxShadow: [
+      `0 0 ${28 + flare * 22}px ${rgba(base, 0.5 + flareBoost)}`,
+      `0 0 ${72 + flare * 42}px ${rgba(glow, auraAlpha + flareBoost * 0.6)}`,
+      `0 0 ${112 + flare * 60}px ${rgba(base, 0.18 + flareBoost * 0.38)}`,
+      `inset 0 0 28px ${rgba(base, innerAlpha + flare * 0.24)}`,
+      `inset 0 0 56px rgba(255, 255, 255, ${0.12 + flare * 0.14})`,
+    ].join(", "),
+    textShadow: `0 0 ${10 + flare * 10}px ${rgba(highlight, 0.72 + flareBoost)}`,
+  };
+}
+
 const CONSTELLATION_LEGEND = [
   { key: "dominance", label: "Dominance" },
   { key: "obsession", label: "Obsession" },
@@ -1522,7 +1593,8 @@ function OrbitalArray({
       const rawFlare = age < 1200 ? Math.max(0, 1 - age / 1200) : 0;
       const flare = rawFlare * rawFlare * (3 - 2 * rawFlare);
 
-      const [cr, cg, cb] = clockwise ? [255, 43, 214] : [38, 255, 255];
+      const categoryColor = TRAIT_CATEGORY_COLORS[point.category] || TRAIT_CATEGORY_COLORS.other;
+      const [cr, cg, cb] = categoryColor;
 
       ctx.save();
       ctx.lineCap = "round";
@@ -1605,21 +1677,27 @@ function OrbitalArray({
           const age = flareTime ? performance.now() - flareTime : Infinity;
           const strength = age < 1200 ? Math.max(0, 1 - age / 1200) : 0;
           const eased = strength * strength * (3 - 2 * strength);
+          const isActive = Boolean(activeTrait && activeTrait.toLowerCase() === p.trait.toLowerCase());
+          const orbVisual = buildTraitOrbVisual(p.category, {
+            isActive,
+            flare: eased,
+          });
           return (
             <button
               type="button"
               key={p.trait}
               className={`orbital-trait ${
-                activeTrait && activeTrait.toLowerCase() === p.trait.toLowerCase()
+                isActive
                   ? "is-active"
                   : ""
               } ${eased > 0.02 ? "has-flare" : ""}`}
-              aria-pressed={Boolean(activeTrait && activeTrait.toLowerCase() === p.trait.toLowerCase())}
+              aria-pressed={isActive}
               title={`Refine ${p.trait}`}
               style={{
                 left: `calc(50% + ${p.x}px)`,
                 top: `calc(50% + ${p.y}px)`,
                 "--flare": eased.toFixed(3),
+                ...orbVisual,
               }}
               onClick={() => onSelectTrait(p.trait)}
             >

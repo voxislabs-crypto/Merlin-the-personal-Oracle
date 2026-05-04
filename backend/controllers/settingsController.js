@@ -37,6 +37,8 @@ import {
   setStateRuntimeConfig,
   getCognitionLoopConfig,
   setCognitionLoopConfig,
+  getCompanionAliasConfig,
+  setCompanionAliasConfig,
 } from "../models/settingsModel.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -520,6 +522,16 @@ export function getProfaneFilterSettingsHandler(_req, res) {
 export function saveProfaneFilterSettingsHandler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const updated = setProfaneFilterConfig(body);
+  return res.json(updated);
+}
+
+export function getCompanionAliasSettingsHandler(_req, res) {
+  return res.json(getCompanionAliasConfig());
+}
+
+export function saveCompanionAliasSettingsHandler(req, res) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const updated = setCompanionAliasConfig(body);
   return res.json(updated);
 }
 

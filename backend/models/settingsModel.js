@@ -14,6 +14,7 @@ const STT_RUNTIME_CONFIG_KEY = "stt_runtime_config";
 const SEARCH_RUNTIME_CONFIG_KEY = "search_runtime_config";
 const STATE_RUNTIME_CONFIG_KEY = "state_runtime_config";
 const PROFANE_FILTER_CONFIG_KEY = "profane_filter_config";
+const COMPANION_ALIAS_CONFIG_KEY = "companion_alias_config";
 function isTtsDebugProviderLockEnabledRuntime() {
   return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 }
@@ -675,6 +676,30 @@ function sanitizeProfaneFilterConfig(config) {
   };
 }
 
+function sanitizeCompanionAliasConfig(config) {
+  const input = config && typeof config === "object" ? config : {};
+  const aliases = Array.isArray(input.aliases)
+    ? input.aliases
+        .map((alias) => String(alias || "").trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 40)
+    : ["morty"];
+
+  const uniqueAliases = [];
+  const seen = new Set();
+  for (const alias of aliases) {
+    if (seen.has(alias)) continue;
+    seen.add(alias);
+    uniqueAliases.push(alias);
+  }
+
+  return {
+    enabled: typeof input.enabled === "boolean" ? input.enabled : true,
+    aliases: uniqueAliases.length ? uniqueAliases : ["morty"],
+    updatedAt: String(input.updatedAt || "").trim(),
+  };
+}
+
 export function getSttRuntimeConfig() {
   const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(STT_RUNTIME_CONFIG_KEY);
   const parsed = parseJsonObject(row?.value || "") || {};
@@ -761,4 +786,20 @@ export function setProfaneFilterConfig(config) {
   };
   writeAppSetting(PROFANE_FILTER_CONFIG_KEY, payload);
   return getProfaneFilterConfig();
+}
+
+export function getCompanionAliasConfig() {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(COMPANION_ALIAS_CONFIG_KEY);
+  const parsed = parseJsonObject(row?.value || "") || {};
+  return sanitizeCompanionAliasConfig(parsed);
+}
+
+export function setCompanionAliasConfig(config) {
+  const sanitized = sanitizeCompanionAliasConfig(config);
+  const payload = {
+    ...sanitized,
+    updatedAt: new Date().toISOString(),
+  };
+  writeAppSetting(COMPANION_ALIAS_CONFIG_KEY, payload);
+  return getCompanionAliasConfig();
 }

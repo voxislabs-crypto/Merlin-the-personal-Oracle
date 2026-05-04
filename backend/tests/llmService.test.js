@@ -470,4 +470,38 @@ describe("llmService model fallback", () => {
     expect(promptPackage.prompt).toContain("- reinforce agency");
     expect(promptPackage.debug?.responseLens?.label).toBe("Courage");
   });
+
+  it("maps legacy companion names to the current user name in prompt output", async () => {
+    const { buildPersonaPromptPackage } = await import("../services/llmService.js");
+
+    const promptPackage = buildPersonaPromptPackage(
+      {
+        name: "Rick Sanchez",
+        description: "A cynical scientist who occasionally softens around Morty.",
+        traits: ["world-weary", "protective of Morty"],
+        behaviorRules: ["Keep Morty focused during dangerous situations."],
+        quirks: ["calls Morty out when he's panicking"],
+        speechStyle: "blunt, sarcastic, and paternal toward Morty",
+        notablePhrases: ["Listen, Morty"],
+        values: ["Morty's safety"],
+        goals: ["Get Morty home alive"],
+        mood: "primarily cynical, occasionally concerned for Morty",
+        responseFocusProfile: {
+          defaultLens: "balanced",
+          lenses: [],
+        },
+      },
+      [],
+      "",
+      {
+        userName: "Alex",
+        conversationKey: "name-swap-test",
+      },
+    );
+
+    expect(promptPackage.prompt).toContain("Alex");
+    expect(promptPackage.prompt).not.toContain("around Morty");
+    expect(promptPackage.prompt).not.toContain("Listen, Morty");
+    expect(promptPackage.prompt).toContain("== USER ANCHOR ==");
+  });
 });

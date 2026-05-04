@@ -18,6 +18,7 @@ import MoodRuntimeSettings from "./components/MoodRuntimeSettings.jsx";
 import ExpressionSamplingSettings from "./components/ExpressionSamplingSettings.jsx";
 import CognitionLoopSettings from "./components/CognitionLoopSettings.jsx";
 import ProfaneFilterSettings from "./components/ProfaneFilterSettings.jsx";
+import CompanionAliasSettings from "./components/CompanionAliasSettings.jsx";
 import ApiDiagnosticsPanel from "./components/ApiDiagnosticsPanel.jsx";
 import BrainTab from "./components/BrainTab.jsx";
 import { PersonaStateProvider } from "./state/PersonaStateContext.jsx";
@@ -3162,6 +3163,13 @@ export default function App() {
                     </p>
                   </div>
                   <ProfaneFilterSettings onStatus={setStatus} />
+                  <div style={{ marginTop: 24 }}>
+                    <h3 className="section-heading">Companion Alias Mapping</h3>
+                    <p className="section-copy">
+                      Configure which legacy companion names are treated as placeholders and swapped to the active user name at runtime.
+                    </p>
+                  </div>
+                  <CompanionAliasSettings onStatus={setStatus} />
                 </>
               ) : (
                 <>

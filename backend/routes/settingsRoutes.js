@@ -32,6 +32,8 @@ import {
   saveCognitionLoopSettingsHandler,
   getProfaneFilterSettingsHandler,
   saveProfaneFilterSettingsHandler,
+  getCompanionAliasSettingsHandler,
+  saveCompanionAliasSettingsHandler,
   getVoiceMapsHandler,
   saveVoiceMapHandler,
   deleteVoiceMapHandler,
@@ -73,6 +75,8 @@ router.get("/settings/cognition-loop", requireAuth, getCognitionLoopSettingsHand
 router.put("/settings/cognition-loop", requireAuth, requireAdmin, saveCognitionLoopSettingsHandler);
 router.get("/settings/profane-filter", requireAuth, getProfaneFilterSettingsHandler);
 router.put("/settings/profane-filter", requireAuth, requireAdmin, saveProfaneFilterSettingsHandler);
+router.get("/settings/companion-aliases", requireAuth, getCompanionAliasSettingsHandler);
+router.put("/settings/companion-aliases", requireAuth, requireAdmin, saveCompanionAliasSettingsHandler);
 router.get("/settings/voice-maps", requireAuth, getVoiceMapsHandler);
 router.put("/settings/voice-maps", requireAuth, saveVoiceMapHandler);
 router.delete("/settings/voice-maps/:id", requireAuth, deleteVoiceMapHandler);

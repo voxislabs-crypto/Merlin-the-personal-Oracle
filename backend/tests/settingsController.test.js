@@ -13,6 +13,8 @@ const mockGetMoodRuntimeConfig = vi.fn();
 const mockSetMoodRuntimeConfig = vi.fn();
 const mockGetExpressionSamplingConfig = vi.fn();
 const mockSetExpressionSamplingConfig = vi.fn();
+const mockGetCompanionAliasConfig = vi.fn();
+const mockSetCompanionAliasConfig = vi.fn();
 
 const mockDetectProviderByApiKey = vi.fn();
 const mockFetchProviderModels = vi.fn();
@@ -39,6 +41,8 @@ vi.mock("../models/settingsModel.js", () => ({
   setMoodRuntimeConfig: mockSetMoodRuntimeConfig,
   getExpressionSamplingConfig: mockGetExpressionSamplingConfig,
   setExpressionSamplingConfig: mockSetExpressionSamplingConfig,
+  getCompanionAliasConfig: mockGetCompanionAliasConfig,
+  setCompanionAliasConfig: mockSetCompanionAliasConfig,
 }));
 
 vi.mock("../services/providerDiscoveryService.js", () => ({
@@ -72,6 +76,8 @@ describe("settingsController", () => {
     mockSetMoodRuntimeConfig.mockReset();
     mockGetExpressionSamplingConfig.mockReset();
     mockSetExpressionSamplingConfig.mockReset();
+    mockGetCompanionAliasConfig.mockReset();
+    mockSetCompanionAliasConfig.mockReset();
     mockDetectProviderByApiKey.mockReset();
     mockFetchProviderModels.mockReset();
     mockGetSuggestedProviderIdFromApiKey.mockReset();
@@ -415,6 +421,60 @@ describe("settingsController", () => {
       expect.objectContaining({
         enabled: true,
         deterministicSeed: false,
+      }),
+    );
+  });
+
+  it("returns companion alias settings", async () => {
+    mockGetCompanionAliasConfig.mockReturnValue({
+      enabled: true,
+      aliases: ["morty", "sidekick"],
+      updatedAt: "2026-05-04T00:00:00.000Z",
+    });
+
+    const { getCompanionAliasSettingsHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+
+    getCompanionAliasSettingsHandler({}, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        aliases: ["morty", "sidekick"],
+      }),
+    );
+  });
+
+  it("saves companion alias settings", async () => {
+    mockSetCompanionAliasConfig.mockReturnValue({
+      enabled: true,
+      aliases: ["morty", "assistant"],
+      updatedAt: "2026-05-04T00:00:00.000Z",
+    });
+
+    const { saveCompanionAliasSettingsHandler } = await import("../controllers/settingsController.js");
+    const res = createResponse();
+
+    saveCompanionAliasSettingsHandler(
+      {
+        body: {
+          enabled: true,
+          aliases: ["Morty", "assistant", "morty"],
+        },
+      },
+      res,
+    );
+
+    expect(mockSetCompanionAliasConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        aliases: ["Morty", "assistant", "morty"],
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        aliases: ["morty", "assistant"],
       }),
     );
   });

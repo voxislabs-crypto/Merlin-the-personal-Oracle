@@ -71,7 +71,13 @@ import {
   reinforcePersonaPreferences,
   decayPersonaPreferences,
 } from "../models/preferencesModel.js";
-import { getMoodRuntimeConfig, getExpressionSamplingConfig, getStateRuntimeConfig, getProfaneFilterConfig } from "../models/settingsModel.js";
+import {
+  getMoodRuntimeConfig,
+  getExpressionSamplingConfig,
+  getStateRuntimeConfig,
+  getProfaneFilterConfig,
+  getCompanionAliasConfig,
+} from "../models/settingsModel.js";
 import { applyBoundedExpressionSampling } from "../services/expressionSampler.js";
 import {
   searchWeb,
@@ -301,6 +307,8 @@ export async function personaOpenerHandler(req, res, next) {
     const promptPackage = buildPersonaPromptPackage(personality, memoryFacts, seed, {
       currentMoodLabel: moodToLabel(personality?.moodState || moodFromLabel(personality?.mood || "neutral")),
       conversationKey: `${personalityId}:${Number.isInteger(Number(policy.userId)) ? Number(policy.userId) : "anon"}`,
+      userName: req.voxisUser?.displayName || "",
+      companionAliases: resolveCompanionAliasesForPrompt(),
     });
 
     const messages = [
@@ -458,6 +466,14 @@ function buildRawHistorySection(turns) {
     return `- "${String(turn.content).slice(0, 300)}"${date}${reply}`;
   });
   return `RECALLED PAST CONVERSATION MOMENTS (contextual reference only — treat as background, not current conversation):\n${lines.join("\n")}`;
+}
+
+function resolveCompanionAliasesForPrompt() {
+  const config = getCompanionAliasConfig();
+  if (!config?.enabled) {
+    return [];
+  }
+  return Array.isArray(config.aliases) ? config.aliases : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -1025,6 +1041,8 @@ export async function chatHandler(req, res, next) {
     const promptPackage = buildPersonaPromptPackage(personality, memoryFacts, message, {
       currentMoodLabel: moodLabel,
       conversationKey: `${personalityId}:${userScopedId ?? "anon"}`,
+      userName: req.voxisUser?.displayName || "",
+      companionAliases: resolveCompanionAliasesForPrompt(),
     });
     const systemPrompt = promptPackage.prompt;
 
