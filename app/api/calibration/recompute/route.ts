@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
 import { recomputeCalibrationProfile } from '@/lib/astrology/feedback/calibration';
+import { logInteractionEvent } from '@/lib/pattern-mirror';
 
 interface RecomputeBody {
   userId?: string;
@@ -27,6 +28,19 @@ export async function POST(request: Request) {
       userId: targetUserId,
       days: body.days,
       minSamples: body.minSamples,
+    });
+
+    await logInteractionEvent({
+      userId: targetUserId,
+      type: 'calibration_recompute',
+      content: 'calibration_recomputed',
+      metadata: {
+        windowDays: result.windowDays,
+        sampleSize: result.sampleSize,
+        minSamples: result.minSamples,
+        strongestModifier: result.strongestModifier || null,
+        modifierCount: Object.keys(result.modifiers || {}).length,
+      },
     });
 
     return NextResponse.json({ success: true, data: result });

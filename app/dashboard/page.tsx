@@ -115,6 +115,18 @@ export default function UnifiedDashboard() {
   const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
   const [calibrationRecomputing, setCalibrationRecomputing] = useState(false);
   const [calibrationStatus, setCalibrationStatus] = useState<string>('');
+  const [calibrationHistoryLoading, setCalibrationHistoryLoading] = useState(false);
+  const [calibrationHistory, setCalibrationHistory] = useState<
+    Array<{
+      id: string;
+      createdAt: string;
+      windowDays: number | null;
+      sampleSize: number | null;
+      minSamples: number | null;
+      strongestModifier: { planet?: string; multiplier?: number } | null;
+      modifierCount: number;
+    }>
+  >([]);
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -296,6 +308,17 @@ export default function UnifiedDashboard() {
           calculatePressureWindow(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
           calculateDomainForecast(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
         ]);
+      }
+
+      setCalibrationHistoryLoading(true);
+      try {
+        const historyResponse = await fetch('/api/calibration/history?days=45');
+        const historyResult = await historyResponse.json();
+        if (historyResponse.ok && historyResult?.success) {
+          setCalibrationHistory(Array.isArray(historyResult?.data?.entries) ? historyResult.data.entries : []);
+        }
+      } finally {
+        setCalibrationHistoryLoading(false);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown calibration error';
@@ -625,6 +648,27 @@ export default function UnifiedDashboard() {
     if (!chartData) return;
     void loadCheckinHistory({ days: 14 });
   }, [chartData, loadCheckinHistory]);
+
+  useEffect(() => {
+    if (!chartData) return;
+
+    const loadCalibrationHistory = async () => {
+      setCalibrationHistoryLoading(true);
+      try {
+        const response = await fetch('/api/calibration/history?days=45');
+        const result = await response.json();
+        if (response.ok && result?.success) {
+          setCalibrationHistory(Array.isArray(result?.data?.entries) ? result.data.entries : []);
+        }
+      } catch {
+        // Non-blocking history panel.
+      } finally {
+        setCalibrationHistoryLoading(false);
+      }
+    };
+
+    void loadCalibrationHistory();
+  }, [chartData]);
 
   useEffect(() => {
     if (!showOnboarding) return;
@@ -1317,6 +1361,34 @@ export default function UnifiedDashboard() {
                         ) : null}
                       </div>
                     ) : null}
+
+                    <div className="mt-3 rounded-lg border border-emerald-300/20 bg-slate-950/45 px-2.5 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Calibration Log</p>
+                        <span className="text-[11px] text-slate-300/80">Past 45 days</span>
+                      </div>
+
+                      {calibrationHistoryLoading ? (
+                        <p className="mt-2 text-xs text-slate-300">Loading calibration history...</p>
+                      ) : calibrationHistory.length ? (
+                        <div className="mt-2 space-y-2">
+                          {calibrationHistory.slice(0, 4).map((entry) => (
+                            <div key={entry.id} className="rounded border border-white/10 bg-slate-900/55 px-2 py-1.5">
+                              <p className="text-[11px] text-slate-200">
+                                {new Date(entry.createdAt).toLocaleDateString()} · {entry.sampleSize ?? 0} samples · {entry.modifierCount} modifiers
+                              </p>
+                              {entry.strongestModifier?.planet && typeof entry.strongestModifier?.multiplier === 'number' ? (
+                                <p className="text-[11px] text-emerald-200 mt-0.5">
+                                  Strongest: {entry.strongestModifier.planet} {entry.strongestModifier.multiplier.toFixed(2)}x
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-slate-300">No calibration runs logged yet.</p>
+                      )}
+                    </div>
                   </div>
 
                   {showWeeklyResetPrompt ? (
@@ -2168,6 +2240,7 @@ export default function UnifiedDashboard() {
                             domainScores={domainForecast?.domains}
                             insightLoading={pressureWindowLoading || domainForecastLoading}
                             insightError={pressureWindowError?.message || domainForecastError?.message}
+                            calibrationProvenance={transits?.calibrationProvenance}
                           />
                         )}
 

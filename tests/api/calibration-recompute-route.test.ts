@@ -15,9 +15,14 @@ jest.mock('@/lib/astrology/feedback/calibration', () => ({
   recomputeCalibrationProfile: jest.fn(),
 }));
 
+jest.mock('@/lib/pattern-mirror', () => ({
+  logInteractionEvent: jest.fn(),
+}));
+
 import { POST } from '../../app/api/calibration/recompute/route';
 import { auth } from '@clerk/nextjs/server';
 import { recomputeCalibrationProfile } from '@/lib/astrology/feedback/calibration';
+import { logInteractionEvent } from '@/lib/pattern-mirror';
 
 describe('calibration recompute route', () => {
   beforeEach(() => {
@@ -71,6 +76,12 @@ describe('calibration recompute route', () => {
       days: 120,
       minSamples: 4,
     });
+    expect(logInteractionEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user_1',
+        type: 'calibration_recompute',
+      })
+    );
     expect(json.data.modifiers.Saturn).toBe(1.14);
   });
 });

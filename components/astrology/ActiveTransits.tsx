@@ -154,6 +154,12 @@ interface ActiveTransitsProps {
   domainScores?: DomainScore[];
   insightLoading?: boolean;
   insightError?: string;
+  calibrationProvenance?: {
+    feedbackCount: number;
+    strongestPlanet?: string;
+    strongestMultiplier?: number;
+    activePlanetModifiers: Array<{ planet: string; multiplier: number }>;
+  };
 }
 
 export function ActiveTransits({
@@ -174,6 +180,7 @@ export function ActiveTransits({
   domainScores,
   insightLoading = false,
   insightError,
+  calibrationProvenance,
 }: ActiveTransitsProps) {
   const STORAGE_KEY = 'merlin:transit-details:active-transits';
   const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
@@ -418,6 +425,24 @@ export function ActiveTransits({
                   </p>
                 </div>
               ))}
+            </div>
+          ) : null}
+
+          {calibrationProvenance?.activePlanetModifiers?.length ? (
+            <div className="mt-3 rounded border border-emerald-500/30 bg-emerald-500/10 p-3">
+              <p className="text-xs font-semibold text-emerald-200">
+                Calibration modifiers ({calibrationProvenance.feedbackCount} feedback samples)
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {calibrationProvenance.activePlanetModifiers.map((modifier) => (
+                  <span
+                    key={`${modifier.planet}-${modifier.multiplier}`}
+                    className="text-[11px] px-2 py-1 rounded border border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
+                  >
+                    {modifier.planet} {modifier.multiplier.toFixed(2)}x
+                  </span>
+                ))}
+              </div>
             </div>
           ) : null}
 
