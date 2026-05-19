@@ -30,6 +30,7 @@ import { useDomainForecast } from '@/hooks/useDomainForecast';
 import { useLifeArc } from '@/hooks/useLifeArc';
 import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { useStorms } from '@/hooks/useStorms';
+import { useCheckins } from '@/hooks/useCheckins';
 import { usePersonality } from '@/hooks/usePersonality';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
@@ -142,6 +143,7 @@ export default function UnifiedDashboard() {
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
   const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
+  const { submitCheckin } = useCheckins();
   const { mbtiType, dualOverlay, loading: personalityLoading, calculatePersonality } = usePersonality();
   const {
     prophecy,
@@ -515,6 +517,18 @@ export default function UnifiedDashboard() {
 
       if (lastCheckin !== todayKey) {
         appendDashboardEvent('dashboard_daily_checkin', { streak: nextCount });
+        void submitCheckin({
+          mood: 6,
+          stress: 5,
+          energy: 6,
+          confidence: 6,
+          domains: {
+            self: 6,
+            career: 5,
+          },
+          notes: 'Auto check-in from dashboard streak refresh.',
+          timestamp: today.toISOString(),
+        });
       }
 
       if (lastCheckin && lastCheckin !== todayKey && lastCheckin !== yesterdayKey) {
@@ -545,7 +559,7 @@ export default function UnifiedDashboard() {
     } catch {
       // localStorage failures should never block the dashboard
     }
-  }, [chartData, appendDashboardEvent]);
+  }, [chartData, appendDashboardEvent, submitCheckin]);
 
   useEffect(() => {
     if (!showOnboarding) return;
