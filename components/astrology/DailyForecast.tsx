@@ -4,6 +4,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Lightbulb, Sparkles, Heart, Briefcase, MessageSquare, Waves } from 'lucide-react';
 import ThumbsFeedback from './ThumbsFeedback';
+import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
+
+// eslint-disable-next-line no-unused-vars
+type AskContextFn = (s1: string, s2: string) => void;
 
 interface DailyForecastProps {
   date: string;
@@ -37,8 +41,12 @@ interface DailyForecastProps {
   conversationalPrompts?: string[];
   loading?: boolean;
   userId?: string;
-  onAskContext?: (label: string, prompt: string) => void;
+  onAskContext?: AskContextFn;
   selectedContextLabel?: string;
+  explainability?: ExplainabilityPacket;
+  domainScores?: DomainScore[];
+  insightLoading?: boolean;
+  insightError?: string;
 }
 
 export function DailyForecast({
@@ -59,6 +67,10 @@ export function DailyForecast({
   userId,
   onAskContext,
   selectedContextLabel,
+  explainability,
+  domainScores,
+  insightLoading = false,
+  insightError,
 }: DailyForecastProps) {
   if (loading) {
     return (
@@ -101,7 +113,14 @@ export function DailyForecast({
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
 
-  const hasRealData = transits.length > 0 || planetaryHighlights.length > 0;
+  const rankedDomains = [...(domainScores?.length ? domainScores : explainability?.domainScores || [])]
+    .sort((a, b) => b.pressure - a.pressure)
+    .slice(0, 3);
+  const showSafety =
+    (explainability?.globalPressure || 0) >= 75 ||
+    Boolean(explainability?.safety?.grounding?.length) ||
+    Boolean(explainability?.safety?.caution?.length) ||
+    Boolean(explainability?.safety?.agency?.length);
   const makeInteractiveClasses = (label: string) =>
     onAskContext
       ? `${selectedContextLabel === label ? 'ring-1 ring-cyan-300/40 bg-cyan-500/10' : ''} cursor-pointer transition hover:border-cyan-300/40 hover:bg-cyan-500/5`
@@ -234,6 +253,69 @@ export function DailyForecast({
           <ThumbsFeedback itemId={`forecast-summary-${date}`} label="daily reading" userId={userId} theme="forecast" />
         </div>
       </motion.div>
+
+      {(insightLoading || explainability || rankedDomains.length > 0 || insightError) && (
+        <motion.div
+          className="p-6 bg-slate-900/60 rounded-lg border border-cyan-500/25"
+          variants={itemVariants}
+        >
+          <h4 className="text-lg font-bold text-cyan-300 mb-3">Why This Forecast</h4>
+          {insightLoading && !explainability ? (
+            <p className="text-xs text-slate-300">Calculating forecast confidence and pressure drivers...</p>
+          ) : null}
+
+          {explainability ? (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-200">
+                Forecast pressure is {explainability.globalPressure}/100 with confidence {explainability.confidence}/100.
+              </p>
+              <p className="text-xs text-slate-300">
+                Confidence is probabilistic, not deterministic. Treat this as guidance that can evolve with context.
+              </p>
+              {explainability.topDrivers?.length ? (
+                <div className="space-y-2">
+                  {explainability.topDrivers.slice(0, 3).map((driver) => (
+                    <div key={driver.transitId} className="rounded border border-cyan-400/20 bg-slate-950/50 px-3 py-2">
+                      <p className="text-sm text-cyan-100 font-medium">{driver.label}</p>
+                      <p className="text-xs text-slate-300 mt-1">
+                        Strength {driver.strength}/100 · Confidence {driver.confidence}/100
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">{driver.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {rankedDomains.length > 0 ? (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {rankedDomains.map((domain) => (
+                <div key={domain.domain} className="rounded border border-slate-600/40 bg-slate-950/45 px-3 py-2">
+                  <p className="text-xs text-slate-200">{formatDomainLabel(domain.domain)}</p>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Pressure {domain.pressure}/100 · Confidence {domain.confidence}/100
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {showSafety ? (
+            <div className="mt-3 rounded border border-amber-500/35 bg-amber-500/10 px-3 py-2">
+              <p className="text-xs text-amber-200 font-semibold">Grounding Prompt</p>
+              {explainability?.safety?.grounding?.length ? (
+                <p className="text-xs text-amber-100/90 mt-1">{explainability.safety.grounding.slice(0, 2).join(' ')}</p>
+              ) : null}
+              {explainability?.safety?.agency?.length ? (
+                <p className="text-xs text-amber-100/90 mt-1">{explainability.safety.agency.slice(0, 2).join(' ')}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {insightError ? <p className="text-xs text-rose-300 mt-3">{insightError}</p> : null}
+        </motion.div>
+      )}
 
       {/* ── Focus Areas (Love / Career / Mind / Mood) ─────────────────────── */}
       {focusAreas && (
@@ -440,7 +522,7 @@ export function DailyForecast({
 // ─── Focus area card ──────────────────────────────────────────────────────────
 function FocusCard({
   icon, label, color, text, onAskContext, selected
-}: { icon: React.ReactNode; label: string; color: string; text: string; onAskContext?: (label: string, prompt: string) => void; selected?: boolean }) {
+}: { icon: React.ReactNode; label: string; color: string; text: string; onAskContext?: AskContextFn; selected?: boolean }) {
   const borderMap: Record<string, string> = {
     pink:   'border-pink-500/30 bg-pink-900/15',
     blue:   'border-blue-500/30 bg-blue-900/15',
@@ -517,6 +599,13 @@ function generateActionableTip(dayRating: string): string {
     'Very Challenging': '🔥 Simplify everything. What\'s essential? Focus there. This too shall pass; do less today.',
   };
   return tips[dayRating] || 'Trust your instincts. Let them guide you.';
+}
+
+function formatDomainLabel(domain: string): string {
+  return domain
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function getConfidenceMeterColor(probability: number): string {

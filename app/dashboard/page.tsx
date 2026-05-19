@@ -934,20 +934,6 @@ export default function UnifiedDashboard() {
       })()
     : null;
 
-  const topDomainScores = React.useMemo(
-    () =>
-      [...(domainForecast?.domains || [])]
-        .sort((a, b) => b.pressure - a.pressure)
-        .slice(0, 3),
-    [domainForecast?.domains]
-  );
-
-  const formatDomainLabel = (domain: string) =>
-    domain
-      .split('_')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-
   type WhisperMode = 'plain' | 'warm' | 'bullshit' | 'oracle';
 
   const activateWhisperMode = (mode: WhisperMode) => {
@@ -1955,6 +1941,10 @@ export default function UnifiedDashboard() {
                         userId={userId || undefined}
                         onAskContext={queueAskContext}
                         selectedContextLabel={askDraftLabel}
+                        explainability={pressureWindow?.explainability}
+                        domainScores={domainForecast?.domains}
+                        insightLoading={pressureWindowLoading || domainForecastLoading}
+                        insightError={pressureWindowError?.message || domainForecastError?.message}
                       />
                     </div>
                   </motion.div>
@@ -2018,94 +2008,25 @@ export default function UnifiedDashboard() {
 
                         {/* Active Transits */}
                         {activeSection === 'transits' && (
-                          <div className="space-y-5">
-                            {(pressureWindowLoading || pressureWindow || pressureWindowError || topDomainScores.length > 0 || domainForecastLoading || domainForecastError) && (
-                              <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/10 p-4 space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-sm font-semibold text-cyan-200">Pressure Window Intelligence</p>
-                                  {pressureWindow?.predictive?.windowDays ? (
-                                    <span className="text-xs text-cyan-200/80">
-                                      Next {pressureWindow.predictive.windowDays} days
-                                    </span>
-                                  ) : null}
-                                </div>
-
-                                {pressureWindowLoading || domainForecastLoading ? (
-                                  <p className="text-xs text-slate-300">Calculating pressure and domain outlook...</p>
-                                ) : null}
-
-                                {pressureWindow?.explainability ? (
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                                    <div className="rounded border border-cyan-400/20 bg-slate-900/40 p-3">
-                                      <p className="text-cyan-200/90">Global pressure</p>
-                                      <p className="mt-1 text-white text-lg font-semibold">
-                                        {pressureWindow.explainability.globalPressure}/100
-                                      </p>
-                                    </div>
-                                    <div className="rounded border border-cyan-400/20 bg-slate-900/40 p-3">
-                                      <p className="text-cyan-200/90">Confidence</p>
-                                      <p className="mt-1 text-white text-lg font-semibold">
-                                        {pressureWindow.explainability.confidence}/100
-                                      </p>
-                                    </div>
-                                    <div className="rounded border border-cyan-400/20 bg-slate-900/40 p-3">
-                                      <p className="text-cyan-200/90">Top driver</p>
-                                      <p className="mt-1 text-white">
-                                        {pressureWindow.explainability.topDrivers?.[0]?.label || 'No strong driver yet'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ) : null}
-
-                                {topDomainScores.length > 0 ? (
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                    {topDomainScores.map((domain) => (
-                                      <div
-                                        key={domain.domain}
-                                        className="rounded border border-slate-600/40 bg-slate-900/40 px-3 py-2"
-                                      >
-                                        <p className="text-xs text-slate-300">{formatDomainLabel(domain.domain)}</p>
-                                        <p className="text-sm text-white mt-1">
-                                          Pressure {domain.pressure}/100 · Confidence {domain.confidence}/100
-                                        </p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : null}
-
-                                {pressureWindow?.explainability?.safety?.grounding?.length ? (
-                                  <div className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                                    <p className="text-xs text-amber-200 font-semibold">Grounding guidance</p>
-                                    <p className="text-xs text-amber-100/90 mt-1">
-                                      {pressureWindow.explainability.safety.grounding.slice(0, 2).join(' ')}
-                                    </p>
-                                  </div>
-                                ) : null}
-
-                                {pressureWindowError || domainForecastError ? (
-                                  <p className="text-xs text-rose-300">
-                                    {pressureWindowError?.message || domainForecastError?.message}
-                                  </p>
-                                ) : null}
-                              </div>
-                            )}
-
-                            <ActiveTransits
-                              significant={transits?.significant || []}
-                              approaching={transits?.approaching || []}
-                              summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
-                              predictive={transits?.predictive}
-                              confluence={transits?.confluence}
-                              transitWindows={transits?.transitWindows}
-                              resonance={transits?.resonance}
-                              loading={transitsLoading}
-                              userId={userId || undefined}
-                              mbtiType={mbtiType || undefined}
-                              onContextSaved={refreshTransitsWithContext}
-                              onAskContext={queueAskContext}
-                              selectedContextLabel={askDraftLabel}
-                            />
-                          </div>
+                          <ActiveTransits
+                            significant={transits?.significant || []}
+                            approaching={transits?.approaching || []}
+                            summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
+                            predictive={transits?.predictive}
+                            confluence={transits?.confluence}
+                            transitWindows={transits?.transitWindows}
+                            resonance={transits?.resonance}
+                            loading={transitsLoading}
+                            userId={userId || undefined}
+                            mbtiType={mbtiType || undefined}
+                            onContextSaved={refreshTransitsWithContext}
+                            onAskContext={queueAskContext}
+                            selectedContextLabel={askDraftLabel}
+                            explainability={pressureWindow?.explainability}
+                            domainScores={domainForecast?.domains}
+                            insightLoading={pressureWindowLoading || domainForecastLoading}
+                            insightError={pressureWindowError?.message || domainForecastError?.message}
+                          />
                         )}
 
                         {/* Life Arc */}

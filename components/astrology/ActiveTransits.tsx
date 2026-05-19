@@ -6,6 +6,10 @@ import ThumbsFeedback from './ThumbsFeedback';
 import { FeedbackCollector } from './FeedbackCollector';
 import { UserContextCard } from './UserContextCard';
 import { PredictionTimeline } from './PredictionTimeline';
+import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
+
+// eslint-disable-next-line no-unused-vars
+type AskContextFn = (s1: string, s2: string) => void;
 
 interface TransitData {
   transitingPlanet: string;
@@ -144,8 +148,12 @@ interface ActiveTransitsProps {
   userId?: string;
   mbtiType?: string | null;
   onContextSaved?: () => void;
-  onAskContext?: (label: string, prompt: string) => void;
+  onAskContext?: AskContextFn;
   selectedContextLabel?: string;
+  explainability?: ExplainabilityPacket;
+  domainScores?: DomainScore[];
+  insightLoading?: boolean;
+  insightError?: string;
 }
 
 export function ActiveTransits({
@@ -162,6 +170,10 @@ export function ActiveTransits({
   onContextSaved,
   onAskContext,
   selectedContextLabel,
+  explainability,
+  domainScores,
+  insightLoading = false,
+  insightError,
 }: ActiveTransitsProps) {
   const STORAGE_KEY = 'merlin:transit-details:active-transits';
   const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
@@ -306,6 +318,19 @@ export function ActiveTransits({
   };
 
   const isSelectedContext = (label: string) => selectedContextLabel === label;
+  const rankedDomains = [...(domainScores?.length ? domainScores : explainability?.domainScores || [])]
+    .sort((a, b) => b.pressure - a.pressure)
+    .slice(0, 4);
+  const topBreakdown = explainability
+    ? Object.entries(explainability.weightingBreakdown || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+    : [];
+  const showSafety =
+    (explainability?.globalPressure || 0) >= 75 ||
+    Boolean(explainability?.safety?.grounding?.length) ||
+    Boolean(explainability?.safety?.caution?.length) ||
+    Boolean(explainability?.safety?.agency?.length);
 
   return (
     <motion.div
@@ -336,6 +361,90 @@ export function ActiveTransits({
           <p className="text-3xl font-bold text-blue-200">{summary.total}</p>
         </div>
       </motion.div>
+
+      {(insightLoading || explainability || rankedDomains.length > 0 || insightError) && (
+        <motion.div variants={itemVariants} className="rounded-lg border border-cyan-500/25 bg-cyan-950/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="text-lg font-bold text-cyan-100">Why This Score</h3>
+            {explainability ? (
+              <span className="text-xs text-cyan-200/80">
+                Pressure {explainability.globalPressure}/100 · Confidence {explainability.confidence}/100
+              </span>
+            ) : null}
+          </div>
+
+          {insightLoading && !explainability ? (
+            <p className="text-xs text-slate-300">Calculating explainability and domain pressure...</p>
+          ) : null}
+
+          {explainability ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-300">
+                This is a probability signal based on current transit weightings and may shift as timing changes.
+              </p>
+              {explainability.topDrivers?.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {explainability.topDrivers.slice(0, 3).map((driver) => (
+                    <div key={driver.transitId} className="rounded border border-cyan-400/25 bg-slate-900/45 p-2.5">
+                      <p className="text-xs text-cyan-100 font-semibold">{driver.label}</p>
+                      <p className="text-xs text-slate-300 mt-1">
+                        Strength {driver.strength}/100 · Confidence {driver.confidence}/100
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">{driver.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {topBreakdown.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {topBreakdown.map(([label, value]) => (
+                    <span key={label} className="text-[11px] px-2 py-1 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-100">
+                      {formatScoreLabel(label)}: {value}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {rankedDomains.length > 0 ? (
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+              {rankedDomains.map((domain) => (
+                <div key={domain.domain} className="rounded border border-slate-600/40 bg-slate-900/45 p-2.5">
+                  <p className="text-xs text-slate-200">{formatDomainLabel(domain.domain)}</p>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Pressure {domain.pressure}/100 · Volatility {domain.volatility}/100 · Confidence {domain.confidence}/100
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {showSafety ? (
+            <div className="mt-3 rounded border border-amber-500/35 bg-amber-500/10 p-3">
+              <p className="text-xs font-semibold text-amber-200">Grounding & Safety</p>
+              {explainability?.safety?.grounding?.length ? (
+                <p className="text-xs text-amber-100/90 mt-1">
+                  Grounding: {explainability.safety.grounding.slice(0, 2).join(' ')}
+                </p>
+              ) : null}
+              {explainability?.safety?.caution?.length ? (
+                <p className="text-xs text-amber-100/90 mt-1">
+                  Caution: {explainability.safety.caution.slice(0, 2).join(' ')}
+                </p>
+              ) : null}
+              {explainability?.safety?.agency?.length ? (
+                <p className="text-xs text-amber-100/90 mt-1">
+                  Agency: {explainability.safety.agency.slice(0, 2).join(' ')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {insightError ? <p className="text-xs text-rose-300 mt-2">{insightError}</p> : null}
+        </motion.div>
+      )}
 
       {allTransitIds.length > 0 && (
         <motion.div variants={itemVariants} className="flex items-center justify-end gap-3">
@@ -657,4 +766,18 @@ function describeAspect(aspect: string): string {
     'Semisextile': 'small openings through steady integration'
   };
   return descriptions[aspect] || 'astrological influence';
+}
+
+function formatDomainLabel(domain: string): string {
+  return domain
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatScoreLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (char) => char.toUpperCase())
+    .trim();
 }
