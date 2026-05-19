@@ -208,6 +208,12 @@ export interface TransitData {
   confluence?: ConfluenceTheme[];
   transitWindows?: TransitWindow[];
   resonance?: ResonanceProfile;
+  calibrationProvenance?: {
+    feedbackCount: number;
+    strongestPlanet?: string;
+    strongestMultiplier?: number;
+    activePlanetModifiers: Array<{ planet: string; multiplier: number }>;
+  };
   userContext?: {
     userId: string;
     situation: string;

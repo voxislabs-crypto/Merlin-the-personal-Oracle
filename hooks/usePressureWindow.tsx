@@ -6,6 +6,12 @@ import type { ExplainabilityPacket } from '@/types/astrology';
 export interface PressureWindowData {
   timezoneOffsetHours: number | null;
   explainability: ExplainabilityPacket;
+  calibrationProvenance?: {
+    feedbackCount: number;
+    strongestPlanet?: string;
+    strongestMultiplier?: number;
+    activePlanetModifiers: Array<{ planet: string; multiplier: number }>;
+  };
   predictive: {
     generatedAt: string;
     windowDays: number;

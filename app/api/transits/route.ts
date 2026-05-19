@@ -269,6 +269,15 @@ export async function POST(request: Request) {
     // Categorize transits by influence
     const significantTransits = safeTransits.filter(t => t.exact || t.orb < 1.5);
     const approachingTransits = safeTransits.filter(t => !t.exact && t.orb >= 1.5 && t.orb < 3);
+    const calibrationProvenance = {
+      feedbackCount: resonance.summary.feedbackCount,
+      strongestPlanet: resonance.summary.strongestPlanet,
+      strongestMultiplier: resonance.summary.strongestMultiplier,
+      activePlanetModifiers: Object.entries(resonance.multipliers)
+        .filter(([, multiplier]) => typeof multiplier === 'number' && Math.abs(multiplier - 1) > 0.01)
+        .map(([planet, multiplier]) => ({ planet, multiplier }))
+        .slice(0, 5),
+    };
 
     console.log('Successfully calculated transits:', safeTransits.length);
     return NextResponse.json({
@@ -287,6 +296,7 @@ export async function POST(request: Request) {
         confluence,
         transitWindows,
         resonance,
+        calibrationProvenance,
         userContext,
         timezoneOffsetHours: appliedOffsetHours,
       }

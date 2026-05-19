@@ -99,6 +99,15 @@ export async function POST(request: Request) {
 
     const weightedEvents = applyPlanetResonanceWeights(predictive.events, resonance.multipliers);
     const sortedEvents = [...weightedEvents].sort((a, b) => b.scores.intensity - a.scores.intensity);
+    const calibrationProvenance = {
+      feedbackCount: resonance.summary.feedbackCount,
+      strongestPlanet: resonance.summary.strongestPlanet,
+      strongestMultiplier: resonance.summary.strongestMultiplier,
+      activePlanetModifiers: Object.entries(resonance.multipliers)
+        .filter(([, multiplier]) => typeof multiplier === 'number' && Math.abs(multiplier - 1) > 0.01)
+        .map(([planet, multiplier]) => ({ planet, multiplier }))
+        .slice(0, 5),
+    };
 
     const globalPressure = sortedEvents.length
       ? Math.round(sortedEvents.reduce((sum, event) => sum + event.scores.intensity, 0) / sortedEvents.length)
@@ -128,6 +137,7 @@ export async function POST(request: Request) {
       data: {
         timezoneOffsetHours: appliedOffsetHours,
         explainability: packet,
+        calibrationProvenance,
         predictive: {
           generatedAt: predictive.generatedAt,
           windowDays: predictive.windowDays,

@@ -113,6 +113,8 @@ export default function UnifiedDashboard() {
   const [prophecyEra, setProphecyEra] = useState<ProphecyEra>('babylonian');
   const [strictMeter, setStrictMeter] = useState(false);
   const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
+  const [calibrationRecomputing, setCalibrationRecomputing] = useState(false);
+  const [calibrationStatus, setCalibrationStatus] = useState<string>('');
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -257,6 +259,59 @@ export default function UnifiedDashboard() {
     if (!birthData) return;
     calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined });
   }, [birthData, calculateTransits, mbtiType, userId]);
+
+  const recomputeCalibration = useCallback(async () => {
+    if (!userId) return;
+
+    setCalibrationRecomputing(true);
+    setCalibrationStatus('');
+
+    try {
+      appendDashboardEvent('dashboard_calibration_recompute_triggered', {
+        days: 90,
+        minSamples: 3,
+      });
+
+      const response = await fetch('/api/calibration/recompute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: 90, minSamples: 3 }),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || response.statusText || 'Calibration recompute failed');
+      }
+
+      const strongest = result?.data?.strongestModifier;
+      setCalibrationStatus(
+        strongest
+          ? `Calibration updated: strongest modifier ${strongest.planet} ${strongest.multiplier.toFixed(2)}x`
+          : 'Calibration updated: no strong modifier changes yet'
+      );
+
+      if (birthData) {
+        await Promise.all([
+          calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculatePressureWindow(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculateDomainForecast(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+        ]);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown calibration error';
+      setCalibrationStatus(`Calibration update failed: ${message}`);
+    } finally {
+      setCalibrationRecomputing(false);
+    }
+  }, [
+    appendDashboardEvent,
+    birthData,
+    calculateDomainForecast,
+    calculatePressureWindow,
+    calculateTransits,
+    mbtiType,
+    userId,
+  ]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -1202,6 +1257,14 @@ export default function UnifiedDashboard() {
                       >
                         Ask daily check-in
                       </button>
+                      <button
+                        type="button"
+                        onClick={recomputeCalibration}
+                        disabled={calibrationRecomputing}
+                        className="rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/25 disabled:opacity-60"
+                      >
+                        {calibrationRecomputing ? 'Recomputing...' : 'Recompute calibration'}
+                      </button>
                     </div>
                   </div>
 
@@ -1230,6 +1293,30 @@ export default function UnifiedDashboard() {
                     ) : (
                       <p className="mt-2 text-xs text-slate-300">No persisted check-ins yet. Your next daily streak update will appear here.</p>
                     )}
+
+                    {(calibrationStatus || transits?.calibrationProvenance || pressureWindow?.calibrationProvenance) ? (
+                      <div className="mt-3 rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-100">
+                        {calibrationStatus ? <p>{calibrationStatus}</p> : null}
+                        {transits?.calibrationProvenance ? (
+                          <p className="mt-1 text-emerald-100/90">
+                            Transit calibration: {transits.calibrationProvenance.feedbackCount} feedback samples
+                            {transits.calibrationProvenance.strongestPlanet &&
+                            typeof transits.calibrationProvenance.strongestMultiplier === 'number'
+                              ? ` · strongest ${transits.calibrationProvenance.strongestPlanet} ${transits.calibrationProvenance.strongestMultiplier.toFixed(2)}x`
+                              : ''}
+                          </p>
+                        ) : null}
+                        {pressureWindow?.calibrationProvenance ? (
+                          <p className="mt-1 text-emerald-100/90">
+                            Pressure calibration: {pressureWindow.calibrationProvenance.feedbackCount} feedback samples
+                            {pressureWindow.calibrationProvenance.strongestPlanet &&
+                            typeof pressureWindow.calibrationProvenance.strongestMultiplier === 'number'
+                              ? ` · strongest ${pressureWindow.calibrationProvenance.strongestPlanet} ${pressureWindow.calibrationProvenance.strongestMultiplier.toFixed(2)}x`
+                              : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   {showWeeklyResetPrompt ? (
