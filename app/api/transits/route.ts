@@ -17,6 +17,7 @@ import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { resonanceDB } from '@/lib/resonance-database';
 import { getUserContextSnapshot } from '@/lib/user-context';
+import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -136,6 +137,14 @@ function buildConfluenceSignals(predictive: Awaited<ReturnType<typeof buildPredi
   return [...eventSignals, ...supplementalSignals].filter((signal) => signal.themes.length > 0);
 }
 
+function sanitizeTransitNarratives(transits: ReturnType<typeof getCurrentTransits>) {
+  return transits.map((transit) => ({
+    ...transit,
+    shortDescription: sanitizeCopyText(transit.shortDescription),
+    description: sanitizeCopyText(transit.description),
+  }));
+}
+
 export async function POST(request: Request) {
   console.log('Received request for transit analysis');
   
@@ -224,27 +233,53 @@ export async function POST(request: Request) {
     ]);
 
     const predictiveEvents = applyPlanetResonanceWeights(predictiveBase.events, resonance.multipliers);
+    const safeTransits = sanitizeTransitNarratives(transits);
     const predictive = {
       ...predictiveBase,
-      events: predictiveEvents,
+      lunarTiming: {
+        ...predictiveBase.lunarTiming,
+        guidance: sanitizeCopyText(predictiveBase.lunarTiming.guidance),
+      },
+      events: predictiveEvents.map((event) => ({
+        ...event,
+        narrative: {
+          ...event.narrative,
+          whisper: sanitizeCopyText(event.narrative.whisper),
+          risk: sanitizeCopyText(event.narrative.risk),
+          opportunity: sanitizeCopyText(event.narrative.opportunity),
+          vibe: sanitizeCopyText(event.narrative.vibe),
+        },
+        mbtiLens: {
+          ...event.mbtiLens,
+          likelyPattern: sanitizeCopyText(event.mbtiLens.likelyPattern),
+          blindSpot: sanitizeCopyText(event.mbtiLens.blindSpot),
+          bestMove24h: sanitizeCopyText(event.mbtiLens.bestMove24h),
+          avoidNow: sanitizeCopyText(event.mbtiLens.avoidNow),
+        },
+      })),
     };
     const transitWindows = buildTransitWindows(predictiveEvents);
-    const confluence = detectConfluenceThemes(buildConfluenceSignals(predictive), 3);
+    const confluence = detectConfluenceThemes(buildConfluenceSignals(predictive), 3).map((theme) => ({
+      ...theme,
+      headline: sanitizeCopyText(theme.headline),
+      summary: sanitizeCopyText(theme.summary),
+      title: sanitizeCopyText(theme.title),
+    }));
 
     // Categorize transits by influence
-    const significantTransits = transits.filter(t => t.exact || t.orb < 1.5);
-    const approachingTransits = transits.filter(t => !t.exact && t.orb >= 1.5 && t.orb < 3);
+    const significantTransits = safeTransits.filter(t => t.exact || t.orb < 1.5);
+    const approachingTransits = safeTransits.filter(t => !t.exact && t.orb >= 1.5 && t.orb < 3);
 
-    console.log('Successfully calculated transits:', transits.length);
+    console.log('Successfully calculated transits:', safeTransits.length);
     return NextResponse.json({
       success: true,
       source,
       data: {
-        all: transits,
+        all: safeTransits,
         significant: significantTransits,
         approaching: approachingTransits,
         summary: {
-          total: transits.length,
+          total: safeTransits.length,
           exact: significantTransits.length,
           approaching: approachingTransits.length
         },

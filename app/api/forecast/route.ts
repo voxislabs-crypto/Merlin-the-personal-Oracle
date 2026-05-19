@@ -5,6 +5,7 @@ import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { generateDailyForecast } from '@/lib/transit-calculator';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
+import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -30,6 +31,32 @@ function normalizeUtcBirth(
     .padStart(2, '0')}`;
 
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
+}
+
+function sanitizeForecastOutput<T extends Record<string, unknown>>(input: T): T {
+  const output = { ...input };
+
+  if (typeof output.summary === 'string') {
+    output.summary = sanitizeCopyText(output.summary);
+  }
+
+  if (typeof output.advice === 'string') {
+    output.advice = sanitizeCopyText(output.advice);
+  }
+
+  if (Array.isArray(output.transits)) {
+    output.transits = output.transits.map((entry) =>
+      typeof entry === 'string' ? sanitizeCopyText(entry) : entry
+    );
+  }
+
+  if (Array.isArray(output.planetaryHighlights)) {
+    output.planetaryHighlights = output.planetaryHighlights.map((entry) =>
+      typeof entry === 'string' ? sanitizeCopyText(entry) : entry
+    );
+  }
+
+  return output;
 }
 
 export async function POST(request: Request) {
@@ -120,10 +147,11 @@ export async function POST(request: Request) {
     }
 
     console.log('Successfully generated forecast');
+    const safeForecast = sanitizeForecastOutput({ ...forecast, ...enrichedFields, timezoneOffsetHours: appliedOffsetHours });
     return NextResponse.json({
       success: true,
       source,
-      data: { ...forecast, ...enrichedFields, timezoneOffsetHours: appliedOffsetHours }
+      data: safeForecast
     });
   } catch (error) {
     console.error('Error generating forecast:', error);
