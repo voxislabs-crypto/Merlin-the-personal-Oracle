@@ -304,3 +304,57 @@ export interface EclipseData {
     }>;
   };
 }
+
+export type LifeDomain =
+  | 'identity'
+  | 'career'
+  | 'relationships'
+  | 'finances'
+  | 'mental_strain'
+  | 'creativity'
+  | 'spiritual_growth'
+  | 'social_connection'
+  | 'reinvention';
+
+export interface TransitDriver {
+  transitId: string;
+  label: string;
+  strength: number;
+  confidence: number;
+  reason: string;
+}
+
+export interface DomainScore {
+  domain: LifeDomain;
+  pressure: number;
+  volatility: number;
+  confidence: number;
+  topDrivers: TransitDriver[];
+}
+
+export interface ArchetypeSignal {
+  key: string;
+  title: string;
+  intensity: number;
+  rationale: string;
+}
+
+export interface SafetyGuidance {
+  grounding: string[];
+  caution: string[];
+  agency: string[];
+  supportPrompt?: string;
+}
+
+export interface ExplainabilityPacket {
+  windowStartIso: string;
+  windowEndIso: string;
+  globalPressure: number;
+  confidence: number;
+  topDrivers: TransitDriver[];
+  weightingBreakdown: Record<string, number>;
+  personalizationBreakdown: Record<string, number>;
+  domainScores: DomainScore[];
+  archetypes: ArchetypeSignal[];
+  safety: SafetyGuidance;
+}
