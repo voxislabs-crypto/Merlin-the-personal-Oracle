@@ -44,6 +44,8 @@ import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 import {
   getCalibrationImpact,
+  getLatestCalibrationComparison,
+  getTopMover,
   parseCalibrationHistoryDays,
   parseCalibrationSortMode,
   sortCalibrationHistory,
@@ -289,6 +291,7 @@ export default function UnifiedDashboard() {
   }, [birthData, calculateTransits, mbtiType, userId]);
 
   const calibrationHistorySorted = sortCalibrationHistory(calibrationHistory, calibrationSortMode);
+  const latestCalibrationComparison = getLatestCalibrationComparison(calibrationHistory);
 
   const loadCalibrationHistory = useCallback(
     async (days: 7 | 30 | 90) => {
@@ -1429,11 +1432,44 @@ export default function UnifiedDashboard() {
                         Delta chips compare each run to the prior run. Green increases a planet weight, red decreases it.
                       </p>
 
+                      {latestCalibrationComparison ? (
+                        <div className="mt-2 rounded border border-emerald-300/20 bg-emerald-500/10 px-2 py-1.5">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200/85">Latest vs Previous Run</p>
+                          <p className="mt-0.5 text-[11px] text-emerald-100/90">
+                            {new Date(latestCalibrationComparison.latest.createdAt).toLocaleDateString()} vs{' '}
+                            {new Date(latestCalibrationComparison.previous.createdAt).toLocaleDateString()}
+                          </p>
+                          {latestCalibrationComparison.topMovers.length ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {latestCalibrationComparison.topMovers.map((deltaItem) => {
+                                const isPositive = deltaItem.delta >= 0;
+                                const sign = isPositive ? '+' : '';
+                                return (
+                                  <span
+                                    key={`latest-compare-${deltaItem.planet}`}
+                                    className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${
+                                      isPositive
+                                        ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100'
+                                        : 'border-rose-300/40 bg-rose-500/15 text-rose-100'
+                                    }`}
+                                  >
+                                    {deltaItem.planet} {sign}
+                                    {deltaItem.delta.toFixed(2)}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+
                       {calibrationHistoryLoading ? (
                         <p className="mt-2 text-xs text-slate-300">Loading calibration history...</p>
                       ) : calibrationHistorySorted.length ? (
                         <div className="mt-2 space-y-2">
-                          {calibrationHistorySorted.slice(0, 4).map((entry) => (
+                          {calibrationHistorySorted.slice(0, 4).map((entry) => {
+                            const topMover = getTopMover(entry);
+                            return (
                             <div key={entry.id} className="rounded border border-white/10 bg-slate-900/55 px-2 py-1.5">
                               <p className="text-[11px] text-slate-200">
                                 {new Date(entry.createdAt).toLocaleDateString()} · {entry.sampleSize ?? 0} samples · {entry.modifierCount} modifiers
@@ -1441,6 +1477,12 @@ export default function UnifiedDashboard() {
                               <p className="text-[11px] text-slate-300 mt-0.5">
                                 Impact score: {getCalibrationImpact(entry).toFixed(2)}
                               </p>
+                              {topMover ? (
+                                <p className="text-[11px] text-slate-300 mt-0.5">
+                                  Top mover: {topMover.planet} {topMover.delta >= 0 ? '+' : ''}
+                                  {topMover.delta.toFixed(2)}
+                                </p>
+                              ) : null}
                               {entry.strongestModifier?.planet && typeof entry.strongestModifier?.multiplier === 'number' ? (
                                 <p className="text-[11px] text-emerald-200 mt-0.5">
                                   Strongest: {entry.strongestModifier.planet} {entry.strongestModifier.multiplier.toFixed(2)}x
@@ -1472,7 +1514,8 @@ export default function UnifiedDashboard() {
                                 </div>
                               ) : null}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="mt-2 text-xs text-slate-300">No calibration runs logged yet.</p>

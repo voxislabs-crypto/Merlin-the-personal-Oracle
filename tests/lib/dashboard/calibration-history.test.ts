@@ -1,5 +1,7 @@
 import {
   getCalibrationImpact,
+  getLatestCalibrationComparison,
+  getTopMover,
   parseCalibrationHistoryDays,
   parseCalibrationSortMode,
   sortCalibrationHistory,
@@ -52,5 +54,34 @@ describe('dashboard calibration history helpers', () => {
 
     const sorted = sortCalibrationHistory([older, newer], 'recent');
     expect(sorted.map((entry) => entry.id)).toEqual(['b', 'a']);
+  });
+
+  it('returns top mover by absolute delta', () => {
+    const entry: CalibrationHistoryEntry = {
+      ...baseEntry('a', '2026-05-19T12:00:00.000Z', 0.04),
+      modifierDelta: [
+        { planet: 'Moon', previous: 1.0, current: 1.05, delta: 0.05 },
+        { planet: 'Mars', previous: 1.0, current: 0.88, delta: -0.12 },
+      ],
+    };
+
+    const topMover = getTopMover(entry);
+    expect(topMover?.planet).toBe('Mars');
+    expect(topMover?.delta).toBe(-0.12);
+  });
+
+  it('builds latest vs previous comparison using recent ordering', () => {
+    const latest = baseEntry('latest', '2026-05-19T12:00:00.000Z', 0.03);
+    latest.modifierDelta = [
+      { planet: 'Saturn', previous: 1.0, current: 1.11, delta: 0.11 },
+      { planet: 'Moon', previous: 1.0, current: 0.95, delta: -0.05 },
+    ];
+
+    const previous = baseEntry('previous', '2026-05-18T12:00:00.000Z', 0.02);
+
+    const comparison = getLatestCalibrationComparison([previous, latest]);
+    expect(comparison?.latest.id).toBe('latest');
+    expect(comparison?.previous.id).toBe('previous');
+    expect(comparison?.topMovers[0].planet).toBe('Saturn');
   });
 });
