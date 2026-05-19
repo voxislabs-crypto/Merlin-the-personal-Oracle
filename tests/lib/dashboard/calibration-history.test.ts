@@ -1,6 +1,7 @@
 import {
   buildSparklinePoints,
   getCalibrationImpact,
+  getCalibrationStability,
   getLatestCalibrationComparison,
   getRecentImpactSeries,
   getTopMover,
@@ -106,5 +107,20 @@ describe('dashboard calibration history helpers', () => {
     const points = buildSparklinePoints([0.05], 100, 20, 2);
     expect(points.includes(',')).toBe(true);
     expect(points.split(' ').length).toBe(1);
+  });
+
+  it('classifies stable impact movement', () => {
+    const stability = getCalibrationStability([0.08, 0.081, 0.079, 0.08]);
+    expect(stability.label).toBe('Stable');
+  });
+
+  it('classifies settling impact movement', () => {
+    const stability = getCalibrationStability([0.08, 0.13, 0.09, 0.14]);
+    expect(stability.label).toBe('Settling');
+  });
+
+  it('classifies volatile impact movement', () => {
+    const stability = getCalibrationStability([0.04, 0.14, 0.05, 0.16]);
+    expect(stability.label).toBe('Volatile');
   });
 });

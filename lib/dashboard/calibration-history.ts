@@ -20,6 +20,12 @@ export type CalibrationDelta = {
   delta: number;
 };
 
+export type CalibrationStability = {
+  label: 'Stable' | 'Settling' | 'Volatile';
+  normalizedStepChange: number;
+  averageStepChange: number;
+};
+
 export function parseCalibrationHistoryDays(raw: string | null): 7 | 30 | 90 | null {
   if (raw === '7' || raw === '30' || raw === '90') {
     return Number(raw) as 7 | 30 | 90;
@@ -95,6 +101,43 @@ export function buildSparklinePoints(values: number[], width: number, height: nu
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(' ');
+}
+
+export function getCalibrationStability(values: number[]): CalibrationStability {
+  if (values.length < 2) {
+    return {
+      label: 'Settling',
+      normalizedStepChange: 0,
+      averageStepChange: 0,
+    };
+  }
+
+  const stepChanges = values.slice(1).map((value, index) => Math.abs(value - values[index]));
+  const averageStepChange = stepChanges.reduce((sum, value) => sum + value, 0) / stepChanges.length;
+  const maxImpact = Math.max(...values, 0.01);
+  const normalizedStepChange = averageStepChange / maxImpact;
+
+  if (normalizedStepChange <= 0.18) {
+    return {
+      label: 'Stable',
+      normalizedStepChange,
+      averageStepChange,
+    };
+  }
+
+  if (normalizedStepChange <= 0.38) {
+    return {
+      label: 'Settling',
+      normalizedStepChange,
+      averageStepChange,
+    };
+  }
+
+  return {
+    label: 'Volatile',
+    normalizedStepChange,
+    averageStepChange,
+  };
 }
 
 export function sortCalibrationHistory(

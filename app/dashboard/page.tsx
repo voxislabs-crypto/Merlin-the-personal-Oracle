@@ -45,6 +45,7 @@ import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 import {
   buildSparklinePoints,
   getCalibrationImpact,
+  getCalibrationStability,
   getLatestCalibrationComparison,
   getRecentImpactSeries,
   getTopMover,
@@ -299,6 +300,7 @@ export default function UnifiedDashboard() {
   const latestImpact = calibrationImpactSeries.length ? calibrationImpactSeries[calibrationImpactSeries.length - 1] : 0;
   const previousImpact = calibrationImpactSeries.length > 1 ? calibrationImpactSeries[calibrationImpactSeries.length - 2] : null;
   const impactTrendDelta = previousImpact === null ? null : latestImpact - previousImpact;
+  const impactStability = getCalibrationStability(calibrationImpactSeries);
 
   const loadCalibrationHistory = useCallback(
     async (days: 7 | 30 | 90) => {
@@ -1442,17 +1444,35 @@ export default function UnifiedDashboard() {
                       {calibrationImpactSeries.length ? (
                         <div className="mt-2 rounded border border-white/10 bg-slate-900/50 px-2 py-1.5">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300/90">Impact Trend</p>
-                            <p className="text-[10px] text-slate-300">
-                              Latest {latestImpact.toFixed(2)}
-                              {impactTrendDelta !== null ? (
-                                <span className={impactTrendDelta >= 0 ? 'text-rose-200' : 'text-emerald-200'}>
-                                  {' '}
-                                  ({impactTrendDelta >= 0 ? '+' : ''}
-                                  {impactTrendDelta.toFixed(2)})
-                                </span>
-                              ) : null}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300/90">Impact Trend</p>
+                              <span
+                                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${
+                                  impactStability.label === 'Stable'
+                                    ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100'
+                                    : impactStability.label === 'Volatile'
+                                      ? 'border-rose-300/40 bg-rose-500/15 text-rose-100'
+                                      : 'border-amber-300/40 bg-amber-500/15 text-amber-100'
+                                }`}
+                              >
+                                {impactStability.label}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-slate-300">
+                                Latest {latestImpact.toFixed(2)}
+                                {impactTrendDelta !== null ? (
+                                  <span className={impactTrendDelta >= 0 ? 'text-rose-200' : 'text-emerald-200'}>
+                                    {' '}
+                                    ({impactTrendDelta >= 0 ? '+' : ''}
+                                    {impactTrendDelta.toFixed(2)})
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
+                                Variance {(impactStability.normalizedStepChange * 100).toFixed(0)}%
+                              </p>
+                            </div>
                           </div>
                           <svg viewBox="0 0 110 24" className="mt-1 h-6 w-full" role="img" aria-label="Calibration impact trend">
                             <polyline
