@@ -1989,6 +1989,10 @@ export default function UnifiedDashboard() {
                                 interpreter={interpretations?.interpreter}
                                 loading={interpretLoading}
                                 userId={userId || undefined}
+                                explainability={pressureWindow?.explainability}
+                                domainScores={domainForecast?.domains}
+                                insightLoading={pressureWindowLoading || domainForecastLoading}
+                                insightError={pressureWindowError?.message || domainForecastError?.message}
                               />
                             </div>
                             

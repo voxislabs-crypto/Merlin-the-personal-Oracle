@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import ThumbsFeedback from './ThumbsFeedback';
+import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
 
 interface ChartInterpretationProps {
   summary: string;
@@ -22,6 +23,10 @@ interface ChartInterpretationProps {
   loading?: boolean;
   interpreter?: 'grok' | 'traditional';
   userId?: string;
+  explainability?: ExplainabilityPacket;
+  domainScores?: DomainScore[];
+  insightLoading?: boolean;
+  insightError?: string;
 }
 
 export function ChartInterpretation({
@@ -31,7 +36,11 @@ export function ChartInterpretation({
   aspectInterpretations,
   loading = false,
   interpreter = 'traditional',
-  userId
+  userId,
+  explainability,
+  domainScores,
+  insightLoading = false,
+  insightError,
 }: ChartInterpretationProps) {
   if (loading) {
     return (
@@ -63,6 +72,15 @@ export function ChartInterpretation({
       transition: { duration: 0.5 }
     }
   };
+
+  const rankedDomains = [...(domainScores?.length ? domainScores : explainability?.domainScores || [])]
+    .sort((a, b) => b.pressure - a.pressure)
+    .slice(0, 3);
+  const showSafety =
+    (explainability?.globalPressure || 0) >= 75 ||
+    Boolean(explainability?.safety?.grounding?.length) ||
+    Boolean(explainability?.safety?.caution?.length) ||
+    Boolean(explainability?.safety?.agency?.length);
 
   return (
     <motion.div
@@ -105,6 +123,56 @@ export function ChartInterpretation({
           <ThumbsFeedback itemId="chart-summary" label="reading" userId={userId} theme="natal" />
         </div>
       </motion.div>
+
+      {(insightLoading || explainability || rankedDomains.length > 0 || insightError) && (
+        <motion.div
+          className="p-5 bg-slate-900/60 rounded-lg border border-cyan-500/25"
+          variants={itemVariants}
+        >
+          <h4 className="text-lg font-semibold text-cyan-200">Interpretation Confidence Context</h4>
+          {insightLoading && !explainability ? (
+            <p className="text-xs text-slate-300 mt-2">Calculating interpretation confidence drivers...</p>
+          ) : null}
+
+          {explainability ? (
+            <div className="mt-2 space-y-2">
+              <p className="text-sm text-slate-100">
+                Pressure context {explainability.globalPressure}/100 · Confidence {explainability.confidence}/100.
+              </p>
+              <p className="text-xs text-slate-300">
+                This interpretation is directional and probabilistic rather than certain.
+              </p>
+              {explainability.topDrivers?.length ? (
+                <p className="text-xs text-cyan-100">
+                  Top drivers: {explainability.topDrivers.slice(0, 3).map((driver) => driver.label).join(' | ')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {rankedDomains.length > 0 ? (
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+              {rankedDomains.map((domain) => (
+                <div key={domain.domain} className="rounded border border-slate-600/40 bg-slate-950/45 px-3 py-2">
+                  <p className="text-xs text-slate-200">{formatDomainLabel(domain.domain)}</p>
+                  <p className="text-xs text-slate-300 mt-1">Pressure {domain.pressure}/100 · Confidence {domain.confidence}/100</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {showSafety ? (
+            <div className="mt-3 rounded border border-amber-500/35 bg-amber-500/10 px-3 py-2">
+              <p className="text-xs text-amber-200 font-semibold">Grounding cue</p>
+              <p className="text-xs text-amber-100/90 mt-1">
+                {explainability?.safety?.grounding?.slice(0, 2).join(' ') || 'Take one slow breath and pick the smallest actionable next step.'}
+              </p>
+            </div>
+          ) : null}
+
+          {insightError ? <p className="text-xs text-rose-300 mt-3">{insightError}</p> : null}
+        </motion.div>
+      )}
 
       {/* Planet Interpretations */}
       {planetInterpretations.length > 0 && (
@@ -155,4 +223,11 @@ export function ChartInterpretation({
       )}
     </motion.div>
   );
+}
+
+function formatDomainLabel(domain: string): string {
+  return domain
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
