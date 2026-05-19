@@ -67,5 +67,33 @@ describe('calibration history route', () => {
     expect(json.data.entries[0].modifierCount).toBe(4);
     expect(json.data.entries[0].modifiers.Saturn).toBe(1.12);
     expect(json.data.entries[0].modifierDelta[0].delta).toBe(0.05);
+    expect(json.data.entries[0].impactScore).toBe(0.05);
+  });
+
+  it('filters malformed modifier delta payloads', async () => {
+    (prisma.userInteractionEvent.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'evt_bad',
+        metadataJson: JSON.stringify({
+          modifierDelta: [
+            { planet: 'Mars', previous: 1.02, current: 1.11, delta: 0.09 },
+            { planet: 'Moon', previous: 'oops', current: 0.95, delta: -0.03 },
+            null,
+          ],
+        }),
+        createdAt: new Date('2026-05-19T18:00:00.000Z'),
+      },
+    ]);
+
+    const request = { url: 'http://localhost/api/calibration/history?days=30' } as Request;
+    const response = await GET(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.entries[0].modifierDelta).toEqual([
+      { planet: 'Mars', previous: 1.02, current: 1.11, delta: 0.09 },
+    ]);
+    expect(json.data.entries[0].impactScore).toBe(0.09);
   });
 });

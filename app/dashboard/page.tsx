@@ -42,6 +42,14 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
+import {
+  getCalibrationImpact,
+  parseCalibrationHistoryDays,
+  parseCalibrationSortMode,
+  sortCalibrationHistory,
+  type CalibrationHistoryEntry,
+  type CalibrationSortMode,
+} from '@/lib/dashboard/calibration-history';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -53,6 +61,8 @@ const FIRST_CHART_KEY = 'merlin_first_chart_completed_at';
 const FIRST_ASK_KEY = 'merlin_first_ask_completed_at';
 const MAX_DASHBOARD_EVENTS = 40;
 const WEEKLY_RESET_PROMPT_KEY = 'merlin_weekly_reset_prompt_seen';
+const CALIBRATION_HISTORY_DAYS_KEY = 'merlin_calibration_history_days';
+const CALIBRATION_SORT_MODE_KEY = 'merlin_calibration_sort_mode';
 
 type DashboardEvent = {
   eventName: string;
@@ -117,20 +127,8 @@ export default function UnifiedDashboard() {
   const [calibrationStatus, setCalibrationStatus] = useState<string>('');
   const [calibrationHistoryLoading, setCalibrationHistoryLoading] = useState(false);
   const [calibrationHistoryDays, setCalibrationHistoryDays] = useState<7 | 30 | 90>(30);
-  const [calibrationSortMode, setCalibrationSortMode] = useState<'recent' | 'impact'>('recent');
-  const [calibrationHistory, setCalibrationHistory] = useState<
-    Array<{
-      id: string;
-      createdAt: string;
-      windowDays: number | null;
-      sampleSize: number | null;
-      minSamples: number | null;
-      strongestModifier: { planet?: string; multiplier?: number } | null;
-      modifierCount: number;
-      modifiers: Record<string, number>;
-      modifierDelta: Array<{ planet: string; previous: number; current: number; delta: number }>;
-    }>
-  >([]);
+  const [calibrationSortMode, setCalibrationSortMode] = useState<CalibrationSortMode>('recent');
+  const [calibrationHistory, setCalibrationHistory] = useState<CalibrationHistoryEntry[]>([]);
   const [relationshipForm, setRelationshipForm] = useState({
     personName: '',
     birthDate: '',
@@ -195,7 +193,21 @@ export default function UnifiedDashboard() {
     if (savedProphecyPolish === 'engine' || savedProphecyPolish === 'groq') {
       setProphecyPolishMode(savedProphecyPolish);
     }
+
+    const savedCalibrationDays = parseCalibrationHistoryDays(localStorage.getItem(CALIBRATION_HISTORY_DAYS_KEY));
+    if (savedCalibrationDays) setCalibrationHistoryDays(savedCalibrationDays);
+
+    const savedCalibrationSort = parseCalibrationSortMode(localStorage.getItem(CALIBRATION_SORT_MODE_KEY));
+    if (savedCalibrationSort) setCalibrationSortMode(savedCalibrationSort);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(CALIBRATION_HISTORY_DAYS_KEY, String(calibrationHistoryDays));
+  }, [calibrationHistoryDays]);
+
+  useEffect(() => {
+    localStorage.setItem(CALIBRATION_SORT_MODE_KEY, calibrationSortMode);
+  }, [calibrationSortMode]);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -276,17 +288,7 @@ export default function UnifiedDashboard() {
     calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined });
   }, [birthData, calculateTransits, mbtiType, userId]);
 
-  const calibrationHistorySorted = [...calibrationHistory].sort((a, b) => {
-    if (calibrationSortMode === 'impact') {
-      const impactA = Math.max(...a.modifierDelta.map((item) => Math.abs(item.delta)), 0);
-      const impactB = Math.max(...b.modifierDelta.map((item) => Math.abs(item.delta)), 0);
-      if (impactB !== impactA) {
-        return impactB - impactA;
-      }
-    }
-
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  const calibrationHistorySorted = sortCalibrationHistory(calibrationHistory, calibrationSortMode);
 
   const loadCalibrationHistory = useCallback(
     async (days: 7 | 30 | 90) => {
@@ -1423,6 +1425,9 @@ export default function UnifiedDashboard() {
                           </div>
                         </div>
                       </div>
+                      <p className="mt-1 text-[10px] text-slate-300/90">
+                        Delta chips compare each run to the prior run. Green increases a planet weight, red decreases it.
+                      </p>
 
                       {calibrationHistoryLoading ? (
                         <p className="mt-2 text-xs text-slate-300">Loading calibration history...</p>
@@ -1432,6 +1437,9 @@ export default function UnifiedDashboard() {
                             <div key={entry.id} className="rounded border border-white/10 bg-slate-900/55 px-2 py-1.5">
                               <p className="text-[11px] text-slate-200">
                                 {new Date(entry.createdAt).toLocaleDateString()} · {entry.sampleSize ?? 0} samples · {entry.modifierCount} modifiers
+                              </p>
+                              <p className="text-[11px] text-slate-300 mt-0.5">
+                                Impact score: {getCalibrationImpact(entry).toFixed(2)}
                               </p>
                               {entry.strongestModifier?.planet && typeof entry.strongestModifier?.multiplier === 'number' ? (
                                 <p className="text-[11px] text-emerald-200 mt-0.5">
