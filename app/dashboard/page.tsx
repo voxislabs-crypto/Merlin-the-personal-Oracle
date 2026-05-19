@@ -143,7 +143,12 @@ export default function UnifiedDashboard() {
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
   const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
-  const { submitCheckin } = useCheckins();
+  const {
+    submitCheckin,
+    entries: checkinEntries,
+    loading: checkinHistoryLoading,
+    loadHistory: loadCheckinHistory,
+  } = useCheckins();
   const { mbtiType, dualOverlay, loading: personalityLoading, calculatePersonality } = usePersonality();
   const {
     prophecy,
@@ -560,6 +565,11 @@ export default function UnifiedDashboard() {
       // localStorage failures should never block the dashboard
     }
   }, [chartData, appendDashboardEvent, submitCheckin]);
+
+  useEffect(() => {
+    if (!chartData) return;
+    void loadCheckinHistory({ days: 14 });
+  }, [chartData, loadCheckinHistory]);
 
   useEffect(() => {
     if (!showOnboarding) return;
@@ -1193,6 +1203,33 @@ export default function UnifiedDashboard() {
                         Ask daily check-in
                       </button>
                     </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-cyan-300/20 bg-slate-900/45 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/75">Recent Check-ins</p>
+                      <span className="text-[11px] text-slate-300/80">Past 14 days</span>
+                    </div>
+
+                    {checkinHistoryLoading ? (
+                      <p className="mt-2 text-xs text-slate-300">Loading check-in history...</p>
+                    ) : checkinEntries.length ? (
+                      <div className="mt-2 space-y-2">
+                        {checkinEntries.slice(0, 5).map((entry) => (
+                          <div key={entry.id} className="rounded-lg border border-white/10 bg-slate-950/45 px-2.5 py-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
+                              <span>{new Date(entry.createdAt).toLocaleDateString()}</span>
+                              <span>
+                                Mood {entry.mood ?? '-'} · Stress {entry.stress ?? '-'} · Energy {entry.energy ?? '-'}
+                              </span>
+                            </div>
+                            {entry.notes ? <p className="mt-1 text-xs text-slate-200/90">{entry.notes}</p> : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-slate-300">No persisted check-ins yet. Your next daily streak update will appear here.</p>
+                    )}
                   </div>
 
                   {showWeeklyResetPrompt ? (
