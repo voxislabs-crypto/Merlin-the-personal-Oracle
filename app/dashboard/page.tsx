@@ -301,6 +301,7 @@ export default function UnifiedDashboard() {
   const previousImpact = calibrationImpactSeries.length > 1 ? calibrationImpactSeries[calibrationImpactSeries.length - 2] : null;
   const impactTrendDelta = previousImpact === null ? null : latestImpact - previousImpact;
   const impactStability = getCalibrationStability(calibrationImpactSeries);
+  const impactStabilityHelp = `Stability uses normalized step variance across recent impact points. Current: ${(impactStability.normalizedStepChange * 100).toFixed(0)}%. Stable <= 18%, Settling <= 38%, Volatile > 38%.`;
 
   const loadCalibrationHistory = useCallback(
     async (days: 7 | 30 | 90) => {
@@ -1447,6 +1448,8 @@ export default function UnifiedDashboard() {
                             <div className="flex items-center gap-1.5">
                               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300/90">Impact Trend</p>
                               <span
+                                title={impactStabilityHelp}
+                                aria-label={impactStabilityHelp}
                                 className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${
                                   impactStability.label === 'Stable'
                                     ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100'
