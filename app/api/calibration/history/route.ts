@@ -11,6 +11,8 @@ interface CalibrationHistoryItem {
   minSamples: number | null;
   strongestModifier: { planet?: string; multiplier?: number } | null;
   modifierCount: number;
+  modifiers: Record<string, number>;
+  modifierDelta: Array<{ planet: string; previous: number; current: number; delta: number }>;
 }
 
 function parseMetadata(raw: string | null): Record<string, unknown> {
@@ -69,6 +71,10 @@ export async function GET(request: Request) {
         minSamples: typeof meta.minSamples === 'number' ? meta.minSamples : null,
         strongestModifier: strongestRaw || null,
         modifierCount: typeof meta.modifierCount === 'number' ? meta.modifierCount : 0,
+        modifiers: (meta.modifiers as Record<string, number> | undefined) || {},
+        modifierDelta:
+          (meta.modifierDelta as Array<{ planet: string; previous: number; current: number; delta: number }> | undefined) ||
+          [],
       };
     });
 

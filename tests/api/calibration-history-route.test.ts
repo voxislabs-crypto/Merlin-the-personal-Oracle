@@ -36,6 +36,8 @@ describe('calibration history route', () => {
           minSamples: 3,
           strongestModifier: { planet: 'Saturn', multiplier: 1.12 },
           modifierCount: 4,
+          modifiers: { Saturn: 1.12, Moon: 0.94 },
+          modifierDelta: [{ planet: 'Saturn', previous: 1.07, current: 1.12, delta: 0.05 }],
         }),
         createdAt: new Date('2026-05-19T12:00:00.000Z'),
       },
@@ -63,5 +65,7 @@ describe('calibration history route', () => {
     expect(json.data.total).toBe(1);
     expect(json.data.entries[0].strongestModifier.planet).toBe('Saturn');
     expect(json.data.entries[0].modifierCount).toBe(4);
+    expect(json.data.entries[0].modifiers.Saturn).toBe(1.12);
+    expect(json.data.entries[0].modifierDelta[0].delta).toBe(0.05);
   });
 });

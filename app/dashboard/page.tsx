@@ -116,6 +116,8 @@ export default function UnifiedDashboard() {
   const [calibrationRecomputing, setCalibrationRecomputing] = useState(false);
   const [calibrationStatus, setCalibrationStatus] = useState<string>('');
   const [calibrationHistoryLoading, setCalibrationHistoryLoading] = useState(false);
+  const [calibrationHistoryDays, setCalibrationHistoryDays] = useState<7 | 30 | 90>(30);
+  const [calibrationSortMode, setCalibrationSortMode] = useState<'recent' | 'impact'>('recent');
   const [calibrationHistory, setCalibrationHistory] = useState<
     Array<{
       id: string;
@@ -125,6 +127,8 @@ export default function UnifiedDashboard() {
       minSamples: number | null;
       strongestModifier: { planet?: string; multiplier?: number } | null;
       modifierCount: number;
+      modifiers: Record<string, number>;
+      modifierDelta: Array<{ planet: string; previous: number; current: number; delta: number }>;
     }>
   >([]);
   const [relationshipForm, setRelationshipForm] = useState({
@@ -272,6 +276,36 @@ export default function UnifiedDashboard() {
     calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined });
   }, [birthData, calculateTransits, mbtiType, userId]);
 
+  const calibrationHistorySorted = [...calibrationHistory].sort((a, b) => {
+    if (calibrationSortMode === 'impact') {
+      const impactA = Math.max(...a.modifierDelta.map((item) => Math.abs(item.delta)), 0);
+      const impactB = Math.max(...b.modifierDelta.map((item) => Math.abs(item.delta)), 0);
+      if (impactB !== impactA) {
+        return impactB - impactA;
+      }
+    }
+
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const loadCalibrationHistory = useCallback(
+    async (days: 7 | 30 | 90) => {
+      setCalibrationHistoryLoading(true);
+      try {
+        const response = await fetch(`/api/calibration/history?days=${days}`);
+        const result = await response.json();
+        if (response.ok && result?.success) {
+          setCalibrationHistory(Array.isArray(result?.data?.entries) ? result.data.entries : []);
+        }
+      } catch {
+        // Non-blocking history panel.
+      } finally {
+        setCalibrationHistoryLoading(false);
+      }
+    },
+    []
+  );
+
   const recomputeCalibration = useCallback(async () => {
     if (!userId) return;
 
@@ -310,16 +344,7 @@ export default function UnifiedDashboard() {
         ]);
       }
 
-      setCalibrationHistoryLoading(true);
-      try {
-        const historyResponse = await fetch('/api/calibration/history?days=45');
-        const historyResult = await historyResponse.json();
-        if (historyResponse.ok && historyResult?.success) {
-          setCalibrationHistory(Array.isArray(historyResult?.data?.entries) ? historyResult.data.entries : []);
-        }
-      } finally {
-        setCalibrationHistoryLoading(false);
-      }
+      await loadCalibrationHistory(calibrationHistoryDays);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown calibration error';
       setCalibrationStatus(`Calibration update failed: ${message}`);
@@ -332,6 +357,8 @@ export default function UnifiedDashboard() {
     calculateDomainForecast,
     calculatePressureWindow,
     calculateTransits,
+    calibrationHistoryDays,
+    loadCalibrationHistory,
     mbtiType,
     userId,
   ]);
@@ -652,23 +679,8 @@ export default function UnifiedDashboard() {
   useEffect(() => {
     if (!chartData) return;
 
-    const loadCalibrationHistory = async () => {
-      setCalibrationHistoryLoading(true);
-      try {
-        const response = await fetch('/api/calibration/history?days=45');
-        const result = await response.json();
-        if (response.ok && result?.success) {
-          setCalibrationHistory(Array.isArray(result?.data?.entries) ? result.data.entries : []);
-        }
-      } catch {
-        // Non-blocking history panel.
-      } finally {
-        setCalibrationHistoryLoading(false);
-      }
-    };
-
-    void loadCalibrationHistory();
-  }, [chartData]);
+    void loadCalibrationHistory(calibrationHistoryDays);
+  }, [chartData, calibrationHistoryDays, loadCalibrationHistory]);
 
   useEffect(() => {
     if (!showOnboarding) return;
@@ -1365,14 +1377,58 @@ export default function UnifiedDashboard() {
                     <div className="mt-3 rounded-lg border border-emerald-300/20 bg-slate-950/45 px-2.5 py-2">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Calibration Log</p>
-                        <span className="text-[11px] text-slate-300/80">Past 45 days</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
+                            {[7, 30, 90].map((days) => {
+                              const selected = calibrationHistoryDays === days;
+                              return (
+                                <button
+                                  key={days}
+                                  type="button"
+                                  onClick={() => setCalibrationHistoryDays(days as 7 | 30 | 90)}
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                    selected
+                                      ? 'bg-emerald-400/30 text-emerald-100 border border-emerald-200/40'
+                                      : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
+                                  }`}
+                                >
+                                  {days}d
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setCalibrationSortMode('recent')}
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                calibrationSortMode === 'recent'
+                                  ? 'bg-white/20 text-white'
+                                  : 'text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              Recent
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCalibrationSortMode('impact')}
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                calibrationSortMode === 'impact'
+                                  ? 'bg-white/20 text-white'
+                                  : 'text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              Impact
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
                       {calibrationHistoryLoading ? (
                         <p className="mt-2 text-xs text-slate-300">Loading calibration history...</p>
-                      ) : calibrationHistory.length ? (
+                      ) : calibrationHistorySorted.length ? (
                         <div className="mt-2 space-y-2">
-                          {calibrationHistory.slice(0, 4).map((entry) => (
+                          {calibrationHistorySorted.slice(0, 4).map((entry) => (
                             <div key={entry.id} className="rounded border border-white/10 bg-slate-900/55 px-2 py-1.5">
                               <p className="text-[11px] text-slate-200">
                                 {new Date(entry.createdAt).toLocaleDateString()} · {entry.sampleSize ?? 0} samples · {entry.modifierCount} modifiers
@@ -1381,6 +1437,31 @@ export default function UnifiedDashboard() {
                                 <p className="text-[11px] text-emerald-200 mt-0.5">
                                   Strongest: {entry.strongestModifier.planet} {entry.strongestModifier.multiplier.toFixed(2)}x
                                 </p>
+                              ) : null}
+                              {entry.modifierDelta.length ? (
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {entry.modifierDelta
+                                    .slice()
+                                    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+                                    .slice(0, 3)
+                                    .map((deltaItem) => {
+                                      const isPositive = deltaItem.delta >= 0;
+                                      const sign = isPositive ? '+' : '';
+                                      return (
+                                        <span
+                                          key={`${entry.id}-${deltaItem.planet}`}
+                                          className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${
+                                            isPositive
+                                              ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100'
+                                              : 'border-rose-300/40 bg-rose-500/15 text-rose-100'
+                                          }`}
+                                        >
+                                          {deltaItem.planet} {sign}
+                                          {deltaItem.delta.toFixed(2)}
+                                        </span>
+                                      );
+                                    })}
+                                </div>
                               ) : null}
                             </div>
                           ))}

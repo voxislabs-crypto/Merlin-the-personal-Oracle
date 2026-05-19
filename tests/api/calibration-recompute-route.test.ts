@@ -19,10 +19,19 @@ jest.mock('@/lib/pattern-mirror', () => ({
   logInteractionEvent: jest.fn(),
 }));
 
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    userInteractionEvent: {
+      findFirst: jest.fn(),
+    },
+  },
+}));
+
 import { POST } from '../../app/api/calibration/recompute/route';
 import { auth } from '@clerk/nextjs/server';
 import { recomputeCalibrationProfile } from '@/lib/astrology/feedback/calibration';
 import { logInteractionEvent } from '@/lib/pattern-mirror';
+import { prisma } from '../../lib/prisma';
 
 describe('calibration recompute route', () => {
   beforeEach(() => {
@@ -35,6 +44,9 @@ describe('calibration recompute route', () => {
       minSamples: 3,
       modifiers: { Saturn: 1.14 },
       strongestModifier: { planet: 'Saturn', multiplier: 1.14 },
+    });
+    (prisma.userInteractionEvent.findFirst as jest.Mock).mockResolvedValue({
+      metadataJson: JSON.stringify({ modifiers: { Saturn: 1.1 } }),
     });
   });
 
@@ -80,6 +92,16 @@ describe('calibration recompute route', () => {
       expect.objectContaining({
         userId: 'user_1',
         type: 'calibration_recompute',
+        metadata: expect.objectContaining({
+          modifiers: { Saturn: 1.14 },
+          modifierDelta: expect.arrayContaining([
+            expect.objectContaining({
+              planet: 'Saturn',
+              previous: 1.1,
+              current: 1.14,
+            }),
+          ]),
+        }),
       })
     );
     expect(json.data.modifiers.Saturn).toBe(1.14);
