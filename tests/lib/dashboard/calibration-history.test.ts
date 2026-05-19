@@ -1,6 +1,8 @@
 import {
+  buildSparklinePoints,
   getCalibrationImpact,
   getLatestCalibrationComparison,
+  getRecentImpactSeries,
   getTopMover,
   parseCalibrationHistoryDays,
   parseCalibrationSortMode,
@@ -83,5 +85,26 @@ describe('dashboard calibration history helpers', () => {
     expect(comparison?.latest.id).toBe('latest');
     expect(comparison?.previous.id).toBe('previous');
     expect(comparison?.topMovers[0].planet).toBe('Saturn');
+  });
+
+  it('returns recent impact series in chronological order', () => {
+    const oldest = baseEntry('oldest', '2026-05-17T12:00:00.000Z', 0.02);
+    const middle = baseEntry('middle', '2026-05-18T12:00:00.000Z', 0.07);
+    const latest = baseEntry('latest', '2026-05-19T12:00:00.000Z', 0.03);
+
+    const series = getRecentImpactSeries([latest, oldest, middle], 3);
+    expect(series).toEqual([0.02, 0.07, 0.03]);
+  });
+
+  it('builds svg sparkline points for multiple values', () => {
+    const points = buildSparklinePoints([0.02, 0.07, 0.03], 100, 20, 2);
+    expect(points.length).toBeGreaterThan(0);
+    expect(points.split(' ').length).toBe(3);
+  });
+
+  it('builds centered point for single value sparkline', () => {
+    const points = buildSparklinePoints([0.05], 100, 20, 2);
+    expect(points.includes(',')).toBe(true);
+    expect(points.split(' ').length).toBe(1);
   });
 });

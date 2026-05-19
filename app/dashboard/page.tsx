@@ -43,8 +43,10 @@ import { CheckCircle2, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } 
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 import {
+  buildSparklinePoints,
   getCalibrationImpact,
   getLatestCalibrationComparison,
+  getRecentImpactSeries,
   getTopMover,
   parseCalibrationHistoryDays,
   parseCalibrationSortMode,
@@ -292,6 +294,11 @@ export default function UnifiedDashboard() {
 
   const calibrationHistorySorted = sortCalibrationHistory(calibrationHistory, calibrationSortMode);
   const latestCalibrationComparison = getLatestCalibrationComparison(calibrationHistory);
+  const calibrationImpactSeries = getRecentImpactSeries(calibrationHistory, 8);
+  const calibrationImpactSparkline = buildSparklinePoints(calibrationImpactSeries, 110, 24, 2);
+  const latestImpact = calibrationImpactSeries.length ? calibrationImpactSeries[calibrationImpactSeries.length - 1] : 0;
+  const previousImpact = calibrationImpactSeries.length > 1 ? calibrationImpactSeries[calibrationImpactSeries.length - 2] : null;
+  const impactTrendDelta = previousImpact === null ? null : latestImpact - previousImpact;
 
   const loadCalibrationHistory = useCallback(
     async (days: 7 | 30 | 90) => {
@@ -1431,6 +1438,34 @@ export default function UnifiedDashboard() {
                       <p className="mt-1 text-[10px] text-slate-300/90">
                         Delta chips compare each run to the prior run. Green increases a planet weight, red decreases it.
                       </p>
+
+                      {calibrationImpactSeries.length ? (
+                        <div className="mt-2 rounded border border-white/10 bg-slate-900/50 px-2 py-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300/90">Impact Trend</p>
+                            <p className="text-[10px] text-slate-300">
+                              Latest {latestImpact.toFixed(2)}
+                              {impactTrendDelta !== null ? (
+                                <span className={impactTrendDelta >= 0 ? 'text-rose-200' : 'text-emerald-200'}>
+                                  {' '}
+                                  ({impactTrendDelta >= 0 ? '+' : ''}
+                                  {impactTrendDelta.toFixed(2)})
+                                </span>
+                              ) : null}
+                            </p>
+                          </div>
+                          <svg viewBox="0 0 110 24" className="mt-1 h-6 w-full" role="img" aria-label="Calibration impact trend">
+                            <polyline
+                              fill="none"
+                              stroke="rgba(167, 243, 208, 0.95)"
+                              strokeWidth="1.5"
+                              strokeLinejoin="round"
+                              strokeLinecap="round"
+                              points={calibrationImpactSparkline}
+                            />
+                          </svg>
+                        </div>
+                      ) : null}
 
                       {latestCalibrationComparison ? (
                         <div className="mt-2 rounded border border-emerald-300/20 bg-emerald-500/10 px-2 py-1.5">

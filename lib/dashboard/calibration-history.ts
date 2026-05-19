@@ -67,6 +67,36 @@ export function getLatestCalibrationComparison(entries: CalibrationHistoryEntry[
   return { latest, previous, topMovers };
 }
 
+export function getRecentImpactSeries(entries: CalibrationHistoryEntry[], maxPoints = 8): number[] {
+  const recent = sortCalibrationHistory(entries, 'recent').slice(0, Math.max(maxPoints, 1));
+  return recent.reverse().map((entry) => getCalibrationImpact(entry));
+}
+
+export function buildSparklinePoints(values: number[], width: number, height: number, padding = 2): string {
+  if (!values.length) return '';
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  const usableWidth = Math.max(width - padding * 2, 1);
+  const usableHeight = Math.max(height - padding * 2, 1);
+
+  if (values.length === 1) {
+    const x = padding + usableWidth / 2;
+    const y = padding + usableHeight / 2;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }
+
+  return values
+    .map((value, index) => {
+      const x = padding + (index / (values.length - 1)) * usableWidth;
+      const normalized = range > 0 ? (value - min) / range : 0.5;
+      const y = padding + (1 - normalized) * usableHeight;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
+}
+
 export function sortCalibrationHistory(
   entries: CalibrationHistoryEntry[],
   sortMode: CalibrationSortMode
