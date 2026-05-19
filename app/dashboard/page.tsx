@@ -25,6 +25,8 @@ import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
+import { usePressureWindow } from '@/hooks/usePressureWindow';
+import { useDomainForecast } from '@/hooks/useDomainForecast';
 import { useLifeArc } from '@/hooks/useLifeArc';
 import { useWeeklyForecast } from '@/hooks/useWeeklyForecast';
 import { useStorms } from '@/hooks/useStorms';
@@ -125,6 +127,18 @@ export default function UnifiedDashboard() {
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
   const { forecast, loading: forecastLoading, error: forecastError, calculateForecast } = useForecast();
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
+  const {
+    pressureWindow,
+    loading: pressureWindowLoading,
+    error: pressureWindowError,
+    calculatePressureWindow,
+  } = usePressureWindow();
+  const {
+    forecast: domainForecast,
+    loading: domainForecastLoading,
+    error: domainForecastError,
+    calculateDomainForecast,
+  } = useDomainForecast();
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
   const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
   const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
@@ -614,6 +628,8 @@ export default function UnifiedDashboard() {
           generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined }),
           calculateForecast(birth),
           calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculatePressureWindow(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculateDomainForecast(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
           calculateLifeArc(birth, chart),
           calculateWeeklyForecast(birth),
           calculatePersonality(birth).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
@@ -623,8 +639,10 @@ export default function UnifiedDashboard() {
       console.error('Error loading persisted data:', error);
     }
   }, [
+    calculateDomainForecast,
     calculateForecast,
     calculateLifeArc,
+    calculatePressureWindow,
     calculatePersonality,
     calculateStorms,
     calculateTransits,
@@ -692,14 +710,18 @@ export default function UnifiedDashboard() {
       generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined }),
       calculateForecast(derived),
       calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+      calculatePressureWindow(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+      calculateDomainForecast(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
       calculateLifeArc(derived, data),
       calculateWeeklyForecast(derived),
       calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [
     generateInterpretations,
+    calculateDomainForecast,
     calculateForecast,
     calculateTransits,
+    calculatePressureWindow,
     calculateLifeArc,
     calculateWeeklyForecast,
     calculatePersonality,
@@ -911,6 +933,20 @@ export default function UnifiedDashboard() {
         };
       })()
     : null;
+
+  const topDomainScores = React.useMemo(
+    () =>
+      [...(domainForecast?.domains || [])]
+        .sort((a, b) => b.pressure - a.pressure)
+        .slice(0, 3),
+    [domainForecast?.domains]
+  );
+
+  const formatDomainLabel = (domain: string) =>
+    domain
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
 
   type WhisperMode = 'plain' | 'warm' | 'bullshit' | 'oracle';
 
@@ -1982,21 +2018,94 @@ export default function UnifiedDashboard() {
 
                         {/* Active Transits */}
                         {activeSection === 'transits' && (
-                          <ActiveTransits
-                            significant={transits?.significant || []}
-                            approaching={transits?.approaching || []}
-                            summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
-                            predictive={transits?.predictive}
-                            confluence={transits?.confluence}
-                            transitWindows={transits?.transitWindows}
-                            resonance={transits?.resonance}
-                            loading={transitsLoading}
-                            userId={userId || undefined}
-                            mbtiType={mbtiType || undefined}
-                            onContextSaved={refreshTransitsWithContext}
-                            onAskContext={queueAskContext}
-                            selectedContextLabel={askDraftLabel}
-                          />
+                          <div className="space-y-5">
+                            {(pressureWindowLoading || pressureWindow || pressureWindowError || topDomainScores.length > 0 || domainForecastLoading || domainForecastError) && (
+                              <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/10 p-4 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-cyan-200">Pressure Window Intelligence</p>
+                                  {pressureWindow?.predictive?.windowDays ? (
+                                    <span className="text-xs text-cyan-200/80">
+                                      Next {pressureWindow.predictive.windowDays} days
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {pressureWindowLoading || domainForecastLoading ? (
+                                  <p className="text-xs text-slate-300">Calculating pressure and domain outlook...</p>
+                                ) : null}
+
+                                {pressureWindow?.explainability ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                    <div className="rounded border border-cyan-400/20 bg-slate-900/40 p-3">
+                                      <p className="text-cyan-200/90">Global pressure</p>
+                                      <p className="mt-1 text-white text-lg font-semibold">
+                                        {pressureWindow.explainability.globalPressure}/100
+                                      </p>
+                                    </div>
+                                    <div className="rounded border border-cyan-400/20 bg-slate-900/40 p-3">
+                                      <p className="text-cyan-200/90">Confidence</p>
+                                      <p className="mt-1 text-white text-lg font-semibold">
+                                        {pressureWindow.explainability.confidence}/100
+                                      </p>
+                                    </div>
+                                    <div className="rounded border border-cyan-400/20 bg-slate-900/40 p-3">
+                                      <p className="text-cyan-200/90">Top driver</p>
+                                      <p className="mt-1 text-white">
+                                        {pressureWindow.explainability.topDrivers?.[0]?.label || 'No strong driver yet'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {topDomainScores.length > 0 ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    {topDomainScores.map((domain) => (
+                                      <div
+                                        key={domain.domain}
+                                        className="rounded border border-slate-600/40 bg-slate-900/40 px-3 py-2"
+                                      >
+                                        <p className="text-xs text-slate-300">{formatDomainLabel(domain.domain)}</p>
+                                        <p className="text-sm text-white mt-1">
+                                          Pressure {domain.pressure}/100 · Confidence {domain.confidence}/100
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+
+                                {pressureWindow?.explainability?.safety?.grounding?.length ? (
+                                  <div className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                                    <p className="text-xs text-amber-200 font-semibold">Grounding guidance</p>
+                                    <p className="text-xs text-amber-100/90 mt-1">
+                                      {pressureWindow.explainability.safety.grounding.slice(0, 2).join(' ')}
+                                    </p>
+                                  </div>
+                                ) : null}
+
+                                {pressureWindowError || domainForecastError ? (
+                                  <p className="text-xs text-rose-300">
+                                    {pressureWindowError?.message || domainForecastError?.message}
+                                  </p>
+                                ) : null}
+                              </div>
+                            )}
+
+                            <ActiveTransits
+                              significant={transits?.significant || []}
+                              approaching={transits?.approaching || []}
+                              summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
+                              predictive={transits?.predictive}
+                              confluence={transits?.confluence}
+                              transitWindows={transits?.transitWindows}
+                              resonance={transits?.resonance}
+                              loading={transitsLoading}
+                              userId={userId || undefined}
+                              mbtiType={mbtiType || undefined}
+                              onContextSaved={refreshTransitsWithContext}
+                              onAskContext={queueAskContext}
+                              selectedContextLabel={askDraftLabel}
+                            />
+                          </div>
                         )}
 
                         {/* Life Arc */}
