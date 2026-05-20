@@ -90,13 +90,13 @@ export async function recomputeCalibrationProfile(params: {
 
   const planetModifiers: Record<string, number> = {};
 
-  for (const [planet, bucket] of planetBuckets.entries()) {
-    if (bucket.count < minSamples) continue;
+  planetBuckets.forEach((bucket, planet) => {
+    if (bucket.count < minSamples) return;
     const averageSignal = bucket.signal / bucket.count;
     const confidence = clamp(Math.sqrt(bucket.count / 8), 0.2, 1);
     const multiplier = clamp(1 + averageSignal * 0.28 * confidence, 0.75, 1.35);
     planetModifiers[planet] = Number(multiplier.toFixed(2));
-  }
+  });
 
   await prisma.$transaction([
     prisma.personalResonanceRecord.deleteMany({ where: { userId: params.userId } }),

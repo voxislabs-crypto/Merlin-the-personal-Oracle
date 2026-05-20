@@ -33,8 +33,15 @@ function normalizeUtcBirth(
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
 }
 
-function sanitizeForecastOutput<T extends Record<string, unknown>>(input: T): T {
-  const output = { ...input };
+type SanitizableForecastOutput = {
+  summary?: unknown;
+  advice?: unknown;
+  transits?: unknown;
+  planetaryHighlights?: unknown;
+};
+
+function sanitizeForecastOutput<T extends SanitizableForecastOutput>(input: T): T {
+  const output: T = { ...input };
 
   if (typeof output.summary === 'string') {
     output.summary = sanitizeCopyText(output.summary);

@@ -303,6 +303,33 @@ export default function UnifiedDashboard() {
   const impactStability = getCalibrationStability(calibrationImpactSeries);
   const impactStabilityHelp = `Stability uses normalized step variance across recent impact points. Current: ${(impactStability.normalizedStepChange * 100).toFixed(0)}%. Stable <= 18%, Settling <= 38%, Volatile > 38%.`;
 
+  const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
+    try {
+      const now = new Date().toISOString();
+      const raw = localStorage.getItem(DASHBOARD_EVENTS_KEY);
+      const existing = raw ? (JSON.parse(raw) as DashboardEvent[]) : [];
+      const next = [...existing, { eventName, at: now, detail: detail || {} }].slice(-MAX_DASHBOARD_EVENTS);
+      localStorage.setItem(DASHBOARD_EVENTS_KEY, JSON.stringify(next));
+      setDashboardEvents(next);
+
+      if (userId) {
+        void fetch('/api/dashboard-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            eventName,
+            detail: detail || {},
+          }),
+        }).catch(() => {
+          // Network failures should not block UX event capture
+        });
+      }
+    } catch {
+      // ignore local telemetry write failures
+    }
+  }, [userId]);
+
   const loadCalibrationHistory = useCallback(
     async (days: 7 | 30 | 90) => {
       setCalibrationHistoryLoading(true);
@@ -572,33 +599,6 @@ export default function UnifiedDashboard() {
       printWindow.print();
     }, 150);
   }, [prophecy]);
-
-  const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
-    try {
-      const now = new Date().toISOString();
-      const raw = localStorage.getItem(DASHBOARD_EVENTS_KEY);
-      const existing = raw ? (JSON.parse(raw) as DashboardEvent[]) : [];
-      const next = [...existing, { eventName, at: now, detail: detail || {} }].slice(-MAX_DASHBOARD_EVENTS);
-      localStorage.setItem(DASHBOARD_EVENTS_KEY, JSON.stringify(next));
-      setDashboardEvents(next);
-
-      if (userId) {
-        void fetch('/api/dashboard-events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            eventName,
-            detail: detail || {},
-          }),
-        }).catch(() => {
-          // Network failures should not block UX event capture
-        });
-      }
-    } catch {
-      // ignore local telemetry write failures
-    }
-  }, [userId]);
 
   useEffect(() => {
     try {

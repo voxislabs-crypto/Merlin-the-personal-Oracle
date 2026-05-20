@@ -212,6 +212,17 @@ export async function POST(request: Request) {
 
     const userContext = userId ? await getUserContextSnapshot(userId) : null;
 
+    const emptyResonanceProfile: Awaited<ReturnType<typeof getResonanceWeightsProfile>> = {
+      multipliers: {},
+      planetBreakdown: {},
+      history: [],
+      summary: {
+        feedbackCount: 0,
+        strongestPlanet: undefined,
+        strongestMultiplier: undefined,
+      },
+    };
+
     const [transits, predictiveBase, resonance] = await Promise.all([
       Promise.resolve(getCurrentTransits(natalChart.positions || [])),
       buildPredictiveTransitBundle({
@@ -224,12 +235,7 @@ export async function POST(request: Request) {
       }),
       userId
         ? getResonanceWeightsProfile(userId)
-        : Promise.resolve({
-            multipliers: {},
-            planetBreakdown: {},
-            history: [],
-            summary: { feedbackCount: 0 },
-          }),
+        : Promise.resolve(emptyResonanceProfile),
     ]);
 
     const predictiveEvents = applyPlanetResonanceWeights(predictiveBase.events, resonance.multipliers);

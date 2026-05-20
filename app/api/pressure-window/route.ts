@@ -88,14 +88,18 @@ export async function POST(request: Request) {
       windowDays,
     });
 
-    const resonance = userId
-      ? await getResonanceWeightsProfile(userId)
-      : {
-          multipliers: {},
-          planetBreakdown: {},
-          history: [],
-          summary: { feedbackCount: 0 },
-        };
+    const emptyResonanceProfile: Awaited<ReturnType<typeof getResonanceWeightsProfile>> = {
+      multipliers: {},
+      planetBreakdown: {},
+      history: [],
+      summary: {
+        feedbackCount: 0,
+        strongestPlanet: undefined,
+        strongestMultiplier: undefined,
+      },
+    };
+
+    const resonance = userId ? await getResonanceWeightsProfile(userId) : emptyResonanceProfile;
 
     const weightedEvents = applyPlanetResonanceWeights(predictive.events, resonance.multipliers);
     const sortedEvents = [...weightedEvents].sort((a, b) => b.scores.intensity - a.scores.intensity);
