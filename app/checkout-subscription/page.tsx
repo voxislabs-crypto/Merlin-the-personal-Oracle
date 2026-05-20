@@ -54,6 +54,7 @@ export default function CheckoutSubscriptionPage() {
           birthTime: '',
           birthCity: '',
         }),
+        credentials: 'include',
       });
 
       const data = await response.json();

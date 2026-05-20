@@ -56,7 +56,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 pt-32">
         <div className="text-center max-w-4xl mx-auto">
           {/* Merlin Logo */}
           <motion.div
