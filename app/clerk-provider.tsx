@@ -9,11 +9,15 @@ interface ClerkProviderProps {
 
 /**
  * Clerk Provider Wrapper
- * Production-ready Clerk integration (no dev bypasses)
+ * Configured for secondary application with custom domain
  */
 export function ClerkProvider({ children }: ClerkProviderProps) {
+  const customDomain = process.env.NEXT_PUBLIC_CLERK_CUSTOM_DOMAIN;
+  
   return (
     <BaseClerkProvider
+      domain={customDomain}
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       appearance={{
         variables: {
           colorPrimary: '#f59e0b', // Amber-500
