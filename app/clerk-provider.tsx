@@ -9,15 +9,13 @@ interface ClerkProviderProps {
 
 /**
  * Clerk Provider Wrapper
- * Configured for secondary application with custom domain
+ * Configured for secondary application with custom domain.
+ * Domain and satellite config is handled via env vars:
+ *   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, NEXT_PUBLIC_CLERK_CUSTOM_DOMAIN
  */
 export function ClerkProvider({ children }: ClerkProviderProps) {
-  const customDomain = process.env.NEXT_PUBLIC_CLERK_CUSTOM_DOMAIN;
-  
   return (
     <BaseClerkProvider
-      domain={customDomain}
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       appearance={{
         variables: {
           colorPrimary: '#f59e0b', // Amber-500
