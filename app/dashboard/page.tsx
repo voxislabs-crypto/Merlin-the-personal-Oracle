@@ -958,8 +958,50 @@ export default function UnifiedDashboard() {
       interpretations.planetInterpretations.forEach(p => { t += `${p.planet}: ${p.interpretation}\n\n`; });
     }
     if (!t && forecast?.summary) t = forecast.summary;
-    return t || 'No interpretation available yet.';
-  }, [interpretations, forecast]);
+
+    if (!t && chartData?.planets?.length) {
+      const sun = chartData.planets.find((p: any) => p.name === 'Sun');
+      const moon = chartData.planets.find((p: any) => p.name === 'Moon');
+      const mercury = chartData.planets.find((p: any) => p.name === 'Mercury');
+      const venus = chartData.planets.find((p: any) => p.name === 'Venus');
+      const mars = chartData.planets.find((p: any) => p.name === 'Mars');
+      const ascSign = (chartData as any)?.ascendant?.sign as string | undefined;
+
+      const corePlacements: string[] = [];
+      if (sun?.sign) corePlacements.push(`Sun in ${sun.sign}`);
+      if (moon?.sign) corePlacements.push(`Moon in ${moon.sign}`);
+      if (ascSign) corePlacements.push(`Rising in ${ascSign}`);
+      if (mercury?.sign) corePlacements.push(`Mercury in ${mercury.sign}`);
+      if (venus?.sign) corePlacements.push(`Venus in ${venus.sign}`);
+      if (mars?.sign) corePlacements.push(`Mars in ${mars.sign}`);
+
+      const topAspects = (chartData.aspects || [])
+        .slice(0, 3)
+        .map((aspect: any) => {
+          const planet1 = aspect?.planet1?.name || aspect?.planet1 || 'Planet';
+          const planet2 = aspect?.planet2?.name || aspect?.planet2 || 'Planet';
+          const aspectType = aspect?.type || aspect?.aspect || 'aspect';
+          return `${planet1} ${aspectType} ${planet2}`;
+        })
+        .filter(Boolean);
+
+      const placementSentence = corePlacements.length
+        ? `Your core placements are: ${corePlacements.join(', ')}.`
+        : 'Your chart has been calculated successfully.';
+
+      const aspectSentence = topAspects.length
+        ? `The strongest active patterns in your chart include ${topAspects.join(', ')}.`
+        : 'No major aspects are currently highlighted in this quick summary.';
+
+      const tierSentence = premiumLocked
+        ? 'You are currently on the free tier, so this is a concise chart voice summary.'
+        : 'This is your quick chart voice summary while deeper insights load.';
+
+      t = `${placementSentence} ${aspectSentence} ${tierSentence}`;
+    }
+
+    return t || 'Your chart is ready, but there is no readable summary yet. Try recalculating your chart once.';
+  }, [interpretations, forecast, chartData, premiumLocked]);
 
   const queueAskContext = useCallback((label: string, prompt: string) => {
     setAskDraftLabel(label);
