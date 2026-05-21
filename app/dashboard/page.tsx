@@ -75,6 +75,41 @@ type DashboardEvent = {
   detail: Record<string, unknown>;
 };
 
+type ClientTier = 'free' | 'trial' | 'monthly' | 'lifetime';
+
+type ClientFeatureFlags = {
+  premiumInsights: boolean;
+  persistenceEnabled: boolean;
+};
+
+function resolveClientTier(user: ReturnType<typeof useUser>['user']): ClientTier {
+  const tier = user?.publicMetadata?.tier as ClientTier | undefined;
+  const subscriptionStatus = user?.publicMetadata?.subscriptionStatus as string | undefined;
+
+  if (tier && ['free', 'trial', 'monthly', 'lifetime'].includes(tier)) {
+    return tier;
+  }
+
+  if (subscriptionStatus === 'trialing') return 'trial';
+  if (subscriptionStatus === 'active') return 'monthly';
+  if (subscriptionStatus === 'lifetime') return 'lifetime';
+  return 'free';
+}
+
+function getClientFeatureFlags(tier: ClientTier): ClientFeatureFlags {
+  if (tier === 'free') {
+    return {
+      premiumInsights: false,
+      persistenceEnabled: false,
+    };
+  }
+
+  return {
+    premiumInsights: true,
+    persistenceEnabled: true,
+  };
+}
+
 export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -144,6 +179,9 @@ export default function UnifiedDashboard() {
   const [relationshipLoading, setRelationshipLoading] = useState(false);
   const [relationshipError, setRelationshipError] = useState('');
   const [relationshipLocationHint, setRelationshipLocationHint] = useState('');
+
+  const clientTier = React.useMemo(() => resolveClientTier(user), [user]);
+  const featureFlags = React.useMemo(() => getClientFeatureFlags(clientTier), [clientTier]);
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -422,7 +460,7 @@ export default function UnifiedDashboard() {
 
   useEffect(() => {
     const loadIdentityFromContext = async () => {
-      if (!userId) return;
+      if (!userId || !featureFlags.persistenceEnabled) return;
       try {
         const res = await fetch(`/api/user-context?userId=${encodeURIComponent(userId)}`);
         if (!res.ok) return;
@@ -449,11 +487,11 @@ export default function UnifiedDashboard() {
     };
 
     loadIdentityFromContext();
-  }, [userId]);
+  }, [featureFlags.persistenceEnabled, userId]);
 
   useEffect(() => {
     const ensureIdentityPack = async () => {
-      if (!userId || !chartData) return;
+      if (!userId || !chartData || !featureFlags.persistenceEnabled) return;
       try {
         const response = await fetch('/api/identity-pack', {
           method: 'POST',
@@ -471,10 +509,10 @@ export default function UnifiedDashboard() {
     };
 
     ensureIdentityPack();
-  }, [userId, chartData, mbtiType]);
+  }, [featureFlags.persistenceEnabled, userId, chartData, mbtiType]);
 
   const fetchPatternMirror = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !featureFlags.persistenceEnabled) return;
     setPatternMirrorLoading(true);
     try {
       const response = await fetch(`/api/pattern-tracker?userId=${encodeURIComponent(userId)}`);
@@ -488,10 +526,10 @@ export default function UnifiedDashboard() {
     } finally {
       setPatternMirrorLoading(false);
     }
-  }, [userId]);
+  }, [featureFlags.persistenceEnabled, userId]);
 
   const fetchDailyOracle = useCallback(async (truthBomb = false) => {
-    if (!chartData) return;
+    if (!chartData || !featureFlags.persistenceEnabled) return;
     setDailyOracleLoading(true);
     try {
       const response = await fetch('/api/daily-oracle', {
@@ -523,7 +561,7 @@ export default function UnifiedDashboard() {
     } finally {
       setDailyOracleLoading(false);
     }
-  }, [chartData, userId, fetchPatternMirror]);
+  }, [chartData, featureFlags.persistenceEnabled, userId, fetchPatternMirror]);
 
   const sendDailyOracleFeedback = useCallback(async (signal: 'hit' | 'missed') => {
     if (!userId || !dailyOracle?.message) return;
@@ -550,7 +588,7 @@ export default function UnifiedDashboard() {
   }, [chartData, fetchDailyOracle]);
 
   useEffect(() => {
-    if (!chartData) return;
+    if (!chartData || !featureFlags.premiumInsights) return;
     generateProphecy({
       birthChart: chartData,
       style: prophecyStyle,
@@ -559,12 +597,12 @@ export default function UnifiedDashboard() {
       saveToHistory: false,
       polishMode: prophecyPolishMode,
     });
-  }, [chartData, prophecyStyle, prophecyEra, strictMeter, prophecyPolishMode, generateProphecy]);
+  }, [chartData, featureFlags.premiumInsights, prophecyStyle, prophecyEra, strictMeter, prophecyPolishMode, generateProphecy]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !featureFlags.persistenceEnabled) return;
     loadHistory();
-  }, [userId, loadHistory]);
+  }, [featureFlags.persistenceEnabled, userId, loadHistory]);
 
   const handlePrintProphecy = useCallback(() => {
     if (!prophecy?.prophecy) return;
@@ -687,15 +725,15 @@ export default function UnifiedDashboard() {
   }, [chartData, appendDashboardEvent, submitCheckin]);
 
   useEffect(() => {
-    if (!chartData) return;
+    if (!chartData || !featureFlags.persistenceEnabled) return;
     void loadCheckinHistory({ days: 14 });
-  }, [chartData, loadCheckinHistory]);
+  }, [chartData, featureFlags.persistenceEnabled, loadCheckinHistory]);
 
   useEffect(() => {
-    if (!chartData) return;
+    if (!chartData || !featureFlags.persistenceEnabled) return;
 
     void loadCalibrationHistory(calibrationHistoryDays);
-  }, [chartData, calibrationHistoryDays, loadCalibrationHistory]);
+  }, [chartData, calibrationHistoryDays, featureFlags.persistenceEnabled, loadCalibrationHistory]);
 
   useEffect(() => {
     if (!showOnboarding) return;
@@ -716,9 +754,9 @@ export default function UnifiedDashboard() {
   }, [showOnboarding, hasAskedMerlin, activeSection, appendDashboardEvent]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !featureFlags.persistenceEnabled) return;
     fetchPatternMirror();
-  }, [userId, fetchPatternMirror]);
+  }, [featureFlags.persistenceEnabled, userId, fetchPatternMirror]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -773,16 +811,28 @@ export default function UnifiedDashboard() {
         };
         setWheelData(wheel);
         
-        // Recalculate all derived data
-        Promise.all([
-          generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined }),
-          calculateForecast(birth),
-          calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculatePressureWindow(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculateDomainForecast(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculateLifeArc(birth, chart),
-          calculateWeeklyForecast(birth),
-          calculatePersonality(birth).then(mbti => calculateStorms(birth, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
+        // Recalculate all derived data (degrade gracefully when premium features are unavailable)
+        Promise.allSettled([
+          featureFlags.premiumInsights
+            ? generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
+            : Promise.resolve(null),
+          featureFlags.premiumInsights ? calculateForecast(birth) : Promise.resolve(null),
+          featureFlags.premiumInsights
+            ? calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+            : Promise.resolve(null),
+          featureFlags.premiumInsights
+            ? calculatePressureWindow(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+            : Promise.resolve(null),
+          featureFlags.premiumInsights
+            ? calculateDomainForecast(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+            : Promise.resolve(null),
+          featureFlags.premiumInsights ? calculateLifeArc(birth, chart) : Promise.resolve(null),
+          featureFlags.premiumInsights ? calculateWeeklyForecast(birth) : Promise.resolve(null),
+          featureFlags.premiumInsights
+            ? calculatePersonality(birth)
+                .then(mbti => calculateStorms(birth, mbti ?? undefined))
+                .catch(e => console.log('Personality unavailable:', e.message))
+            : Promise.resolve(null)
         ]).catch((e) => console.error('Error regenerating dashboard data:', e));
       }
     } catch (error) {
@@ -856,15 +906,27 @@ export default function UnifiedDashboard() {
     setActiveSection('wheel');
 
     // Fire off async jobs
-    Promise.all([
-      generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined }),
-      calculateForecast(derived),
-      calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-      calculatePressureWindow(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-      calculateDomainForecast(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-      calculateLifeArc(derived, data),
-      calculateWeeklyForecast(derived),
-      calculatePersonality(derived).then(mbti => calculateStorms(derived, mbti ?? undefined)).catch(e => console.log('Personality unavailable:', e.message))
+    Promise.allSettled([
+      featureFlags.premiumInsights
+        ? generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
+        : Promise.resolve(null),
+      featureFlags.premiumInsights ? calculateForecast(derived) : Promise.resolve(null),
+      featureFlags.premiumInsights
+        ? calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+        : Promise.resolve(null),
+      featureFlags.premiumInsights
+        ? calculatePressureWindow(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+        : Promise.resolve(null),
+      featureFlags.premiumInsights
+        ? calculateDomainForecast(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+        : Promise.resolve(null),
+      featureFlags.premiumInsights ? calculateLifeArc(derived, data) : Promise.resolve(null),
+      featureFlags.premiumInsights ? calculateWeeklyForecast(derived) : Promise.resolve(null),
+      featureFlags.premiumInsights
+        ? calculatePersonality(derived)
+            .then(mbti => calculateStorms(derived, mbti ?? undefined))
+            .catch(e => console.log('Personality unavailable:', e.message))
+        : Promise.resolve(null)
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [
     generateInterpretations,

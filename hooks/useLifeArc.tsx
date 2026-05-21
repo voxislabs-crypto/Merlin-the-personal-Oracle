@@ -40,7 +40,7 @@ export function useLifeArc() {
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);
       console.error('Error calculating life arc:', error);
-      throw error;
+      return null;
     } finally {
       setLoading(false);
     }
