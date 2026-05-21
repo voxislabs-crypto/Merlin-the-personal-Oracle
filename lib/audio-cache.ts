@@ -13,13 +13,18 @@ const CACHE_PREFIX = 'merlin_audio_cache_';
 const CACHE_EXPIRY = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 const MAX_CACHE_SIZE = 10 * 1024 * 1024; // 10MB max localStorage usage
 
+function normalizeTextForCache(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Generate a cache key from text and voice
  */
 export function generateCacheKey(text: string, voice: string): string {
   // Simple hash function - good enough for caching
   let hash = 0;
-  const input = `${text}:${voice}`;
+  const normalizedText = normalizeTextForCache(text);
+  const input = `${normalizedText}:${voice}`;
   
   for (let i = 0; i < input.length; i++) {
     const char = input.charCodeAt(i);
