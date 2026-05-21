@@ -55,6 +55,7 @@ import {
   type CalibrationHistoryEntry,
   type CalibrationSortMode,
 } from '@/lib/dashboard/calibration-history';
+import { getMBTITypeDescription, applyMBTIOverlay } from '@/lib/mbti-overlay';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -951,15 +952,21 @@ export default function UnifiedDashboard() {
 
   // Build the read-aloud text (used by MerlinAudioPlayer) — must be before early returns
   const readAloudText = React.useMemo(() => {
-    let t = '';
-    if (interpretations?.chartSummary) t += interpretations.chartSummary + '\n\n';
-    if (interpretations?.planetInterpretations?.length) {
-      t += 'Planetary Placements:\n';
-      interpretations.planetInterpretations.forEach(p => { t += `${p.planet}: ${p.interpretation}\n\n`; });
-    }
-    if (!t && forecast?.summary) t = forecast.summary;
+    const sections: string[] = [];
 
-    if (!t && chartData?.planets?.length) {
+    if (interpretations?.chartSummary) {
+      sections.push(interpretations.chartSummary);
+    }
+
+    if (interpretations?.synthesis?.unifiedReading) {
+      sections.push(interpretations.synthesis.unifiedReading);
+    }
+
+    if (forecast?.summary) {
+      sections.push(`Today's forecast: ${forecast.summary}`);
+    }
+
+    if (chartData?.planets?.length) {
       const sun = chartData.planets.find((p: any) => p.name === 'Sun');
       const moon = chartData.planets.find((p: any) => p.name === 'Moon');
       const mercury = chartData.planets.find((p: any) => p.name === 'Mercury');
@@ -975,8 +982,12 @@ export default function UnifiedDashboard() {
       if (venus?.sign) corePlacements.push(`Venus in ${venus.sign}`);
       if (mars?.sign) corePlacements.push(`Mars in ${mars.sign}`);
 
+      if (corePlacements.length) {
+        sections.push(`Core placements: ${corePlacements.join(', ')}.`);
+      }
+
       const topAspects = (chartData.aspects || [])
-        .slice(0, 3)
+        .slice(0, 4)
         .map((aspect: any) => {
           const planet1 = aspect?.planet1?.name || aspect?.planet1 || 'Planet';
           const planet2 = aspect?.planet2?.name || aspect?.planet2 || 'Planet';
@@ -985,23 +996,78 @@ export default function UnifiedDashboard() {
         })
         .filter(Boolean);
 
-      const placementSentence = corePlacements.length
-        ? `Your core placements are: ${corePlacements.join(', ')}.`
-        : 'Your chart has been calculated successfully.';
-
-      const aspectSentence = topAspects.length
-        ? `The strongest active patterns in your chart include ${topAspects.join(', ')}.`
-        : 'No major aspects are currently highlighted in this quick summary.';
-
-      const tierSentence = premiumLocked
-        ? 'You are currently on the free tier, so this is a concise chart voice summary.'
-        : 'This is your quick chart voice summary while deeper insights load.';
-
-      t = `${placementSentence} ${aspectSentence} ${tierSentence}`;
+      if (topAspects.length) {
+        sections.push(`Primary chart dynamics: ${topAspects.join(', ')}.`);
+      }
     }
 
-    return t || 'Your chart is ready, but there is no readable summary yet. Try recalculating your chart once.';
-  }, [interpretations, forecast, chartData, premiumLocked]);
+    if (mbtiType) {
+      const mbtiDescriptor = getMBTITypeDescription(mbtiType as any);
+      const hardwareType = dualOverlay?.hardware?.mbtiType;
+      const firmwareType = dualOverlay?.firmware?.mbtiType;
+
+      if (hardwareType && firmwareType && hardwareType !== firmwareType) {
+        sections.push(`Personality architecture: outer mask ${hardwareType}, inner core ${firmwareType}. Final type ${mbtiType}. ${mbtiDescriptor}.`);
+      } else {
+        sections.push(`Personality lens: ${mbtiType}. ${mbtiDescriptor}.`);
+      }
+
+      const mbtiThemes = ['Transformation', 'Career', 'Relationships'];
+      const mbtiOverlayLines = mbtiThemes
+        .map((theme) => applyMBTIOverlay(theme, mbtiType as any))
+        .filter(Boolean)
+        .slice(0, 2);
+
+      if (mbtiOverlayLines.length) {
+        sections.push(`MBTI overlays: ${mbtiOverlayLines.join(' ')}`);
+      }
+    }
+
+    const predictiveEvents = transits?.predictive?.events?.slice(0, 2) || [];
+    if (predictiveEvents.length) {
+      const predictiveLines = predictiveEvents.map((event) => {
+        const timing = event?.timing?.phase ? `Phase: ${event.timing.phase}` : '';
+        const mbtiMove = event?.mbtiLens?.bestMove24h ? `Best move: ${event.mbtiLens.bestMove24h}` : '';
+        return `${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}. ${event.narrative?.whisper || ''} ${timing}. ${mbtiMove}`.trim();
+      });
+      sections.push(`Predictive storm layer: ${predictiveLines.join(' ')}`);
+    }
+
+    if (stormsReport?.weekSummary) {
+      sections.push(`Storm radar summary: ${stormsReport.weekSummary}`);
+    }
+
+    if (lifeArc?.events?.length) {
+      const lifeArcEvents = lifeArc.events
+        .slice(0, 2)
+        .map((event: any) => `${event.transitingPlanet} ${event.aspect} ${event.natalPlanet} around age ${event.age}`)
+        .join(', ');
+      sections.push(`Life timeline signals: ${lifeArcEvents}.`);
+    }
+
+    if (!sections.length) {
+      if (premiumLocked) {
+        return 'Your chart is calculated. Premium interpretation is currently locked, but Merlin can still read your core placements and major aspects once available in this session.';
+      }
+      return 'Your chart is ready, but there is no readable summary yet. Try recalculating your chart once.';
+    }
+
+    const tierOutro = premiumLocked
+      ? 'This reading is generated from your live chart and MBTI lens in free mode.'
+      : 'This reading blends your natal chart, MBTI architecture, and predictive storm layers.';
+
+    return `${sections.join('\n\n')}\n\n${tierOutro}`;
+  }, [
+    interpretations,
+    forecast,
+    chartData,
+    mbtiType,
+    dualOverlay,
+    transits,
+    stormsReport,
+    lifeArc,
+    premiumLocked,
+  ]);
 
   const queueAskContext = useCallback((label: string, prompt: string) => {
     setAskDraftLabel(label);
