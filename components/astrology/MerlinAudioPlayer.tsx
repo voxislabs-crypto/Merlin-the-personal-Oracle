@@ -370,7 +370,14 @@ export function MerlinAudioPlayer({ text, label = 'Read My Chart', className = '
     for (let i = 0; i < textChunks.length; i++) {
       if (abortRef.current) return;
       setLoadingChunk(i + 1);
-      const data = await fetchChunk(textChunks[i]);
+      let data: string | null = null;
+      try {
+        data = await fetchChunk(textChunks[i]);
+      } catch (err) {
+        console.warn('[MerlinAudioPlayer] TTS request failed, using Web Speech API', err);
+        fallbackSpeech();
+        return;
+      }
       if (!data) {
         // ElevenLabs failed — fall back to Web Speech for whole text
         console.warn('[MerlinAudioPlayer] ElevenLabs unavailable, using Web Speech API');
@@ -393,35 +400,61 @@ export function MerlinAudioPlayer({ text, label = 'Read My Chart', className = '
       return;
     }
     window.speechSynthesis.cancel();
-    const sentences = splitIntoSentences(text);
-    setNarratorSentences(sentences);
-    setActiveSentenceIndex(0);
 
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.9;
-    utt.pitch = 0.95;
-    utt.onstart = () => setState('playing');
-    utt.onend   = () => { setState('idle'); setProgress(0); setActiveSentenceIndex(sentences.length - 1); };
-    utt.onerror  = () => setState('error');
-    // Use boundary events to track sentence-level position
-    utt.onboundary = (event) => {
-      if (event.name === 'sentence' || event.name === 'word') {
-        const charIdx = event.charIndex;
-        // Find which sentence contains this char position
-        let cumLen = 0;
-        for (let i = 0; i < sentences.length; i++) {
-          cumLen += sentences[i].length + 1;
-          if (charIdx < cumLen) {
-            setActiveSentenceIndex(i);
-            break;
+    // Chunk browser speech fallback to avoid silent failures on long utterances.
+    const speechChunks = splitIntoChunks(text, 900);
+    setChunks(speechChunks);
+    setChunkIndex(0);
+    setProgress(0);
+    setCurrent(0);
+    setDuration(0);
+
+    const playSpeechChunk = (index: number) => {
+      if (abortRef.current) return;
+      if (index >= speechChunks.length) {
+        setState('idle');
+        setProgress(0);
+        setCurrent(0);
+        setChunkIndex(0);
+        return;
+      }
+
+      const chunkText = speechChunks[index];
+      const sentences = splitIntoSentences(chunkText);
+      setChunkIndex(index);
+      setNarratorSentences(sentences);
+      setActiveSentenceIndex(0);
+
+      const utt = new SpeechSynthesisUtterance(chunkText);
+      utt.rate = 0.9;
+      utt.pitch = 0.95;
+      utt.onstart = () => setState('playing');
+      utt.onend = () => {
+        setActiveSentenceIndex(Math.max(0, sentences.length - 1));
+        setTimeout(() => playSpeechChunk(index + 1), 0);
+      };
+      utt.onerror = () => {
+        setState('error');
+        setErrorMsg('Browser speech unavailable');
+      };
+      utt.onboundary = (event) => {
+        if (event.name === 'sentence' || event.name === 'word') {
+          const charIdx = event.charIndex;
+          let cumLen = 0;
+          for (let i = 0; i < sentences.length; i++) {
+            cumLen += sentences[i].length + 1;
+            if (charIdx < cumLen) {
+              setActiveSentenceIndex(i);
+              break;
+            }
           }
         }
-      }
+      };
+
+      window.speechSynthesis.speak(utt);
     };
-    window.speechSynthesis.speak(utt);
-    setState('playing');
-    setChunks([text]);
-    setChunkIndex(0);
+
+    playSpeechChunk(0);
   }, [text]);
 
   const togglePlay = useCallback(() => {
