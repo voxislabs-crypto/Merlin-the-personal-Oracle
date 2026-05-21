@@ -973,6 +973,7 @@ export default function UnifiedDashboard() {
       const venus = chartData.planets.find((p: any) => p.name === 'Venus');
       const mars = chartData.planets.find((p: any) => p.name === 'Mars');
       const ascSign = (chartData as any)?.ascendant?.sign as string | undefined;
+      const mcSign = (chartData as any)?.midheaven?.sign as string | undefined;
 
       const corePlacements: string[] = [];
       if (sun?.sign) corePlacements.push(`Sun in ${sun.sign}`);
@@ -998,6 +999,64 @@ export default function UnifiedDashboard() {
 
       if (topAspects.length) {
         sections.push(`Primary chart dynamics: ${topAspects.join(', ')}.`);
+      }
+
+      const signToElement: Record<string, 'Fire' | 'Earth' | 'Air' | 'Water'> = {
+        Aries: 'Fire', Taurus: 'Earth', Gemini: 'Air', Cancer: 'Water',
+        Leo: 'Fire', Virgo: 'Earth', Libra: 'Air', Scorpio: 'Water',
+        Sagittarius: 'Fire', Capricorn: 'Earth', Aquarius: 'Air', Pisces: 'Water',
+      };
+      const elementCounts: Record<'Fire' | 'Earth' | 'Air' | 'Water', number> = {
+        Fire: 0,
+        Earth: 0,
+        Air: 0,
+        Water: 0,
+      };
+      const houseCounts = new Map<number, number>();
+
+      chartData.planets.forEach((planet: any) => {
+        const element = signToElement[planet?.sign as string];
+        if (element) elementCounts[element] += 1;
+        if (typeof planet?.house === 'number') {
+          houseCounts.set(planet.house, (houseCounts.get(planet.house) || 0) + 1);
+        }
+      });
+
+      const elementRanking = Object.entries(elementCounts)
+        .sort((a, b) => b[1] - a[1])
+        .filter(([, count]) => count > 0)
+        .slice(0, 2)
+        .map(([element, count]) => `${element} (${count})`);
+
+      if (elementRanking.length) {
+        sections.push(`Elemental climate: ${elementRanking.join(', ')} are leading in your chart right now.`);
+      }
+
+      const topHouses = Array.from(houseCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([house, count]) => `House ${house} (${count})`);
+
+      if (topHouses.length) {
+        sections.push(`Life areas emphasized: ${topHouses.join(', ')}.`);
+      }
+
+      if (ascSign || mcSign) {
+        sections.push(`Angle signature: ${ascSign ? `Ascendant in ${ascSign}` : 'Ascendant unavailable'}${mcSign ? `, Midheaven in ${mcSign}` : ''}.`);
+      }
+
+      const guidance: string[] = [];
+      if (moon?.sign) {
+        guidance.push(`Emotionally, Moon in ${moon.sign} asks for depth before trust.`);
+      }
+      if (mercury?.sign) {
+        guidance.push(`Mentally, Mercury in ${mercury.sign} thrives on detail and precision.`);
+      }
+      if (venus?.sign && mars?.sign) {
+        guidance.push(`Relationally, Venus in ${venus.sign} and Mars in ${mars.sign} blend your attraction style with your action style.`);
+      }
+      if (guidance.length) {
+        sections.push(`Practical guidance: ${guidance.slice(0, 3).join(' ')}`);
       }
     }
 

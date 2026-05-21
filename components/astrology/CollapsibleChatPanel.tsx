@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
-import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, Trash2, Play, Pause, Eye, Sparkles } from 'lucide-react';
+import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, Trash2, Play, Pause, Eye, Sparkles, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
@@ -345,6 +345,53 @@ export function CollapsibleChatPanel({
     }
   };
 
+  const toggleCurrentSpeech = useCallback(() => {
+    if (!playingMessageId) return;
+
+    if (ttsFallback && utteranceRef.current) {
+      if (isSpeaking) {
+        window.speechSynthesis.pause();
+        setIsPaused(true);
+        setIsSpeaking(false);
+      } else if (isPaused) {
+        window.speechSynthesis.resume();
+        setIsPaused(false);
+        setIsSpeaking(true);
+      }
+      return;
+    }
+
+    if (!globalAudioManager) return;
+
+    if (globalAudioManager.isPlaying()) {
+      globalAudioManager.pause();
+      setIsPaused(true);
+      setIsSpeaking(false);
+    } else if (globalAudioManager.isPaused()) {
+      globalAudioManager.resume();
+      setIsPaused(false);
+      setIsSpeaking(true);
+    }
+  }, [playingMessageId, ttsFallback, isSpeaking, isPaused]);
+
+  const stopCurrentSpeech = useCallback(() => {
+    if (globalAudioManager) {
+      globalAudioManager.stop();
+      globalAudioManager.clearCallbacks();
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    utteranceRef.current = null;
+    setPlayingMessageId(null);
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setIsTTSLoading(false);
+    setTtsFallback(false);
+  }, []);
+
   // Load Clarity Mode setting from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('merlin_clarity_mode');
@@ -523,6 +570,10 @@ export function CollapsibleChatPanel({
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    if (playingMessageId || isSpeaking || isPaused || isTTSLoading) {
+      stopCurrentSpeech();
+    }
+
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -660,6 +711,24 @@ export function CollapsibleChatPanel({
           )}
         </div>
         <div className="flex gap-1 flex-shrink-0">
+          {playingMessageId && (
+            <div className="flex items-center gap-1 mr-1 px-1.5 py-1 rounded border border-purple-500/30 bg-purple-500/10">
+              <button
+                onClick={toggleCurrentSpeech}
+                className="p-1 text-purple-300 hover:text-purple-100 hover:bg-purple-500/20 rounded transition"
+                title={isSpeaking ? 'Pause speech' : 'Resume speech'}
+              >
+                {isSpeaking ? <Pause size={12} /> : <Play size={12} />}
+              </button>
+              <button
+                onClick={stopCurrentSpeech}
+                className="p-1 text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 rounded transition"
+                title="Stop speech"
+              >
+                <Square size={12} />
+              </button>
+            </div>
+          )}
           {/* Clarity Mode toggle */}
           <button
             onClick={toggleClarityMode}
