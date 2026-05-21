@@ -39,7 +39,7 @@ import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 import {
@@ -179,6 +179,9 @@ export default function UnifiedDashboard() {
   const [relationshipLoading, setRelationshipLoading] = useState(false);
   const [relationshipError, setRelationshipError] = useState('');
   const [relationshipLocationHint, setRelationshipLocationHint] = useState('');
+  const [navigatorCollapsed, setNavigatorCollapsed] = useState(false);
+  const [activeNavSection, setActiveNavSection] = useState<'chart' | 'forecast' | 'analysis' | 'weekly' | 'personality' | 'prophecy'>('chart');
+  const navigatorCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clientTier = React.useMemo(() => resolveClientTier(user), [user]);
   const featureFlags = React.useMemo(() => getClientFeatureFlags(clientTier), [clientTier]);
@@ -1087,29 +1090,6 @@ export default function UnifiedDashboard() {
     }
   }, [chartData, relationshipForm, user, queueAskContext, toast]);
 
-  // Conditional render: Don't render until Clerk auth is loaded
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
-          <div className="text-gray-400">Loading your cosmic dashboard...</div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-400 mx-auto" />
-          <p className="text-slate-300">Redirecting to sign-in...</p>
-        </div>
-      </div>
-    );
-  }
-
   const calcSource =
     ((chartData as any)?.metadata?.ephemeris as string | undefined) ||
     (((chartData as any)?.metadata?.calculationSource as string | undefined) === 'swiss-real' ? 'Swiss real' : undefined) ||
@@ -1230,6 +1210,125 @@ export default function UnifiedDashboard() {
   const scrollToBlock = (ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  const clearNavigatorCollapseTimer = useCallback(() => {
+    if (navigatorCollapseTimerRef.current) {
+      clearTimeout(navigatorCollapseTimerRef.current);
+      navigatorCollapseTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleNavigatorAutoCollapse = useCallback(() => {
+    clearNavigatorCollapseTimer();
+    navigatorCollapseTimerRef.current = setTimeout(() => {
+      setNavigatorCollapsed(true);
+    }, 2200);
+  }, [clearNavigatorCollapseTimer]);
+
+  const expandNavigator = useCallback(() => {
+    clearNavigatorCollapseTimer();
+    setNavigatorCollapsed(false);
+  }, [clearNavigatorCollapseTimer]);
+
+  const onNavigatorMouseLeave = useCallback(() => {
+    scheduleNavigatorAutoCollapse();
+  }, [scheduleNavigatorAutoCollapse]);
+
+  useEffect(() => {
+    if (!chartData || !wheelData) return;
+    scheduleNavigatorAutoCollapse();
+    return () => {
+      clearNavigatorCollapseTimer();
+    };
+  }, [chartData, wheelData, scheduleNavigatorAutoCollapse, clearNavigatorCollapseTimer]);
+
+  useEffect(() => {
+    if (!chartData || !wheelData) return;
+
+    const observedSections = [
+      { key: 'chart' as const, element: chartSectionRef.current },
+      { key: 'forecast' as const, element: forecastSectionRef.current },
+      { key: 'analysis' as const, element: focusPanelRef.current },
+      { key: 'weekly' as const, element: weeklySectionRef.current },
+      { key: 'personality' as const, element: personalitySectionRef.current },
+      { key: 'prophecy' as const, element: prophecySectionRef.current },
+    ].filter((entry) => !!entry.element) as Array<{
+      key: 'chart' | 'forecast' | 'analysis' | 'weekly' | 'personality' | 'prophecy';
+      element: HTMLDivElement;
+    }>;
+
+    if (!observedSections.length) return;
+
+    const visibilityMap = new Map<string, number>();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const match = observedSections.find((section) => section.element === entry.target);
+          if (!match) continue;
+          visibilityMap.set(match.key, entry.isIntersecting ? entry.intersectionRatio : 0);
+        }
+
+        let bestKey: typeof activeNavSection = 'chart';
+        let bestRatio = 0;
+        for (const section of observedSections) {
+          const ratio = visibilityMap.get(section.key) || 0;
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestKey = section.key;
+          }
+        }
+
+        if (bestRatio > 0.08) {
+          setActiveNavSection(bestKey);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '-15% 0px -55% 0px',
+        threshold: [0.05, 0.15, 0.3, 0.5, 0.75],
+      },
+    );
+
+    for (const section of observedSections) {
+      observer.observe(section.element);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [chartData, wheelData, activeNavSection]);
+
+  const navigatorButtonClass = (key: typeof activeNavSection) => {
+    const isActive = activeNavSection === key;
+    if (isActive) {
+      return 'w-full text-left px-2 py-1.5 text-xs rounded border border-amber-400/50 bg-amber-500/20 text-amber-100 transition';
+    }
+    return 'w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition';
+  };
+
+  // Conditional render: Don't render until Clerk auth is loaded
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-pulse text-amber-400 text-2xl">✨</div>
+          <div className="text-gray-400">Loading your cosmic dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-400 mx-auto" />
+          <p className="text-slate-300">Redirecting to sign-in...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
@@ -2079,26 +2178,52 @@ export default function UnifiedDashboard() {
                 className="space-y-8"
               >
                 <div className="hidden xl:block fixed left-5 top-40 z-30">
-                  <div className="bg-slate-950/80 border border-slate-700/70 rounded-xl p-2.5 backdrop-blur shadow-lg space-y-2 w-44">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 px-1">Navigator</p>
-                    <button onClick={() => scrollToBlock(chartSectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to chart + chat">
-                      Chart + Chat
-                    </button>
-                    <button onClick={() => scrollToBlock(forecastSectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to daily forecast">
-                      Daily Forecast
-                    </button>
-                    <button onClick={() => scrollToBlock(focusPanelRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to analysis panels">
-                      Analysis Panels
-                    </button>
-                    <button onClick={() => scrollToBlock(weeklySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to weekly forecast">
-                      Weekly Forecast
-                    </button>
-                    <button onClick={() => scrollToBlock(personalitySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to dual MBTI cards">
-                      Dual MBTI Cards
-                    </button>
-                    <button onClick={() => scrollToBlock(prophecySectionRef)} className="w-full text-left px-2 py-1.5 text-xs rounded bg-slate-800/70 text-slate-200 hover:bg-slate-700 transition" title="Go to personal prophecy">
-                      Prophecy
-                    </button>
+                  <div
+                    className={`bg-slate-950/80 border border-slate-700/70 rounded-xl p-2.5 backdrop-blur shadow-lg transition-all ${navigatorCollapsed ? 'w-12' : 'w-44'} ${navigatorCollapsed ? '' : 'space-y-2'}`}
+                    onMouseEnter={expandNavigator}
+                    onMouseLeave={onNavigatorMouseLeave}
+                  >
+                    <div className="flex items-center justify-between px-1">
+                      {!navigatorCollapsed ? (
+                        <p className="text-[10px] uppercase tracking-wider text-slate-400">Navigator</p>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-wider text-slate-500">Nav</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearNavigatorCollapseTimer();
+                          setNavigatorCollapsed((prev) => !prev);
+                        }}
+                        title={navigatorCollapsed ? 'Expand navigator' : 'Collapse navigator'}
+                        className="text-slate-400 hover:text-slate-200 transition"
+                      >
+                        {navigatorCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+
+                    {!navigatorCollapsed ? (
+                      <>
+                        <button onClick={() => scrollToBlock(chartSectionRef)} className={navigatorButtonClass('chart')} title="Go to chart + chat">
+                          Chart + Chat
+                        </button>
+                        <button onClick={() => scrollToBlock(forecastSectionRef)} className={navigatorButtonClass('forecast')} title="Go to daily forecast">
+                          Daily Forecast
+                        </button>
+                        <button onClick={() => scrollToBlock(focusPanelRef)} className={navigatorButtonClass('analysis')} title="Go to analysis panels">
+                          Analysis Panels
+                        </button>
+                        <button onClick={() => scrollToBlock(weeklySectionRef)} className={navigatorButtonClass('weekly')} title="Go to weekly forecast">
+                          Weekly Forecast
+                        </button>
+                        <button onClick={() => scrollToBlock(personalitySectionRef)} className={navigatorButtonClass('personality')} title="Go to dual MBTI cards">
+                          Dual MBTI Cards
+                        </button>
+                        <button onClick={() => scrollToBlock(prophecySectionRef)} className={navigatorButtonClass('prophecy')} title="Go to personal prophecy">
+                          Prophecy
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
 
