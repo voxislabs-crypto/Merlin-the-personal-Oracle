@@ -182,6 +182,7 @@ export default function UnifiedDashboard() {
 
   const clientTier = React.useMemo(() => resolveClientTier(user), [user]);
   const featureFlags = React.useMemo(() => getClientFeatureFlags(clientTier), [clientTier]);
+  const premiumLocked = !featureFlags.premiumInsights;
   
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -847,6 +848,7 @@ export default function UnifiedDashboard() {
     calculateStorms,
     calculateTransits,
     calculateWeeklyForecast,
+    featureFlags.premiumInsights,
     generateInterpretations,
     interpretMode,
     isLoaded,
@@ -938,6 +940,7 @@ export default function UnifiedDashboard() {
     calculateWeeklyForecast,
     calculatePersonality,
     calculateStorms,
+    featureFlags.premiumInsights,
     interpretMode,
     mbtiType,
     userId,
@@ -1240,6 +1243,14 @@ export default function UnifiedDashboard() {
               <h1 className="text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
                 Your Cosmic Dashboard
               </h1>
+              {premiumLocked ? (
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/45 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold text-amber-100">
+                  Premium insights are locked on free tier
+                  <Link href="/checkout-subscription" className="underline underline-offset-2 hover:text-amber-50">
+                    Upgrade
+                  </Link>
+                </div>
+              ) : null}
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className={`px-3 py-1 text-xs rounded border font-medium ${calcSource === 'Swiss real' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : calcSource ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-slate-500 bg-slate-500/10 text-slate-300'}`}>
                   {calcSource ? calcSource : '⚙️ Calculating...'}
@@ -2007,37 +2018,42 @@ export default function UnifiedDashboard() {
                     <button
                       onClick={() => openSection('interpretation')}
                       title="Open your chart interpretation and narrative reading"
+                      disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition"
                     >
-                      Chart Reading
+                      Chart Reading{premiumLocked ? ' • Locked' : ''}
                     </button>
                     <button
                       onClick={() => openSection('transits')}
                       title="Open real-time active and approaching transits"
+                      disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition"
                     >
-                      Active Transits
+                      Active Transits{premiumLocked ? ' • Locked' : ''}
                     </button>
                     <button
                       onClick={() => openSection('lifearc')}
                       title="Open your long-term life timeline"
+                      disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition"
                     >
-                      Life Timeline
+                      Life Timeline{premiumLocked ? ' • Locked' : ''}
                     </button>
                     <button
                       onClick={() => openSection('personality')}
                       title="Open dual MBTI mask/core personality view"
+                      disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition"
                     >
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
                     </button>
                     <button
                       onClick={() => openSection('stormradar')}
                       title="Open storm radar with weekly pressure and recovery guidance"
+                      disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition"
                     >
-                      Storm Radar
+                      Storm Radar{premiumLocked ? ' • Locked' : ''}
                     </button>
                     <button
                       onClick={() => scrollToBlock(prophecySectionRef)}
@@ -2205,21 +2221,24 @@ export default function UnifiedDashboard() {
                 >
                   <h3 className="text-xl font-bold text-amber-300 mb-4">Focus Views</h3>
                   <p className="text-sm text-slate-300 mb-4">Open a dedicated view for each module.</p>
+                  {premiumLocked ? (
+                    <p className="text-xs text-amber-200 mb-3">These modules require a paid plan.</p>
+                  ) : null}
                   <div className="flex flex-wrap gap-3">
                     <Link href="/dashboard/chart-reading" className="px-4 py-2 rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition">
-                      Chart Reading
+                      Chart Reading{premiumLocked ? ' • Locked' : ''}
                     </Link>
                     <Link href="/dashboard/active-transits" className="px-4 py-2 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition">
-                      Active Transits
+                      Active Transits{premiumLocked ? ' • Locked' : ''}
                     </Link>
                     <Link href="/dashboard/life-timeline" className="px-4 py-2 rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition">
-                      Life Timeline
+                      Life Timeline{premiumLocked ? ' • Locked' : ''}
                     </Link>
                     <Link href="/dashboard/dual-mbti" className="px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition">
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
                     </Link>
                     <Link href="/dashboard/storm-radar" className="px-4 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition">
-                      Storm Radar
+                      Storm Radar{premiumLocked ? ' • Locked' : ''}
                     </Link>
                   </div>
                 </motion.div>
@@ -2429,8 +2448,18 @@ export default function UnifiedDashboard() {
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
                       >
+                        {premiumLocked ? (
+                          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
+                            <p className="font-semibold mb-2">This module is locked on your current plan.</p>
+                            <p className="text-amber-200/90 mb-3">Upgrade to unlock chart interpretations, transits, life timeline, personality insights, and storm radar.</p>
+                            <Link href="/checkout-subscription" className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300/50 bg-amber-500/20 hover:bg-amber-500/30 text-amber-50">
+                              Upgrade Plan
+                            </Link>
+                          </div>
+                        ) : null}
+
                         {/* Chart Interpretation */}
-                        {activeSection === 'interpretation' && (
+                        {!premiumLocked && activeSection === 'interpretation' && (
                           <div className="space-y-6">
                             <div className="space-y-4">
                               <div className="flex items-center gap-2 mb-6">
@@ -2473,7 +2502,7 @@ export default function UnifiedDashboard() {
                         )}
 
                         {/* Active Transits */}
-                        {activeSection === 'transits' && (
+                        {!premiumLocked && activeSection === 'transits' && (
                           <ActiveTransits
                             significant={transits?.significant || []}
                             approaching={transits?.approaching || []}
@@ -2497,7 +2526,7 @@ export default function UnifiedDashboard() {
                         )}
 
                         {/* Life Arc */}
-                        {activeSection === 'lifearc' && (
+                        {!premiumLocked && activeSection === 'lifearc' && (
 
                           <div className="space-y-4">
                             <div className="flex gap-2">
@@ -2532,7 +2561,7 @@ export default function UnifiedDashboard() {
                           </div>
                         )}
                         {/* Dual MBTI Personality Cards */}
-                        {activeSection === 'personality' && (
+                        {!premiumLocked && activeSection === 'personality' && (
                           <div className="space-y-4">
                             <p className="text-slate-400 text-sm">
                               Your natal chart encodes two layers of personality — the <span className="text-orange-300 font-semibold">Mask</span> the world sees (Sun/Ascendant) and the <span className="text-purple-300 font-semibold">Core</span> that drives you beneath (Moon/Mercury).
@@ -2548,7 +2577,7 @@ export default function UnifiedDashboard() {
                           </div>
                         )}
 
-                        {activeSection === 'stormradar' && (
+                        {!premiumLocked && activeSection === 'stormradar' && (
                           <div className="space-y-4">
                             <p className="text-slate-400 text-sm">
                               Forward-looking transit warnings with MBTI-personalized reaction and recovery guidance.
