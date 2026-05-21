@@ -8,14 +8,20 @@ interface ClerkProviderProps {
 }
 
 /**
- * Clerk Provider Wrapper
+* Clerk Provider Wrapper
  * Configured for secondary application with custom domain.
- * Domain and satellite config is handled via env vars:
- *   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, NEXT_PUBLIC_CLERK_CUSTOM_DOMAIN
+ * Satellite apps require absolute URLs for signInUrl/signUpUrl.
  */
 export function ClerkProvider({ children }: ClerkProviderProps) {
+  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin.voxislabs.com';
+  const url = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
+
   return (
     <BaseClerkProvider
+      signInUrl={`${url}/sign-in`}
+      signUpUrl={`${url}/sign-up`}
+      signInFallbackRedirectUrl={`${url}/dashboard`}
+      signUpFallbackRedirectUrl={`${url}/dashboard`}
       appearance={{
         variables: {
           colorPrimary: '#f59e0b', // Amber-500
