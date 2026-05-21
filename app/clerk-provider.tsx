@@ -7,21 +7,39 @@ interface ClerkProviderProps {
   children: ReactNode;
 }
 
+const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin.voxislabs.com';
+const appUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
+
+const resolveAbsoluteUrl = (value: string | undefined, fallbackPath: string) => {
+  if (!value) {
+    return `${appUrl}${fallbackPath}`;
+  }
+
+  return value.startsWith('http') ? value : `${appUrl}${value.startsWith('/') ? value : `/${value}`}`;
+};
+
 /**
-* Clerk Provider Wrapper
- * Configured for secondary application with custom domain.
- * Satellite apps require absolute URLs for signInUrl/signUpUrl.
+ * Clerk Provider Wrapper.
+ * Secondary apps need the domain/satellite settings and absolute sign-in URLs.
  */
 export function ClerkProvider({ children }: ClerkProviderProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin.voxislabs.com';
-  const url = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
+  const signInUrl = resolveAbsoluteUrl(process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL, '/sign-in');
+  const signUpUrl = resolveAbsoluteUrl(process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL, '/sign-up');
+  const signInFallbackRedirectUrl = resolveAbsoluteUrl(
+    process.env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL,
+    '/dashboard',
+  );
+  const signUpFallbackRedirectUrl = resolveAbsoluteUrl(
+    process.env.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL,
+    '/dashboard',
+  );
 
   return (
     <BaseClerkProvider
-      signInUrl={`${url}/sign-in`}
-      signUpUrl={`${url}/sign-up`}
-      signInFallbackRedirectUrl={`${url}/dashboard`}
-      signUpFallbackRedirectUrl={`${url}/dashboard`}
+      signInUrl={signInUrl}
+      signUpUrl={signUpUrl}
+      signInFallbackRedirectUrl={signInFallbackRedirectUrl}
+      signUpFallbackRedirectUrl={signUpFallbackRedirectUrl}
       appearance={{
         variables: {
           colorPrimary: '#f59e0b', // Amber-500
