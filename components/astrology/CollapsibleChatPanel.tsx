@@ -392,6 +392,17 @@ export function CollapsibleChatPanel({
     setTtsFallback(false);
   }, []);
 
+  useEffect(() => {
+    const handleGlobalStop = () => {
+      stopCurrentSpeech();
+    };
+
+    window.addEventListener('merlin-stop-all-audio', handleGlobalStop);
+    return () => {
+      window.removeEventListener('merlin-stop-all-audio', handleGlobalStop);
+    };
+  }, [stopCurrentSpeech]);
+
   // Load Clarity Mode setting from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('merlin_clarity_mode');

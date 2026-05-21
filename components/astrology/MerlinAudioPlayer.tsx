@@ -238,6 +238,18 @@ export function MerlinAudioPlayer({ text, label = 'Read My Chart', className = '
     setNarratorSentences([]);
   }, []);
 
+  useEffect(() => {
+    const handleGlobalStop = () => {
+      doStop();
+      setNarratorOpen(false);
+    };
+
+    window.addEventListener('merlin-stop-all-audio', handleGlobalStop);
+    return () => {
+      window.removeEventListener('merlin-stop-all-audio', handleGlobalStop);
+    };
+  }, [doStop]);
+
   async function safePlay(audio: HTMLAudioElement, retries = 2): Promise<void> {
     let lastError: unknown;
     for (let i = 0; i <= retries; i++) {

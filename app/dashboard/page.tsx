@@ -39,7 +39,7 @@ import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, ChevronLeft, ChevronRight, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Flame, MessageCircle, RefreshCcw, Sparkles, ScrollText, VolumeX } from 'lucide-react';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 import {
@@ -56,6 +56,7 @@ import {
   type CalibrationSortMode,
 } from '@/lib/dashboard/calibration-history';
 import { getMBTITypeDescription, applyMBTIOverlay } from '@/lib/mbti-overlay';
+import { globalAudioManager } from '@/lib/global-audio-manager';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -1164,6 +1165,26 @@ export default function UnifiedDashboard() {
     }
   }, [appendDashboardEvent, activeSection]);
 
+  const stopAllVoicePlayback = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    if (globalAudioManager) {
+      globalAudioManager.stop();
+      globalAudioManager.clearCallbacks();
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    window.dispatchEvent(new Event('merlin-stop-all-audio'));
+
+    toast({
+      title: 'Voice muted',
+      description: 'Stopped all active Merlin audio.',
+    });
+  }, [toast]);
+
   const clearAskContext = useCallback(() => {
     setAskDraftLabel('');
     setAskDraftPrompt('');
@@ -1534,6 +1555,17 @@ export default function UnifiedDashboard() {
                 )}
               </div>
               <p className="text-gray-300 text-lg">One place. Your whole story.</p>
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={stopAllVoicePlayback}
+                  className="inline-flex items-center gap-2 rounded-lg border border-rose-400/45 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 transition"
+                  title="Stop all Merlin voice playback"
+                >
+                  <VolumeX className="h-3.5 w-3.5" />
+                  Mute Voice
+                </button>
+              </div>
             </motion.div>
 
             {chartData && showOnboarding ? (
