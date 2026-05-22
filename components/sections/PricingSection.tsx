@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Check, X, Sparkles } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 
@@ -175,6 +175,12 @@ export function PricingSection() {
 
             <Link
               href="/dashboard"
+              onClick={(e) => {
+                if (typeof window !== 'undefined' && !isSignedIn) {
+                  e.preventDefault();
+                  window.location.href = '/sign-up?redirect_url=' + encodeURIComponent('/dashboard');
+                }
+              }}
               className="block w-full py-3 px-6 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg font-semibold text-center transition-all duration-300 mb-6"
             >
               Try Free Version

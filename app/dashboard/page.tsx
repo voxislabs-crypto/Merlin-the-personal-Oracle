@@ -457,7 +457,7 @@ export default function UnifiedDashboard() {
         description: 'Please sign in to open your dashboard.',
         variant: 'destructive',
       });
-      router.replace('/sign-in');
+      router.replace('/sign-in?redirect_url=' + encodeURIComponent('/dashboard'));
     } else {
       // Set userId from Clerk user
       setUserId(user.id || `user-${Date.now()}`);
