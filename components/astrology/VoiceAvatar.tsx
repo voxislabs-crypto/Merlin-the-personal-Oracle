@@ -10,6 +10,7 @@ interface VoiceAvatarProps {
   audioRef?: React.RefObject<HTMLAudioElement>;
   messageText?: string;
   portraitImage?: string; // Base64 or URL to Merlin portrait
+  compact?: boolean;
 }
 
 /**
@@ -28,6 +29,7 @@ export const VoiceAvatar: React.FC<VoiceAvatarProps> = ({
   audioRef,
   messageText = '',
   portraitImage,
+  compact = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -226,14 +228,14 @@ export const VoiceAvatar: React.FC<VoiceAvatarProps> = ({
   return (
     <motion.div
       ref={containerRef}
-      className="flex flex-col items-center justify-center w-full max-w-sm mx-auto p-4"
+      className={`flex flex-col items-center justify-center w-full mx-auto ${compact ? 'max-w-[220px] p-1' : 'max-w-sm p-4'}`}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
       {/* Avatar Container */}
       <motion.div
-        className="relative w-80 h-96 rounded-2xl overflow-hidden shadow-2xl"
+        className={`relative overflow-hidden shadow-2xl ${compact ? 'w-[210px] h-[210px] rounded-xl' : 'w-80 h-96 rounded-2xl'}`}
         style={{
           perspective: '1200px',
           background: 'linear-gradient(160deg, #06111f 0%, #141b38 45%, #090d1b 100%)',
@@ -373,13 +375,13 @@ export const VoiceAvatar: React.FC<VoiceAvatarProps> = ({
 
       {/* Status Indicator */}
       <motion.div
-        className="mt-4 text-center"
+        className={`${compact ? 'mt-2' : 'mt-4'} text-center`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
         <motion.div
-          className="inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-slate-950/50 px-4 py-2"
+          className={`inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-slate-950/50 ${compact ? 'px-2.5 py-1' : 'px-4 py-2'}`}
           animate={{ opacity: isPlaying || isThinking ? [0.72, 1, 0.72] : 0.88 }}
           transition={{ duration: 2, repeat: isPlaying || isThinking ? Infinity : 0 }}
         >
@@ -397,7 +399,7 @@ export const VoiceAvatar: React.FC<VoiceAvatarProps> = ({
             }}
             transition={{ duration: 1, repeat: state === 'idle' ? 0 : Infinity }}
           />
-          <span className="text-xs font-medium text-cyan-100/90">
+          <span className={`${compact ? 'text-[10px]' : 'text-xs'} font-medium text-cyan-100/90`}>
             {state === 'speaking'
               ? 'Speaking'
               : state === 'thinking'
@@ -408,7 +410,7 @@ export const VoiceAvatar: React.FC<VoiceAvatarProps> = ({
           </span>
         </motion.div>
 
-        {messageText ? (
+        {!compact && messageText ? (
           <p className="mx-auto mt-3 max-w-xs text-[11px] leading-relaxed text-slate-400">
             {state === 'speaking'
               ? 'Merlin is voicing the current thread.'

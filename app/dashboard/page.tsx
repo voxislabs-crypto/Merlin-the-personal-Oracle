@@ -1568,6 +1568,73 @@ export default function UnifiedDashboard() {
               </div>
             </motion.div>
 
+            {chartData ? (
+              <motion.section
+                className="mb-8"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="rounded-2xl border border-cyan-300/20 bg-gradient-to-r from-slate-900/95 via-slate-900/85 to-cyan-950/20 p-4 md:p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-200/80">Start Here</p>
+                      <h2 className="mt-1 text-lg md:text-xl font-semibold text-cyan-50">New to Merlin? Use this route.</h2>
+                      <p className="mt-1 text-sm text-slate-300/90">You do not need every module at once. Run this in order and the dashboard makes more sense fast.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handlePrimaryAskMerlin}
+                      className="self-start rounded-full border border-cyan-300/40 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/25"
+                    >
+                      Ask Merlin now
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-2.5 md:grid-cols-4">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('wheel')}
+                      className="text-left rounded-xl border border-blue-300/20 bg-blue-500/10 px-3 py-2.5 hover:bg-blue-500/20 transition"
+                    >
+                      <p className="text-xs uppercase tracking-[0.18em] text-blue-200/80">Step 1</p>
+                      <p className="mt-1 text-sm font-medium text-blue-50">Chart Reading</p>
+                      <p className="mt-1 text-xs text-blue-100/85">See your core placements and baseline pattern.</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('forecast')}
+                      className="text-left rounded-xl border border-amber-300/20 bg-amber-500/10 px-3 py-2.5 hover:bg-amber-500/20 transition"
+                    >
+                      <p className="text-xs uppercase tracking-[0.18em] text-amber-200/80">Step 2</p>
+                      <p className="mt-1 text-sm font-medium text-amber-50">Daily Forecast</p>
+                      <p className="mt-1 text-xs text-amber-100/85">Know what is active today and where pressure sits.</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('stormradar')}
+                      className="text-left rounded-xl border border-rose-300/20 bg-rose-500/10 px-3 py-2.5 hover:bg-rose-500/20 transition"
+                    >
+                      <p className="text-xs uppercase tracking-[0.18em] text-rose-200/80">Step 3</p>
+                      <p className="mt-1 text-sm font-medium text-rose-50">Storm Radar</p>
+                      <p className="mt-1 text-xs text-rose-100/85">Preview likely friction windows and what to avoid.</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handlePrimaryAskMerlin}
+                      className="text-left rounded-xl border border-cyan-300/20 bg-cyan-500/10 px-3 py-2.5 hover:bg-cyan-500/20 transition"
+                    >
+                      <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Step 4</p>
+                      <p className="mt-1 text-sm font-medium text-cyan-50">Ask Merlin</p>
+                      <p className="mt-1 text-xs text-cyan-100/85">Turn the data into one concrete next move.</p>
+                    </button>
+                  </div>
+                </div>
+              </motion.section>
+            ) : null}
+
             {chartData && showOnboarding ? (
               <motion.section
                 className="mb-8"

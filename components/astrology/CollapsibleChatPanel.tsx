@@ -42,6 +42,7 @@ interface CollapsibleChatPanelProps {
   userId?: string;
   isExpanded?: boolean;
   onToggleExpand?: Dispatch<SetStateAction<boolean>>;
+  // eslint-disable-next-line no-unused-vars
   onUserMessageSent?: (message: string) => void;
   mbtiType?: string; // MBTI archetype for Storm-Radar cross-reference
   clarityMode?: boolean; // Controlled from parent dashboard; falls back to localStorage
@@ -789,10 +790,11 @@ export function CollapsibleChatPanel({
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           transition={{ duration: 0.3 }}
-          className="flex justify-center pb-4 border-b border-purple-500/20"
+          className="flex justify-center pb-3 border-b border-purple-500/20 overflow-hidden"
         >
-          <div className="w-48 h-56">
+          <div className="w-full max-w-[220px]">
             <VoiceAvatar
+              compact
               isPlaying={isSpeaking}
               isThinking={isLoading || !!streamingContent}
               audioRef={globalAudioRef}
