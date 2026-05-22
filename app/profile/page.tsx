@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Eye, Sparkles, Scroll, MessageCircle } from "lucide-react";
 import type { OracleTonePreset } from '@/lib/oracle-output';
+import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 
 type ReadingPreset = 'plain' | 'warm' | 'bullshit' | 'oracle';
 type InterpretationMode = 'grok' | 'traditional';
@@ -24,95 +25,19 @@ export default function ProfilePage() {
   const [ancientLayer, setAncientLayer] = useState(false);
   const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
   const [syncMessage, setSyncMessage] = useState('');
+  const { preferences, persistPreferences } = useOraclePreferences({ enabled: isLoaded && !!user });
 
   useEffect(() => {
-    const saved = localStorage.getItem('merlin_clarity_mode');
-    if (saved !== null) setClarityMode(saved !== 'false');
-    const savedNoBullshit = localStorage.getItem('merlin_no_bullshit_mode');
-    if (savedNoBullshit !== null) setNoBullshitMode(savedNoBullshit === 'true');
-    const savedQuestLog = localStorage.getItem('merlin_quest_log_enabled');
-    if (savedQuestLog !== null) setQuestLogEnabled(savedQuestLog !== 'false');
-    const savedInterpretationMode = localStorage.getItem('merlin_interpretation_mode');
-    if (savedInterpretationMode === 'grok' || savedInterpretationMode === 'traditional') {
-      setInterpretationMode(savedInterpretationMode);
-    }
-    const savedTone = localStorage.getItem('merlin_oracle_tone') as OracleTonePreset | null;
-    if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
-      setOracleTonePreset(savedTone);
-    }
-    const savedMode = localStorage.getItem('merlin_oracle_mode') as OracleMode | null;
-    if (savedMode && ['auto', 'casual', 'detailed'].includes(savedMode)) {
-      setOracleMode(savedMode);
-    }
-    const savedLikelihood = localStorage.getItem('merlin_include_likelihood');
-    if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
-    const savedAncient = localStorage.getItem('merlin_ancient_layer');
-    if (savedAncient !== null) setAncientLayer(savedAncient === 'true');
-    const savedProphecyPolish = localStorage.getItem('merlin_prophecy_polish_mode');
-    if (savedProphecyPolish === 'engine' || savedProphecyPolish === 'groq') {
-      setProphecyPolishMode(savedProphecyPolish);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-
-    const loadOraclePreferences = async () => {
-      try {
-        const response = await fetch('/api/oracle-preferences');
-        if (!response.ok) return;
-
-        const result = await response.json();
-        const preferences = result?.data;
-
-        if (typeof preferences?.clarityMode === 'boolean') {
-          setClarityMode(preferences.clarityMode);
-          localStorage.setItem('merlin_clarity_mode', String(preferences.clarityMode));
-        }
-        if (preferences?.interpretationMode === 'grok' || preferences?.interpretationMode === 'traditional') {
-          setInterpretationMode(preferences.interpretationMode);
-          localStorage.setItem('merlin_interpretation_mode', preferences.interpretationMode);
-        }
-        if (typeof preferences?.noBullshitMode === 'boolean') {
-          setNoBullshitMode(preferences.noBullshitMode);
-          localStorage.setItem('merlin_no_bullshit_mode', String(preferences.noBullshitMode));
-        }
-        if (typeof preferences?.questLogEnabled === 'boolean') {
-          setQuestLogEnabled(preferences.questLogEnabled);
-          localStorage.setItem('merlin_quest_log_enabled', String(preferences.questLogEnabled));
-        }
-        if (
-          preferences?.oracleTonePreset === 'warm' ||
-          preferences?.oracleTonePreset === 'direct' ||
-          preferences?.oracleTonePreset === 'mystic' ||
-          preferences?.oracleTonePreset === 'strategic'
-        ) {
-          setOracleTonePreset(preferences.oracleTonePreset);
-          localStorage.setItem('merlin_oracle_tone', preferences.oracleTonePreset);
-        }
-        if (preferences?.oracleMode === 'auto' || preferences?.oracleMode === 'casual' || preferences?.oracleMode === 'detailed') {
-          setOracleMode(preferences.oracleMode);
-          localStorage.setItem('merlin_oracle_mode', preferences.oracleMode);
-        }
-        if (typeof preferences?.includeLikelihood === 'boolean') {
-          setIncludeLikelihood(preferences.includeLikelihood);
-          localStorage.setItem('merlin_include_likelihood', String(preferences.includeLikelihood));
-        }
-        if (typeof preferences?.ancientLayer === 'boolean') {
-          setAncientLayer(preferences.ancientLayer);
-          localStorage.setItem('merlin_ancient_layer', String(preferences.ancientLayer));
-        }
-        if (preferences?.prophecyPolishMode === 'engine' || preferences?.prophecyPolishMode === 'groq') {
-          setProphecyPolishMode(preferences.prophecyPolishMode);
-          localStorage.setItem('merlin_prophecy_polish_mode', preferences.prophecyPolishMode);
-        }
-      } catch {
-        // Local preferences remain the fallback if account sync is unavailable.
-      }
-    };
-
-    loadOraclePreferences();
-  }, [isLoaded, user]);
+    setClarityMode(preferences.clarityMode);
+    setInterpretationMode(preferences.interpretationMode);
+    setNoBullshitMode(preferences.noBullshitMode);
+    setQuestLogEnabled(preferences.questLogEnabled);
+    setOracleTonePreset(preferences.oracleTonePreset);
+    setOracleMode(preferences.oracleMode);
+    setIncludeLikelihood(preferences.includeLikelihood);
+    setAncientLayer(preferences.ancientLayer);
+    setProphecyPolishMode(preferences.prophecyPolishMode);
+  }, [preferences]);
 
   const persistOraclePreferences = async (next: Partial<{
     clarityMode: boolean;
@@ -126,13 +51,8 @@ export default function ProfilePage() {
     prophecyPolishMode: ProphecyPolishMode;
   }>) => {
     try {
-      const response = await fetch('/api/oracle-preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next),
-      });
-
-      if (!response.ok) {
+      const { synced } = await persistPreferences(next);
+      if (!synced && user) {
         throw new Error('Sync failed');
       }
 

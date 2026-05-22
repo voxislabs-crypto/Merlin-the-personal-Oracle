@@ -15,6 +15,7 @@ import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 import { useOracleChatStream } from '@/hooks/useOracleChatStream';
 import type { OracleMode } from '@/lib/oracle-chat-client';
+import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -87,6 +88,8 @@ export function CollapsibleChatPanel({
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [activeDraftLabel, setActiveDraftLabel] = useState<string | null>(null);
+  const preferencesSyncEnabled = Boolean(userId && userId !== 'anonymous');
+  const { preferences, persistPreferences } = useOraclePreferences({ enabled: preferencesSyncEnabled });
   // Use parent-controlled value if provided, else internal state
   const plainEnglish = clarityModeProp !== undefined ? clarityModeProp : plainEnglishInternal;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -404,23 +407,15 @@ export function CollapsibleChatPanel({
     };
   }, [stopCurrentSpeech]);
 
-  // Load Clarity Mode setting from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('merlin_clarity_mode');
-    if (saved !== null) setPlainEnglishInternal(saved !== 'false');
-    const savedTone = localStorage.getItem('merlin_oracle_tone') as OracleTonePreset | null;
-    if (savedTone && ['warm', 'direct', 'mystic', 'strategic'].includes(savedTone)) {
-      setTonePreset(savedTone);
+    setTonePreset(preferences.oracleTonePreset);
+    setOracleMode(preferences.oracleMode);
+    setIncludeLikelihood(preferences.includeLikelihood);
+    setAncientLayer(preferences.ancientLayer);
+    if (clarityModeProp === undefined) {
+      setPlainEnglishInternal(preferences.clarityMode);
     }
-    const savedMode = localStorage.getItem('merlin_oracle_mode') as OracleMode | null;
-    if (savedMode && ['auto', 'casual', 'detailed'].includes(savedMode)) {
-      setOracleMode(savedMode);
-    }
-    const savedLikelihood = localStorage.getItem('merlin_include_likelihood');
-    if (savedLikelihood !== null) setIncludeLikelihood(savedLikelihood !== 'false');
-    const savedAncient = localStorage.getItem('merlin_ancient_layer');
-    if (savedAncient !== null) setAncientLayer(savedAncient === 'true');
-  }, []);
+  }, [preferences, clarityModeProp]);
 
   useEffect(() => {
     const loadServerTone = async () => {
@@ -429,11 +424,6 @@ export function CollapsibleChatPanel({
         const response = await fetch(`/api/user-context?userId=${encodeURIComponent(userId)}`);
         if (!response.ok) return;
         const result = await response.json();
-        const tone = result?.data?.oracleTonePreset as OracleTonePreset | undefined;
-        if (tone && ['warm', 'direct', 'mystic', 'strategic'].includes(tone)) {
-          setTonePreset(tone);
-          localStorage.setItem('merlin_oracle_tone', tone);
-        }
         if (result?.data?.archetypeName || result?.data?.patternSignature || result?.data?.coreContradiction) {
           setIdentityPack({
             archetypeName: result.data.archetypeName,
@@ -457,40 +447,6 @@ export function CollapsibleChatPanel({
     loadServerTone();
   }, [userId]);
 
-  useEffect(() => {
-    const loadServerPreferences = async () => {
-      if (!userId || userId === 'anonymous') return;
-      try {
-        const response = await fetch('/api/oracle-preferences');
-        if (!response.ok) return;
-
-        const result = await response.json();
-        const clarityMode = result?.data?.clarityMode;
-        if (typeof clarityMode === 'boolean') {
-          setPlainEnglishInternal(clarityMode);
-          localStorage.setItem('merlin_clarity_mode', String(clarityMode));
-        }
-        const mode = result?.data?.oracleMode as OracleMode | undefined;
-        if (mode && ['auto', 'casual', 'detailed'].includes(mode)) {
-          setOracleMode(mode);
-          localStorage.setItem('merlin_oracle_mode', mode);
-        }
-        if (typeof result?.data?.includeLikelihood === 'boolean') {
-          setIncludeLikelihood(result.data.includeLikelihood);
-          localStorage.setItem('merlin_include_likelihood', String(result.data.includeLikelihood));
-        }
-        if (typeof result?.data?.ancientLayer === 'boolean') {
-          setAncientLayer(result.data.ancientLayer);
-          localStorage.setItem('merlin_ancient_layer', String(result.data.ancientLayer));
-        }
-      } catch {
-        // Local storage remains the fallback.
-      }
-    };
-
-    loadServerPreferences();
-  }, [userId]);
-
   const toggleClarityMode = () => {
     if (onClarityChange) {
       // Delegate to parent when controlled
@@ -498,16 +454,7 @@ export function CollapsibleChatPanel({
     } else {
       const next = !plainEnglishInternal;
       setPlainEnglishInternal(next);
-      localStorage.setItem('merlin_clarity_mode', String(next));
-      if (userId && userId !== 'anonymous') {
-        fetch('/api/oracle-preferences', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clarityMode: next }),
-        }).catch(() => {
-          // Keep local preference if server sync is temporarily unavailable.
-        });
-      }
+      void persistPreferences({ clarityMode: next });
     }
   };
 
