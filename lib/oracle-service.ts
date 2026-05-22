@@ -653,8 +653,10 @@ STORM DOMAINS TO SCAN (check all, report active ones):
  */
 export function generateTacticalSuggestions(
   response: string,
-  chart: BirthChartData | undefined
+  chart: BirthChartData | undefined,
+  context: OracleContext
 ): string[] {
+  void context;
   const tactics: string[] = [];
 
   // Check if response mentions action/doing
