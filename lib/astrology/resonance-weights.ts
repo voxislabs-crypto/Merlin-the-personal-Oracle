@@ -50,6 +50,35 @@ export interface ResonanceWeightsProfile {
   };
 }
 
+const EMPTY_RESONANCE_PROFILE: ResonanceWeightsProfile = {
+  multipliers: {},
+  planetBreakdown: {},
+  history: [],
+  summary: {
+    feedbackCount: 0,
+    strongestPlanet: undefined,
+    strongestMultiplier: undefined,
+  },
+};
+
+function isMissingResonanceTableError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  const message = (error as { message?: string } | null)?.message || '';
+
+  if (code === 'P2021') {
+    return true;
+  }
+
+  return (
+    message.includes('does not exist in the current database') &&
+    (message.includes('ResonanceUser') ||
+      message.includes('PersonalResonanceRecord') ||
+      message.includes('GlobalResonanceRecord') ||
+      message.includes('ClusterResonanceRecord') ||
+      message.includes('ResonanceFeedbackRecord'))
+  );
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -73,7 +102,16 @@ function humanizeAspectId(aspectId: string): string {
 }
 
 export async function getResonanceWeightsProfile(userId: string): Promise<ResonanceWeightsProfile> {
-  const logs = await resonanceDB.getFeedbackHistory(userId, 80);
+  let logs;
+  try {
+    logs = await resonanceDB.getFeedbackHistory(userId, 80);
+  } catch (error) {
+    if (isMissingResonanceTableError(error)) {
+      console.warn('[ResonanceWeights] Resonance tables missing, using empty profile');
+      return EMPTY_RESONANCE_PROFILE;
+    }
+    throw error;
+  }
   const buckets = new Map<KnownPlanet, { signalTotal: number; accuracyTotal: number; wins: number; misses: number }>();
 
   const history: ResonanceTimelineEntry[] = logs.map((entry) => {

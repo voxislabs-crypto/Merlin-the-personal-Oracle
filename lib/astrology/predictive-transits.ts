@@ -102,6 +102,24 @@ export interface PredictiveTransitBundle {
   events: PredictiveTransitEvent[];
 }
 
+function isMissingResonanceTableError(error: unknown): boolean {
+  const code = (error as { code?: string } | null)?.code;
+  const message = (error as { message?: string } | null)?.message || '';
+
+  if (code === 'P2021') {
+    return true;
+  }
+
+  return (
+    message.includes('does not exist in the current database') &&
+    (message.includes('ResonanceUser') ||
+      message.includes('PersonalResonanceRecord') ||
+      message.includes('GlobalResonanceRecord') ||
+      message.includes('ClusterResonanceRecord') ||
+      message.includes('ResonanceFeedbackRecord'))
+  );
+}
+
 const ASPECT_ORB_MAX: Record<string, number> = {
   Conjunction: 10,
   Sextile: 6,
@@ -618,6 +636,7 @@ export async function buildPredictiveTransitBundle(params: {
   const progressedMoon = getProgressedMoonProfile(natalPlanets, birthDate, now);
 
   const samplesByEvent = new Map<string, Array<{ date: Date; transit: TransitMatch }>>();
+  let resonanceUnavailable = false;
   const totalHours = windowDays * 24;
 
   for (let hourOffset = 0; hourOffset <= totalHours; hourOffset += 6) {
@@ -676,9 +695,19 @@ export async function buildPredictiveTransitBundle(params: {
       contextMultiplier;
     const preContextDomains = buildDomainImpacts(currentSample.transit, Math.round(intensityRaw), contextModifiers);
     const primaryTheme = [...preContextDomains].sort((a, b) => b.impact - a.impact)[0]?.name || 'career';
-    const adjustedWeight = userId
-      ? await resonanceDB.calculateFinalWeight(userId, eventId, primaryTheme, intensityRaw / 100)
-      : intensityRaw / 100;
+    let adjustedWeight = intensityRaw / 100;
+    if (userId && !resonanceUnavailable) {
+      try {
+        adjustedWeight = await resonanceDB.calculateFinalWeight(userId, eventId, primaryTheme, intensityRaw / 100);
+      } catch (error) {
+        if (isMissingResonanceTableError(error)) {
+          resonanceUnavailable = true;
+          console.warn('[PredictiveTransits] Resonance tables missing, using base weighting');
+        } else {
+          console.warn('[PredictiveTransits] Failed to apply resonance weighting:', error);
+        }
+      }
+    }
     const learnedAdjustment = Number((adjustedWeight - intensityRaw / 100).toFixed(2));
     const intensity = clamp(Math.round(adjustedWeight * 100), 0, 100);
 
