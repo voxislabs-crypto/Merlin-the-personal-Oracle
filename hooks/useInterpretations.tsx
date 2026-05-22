@@ -80,11 +80,17 @@ export function useInterpretations() {
           })
         });
 
+        const result = await response.json();
+
         if (!response.ok) {
-          throw new Error(`Error: ${response.statusText}`);
+          const message =
+            result?.error ||
+            (response.status === 403
+              ? 'Chart interpretations are currently unavailable for your plan.'
+              : `Error: ${response.statusText || `HTTP ${response.status}`}`);
+          throw new Error(message);
         }
 
-        const result = await response.json();
         if (!result.success) {
           throw new Error(result.error || 'Failed to generate interpretations');
         }

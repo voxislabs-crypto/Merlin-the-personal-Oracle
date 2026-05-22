@@ -57,6 +57,7 @@ import {
 } from '@/lib/dashboard/calibration-history';
 import { getMBTITypeDescription, applyMBTIOverlay } from '@/lib/mbti-overlay';
 import { globalAudioManager } from '@/lib/global-audio-manager';
+import { resolveTierFromMetadata, type SubscriptionTier } from '@/lib/subscription-tier';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -77,7 +78,7 @@ type DashboardEvent = {
   detail: Record<string, unknown>;
 };
 
-type ClientTier = 'free' | 'trial' | 'monthly' | 'lifetime';
+type ClientTier = SubscriptionTier;
 
 type ClientFeatureFlags = {
   premiumInsights: boolean;
@@ -85,17 +86,16 @@ type ClientFeatureFlags = {
 };
 
 function resolveClientTier(user: ReturnType<typeof useUser>['user']): ClientTier {
-  const tier = user?.publicMetadata?.tier as ClientTier | undefined;
-  const subscriptionStatus = user?.publicMetadata?.subscriptionStatus as string | undefined;
-
-  if (tier && ['free', 'trial', 'monthly', 'lifetime'].includes(tier)) {
-    return tier;
+  if (!user) {
+    return process.env.NODE_ENV === 'development' ? 'trial' : 'free';
   }
 
-  if (subscriptionStatus === 'trialing') return 'trial';
-  if (subscriptionStatus === 'active') return 'monthly';
-  if (subscriptionStatus === 'lifetime') return 'lifetime';
-  return 'free';
+  const clientUser = user as unknown as {
+    publicMetadata?: Record<string, unknown>;
+    unsafeMetadata?: Record<string, unknown>;
+  };
+
+  return resolveTierFromMetadata([clientUser.publicMetadata, clientUser.unsafeMetadata], 'free');
 }
 
 function getClientFeatureFlags(tier: ClientTier): ClientFeatureFlags {
@@ -2732,7 +2732,10 @@ export default function UnifiedDashboard() {
                           forecast?.summary ||
                           (forecastLoading
                             ? 'Loading forecast...'
-                            : forecastError?.message || 'The cosmic story is quiet right now. Please try again in a moment.')
+                            : forecastError?.message ||
+                              (featureFlags.premiumInsights
+                                ? 'The cosmic story is quiet right now. Please try again in a moment.'
+                                : 'Daily forecast is currently unavailable for your plan.'))
                         }
                         planetaryHighlights={forecast?.planetaryHighlights || []}
                         moonPhase={forecast?.moonPhase || 'Unknown'}

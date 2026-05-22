@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
+import { resolveTierFromMetadata } from '@/lib/subscription-tier';
 
 /**
  * Subscription tier definitions with feature access
@@ -87,33 +88,28 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
  * Signed-in users without explicit metadata: free.
  */
 export async function getUserTier(): Promise<SubscriptionTier> {
-  const user = await currentUser();
-  
-  if (!user) {
+  const { userId } = await auth();
+
+  if (!userId) {
     // Development: Allow access to test all features
     // In production with payment, this would be 'free'
     const isDev = process.env.NODE_ENV === 'development';
     return isDev ? 'trial' : 'free';
   }
 
-  const tier = user.publicMetadata?.tier as SubscriptionTier | undefined;
-  const subscriptionStatus = user.publicMetadata?.subscriptionStatus as string | undefined;
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
 
-  // Map subscription status to tier if tier not explicitly set
-  if (!tier && subscriptionStatus) {
-    switch (subscriptionStatus) {
-      case 'trialing':
-        return 'trial';
-      case 'active':
-        return 'monthly'; // Default paid tier
-      case 'lifetime':
-        return 'lifetime';
-      default:
-        return 'free';
-    }
-  }
+  const serverUser = user as unknown as {
+    publicMetadata?: Record<string, unknown>;
+    privateMetadata?: Record<string, unknown>;
+    unsafeMetadata?: Record<string, unknown>;
+  };
 
-  return tier || 'free';
+  return resolveTierFromMetadata(
+    [serverUser.publicMetadata, serverUser.privateMetadata, serverUser.unsafeMetadata],
+    'free'
+  );
 }
 
 /**
