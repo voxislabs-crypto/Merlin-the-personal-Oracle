@@ -15,7 +15,7 @@ import {
 } from '@/lib/astrology/resonance-weights';
 import { generateGrokInterpretation } from '@/lib/grok-service';
 import { BirthChartData } from '@/types/astrology';
-import { validateFeatureAccess } from '@/lib/subscription-validation';
+import { getTierFeatures, getUserTier } from '@/lib/subscription-validation';
 import { getUserContextSnapshot } from '@/lib/user-context';
 import { enhanceResponse } from '@/lib/astrology/ancient-astrology';
 
@@ -155,13 +155,16 @@ export async function POST(request: Request) {
   console.log('Received request for chart interpretation');
   
   // Check subscription tier
-  const hasAccess = await validateFeatureAccess('canAccessInterpretations');
+  const tier = await getUserTier();
+  const hasAccess = getTierFeatures(tier).canAccessInterpretations;
   if (!hasAccess) {
+    console.warn('[Interpret API] Blocked by tier:', tier);
     return NextResponse.json(
       {
         success: false,
-        error: 'Chart Interpretations are not available on the free tier',
+        error: `Chart Interpretations are not available on the ${tier} tier`,
         code: 'FEATURE_NOT_AVAILABLE',
+        tier,
       },
       { status: 403 }
     );
