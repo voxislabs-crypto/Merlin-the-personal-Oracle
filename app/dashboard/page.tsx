@@ -2355,6 +2355,15 @@ export default function UnifiedDashboard() {
                             <p className="mt-2 text-xs text-slate-400">Each signal is individually opt-in and can stay off until you want more refinement.</p>
                           </div>
 
+                          <div className="rounded-xl border border-violet-400/15 bg-violet-950/10 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Privacy & Influence</p>
+                            <div className="space-y-2 text-xs text-slate-300">
+                              <p>Calendar: only used for workload and timing pressure when enabled.</p>
+                              <p>Location: only used for local rhythm and day-cycle context when enabled.</p>
+                              <p>Sleep: only used for recovery and stamina weighting when enabled.</p>
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <input
                               type="text"
@@ -2480,6 +2489,24 @@ export default function UnifiedDashboard() {
                                     <span key={source.source} className={`rounded-full border px-3 py-1 text-xs ${source.enabled ? 'border-cyan-400/30 bg-cyan-500/10 text-cyan-100' : 'border-slate-600/40 bg-slate-900/70 text-slate-400'}`}>
                                       {source.source}: {source.enabled ? 'enabled' : 'off'}
                                     </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-violet-300/80">Connector Scaffolding</p>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                  {sharedAtmosphereReport.connectors.map((connector) => (
+                                    <div key={connector.source} className="rounded-lg border border-white/10 bg-slate-950/55 px-3 py-2 text-xs text-slate-200">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="font-semibold text-white capitalize">{connector.source}</span>
+                                        <span className={`rounded-full px-2 py-0.5 ${connector.enabled ? 'bg-cyan-500/15 text-cyan-100' : 'bg-slate-800 text-slate-400'}`}>
+                                          {connector.enabled ? 'active' : 'off'}
+                                        </span>
+                                      </div>
+                                      <p className="mt-2 text-slate-300">{connector.privacyLabel}</p>
+                                      <p className="mt-1 text-slate-400">Influence: {connector.influenceLabel}</p>
+                                    </div>
                                   ))}
                                 </div>
                               </div>

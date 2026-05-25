@@ -369,6 +369,21 @@ export interface SharedSignalConsent {
   note: string;
 }
 
+export interface SharedConnectorProfile {
+  source: SharedSignalSource;
+  enabled: boolean;
+  privacyLabel: string;
+  influenceLabel: string;
+  confidenceWeight: number;
+}
+
+export interface SharedConnectorSummary {
+  source: SharedSignalSource;
+  enabled: boolean;
+  privacyLabel: string;
+  influenceLabel: string;
+}
+
 export interface SharedSynastrySnapshot {
   person1Name?: string;
   person2Name?: string;
@@ -400,6 +415,7 @@ export interface SharedAtmosphereReport {
   mode: SharedAtmosphereMode;
   sharedConsent: boolean;
   sources: SharedSignalConsent[];
+  connectors: SharedConnectorSummary[];
   summary: string;
   compatibility: number;
   windows: SharedAtmosphereWindow[];

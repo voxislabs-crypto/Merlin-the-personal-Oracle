@@ -235,9 +235,9 @@ Status: [ ]
 
 - [x] Add consent-first shared atmosphere portal scaffold in dashboard and API
 - [ ] Add horizon toggles (24h, 72h, 7d, 30d) to forecast APIs and UI
-- [ ] Build shared atmosphere model for pairs/small teams with consent flows
-- [ ] Add optional connectors (calendar/location/sleep) behind explicit opt-in
-- [ ] Add privacy controls and transparent data usage labels in UI
+- [x] Build shared atmosphere model for pairs/small teams with consent flows
+- [x] Add optional connectors (calendar/location/sleep) behind explicit opt-in
+- [x] Add privacy controls and transparent data usage labels in UI
 
 Primary files:
 
@@ -253,11 +253,6 @@ Acceptance criteria:
 - Shared mode only works with active consent records
 - External data integrations are optional and individually revocable
 - Users can see what data influences each forecast section
-
-Primary files:
-
-- `lib/astrology/feedback/calibration.ts`
-- `app/api/` (feedback endpoint)
 - `components/` (check-in UI)
 
 Acceptance criteria:

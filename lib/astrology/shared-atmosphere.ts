@@ -1,7 +1,8 @@
 import 'server-only';
 
-import type { BirthChartData, SharedAtmosphereMode, SharedAtmosphereReport, SharedSignalConsent, SharedAtmosphereWindow } from '@/types/astrology';
+import type { BirthChartData, SharedAtmosphereMode, SharedAtmosphereReport, SharedConnectorProfile, SharedSignalConsent, SharedAtmosphereWindow } from '@/types/astrology';
 import { generateSynastryReport } from '@/lib/astrology/synastry';
+import { buildSharedConnectorProfiles, buildSharedConnectorSummaries } from '@/lib/astrology/shared-connectors';
 
 export interface BuildSharedAtmosphereInput {
   chart1: BirthChartData;
@@ -11,9 +12,15 @@ export interface BuildSharedAtmosphereInput {
   mode?: SharedAtmosphereMode;
   sharedConsent: boolean;
   sources?: SharedSignalConsent[];
+  connectorProfiles?: SharedConnectorProfile[];
 }
 
-function buildWindows(compatibility: number, strengths: string[], challenges: string[]): SharedAtmosphereWindow[] {
+function buildWindows(
+  compatibility: number,
+  strengths: string[],
+  challenges: string[],
+  connectorProfiles: SharedConnectorProfile[]
+): SharedAtmosphereWindow[] {
   const windows: SharedAtmosphereWindow[] = [];
 
   if (compatibility >= 75) {
@@ -57,10 +64,25 @@ function buildWindows(compatibility: number, strengths: string[], challenges: st
     });
   }
 
+  const enabledConnectors = connectorProfiles.filter((profile) => profile.enabled);
+  if (enabledConnectors.length > 0) {
+    windows.push({
+      label: 'Data refinement front',
+      kind: 'communication',
+      score: Math.min(90, 55 + enabledConnectors.length * 8),
+      recommendation: 'Optional signals are active, so timing and recovery windows can become more precise.',
+    });
+  }
+
   return windows.slice(0, 3);
 }
 
-function buildGuidance(sharedConsent: boolean, sources: SharedSignalConsent[], compatibility: number): string[] {
+function buildGuidance(
+  sharedConsent: boolean,
+  sources: SharedSignalConsent[],
+  compatibility: number,
+  connectorProfiles: SharedConnectorProfile[]
+): string[] {
   const guidance = [
     'Shared atmosphere only works with explicit consent from all participants.',
     'Use the report as a navigation layer, not a verdict.',
@@ -78,6 +100,10 @@ function buildGuidance(sharedConsent: boolean, sources: SharedSignalConsent[], c
     guidance.push('High resonance still benefits from pacing and check-ins to avoid overload.' );
   }
 
+  if (connectorProfiles.some((profile) => profile.enabled)) {
+    guidance.push('Enabled connectors only provide coarse context, not raw surveillance data.');
+  }
+
   return guidance;
 }
 
@@ -92,16 +118,21 @@ export function buildSharedAtmosphereReport(input: BuildSharedAtmosphereInput): 
     { source: 'location', enabled: false, note: 'Location context is opt-in only.' },
     { source: 'sleep', enabled: false, note: 'Sleep tracker context is opt-in only.' },
   ];
+  const connectorProfiles = input.connectorProfiles || buildSharedConnectorProfiles(
+    sources.filter((source) => source.enabled).map((source) => source.source),
+    input.mode || 'couple'
+  );
 
   return {
     version: 'shared-atmosphere-v1',
     mode: input.mode || 'couple',
     sharedConsent: true,
     sources,
+    connectors: buildSharedConnectorSummaries(connectorProfiles),
     summary: synastry.narrative,
     compatibility: synastry.overallCompatibility,
-    windows: buildWindows(synastry.overallCompatibility, synastry.strengths, synastry.challenges),
-    guidance: buildGuidance(true, sources, synastry.overallCompatibility),
+    windows: buildWindows(synastry.overallCompatibility, synastry.strengths, synastry.challenges, connectorProfiles),
+    guidance: buildGuidance(true, sources, synastry.overallCompatibility, connectorProfiles),
     privacyNote: 'All optional inputs remain individually opt-in, visible, and revocable.',
     synastry: {
       person1Name: synastry.person1Name,

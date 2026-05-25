@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { buildSharedAtmosphereReport } from '@/lib/astrology/shared-atmosphere';
-import type { BirthChartData, SharedAtmosphereMode, SharedSignalConsent } from '@/types/astrology';
+import { buildSharedConnectorProfiles } from '@/lib/astrology/shared-connectors';
+import type { BirthChartData, SharedAtmosphereMode, SharedConnectorProfile, SharedSignalConsent, SharedSignalSource } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 
 interface SharedAtmosphereRequest {
@@ -12,6 +13,7 @@ interface SharedAtmosphereRequest {
   mode?: SharedAtmosphereMode;
   sharedConsent?: boolean;
   sources?: SharedSignalConsent[];
+  connectorProfiles?: SharedConnectorProfile[];
 }
 
 export async function POST(request: NextRequest) {
@@ -50,6 +52,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const enabledSources = sources.filter((source) => source.enabled).map((source) => source.source as SharedSignalSource);
+    const connectorProfiles = body.connectorProfiles || buildSharedConnectorProfiles(enabledSources, mode);
+
     const report = buildSharedAtmosphereReport({
       chart1,
       chart2,
@@ -58,6 +63,7 @@ export async function POST(request: NextRequest) {
       mode,
       sharedConsent,
       sources,
+      connectorProfiles,
     });
 
     return NextResponse.json({
