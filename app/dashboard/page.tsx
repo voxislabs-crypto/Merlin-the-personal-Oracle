@@ -21,6 +21,9 @@ import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import { PatternMirrorPanel } from '@/components/astrology/PatternMirrorPanel';
 import { WeatherOverviewPanel } from '@/components/astrology/WeatherOverviewPanel';
+import { AtmosphericMap } from '@/components/astrology/AtmosphericMap';
+import { WeatherDeepDivePanel } from '@/components/astrology/WeatherDeepDivePanel';
+import { CalibrationMasteryCard } from '@/components/astrology/CalibrationMasteryCard';
 import QuestLog from '@/components/astrology/QuestLog';
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
@@ -356,6 +359,10 @@ export default function UnifiedDashboard() {
   const previousImpact = calibrationImpactSeries.length > 1 ? calibrationImpactSeries[calibrationImpactSeries.length - 2] : null;
   const impactTrendDelta = previousImpact === null ? null : latestImpact - previousImpact;
   const impactStability = getCalibrationStability(calibrationImpactSeries);
+  const calibrationScore = Math.max(
+    0,
+    Math.min(100, Number((100 - impactStability.normalizedStepChange * 100).toFixed(1)))
+  );
   const impactStabilityHelp = `Stability uses normalized step variance across recent impact points. Current: ${(impactStability.normalizedStepChange * 100).toFixed(0)}%. Stable <= 18%, Settling <= 38%, Volatile > 38%.`;
   const forecastWindowDays = HORIZON_TO_WINDOW_DAYS[forecastHorizonHours];
 
@@ -2806,6 +2813,30 @@ export default function UnifiedDashboard() {
                           error={domainForecastError?.message}
                           selectedHorizon={forecastHorizonHours}
                           onHorizonChange={setForecastHorizonHours}
+                        />
+                      </div>
+
+                      <div className="mb-5">
+                        <AtmosphericMap
+                          weather={domainForecast?.weather}
+                          loading={domainForecastLoading}
+                        />
+                      </div>
+
+                      <div className="mb-5">
+                        <WeatherDeepDivePanel
+                          weather={domainForecast?.weather}
+                          horizonHours={forecastHorizonHours}
+                          mbtiType={mbtiType}
+                        />
+                      </div>
+
+                      <div className="mb-5">
+                        <CalibrationMasteryCard
+                          streak={dailyCheckinStreak}
+                          calibrationScore={calibrationScore}
+                          trendDelta={impactTrendDelta}
+                          stabilityLabel={impactStability.label}
                         />
                       </div>
 
