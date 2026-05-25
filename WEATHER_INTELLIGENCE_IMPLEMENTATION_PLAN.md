@@ -233,6 +233,7 @@ Status: [ ]
 
 Status: [ ]
 
+- [x] Add consent-first shared atmosphere portal scaffold in dashboard and API
 - [ ] Add horizon toggles (24h, 72h, 7d, 30d) to forecast APIs and UI
 - [ ] Build shared atmosphere model for pairs/small teams with consent flows
 - [ ] Add optional connectors (calendar/location/sleep) behind explicit opt-in

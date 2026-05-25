@@ -359,6 +359,56 @@ export interface ExplainabilityPacket {
   safety: SafetyGuidance;
 }
 
+export type SharedAtmosphereMode = 'couple' | 'team';
+
+export type SharedSignalSource = 'calendar' | 'location' | 'sleep';
+
+export interface SharedSignalConsent {
+  source: SharedSignalSource;
+  enabled: boolean;
+  note: string;
+}
+
+export interface SharedSynastrySnapshot {
+  person1Name?: string;
+  person2Name?: string;
+  overallCompatibility: number;
+  narrative: string;
+  strengths: string[];
+  challenges: string[];
+}
+
+export interface SharedAtmosphereAspect {
+  person1Planet: string;
+  person2Planet: string;
+  aspectType: string;
+  orb: number;
+  exact: boolean;
+  interpretation: string;
+  chemistry: 'magnetic' | 'harmonious' | 'challenging' | 'neutral';
+}
+
+export interface SharedAtmosphereWindow {
+  label: string;
+  kind: 'resonance' | 'tension' | 'communication' | 'rest';
+  score: number;
+  recommendation: string;
+}
+
+export interface SharedAtmosphereReport {
+  version: 'shared-atmosphere-v1';
+  mode: SharedAtmosphereMode;
+  sharedConsent: boolean;
+  sources: SharedSignalConsent[];
+  summary: string;
+  compatibility: number;
+  windows: SharedAtmosphereWindow[];
+  guidance: string[];
+  privacyNote: string;
+  synastry: SharedSynastrySnapshot;
+  aspects: SharedAtmosphereAspect[];
+}
+
 export type WeatherCondition = 'flow' | 'variable' | 'fog' | 'turbulence' | 'storm';
 
 export type WeatherSeverityBand = 'low' | 'moderate' | 'high' | 'severe';

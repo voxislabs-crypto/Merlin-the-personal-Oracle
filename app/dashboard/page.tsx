@@ -39,7 +39,6 @@ import { usePersonality } from '@/hooks/usePersonality';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { GeocodingService } from '@/lib/astrology/geocoding';
-import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -62,6 +61,7 @@ import {
 import { getMBTITypeDescription, applyMBTIOverlay } from '@/lib/mbti-overlay';
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import { resolveTierFromMetadata, type SubscriptionTier } from '@/lib/subscription-tier';
+import type { SharedAtmosphereReport, SharedSignalSource } from '@/types/astrology';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -191,10 +191,17 @@ export default function UnifiedDashboard() {
     birthTime: '',
     birthCity: '',
   });
-  const [relationshipReport, setRelationshipReport] = useState<SynastryReport | null>(null);
+  const [sharedAtmosphereReport, setSharedAtmosphereReport] = useState<SharedAtmosphereReport | null>(null);
   const [relationshipLoading, setRelationshipLoading] = useState(false);
   const [relationshipError, setRelationshipError] = useState('');
   const [relationshipLocationHint, setRelationshipLocationHint] = useState('');
+  const [sharedAtmosphereMode, setSharedAtmosphereMode] = useState<'couple' | 'team'>('couple');
+  const [sharedAtmosphereConsent, setSharedAtmosphereConsent] = useState(false);
+  const [sharedSignalSources, setSharedSignalSources] = useState<Record<SharedSignalSource, boolean>>({
+    calendar: false,
+    location: false,
+    sleep: false,
+  });
   const [navigatorCollapsed, setNavigatorCollapsed] = useState(false);
   const [activeNavSection, setActiveNavSection] = useState<'chart' | 'forecast' | 'analysis' | 'weekly' | 'personality' | 'prophecy'>('chart');
   const navigatorCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1247,10 +1254,19 @@ export default function UnifiedDashboard() {
     setRelationshipError('');
   }, []);
 
+  const updateSharedSignalSource = useCallback((source: SharedSignalSource, enabled: boolean) => {
+    setSharedSignalSources((prev) => ({ ...prev, [source]: enabled }));
+  }, []);
+
   const handleRelationshipReading = useCallback(async () => {
     if (!chartData) {
       setRelationshipError('Calculate your chart first before opening Relationship Space.');
       scrollToBlock(chartSectionRef);
+      return;
+    }
+
+    if (!sharedAtmosphereConsent) {
+      setRelationshipError('Shared atmosphere requires consent from everyone involved.');
       return;
     }
 
@@ -1289,7 +1305,7 @@ export default function UnifiedDashboard() {
         throw new Error(partnerChartResult?.error || 'Failed to calculate the partner chart.');
       }
 
-      const synastryResponse = await fetch('/api/synastry', {
+      const synastryResponse = await fetch('/api/shared-atmosphere', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1297,6 +1313,18 @@ export default function UnifiedDashboard() {
           chart2: partnerChartResult.data,
           person1Name: user?.firstName || user?.fullName || 'You',
           person2Name: relationshipForm.personName.trim() || 'Partner',
+          mode: sharedAtmosphereMode,
+          sharedConsent: sharedAtmosphereConsent,
+          sources: (Object.entries(sharedSignalSources) as Array<[SharedSignalSource, boolean]>).map(([source, enabled]) => ({
+            source,
+            enabled,
+            note:
+              source === 'calendar'
+                ? 'Calendar context sharpens timing and demand load.'
+                : source === 'location'
+                  ? 'Location context helps localize rhythm and day-cycle shifts.'
+                  : 'Sleep context helps weight fatigue and recovery windows.',
+          })),
         }),
       });
 
@@ -1306,15 +1334,15 @@ export default function UnifiedDashboard() {
         throw new Error(synastryResult?.error || 'Failed to generate the relationship reading.');
       }
 
-      const report = synastryResult.data as SynastryReport;
-      setRelationshipReport(report);
+      const report = synastryResult.data as SharedAtmosphereReport;
+      setSharedAtmosphereReport(report);
       queueAskContext(
-        `${report.person1Name || 'You'} + ${report.person2Name || 'Partner'} relationship space`,
-        `Read the relationship dynamic between ${report.person1Name || 'me'} and ${report.person2Name || 'my partner'}. Compatibility is ${report.overallCompatibility}%. Narrative: ${report.narrative} Strengths: ${report.strengths.join(', ') || 'none noted'}. Challenges: ${report.challenges.join(', ') || 'none noted'}. What is the clearest next move?`
+        `${report.synastry.person1Name || 'You'} + ${report.synastry.person2Name || 'Partner'} shared atmosphere`,
+        `Read the shared atmosphere between ${report.synastry.person1Name || 'me'} and ${report.synastry.person2Name || 'my partner'}. Compatibility is ${report.compatibility}%. Summary: ${report.summary} Strengths: ${report.synastry.strengths.join(', ') || 'none noted'}. Challenges: ${report.synastry.challenges.join(', ') || 'none noted'}. Guidance: ${report.guidance.join(' ')} What is the clearest next move?`
       );
       toast({
-        title: 'Relationship Space updated',
-        description: `Compatibility reading ready for ${report.person2Name || 'your partner'}.`,
+        title: 'Shared atmosphere updated',
+        description: `Consent-based compatibility reading ready for ${report.synastry.person2Name || 'your partner'}.`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Relationship Space failed to load.';
@@ -1327,7 +1355,7 @@ export default function UnifiedDashboard() {
     } finally {
       setRelationshipLoading(false);
     }
-  }, [chartData, relationshipForm, user, queueAskContext, toast]);
+  }, [chartData, relationshipForm, sharedAtmosphereConsent, sharedAtmosphereMode, sharedSignalSources, user, queueAskContext, toast]);
 
   const calcSource =
     ((chartData as any)?.metadata?.ephemeris as string | undefined) ||
@@ -2265,8 +2293,8 @@ export default function UnifiedDashboard() {
                     />
                     <div className="rounded-[1.4rem] border border-amber-400/20 bg-amber-950/10 p-4 backdrop-blur-sm space-y-4">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80 mb-2">Synastry Portal</p>
-                        <p className="text-sm text-slate-300 leading-relaxed">Compare your chart with someone else and turn Relationship Space into a real compatibility reading.</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80 mb-2">Shared Atmosphere Portal</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">Compare your chart with someone else and turn Relationship Space into a consent-based atmosphere reading.</p>
                       </div>
 
                       {!chartData ? (
@@ -2282,6 +2310,51 @@ export default function UnifiedDashboard() {
                         </div>
                       ) : (
                         <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-3 rounded-xl border border-white/8 bg-white/5 p-4 sm:grid-cols-2">
+                            <label className="space-y-2 text-sm text-slate-200">
+                              <span className="block text-xs uppercase tracking-[0.2em] text-slate-400">Mode</span>
+                              <select
+                                value={sharedAtmosphereMode}
+                                onChange={(e) => setSharedAtmosphereMode(e.target.value as 'couple' | 'team')}
+                                className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 focus:border-amber-400/50 focus:outline-none"
+                              >
+                                <option value="couple">Couple</option>
+                                <option value="team">Small Team</option>
+                              </select>
+                            </label>
+                            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2.5 text-sm text-slate-100">
+                              <input
+                                type="checkbox"
+                                checked={sharedAtmosphereConsent}
+                                onChange={(e) => setSharedAtmosphereConsent(e.target.checked)}
+                                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400 focus:ring-amber-400/40"
+                              />
+                              I have consent to compare these charts
+                            </label>
+                          </div>
+
+                          <div className="rounded-xl border border-white/8 bg-white/5 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Optional signal sources</p>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                              {([
+                                ['calendar', 'Calendar'] as const,
+                                ['location', 'Location'] as const,
+                                ['sleep', 'Sleep'] as const,
+                              ]).map(([source, label]) => (
+                                <label key={source} className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={sharedSignalSources[source]}
+                                    onChange={(e) => updateSharedSignalSource(source, e.target.checked)}
+                                    className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-400 focus:ring-cyan-400/40"
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-xs text-slate-400">Each signal is individually opt-in and can stay off until you want more refinement.</p>
+                          </div>
+
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <input
                               type="text"
@@ -2318,7 +2391,7 @@ export default function UnifiedDashboard() {
                               disabled={relationshipLoading}
                               className="rounded-full border border-amber-300/45 bg-amber-400/15 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {relationshipLoading ? 'Reading connection...' : 'Read the connection'}
+                              {relationshipLoading ? 'Reading shared atmosphere...' : 'Read the shared atmosphere'}
                             </button>
                             {relationshipLocationHint ? (
                               <span className="text-xs text-amber-100/75">Using: {relationshipLocationHint}</span>
@@ -2331,27 +2404,44 @@ export default function UnifiedDashboard() {
                             </div>
                           ) : null}
 
-                          {relationshipReport ? (
+                          {sharedAtmosphereReport ? (
                             <div className="space-y-4 rounded-[1.2rem] border border-amber-300/20 bg-gradient-to-br from-amber-950/20 to-slate-950/40 p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                   <p className="text-sm text-amber-100 font-semibold">
-                                    {relationshipReport.person1Name || 'You'} + {relationshipReport.person2Name || 'Partner'}
+                                    {sharedAtmosphereReport.synastry.person1Name || 'You'} + {sharedAtmosphereReport.synastry.person2Name || 'Partner'}
                                   </p>
-                                  <p className="text-xs text-slate-400">Live synastry based on both birth charts</p>
+                                  <p className="text-xs text-slate-400">Consent-based shared atmosphere from both birth charts</p>
                                 </div>
                                 <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-100">
-                                  {relationshipReport.overallCompatibility}% compatibility
+                                  {sharedAtmosphereReport.compatibility}% compatibility
                                 </div>
                               </div>
 
-                              <p className="text-sm leading-relaxed text-slate-200">{relationshipReport.narrative}</p>
+                              <p className="text-sm leading-relaxed text-slate-200">{sharedAtmosphereReport.summary}</p>
+
+                              <div className="rounded-lg border border-cyan-400/20 bg-cyan-500/10 p-3 text-xs text-cyan-100">
+                                {sharedAtmosphereReport.privacyNote}
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {sharedAtmosphereReport.windows.map((window) => (
+                                  <div key={window.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-semibold text-white">{window.label}</span>
+                                      <span className="text-xs text-slate-400">{window.kind}</span>
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-300">Score {window.score}/100</p>
+                                    <p className="mt-1 text-xs text-slate-300">{window.recommendation}</p>
+                                  </div>
+                                ))}
+                              </div>
 
                               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                   <p className="mb-2 text-xs uppercase tracking-[0.2em] text-emerald-300/80">Strengths</p>
                                   <div className="space-y-2">
-                                    {relationshipReport.strengths.length ? relationshipReport.strengths.map((strength) => (
+                                    {sharedAtmosphereReport.synastry.strengths.length ? sharedAtmosphereReport.synastry.strengths.map((strength) => (
                                       <div key={strength} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
                                         {strength}
                                       </div>
@@ -2361,7 +2451,7 @@ export default function UnifiedDashboard() {
                                 <div>
                                   <p className="mb-2 text-xs uppercase tracking-[0.2em] text-rose-300/80">Challenges</p>
                                   <div className="space-y-2">
-                                    {relationshipReport.challenges.length ? relationshipReport.challenges.map((challenge) => (
+                                    {sharedAtmosphereReport.synastry.challenges.length ? sharedAtmosphereReport.synastry.challenges.map((challenge) => (
                                       <div key={challenge} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
                                         {challenge}
                                       </div>
@@ -2373,12 +2463,23 @@ export default function UnifiedDashboard() {
                               <div>
                                 <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-300/80">Key Aspects</p>
                                 <div className="space-y-2">
-                                  {relationshipReport.aspects.slice(0, 4).map((aspect) => (
+                                  {sharedAtmosphereReport.aspects.slice(0, 4).map((aspect) => (
                                     <div key={`${aspect.person1Planet}-${aspect.person2Planet}-${aspect.aspectType}`} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
                                       <span className="font-semibold text-white">{aspect.person1Planet} {aspect.aspectType} {aspect.person2Planet}</span>
                                       <span className="ml-2 text-xs text-slate-400">orb {aspect.orb.toFixed(1)}{aspect.exact ? ' • exact' : ''}</span>
                                       <p className="mt-1 text-xs leading-relaxed text-slate-300">{aspect.interpretation}</p>
                                     </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-violet-300/80">Optional Signals</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {sharedAtmosphereReport.sources.map((source) => (
+                                    <span key={source.source} className={`rounded-full border px-3 py-1 text-xs ${source.enabled ? 'border-cyan-400/30 bg-cyan-500/10 text-cyan-100' : 'border-slate-600/40 bg-slate-900/70 text-slate-400'}`}>
+                                      {source.source}: {source.enabled ? 'enabled' : 'off'}
+                                    </span>
                                   ))}
                                 </div>
                               </div>
