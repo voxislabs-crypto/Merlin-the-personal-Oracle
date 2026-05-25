@@ -717,6 +717,12 @@ export default function UnifiedDashboard() {
 
       if (lastCheckin !== todayKey) {
         appendDashboardEvent('dashboard_daily_checkin', { streak: nextCount });
+        const predictiveTopEvent = transits?.predictive?.events?.[0];
+        const resonanceAspectId = predictiveTopEvent
+          ? `${predictiveTopEvent.transit.transitingPlanet}-${predictiveTopEvent.transit.natalPlanet}-${predictiveTopEvent.transit.aspect}`
+          : undefined;
+        const resonanceTheme = predictiveTopEvent?.domains?.[0]?.name || 'self';
+
         void submitCheckin({
           mood: 6,
           stress: 5,
@@ -728,6 +734,10 @@ export default function UnifiedDashboard() {
           },
           notes: 'Auto check-in from dashboard streak refresh.',
           timestamp: today.toISOString(),
+          resonanceAspectId,
+          resonanceTheme,
+        }).then(() => {
+          void loadCalibrationHistory(calibrationHistoryDays);
         });
       }
 
@@ -759,7 +769,7 @@ export default function UnifiedDashboard() {
     } catch {
       // localStorage failures should never block the dashboard
     }
-  }, [chartData, appendDashboardEvent, submitCheckin]);
+  }, [chartData, appendDashboardEvent, submitCheckin, transits]);
 
   useEffect(() => {
     if (!chartData || !featureFlags.persistenceEnabled) return;

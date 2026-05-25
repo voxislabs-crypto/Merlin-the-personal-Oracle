@@ -221,13 +221,13 @@ Acceptance criteria:
 
 ## Phase 5 - Feedback Loop and Calibration
 
-Status: [ ]
+Status: [x]
 
-- [ ] Add quick daily check-in (mood/energy/social friction/focus)
-- [ ] Persist predicted vs actual outcomes
-- [ ] Add calibration rules to adjust personality sensitivity weights
-- [ ] Add confidence tuning based on recent alignment
-- [ ] Add streaks/mastery indicators tied to calibration quality
+- [x] Add quick daily check-in (mood/energy/social friction/focus)
+- [x] Persist predicted vs actual outcomes
+- [x] Add calibration rules to adjust personality sensitivity weights
+- [x] Add confidence tuning based on recent alignment
+- [x] Add streaks/mastery indicators tied to calibration quality
 
 ## Phase 6 - Horizons, Shared Atmosphere, and Integrations
 
