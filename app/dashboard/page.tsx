@@ -20,6 +20,7 @@ import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard'
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import { PatternMirrorPanel } from '@/components/astrology/PatternMirrorPanel';
+import { WeatherOverviewPanel } from '@/components/astrology/WeatherOverviewPanel';
 import QuestLog from '@/components/astrology/QuestLog';
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
@@ -72,6 +73,15 @@ const WEEKLY_RESET_PROMPT_KEY = 'merlin_weekly_reset_prompt_seen';
 const CALIBRATION_HISTORY_DAYS_KEY = 'merlin_calibration_history_days';
 const CALIBRATION_SORT_MODE_KEY = 'merlin_calibration_sort_mode';
 
+type HorizonHours = 24 | 72 | 168 | 720;
+
+const HORIZON_TO_WINDOW_DAYS: Record<HorizonHours, 1 | 3 | 7 | 30> = {
+  24: 1,
+  72: 3,
+  168: 7,
+  720: 30,
+};
+
 type DashboardEvent = {
   eventName: string;
   at: string;
@@ -120,6 +130,7 @@ export default function UnifiedDashboard() {
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
   const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc' | 'personality' | 'stormradar'>('wheel');
+  const [forecastHorizonHours, setForecastHorizonHours] = useState<HorizonHours>(72);
   // Life Arc mode removed - now just raw timeline
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
@@ -346,6 +357,7 @@ export default function UnifiedDashboard() {
   const impactTrendDelta = previousImpact === null ? null : latestImpact - previousImpact;
   const impactStability = getCalibrationStability(calibrationImpactSeries);
   const impactStabilityHelp = `Stability uses normalized step variance across recent impact points. Current: ${(impactStability.normalizedStepChange * 100).toFixed(0)}%. Stable <= 18%, Settling <= 38%, Volatile > 38%.`;
+  const forecastWindowDays = HORIZON_TO_WINDOW_DAYS[forecastHorizonHours];
 
   const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
     try {
@@ -426,7 +438,11 @@ export default function UnifiedDashboard() {
         await Promise.all([
           calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
           calculatePressureWindow(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculateDomainForecast(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculateDomainForecast(birthData, {
+            mbtiType: mbtiType || undefined,
+            userId: userId || undefined,
+            windowDays: forecastWindowDays,
+          }),
         ]);
       }
 
@@ -444,6 +460,7 @@ export default function UnifiedDashboard() {
     calculatePressureWindow,
     calculateTransits,
     calibrationHistoryDays,
+    forecastWindowDays,
     loadCalibrationHistory,
     mbtiType,
     userId,
@@ -830,7 +847,11 @@ export default function UnifiedDashboard() {
             ? calculatePressureWindow(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
           featureFlags.premiumInsights
-            ? calculateDomainForecast(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+            ? calculateDomainForecast(birth, {
+                mbtiType: mbtiType || undefined,
+                userId: userId || undefined,
+                windowDays: forecastWindowDays,
+              })
             : Promise.resolve(null),
           featureFlags.premiumInsights ? calculateLifeArc(birth, chart) : Promise.resolve(null),
           featureFlags.premiumInsights ? calculateWeeklyForecast(birth) : Promise.resolve(null),
@@ -858,6 +879,7 @@ export default function UnifiedDashboard() {
     interpretMode,
     isLoaded,
     mbtiType,
+    forecastWindowDays,
     user,
     userId,
   ]);
@@ -925,7 +947,11 @@ export default function UnifiedDashboard() {
         ? calculatePressureWindow(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
       featureFlags.premiumInsights
-        ? calculateDomainForecast(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+        ? calculateDomainForecast(derived, {
+            mbtiType: mbtiType || undefined,
+            userId: userId || undefined,
+            windowDays: forecastWindowDays,
+          })
         : Promise.resolve(null),
       featureFlags.premiumInsights ? calculateLifeArc(derived, data) : Promise.resolve(null),
       featureFlags.premiumInsights ? calculateWeeklyForecast(derived) : Promise.resolve(null),
@@ -947,6 +973,24 @@ export default function UnifiedDashboard() {
     calculateStorms,
     featureFlags.premiumInsights,
     interpretMode,
+    mbtiType,
+    forecastWindowDays,
+    userId,
+  ]);
+
+  useEffect(() => {
+    if (!birthData || !featureFlags.premiumInsights) return;
+
+    void calculateDomainForecast(birthData, {
+      mbtiType: mbtiType || undefined,
+      userId: userId || undefined,
+      windowDays: forecastWindowDays,
+    });
+  }, [
+    birthData,
+    calculateDomainForecast,
+    featureFlags.premiumInsights,
+    forecastWindowDays,
     mbtiType,
     userId,
   ]);
@@ -2755,6 +2799,16 @@ export default function UnifiedDashboard() {
                     </div>
                     
                     <div className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm">
+                      <div className="mb-5">
+                        <WeatherOverviewPanel
+                          weather={domainForecast?.weather}
+                          loading={domainForecastLoading}
+                          error={domainForecastError?.message}
+                          selectedHorizon={forecastHorizonHours}
+                          onHorizonChange={setForecastHorizonHours}
+                        />
+                      </div>
+
                       {transits?.predictive?.lunarTiming && transits?.predictive?.progressedMoon && (
                         <div className="mb-5 rounded-lg border border-violet-500/25 bg-violet-950/20 p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -5,3 +5,4 @@ export * from './domains';
 export * from './archetypes';
 export * from './safety';
 export * from './explainability';
+export * from './weather-language';

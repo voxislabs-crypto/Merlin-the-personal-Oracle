@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
-import type { DomainScore } from '@/types/astrology';
+import type { DomainScore, WeatherForecastReport } from '@/types/astrology';
 
 export interface DomainForecastData {
   timezoneOffsetHours: number | null;
   generatedAt: string;
   windowDays: number;
   domains: DomainScore[];
+  weather?: WeatherForecastReport;
   daily: Array<{
     date: string;
     domains: DomainScore[];

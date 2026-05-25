@@ -358,3 +358,46 @@ export interface ExplainabilityPacket {
   archetypes: ArchetypeSignal[];
   safety: SafetyGuidance;
 }
+
+export type WeatherCondition = 'flow' | 'variable' | 'fog' | 'turbulence' | 'storm';
+
+export type WeatherSeverityBand = 'low' | 'moderate' | 'high' | 'severe';
+
+export type WeatherConfidenceBand = 'low' | 'medium' | 'high';
+
+export interface WeatherSeverity {
+  score: number;
+  band: WeatherSeverityBand;
+}
+
+export interface WeatherConfidence {
+  score: number;
+  band: WeatherConfidenceBand;
+}
+
+export interface WeatherHorizonConfig {
+  defaultHours: 24 | 72;
+  options: Array<24 | 72 | 168 | 720>;
+}
+
+export interface WeatherDomainForecast {
+  domain: LifeDomain;
+  condition: WeatherCondition;
+  pressure: number;
+  confidence: number;
+  headline: string;
+  recommendations: string[];
+  topDrivers: TransitDriver[];
+}
+
+export interface WeatherForecastReport {
+  version: 'weather-v1';
+  generatedAt: string;
+  summary: string;
+  severity: WeatherSeverity;
+  confidence: WeatherConfidence;
+  horizons: WeatherHorizonConfig;
+  domains: WeatherDomainForecast[];
+  navigation: string[];
+  notes: string[];
+}
