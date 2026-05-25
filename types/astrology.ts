@@ -442,7 +442,7 @@ export interface WeatherConfidence {
 }
 
 export interface WeatherHorizonConfig {
-  defaultHours: 24 | 72;
+  defaultHours: 24 | 72 | 168 | 720;
   options: Array<24 | 72 | 168 | 720>;
 }
 

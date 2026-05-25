@@ -120,7 +120,7 @@ export interface BuildWeatherReportInput {
   globalPressure: number;
   confidence: number;
   domainScores: DomainScore[];
-  defaultHours?: 24 | 72;
+  defaultHours?: 24 | 72 | 168 | 720;
 }
 
 function toWeatherDomainForecast(score: DomainScore): WeatherDomainForecast {

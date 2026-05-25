@@ -41,12 +41,20 @@ function buildDailyDomainSeries(days: number, baseline: DomainScore[]) {
   });
 }
 
-function mapWindowDaysToHorizonHours(windowDays: number): 24 | 72 {
+function mapWindowDaysToHorizonHours(windowDays: number): 24 | 72 | 168 | 720 {
   if (windowDays <= 1) {
     return 24;
   }
 
-  return 72;
+  if (windowDays <= 3) {
+    return 72;
+  }
+
+  if (windowDays <= 7) {
+    return 168;
+  }
+
+  return 720;
 }
 
 export async function POST(request: Request) {
