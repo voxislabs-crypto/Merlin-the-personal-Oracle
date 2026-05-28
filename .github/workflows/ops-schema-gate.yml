@@ -1,0 +1,43 @@
+name: Ops Schema Gate
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/**'
+      - 'scripts/seed-ops-telemetry.mjs'
+      - 'scripts/run-ops-scenario-matrix.mjs'
+      - 'scripts/validate-ops-schemas.mjs'
+      - 'docs/ops/**'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    branches:
+      - feature/forecast-language-system
+    paths:
+      - 'schemas/**'
+      - 'scripts/seed-ops-telemetry.mjs'
+      - 'scripts/run-ops-scenario-matrix.mjs'
+      - 'scripts/validate-ops-schemas.mjs'
+      - 'docs/ops/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  validate-ops-schemas:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate ops schemas
+        run: npm run ops:validate-schemas

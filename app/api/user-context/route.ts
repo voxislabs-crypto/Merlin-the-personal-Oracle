@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getUserContextSnapshot, upsertUserContextSnapshot } from '@/lib/user-context';
+import {
+  computeUserContextTrustSignals,
+  emitRuntimeTrustCalibration,
+} from '@/lib/internal/ops-runtime-telemetry';
+
+const USER_CONTEXT_DB_ERROR_STATUS = 503;
 
 export async function GET(request: Request) {
   try {
@@ -24,8 +30,11 @@ export async function GET(request: Request) {
     try {
       context = await getUserContextSnapshot(userId);
     } catch (dbError) {
-      console.warn('[user-context] Failed to load context, returning empty snapshot:', dbError);
-      context = null;
+      console.error('[user-context] Failed to load context:', dbError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to load user context' },
+        { status: USER_CONTEXT_DB_ERROR_STATUS }
+      );
     }
 
     return NextResponse.json({ success: true, data: context });
@@ -87,8 +96,31 @@ export async function POST(request: Request) {
         lastInteractionAt,
       });
     } catch (dbError) {
-      console.warn('[user-context] Failed to persist context, returning no-op success:', dbError);
-      context = null;
+      console.error('[user-context] Failed to persist context:', dbError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to persist user context' },
+        { status: USER_CONTEXT_DB_ERROR_STATUS }
+      );
+    }
+
+    try {
+      const trustSignals = computeUserContextTrustSignals({
+        hasSituation: typeof situation === 'string' && situation.trim().length > 0,
+        hasMood: typeof mood === 'string' && mood.trim().length > 0,
+        goalsCount: Array.isArray(goals) ? goals.filter((goal) => typeof goal === 'string' && goal.trim().length > 0).length : 0,
+        hasFeedbackNotes: typeof lastFeedbackNotes === 'string' && lastFeedbackNotes.trim().length > 0,
+      });
+
+      await emitRuntimeTrustCalibration({
+        modelId: 'user-context-v1',
+        window: new Date().toISOString().slice(0, 10),
+        ...trustSignals,
+        sampleSize: 1,
+        cohortId: 'runtime-user-context',
+        actorUserId: userId,
+      });
+    } catch (telemetryError) {
+      console.warn('[user-context] Failed to append runtime telemetry:', telemetryError);
     }
 
     return NextResponse.json({ success: true, data: context });

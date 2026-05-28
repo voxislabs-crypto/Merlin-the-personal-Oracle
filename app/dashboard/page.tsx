@@ -27,7 +27,7 @@ import { CalibrationMasteryCard } from '@/components/astrology/CalibrationMaster
 import QuestLog from '@/components/astrology/QuestLog';
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
-import { useForecast } from '@/hooks/useForecast';
+import { useForecast, type ForecastIntakeOptions } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
 import { usePressureWindow } from '@/hooks/usePressureWindow';
 import { useDomainForecast } from '@/hooks/useDomainForecast';
@@ -62,6 +62,7 @@ import { getMBTITypeDescription, applyMBTIOverlay } from '@/lib/mbti-overlay';
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import { resolveTierFromMetadata, type SubscriptionTier } from '@/lib/subscription-tier';
 import type { SharedAtmosphereReport, SharedSignalSource } from '@/types/astrology';
+import type { TimeHorizonHours } from '@/shared/cafe-contracts';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -89,6 +90,32 @@ type DashboardEvent = {
   eventName: string;
   at: string;
   detail: Record<string, unknown>;
+};
+
+type CafeGatewayHealthResponse = {
+  success: boolean;
+  data?: {
+    configured: {
+      generic: boolean;
+      local: boolean;
+      remote: boolean;
+    };
+    targets: Array<{
+      mode: 'generic' | 'local' | 'remote';
+      provider: string;
+      model: string;
+      url: string;
+      apiKeyPresent: boolean;
+    }>;
+    probeEnabled: boolean;
+    probes: Array<{
+      mode: 'generic' | 'local' | 'remote';
+      reachable: boolean;
+      status?: number;
+      statusText?: string;
+      error?: string;
+    }>;
+  };
 };
 
 type ClientTier = SubscriptionTier;
@@ -154,6 +181,12 @@ export default function UnifiedDashboard() {
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
+  const [userContextSnapshot, setUserContextSnapshot] = useState<{
+    situation?: string;
+    mood?: string;
+    goals?: string[];
+    lastFeedbackNotes?: string;
+  } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [dailyOracle, setDailyOracle] = useState<{
     message?: string;
@@ -174,6 +207,9 @@ export default function UnifiedDashboard() {
   const [hasAskedMerlin, setHasAskedMerlin] = useState(false);
   const [dashboardEvents, setDashboardEvents] = useState<DashboardEvent[]>([]);
   const [showDevDiagnostics, setShowDevDiagnostics] = useState(false);
+  const [cafeGatewayHealth, setCafeGatewayHealth] = useState<CafeGatewayHealthResponse['data'] | null>(null);
+  const [cafeGatewayLoading, setCafeGatewayLoading] = useState(false);
+  const [cafeGatewayError, setCafeGatewayError] = useState<string>('');
   const [showWeeklyResetPrompt, setShowWeeklyResetPrompt] = useState(false);
   const [prophecyStyle, setProphecyStyle] = useState<ProphecyStyle>('omen');
   const [prophecyEra, setProphecyEra] = useState<ProphecyEra>('babylonian');
@@ -245,6 +281,32 @@ export default function UnifiedDashboard() {
     loadHistory,
     markHistoryFulfilled,
   } = useProphecy();
+
+  const cafeHorizonHours: TimeHorizonHours = forecastHorizonHours === 720 ? 168 : forecastHorizonHours;
+
+  const forecastIntakeOptions = React.useMemo<ForecastIntakeOptions>(() => {
+    const latestEntry = checkinEntries[0];
+    const journalText = [latestEntry?.notes, userContextSnapshot?.situation, userContextSnapshot?.lastFeedbackNotes]
+      .filter((line): line is string => Boolean(line && line.trim().length > 0))
+      .join('\n\n');
+
+    return {
+      userId: userId || undefined,
+      mbtiType: mbtiType || undefined,
+      horizonHours: cafeHorizonHours,
+      mood: userContextSnapshot?.mood,
+      goals: userContextSnapshot?.goals,
+      situation: userContextSnapshot?.situation,
+      lastFeedbackNotes: userContextSnapshot?.lastFeedbackNotes,
+      journalText: journalText || undefined,
+      intention: userContextSnapshot?.goals?.[0],
+      behavioral: {
+        energy: typeof latestEntry?.energy === 'number' ? latestEntry.energy * 10 : undefined,
+        focus: typeof latestEntry?.confidence === 'number' ? latestEntry.confidence * 10 : undefined,
+        emotionalLoad: typeof latestEntry?.stress === 'number' ? latestEntry.stress * 10 : undefined,
+      },
+    };
+  }, [cafeHorizonHours, checkinEntries, mbtiType, userContextSnapshot, userId]);
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
@@ -503,6 +565,16 @@ export default function UnifiedDashboard() {
         if (!res.ok) return;
         const result = await res.json();
         if (!result?.success || !result?.data) return;
+
+        setUserContextSnapshot({
+          situation: result.data.situation || '',
+          mood: result.data.mood || '',
+          goals: Array.isArray(result.data.goals)
+            ? (result.data.goals as unknown[]).filter((goal): goal is string => typeof goal === 'string' && goal.trim().length > 0)
+            : [],
+          lastFeedbackNotes: result.data.lastFeedbackNotes || '',
+        });
+
         if (result.data.archetypeName || result.data.patternSignature || result.data.coreContradiction) {
           setIdentityPack({
             archetypeName: result.data.archetypeName,
@@ -801,6 +873,38 @@ export default function UnifiedDashboard() {
   }, [showOnboarding, hasAskedMerlin, activeSection, appendDashboardEvent]);
 
   useEffect(() => {
+    if (process.env.NODE_ENV === 'production' || !showDevDiagnostics) return;
+
+    let cancelled = false;
+    setCafeGatewayLoading(true);
+    setCafeGatewayError('');
+
+    fetch('/api/internal/cafe-gateway/health?probe=1')
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Health endpoint failed (${response.status})`);
+        }
+        return response.json();
+      })
+      .then((result: CafeGatewayHealthResponse) => {
+        if (cancelled) return;
+        setCafeGatewayHealth(result.data || null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setCafeGatewayError(error instanceof Error ? error.message : 'Failed to load gateway health');
+        setCafeGatewayHealth(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCafeGatewayLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showDevDiagnostics]);
+
+  useEffect(() => {
     if (!userId || !featureFlags.persistenceEnabled) return;
     fetchPatternMirror();
   }, [featureFlags.persistenceEnabled, userId, fetchPatternMirror]);
@@ -863,7 +967,7 @@ export default function UnifiedDashboard() {
           featureFlags.premiumInsights
             ? generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
             : Promise.resolve(null),
-          featureFlags.premiumInsights ? calculateForecast(birth) : Promise.resolve(null),
+          featureFlags.premiumInsights ? calculateForecast(birth, forecastIntakeOptions) : Promise.resolve(null),
           featureFlags.premiumInsights
             ? calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
@@ -903,6 +1007,7 @@ export default function UnifiedDashboard() {
     interpretMode,
     isLoaded,
     mbtiType,
+    forecastIntakeOptions,
     forecastWindowDays,
     user,
     userId,
@@ -963,7 +1068,7 @@ export default function UnifiedDashboard() {
       featureFlags.premiumInsights
         ? generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
         : Promise.resolve(null),
-      featureFlags.premiumInsights ? calculateForecast(derived) : Promise.resolve(null),
+      featureFlags.premiumInsights ? calculateForecast(derived, forecastIntakeOptions) : Promise.resolve(null),
       featureFlags.premiumInsights
         ? calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
@@ -996,11 +1101,17 @@ export default function UnifiedDashboard() {
     calculatePersonality,
     calculateStorms,
     featureFlags.premiumInsights,
+    forecastIntakeOptions,
     interpretMode,
     mbtiType,
     forecastWindowDays,
     userId,
   ]);
+
+  useEffect(() => {
+    if (!birthData || !featureFlags.premiumInsights) return;
+    void calculateForecast(birthData, forecastIntakeOptions);
+  }, [birthData, calculateForecast, featureFlags.premiumInsights, forecastIntakeOptions]);
 
   useEffect(() => {
     if (!birthData || !featureFlags.premiumInsights) return;
@@ -2148,7 +2259,8 @@ export default function UnifiedDashboard() {
                         {showDevDiagnostics ? 'Hide' : 'Show'} dashboard event diagnostics
                       </button>
                       {showDevDiagnostics ? (
-                        <div className="mt-2 max-h-44 overflow-y-auto space-y-1 rounded-lg border border-white/10 bg-slate-950/55 p-2">
+                        <div className="mt-2 space-y-2">
+                          <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-white/10 bg-slate-950/55 p-2">
                           {dashboardEvents.length ? dashboardEvents.slice(-10).reverse().map((event, idx) => (
                             <div key={`${event.at}-${idx}`} className="text-[11px] text-slate-200/85">
                               <span className="text-cyan-200">{event.eventName}</span>
@@ -2157,6 +2269,46 @@ export default function UnifiedDashboard() {
                           )) : (
                             <p className="text-[11px] text-slate-400">No events yet.</p>
                           )}
+                          </div>
+
+                          <div className="rounded-lg border border-white/10 bg-slate-950/55 p-2">
+                            <p className="text-[11px] font-semibold text-slate-200">CAFE Gateway Health</p>
+                            {cafeGatewayLoading ? (
+                              <p className="mt-1 text-[11px] text-slate-400">Probing gateway endpoints...</p>
+                            ) : cafeGatewayError ? (
+                              <p className="mt-1 text-[11px] text-rose-300">{cafeGatewayError}</p>
+                            ) : cafeGatewayHealth ? (
+                              <div className="mt-1 space-y-1.5 text-[11px]">
+                                <p className="text-slate-400">
+                                  Config: generic={String(cafeGatewayHealth.configured.generic)} local={String(cafeGatewayHealth.configured.local)} remote={String(cafeGatewayHealth.configured.remote)}
+                                </p>
+                                {cafeGatewayHealth.targets.map((target) => {
+                                  const probe = cafeGatewayHealth.probes.find((item) => item.mode === target.mode);
+                                  const colorClass = !probe
+                                    ? 'text-amber-300'
+                                    : probe.reachable
+                                      ? 'text-emerald-300'
+                                      : 'text-rose-300';
+                                  const indicator = !probe ? 'YELLOW' : probe.reachable ? 'GREEN' : 'RED';
+
+                                  return (
+                                    <div key={`${target.mode}-${target.url}`} className="rounded border border-white/10 bg-black/20 px-2 py-1">
+                                      <p className="text-slate-200">
+                                        <span className="font-semibold">{target.mode.toUpperCase()}</span> · {target.provider} · {target.model}
+                                      </p>
+                                      <p className="text-slate-400 break-all">{target.url}</p>
+                                      <p className={colorClass}>
+                                        {indicator} · {probe ? (probe.reachable ? `${probe.status || 0} ${probe.statusText || ''}`.trim() : probe.error || 'Probe failed') : 'No probe result'}
+                                        {' · key='}{target.apiKeyPresent ? 'set' : 'missing'}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-[11px] text-slate-400">No gateway data yet.</p>
+                            )}
+                          </div>
                         </div>
                       ) : null}
                     </div>

@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-05-28T19:03:34.514Z",
+  "startedAt": "2026-05-28T19:03:33.425Z",
+  "endedAt": "2026-05-28T19:03:34.514Z",
+  "scenarios": [
+    "healthy",
+    "degraded"
+  ],
+  "restoredScenario": "healthy",
+  "reports": [
+    {
+      "scenario": "healthy",
+      "eventCount": 3,
+      "file": "docs/ops/reports/healthy.json",
+      "rollbackPresent": false,
+      "trustScore": 0.92,
+      "driftScore": 0.16
+    },
+    {
+      "scenario": "degraded",
+      "eventCount": 4,
+      "file": "docs/ops/reports/degraded.json",
+      "rollbackPresent": true,
+      "trustScore": 0.69,
+      "driftScore": 0.63
+    }
+  ]
+}

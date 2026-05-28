@@ -106,6 +106,12 @@ Merlin is evolving into a weather-intelligence system: a practical forecast laye
   - data sync jobs that do not control forecast logic
 - Avoid moving the core weather translation engine into n8n; keep the model deterministic and versioned in code
 
+### 9. **CAFE Gateway Split**
+- User-facing forecast requests continue to use `/api/forecast`
+- External server-to-server CAFE requests use `/api/cafe/forecast`
+- Protect the CAFE gateway with `Authorization: Bearer ${MERLIN_GATEWAY_KEY}`
+- Shared request and response contracts live in `shared/cafe-contracts.ts`
+
 ---
 
 ## 📦 **Tech Stack**
@@ -181,6 +187,9 @@ NEXT_PUBLIC_STRIPE_PRICE_ID=price_xxxxx
 
 # Development mode (bypasses payment)
 NEXT_PUBLIC_DEV_MODE=true
+
+# CAFE gateway auth for external/server-to-server access
+MERLIN_GATEWAY_KEY=replace-with-a-long-random-secret
 ```
 
 Full configuration options in [`.env.example`](.env.example)

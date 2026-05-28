@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxislabs.ai/schemas/scorecard.schema.json",
+  "title": "Mood Intelligence Scorecard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evaluationWindow",
+    "modelId",
+    "status",
+    "quality",
+    "trust",
+    "dataHealth",
+    "risks",
+    "decisions",
+    "updatedAt"
+  ],
+  "properties": {
+    "evaluationWindow": {
+      "type": "string",
+      "description": "ISO week or date range, for example 2026-W22"
+    },
+    "modelId": {
+      "type": "string",
+      "minLength": 3
+    },
+    "status": {
+      "type": "string",
+      "enum": ["green", "yellow", "red"]
+    },
+    "objective": {
+      "type": "string"
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calibrationScore", "coherenceScore", "hallucinationRate"],
+      "properties": {
+        "calibrationScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coherenceScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hallucinationRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "driftScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trustScore", "sourceTransparencyRate", "uncertaintyInclusionRate"],
+      "properties": {
+        "trustScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sourceTransparencyRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "uncertaintyInclusionRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "emotionalConsistency": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "dataHealth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["optInReports", "missingnessRate"],
+      "properties": {
+        "optInReports": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missingnessRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "freshnessHours": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "description", "mitigationOwner", "status"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "description": {
+            "type": "string"
+          },
+          "mitigationOwner": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "mitigating", "closed"]
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kept", "changed", "deferred", "rolledBack"],
+      "properties": {
+        "kept": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "changed": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deferred": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "rolledBack": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
