@@ -36,7 +36,6 @@ export function ClerkProvider({ children }: ClerkProviderProps) {
 
   return (
     <BaseClerkProvider
-      frontendApi="merlin.voxislabs.com"
       signInUrl={signInUrl}
       signUpUrl={signUpUrl}
       signInFallbackRedirectUrl={signInFallbackRedirectUrl}
