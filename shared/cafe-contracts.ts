@@ -112,6 +112,16 @@ export interface ForecastGenerationMeta {
   latencyMs: number;
   usedFallback: boolean;
   promptVersion: string;
+  confidence: number;
+  provenance: {
+    source: string;
+    signalSources: string[];
+    confidence: number;
+    generatedAt: string;
+    fallbackUsed: boolean;
+    freshnessHours?: number;
+    notes?: string[];
+  };
 }
 
 export interface CafeForecastResponse {

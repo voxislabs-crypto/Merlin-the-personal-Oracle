@@ -427,6 +427,16 @@ export interface SharedAtmosphereReport {
 
 export type WeatherCondition = 'flow' | 'variable' | 'fog' | 'turbulence' | 'storm';
 
+export interface ForecastProvenance {
+  source: string;
+  signalSources: string[];
+  confidence: number;
+  generatedAt: string;
+  fallbackUsed?: boolean;
+  freshnessHours?: number;
+  notes?: string[];
+}
+
 export type WeatherSeverityBand = 'low' | 'moderate' | 'high' | 'severe';
 
 export type WeatherConfidenceBand = 'low' | 'medium' | 'high';
@@ -466,4 +476,5 @@ export interface WeatherForecastReport {
   domains: WeatherDomainForecast[];
   navigation: string[];
   notes: string[];
+  provenance?: ForecastProvenance;
 }

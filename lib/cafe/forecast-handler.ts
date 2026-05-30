@@ -116,6 +116,24 @@ export async function handleCafeForecastBody(body: unknown) {
       latencyMs: routed.latencyMs,
       usedFallback: routed.usedFallback,
       promptVersion: 'cafe-forecast-v1.0',
+      confidence: Math.round(routed.output.confidence * 100),
+      provenance: {
+        source: `${routed.executionMode}:${routed.provider}`,
+        signalSources: [
+          validated.value.location ? 'location' : 'location-unavailable',
+          validated.value.merlinContext ? 'merlin-context' : 'merlin-context-unavailable',
+          validated.value.environment ? 'environment' : 'environment-unavailable',
+          'behavioral intake',
+        ],
+        confidence: Math.round(routed.output.confidence * 100),
+        generatedAt: new Date().toISOString(),
+        fallbackUsed: routed.usedFallback,
+        freshnessHours: validated.value.horizonHours,
+        notes: [
+          validated.value.intake.mbtiType ? `MBTI lens ${validated.value.intake.mbtiType}` : 'No MBTI lens provided',
+          validated.value.routingPolicy ? 'custom routing policy applied' : 'default routing policy used',
+        ],
+      },
     },
   };
 
@@ -225,6 +243,23 @@ export async function handleLegacyForecastBody(body: unknown) {
 
     const safeForecast = sanitizeForecastOutput({ ...forecast, ...enrichedFields, timezoneOffsetHours: appliedOffsetHours });
 
+    const provenanceConfidence = source === 'swiss-real' ? 84 : 68;
+    const provenance = {
+      source: source === 'swiss-real' ? 'legacy-swiss-real' : 'legacy-fallback',
+      signalSources: [
+        'natal chart',
+        'transit calculator',
+        enrichedFields.transitLookup ? 'transit enrichment' : 'no transit enrichment',
+      ],
+      confidence: provenanceConfidence,
+      generatedAt: new Date().toISOString(),
+      fallbackUsed: source !== 'swiss-real',
+      freshnessHours: 24,
+      notes: [
+        appliedOffsetHours === null ? 'timezone offset unavailable' : `timezone offset ${appliedOffsetHours}h applied`,
+      ],
+    };
+
     try {
       const trustSignals = computeLegacyForecastTrustSignals({
         source,
@@ -245,7 +280,10 @@ export async function handleLegacyForecastBody(body: unknown) {
     return NextResponse.json({
       success: true,
       source,
-      data: safeForecast,
+      data: {
+        ...safeForecast,
+        provenance,
+      },
     });
   } catch (error) {
     console.error('Error generating forecast:', error);

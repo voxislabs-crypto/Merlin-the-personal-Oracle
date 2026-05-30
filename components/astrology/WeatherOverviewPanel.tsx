@@ -176,6 +176,17 @@ export function WeatherOverviewPanel({
               ))}
             </ul>
           </div>
+
+          {weather.provenance ? (
+            <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-900/60 p-3 text-xs text-slate-300">
+              <p className="font-semibold uppercase tracking-wide text-slate-200">Forecast provenance</p>
+              <p className="mt-1 text-slate-200">
+                Source {weather.provenance.source} · Confidence {weather.provenance.confidence}/100
+                {weather.provenance.fallbackUsed ? ' · fallback route used' : ''}
+              </p>
+              <p className="mt-1 text-slate-400">Signals: {weather.provenance.signalSources.join(', ')}</p>
+            </div>
+          ) : null}
         </>
       ) : null}
     </section>

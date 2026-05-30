@@ -2,6 +2,7 @@ import 'server-only';
 
 import type {
   DomainScore,
+  ForecastProvenance,
   LifeDomain,
   WeatherCondition,
   WeatherConfidence,
@@ -121,6 +122,7 @@ export interface BuildWeatherReportInput {
   confidence: number;
   domainScores: DomainScore[];
   defaultHours?: 24 | 72 | 168 | 720;
+  provenance?: ForecastProvenance;
 }
 
 function toWeatherDomainForecast(score: DomainScore): WeatherDomainForecast {
@@ -187,5 +189,6 @@ export function buildWeatherForecastReport(input: BuildWeatherReportInput): Weat
       'Forecasts are directional guidance, not deterministic outcomes.',
       'Use high-pressure windows for preparation and risk management.',
     ],
+    provenance: input.provenance,
   };
 }

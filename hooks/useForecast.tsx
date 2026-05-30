@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import type { CafeForecastResponse, TimeHorizonHours } from '@/shared/cafe-contracts';
+import type { ForecastProvenance } from '@/types/astrology';
 
 export interface ForecastIntakeOptions {
   userId?: string;
@@ -70,6 +71,7 @@ export interface DailyForecast {
       opportunityWindow: number;
     };
   };
+  provenance?: ForecastProvenance;
 }
 
 function mapCafeIndexToDayRating(index: number): DailyForecast['day_rating'] {
@@ -99,6 +101,15 @@ function normalizeCafeToDailyForecast(response: CafeForecastResponse): DailyFore
       phase: payload.phase,
       confidence: payload.confidence,
       dimensions: payload.dimensions,
+    },
+    provenance: {
+      source: `${response.meta.executionMode}:${response.meta.provider}`,
+      signalSources: response.meta.provenance.signalSources,
+      confidence: response.meta.confidence,
+      generatedAt: response.generatedAt,
+      fallbackUsed: response.meta.usedFallback,
+      freshnessHours: response.meta.provenance.freshnessHours,
+      notes: response.meta.provenance.notes,
     },
   };
 }

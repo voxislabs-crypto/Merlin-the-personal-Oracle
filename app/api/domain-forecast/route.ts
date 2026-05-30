@@ -136,6 +136,24 @@ export async function POST(request: Request) {
       confidence,
       domainScores: explainability.domainScores,
       defaultHours: mapWindowDaysToHorizonHours(windowDays),
+      provenance: {
+        source: source === 'swiss-real' ? 'domain-forecast:swiss-real' : 'domain-forecast:fallback',
+        signalSources: [
+          'natal chart',
+          'predictive transits',
+          'resonance weights',
+          'merlin context',
+        ],
+        confidence,
+        generatedAt: new Date().toISOString(),
+        fallbackUsed: source !== 'swiss-real',
+        freshnessHours: windowDays * 24,
+        notes: [
+          appliedOffsetHours === null
+            ? 'timezone offset unavailable; using provided local time'
+            : `timezone offset ${appliedOffsetHours}h applied`,
+        ],
+      },
     });
 
     return NextResponse.json({

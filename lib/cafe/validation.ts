@@ -83,7 +83,7 @@ export function validateCafeForecastRequest(input: unknown): ValidationResult<Ca
     return { ok: false, errors };
   }
 
-  return { ok: true, value: input as CafeForecastRequest };
+  return { ok: true, value: input as unknown as CafeForecastRequest };
 }
 
 export function validateCafeForecastPayload(input: unknown): ValidationResult<CafeForecastPayload> {
@@ -135,5 +135,5 @@ export function validateCafeForecastPayload(input: unknown): ValidationResult<Ca
     return { ok: false, errors };
   }
 
-  return { ok: true, value: input as CafeForecastPayload };
+  return { ok: true, value: input as unknown as CafeForecastPayload };
 }
