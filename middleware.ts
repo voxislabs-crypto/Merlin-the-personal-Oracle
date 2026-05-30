@@ -1,7 +1,10 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-const clerkDomain = process.env.NEXT_PUBLIC_CLERK_CUSTOM_DOMAIN || process.env.NEXT_PUBLIC_CLERK_DOMAIN || undefined;
+const clerkDomain =
+  process.env.NEXT_PUBLIC_CLERK_DOMAIN ||
+  process.env.NEXT_PUBLIC_CLERK_CUSTOM_DOMAIN?.replace(/^clerk\./, '') ||
+  undefined;
 const isSatellite = process.env.NEXT_PUBLIC_CLERK_IS_SATELLITE === 'true';
 const signInUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || '/sign-in';
 const signUpUrl = process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL || '/sign-up';
