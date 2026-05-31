@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxislabs.ai/schemas/trust-calibration.schema.json",
+  "title": "Trust Calibration Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "modelId",
+    "window",
+    "overallTrustScore",
+    "overallCalibrationError",
+    "cohorts",
+    "generatedAt"
+  ],
+  "properties": {
+    "modelId": {
+      "type": "string"
+    },
+    "window": {
+      "type": "string"
+    },
+    "overallTrustScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "overallCalibrationError": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "cohorts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cohortId",
+          "sampleSize",
+          "trustScore",
+          "calibrationError",
+          "hallucinationRate",
+          "emotionalConsistency",
+          "responseCoherence"
+        ],
+        "properties": {
+          "cohortId": {
+            "type": "string"
+          },
+          "sampleSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "trustScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "calibrationError": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "hallucinationRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "emotionalConsistency": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "responseCoherence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "alerts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "message"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["drift", "cohort_regression", "trust_drop", "data_quality"]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

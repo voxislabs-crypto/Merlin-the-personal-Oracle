@@ -144,6 +144,12 @@ export default function Home() {
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-20 blur transition-opacity"></div>
               </button>
             </Link>
+
+            <Link href="/enhanced-dashboard">
+              <button className="px-8 py-4 font-bold text-lg rounded-lg border-2 border-cyan-400/60 text-cyan-100 hover:border-cyan-300 hover:text-cyan-50 transition-all duration-300 hover:bg-cyan-900/20">
+                Open V2
+              </button>
+            </Link>
             
             <Link href="#faq">
               <button className="px-8 py-4 font-bold text-lg rounded-lg border-2 border-purple-400/50 text-purple-200 hover:border-purple-300 hover:text-purple-100 transition-all duration-300 hover:bg-purple-900/20">

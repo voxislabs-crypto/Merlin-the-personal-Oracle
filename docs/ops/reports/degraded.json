@@ -1,0 +1,375 @@
+{
+  "generatedAt": "2026-05-28T19:03:34.056Z",
+  "scenario": "degraded",
+  "eventCount": 4,
+  "latest": {
+    "scorecard": {
+      "evaluationWindow": "2026-W22",
+      "modelId": "voxis-luna-v0.4",
+      "status": "red",
+      "objective": "Contain drift spike and restore trust calibration in affected cohorts.",
+      "quality": {
+        "calibrationScore": 0.72,
+        "coherenceScore": 0.74,
+        "hallucinationRate": 0.14,
+        "driftScore": 0.63
+      },
+      "trust": {
+        "trustScore": 0.69,
+        "sourceTransparencyRate": 0.91,
+        "uncertaintyInclusionRate": 0.84,
+        "emotionalConsistency": 0.66
+      },
+      "dataHealth": {
+        "optInReports": 1318,
+        "missingnessRate": 0.11,
+        "freshnessHours": 13
+      },
+      "risks": [
+        {
+          "id": "risk-drift-severity-high",
+          "severity": "critical",
+          "description": "Drift exceeded threshold and caused trust degradation.",
+          "mitigationOwner": "safety",
+          "status": "mitigating"
+        }
+      ],
+      "decisions": {
+        "kept": [
+          "fallback transparency copy"
+        ],
+        "changed": [
+          "reduced adaptive traffic to 0%"
+        ],
+        "deferred": [
+          "new personality style rollout"
+        ],
+        "rolledBack": [
+          "adaptive response blending"
+        ]
+      },
+      "updatedAt": "2026-05-28T19:03:33.912Z"
+    },
+    "phaseGate": {
+      "modelId": "voxis-luna-v0.4",
+      "evaluationWindow": "2026-W22",
+      "approvedBy": [
+        "ops",
+        "safety",
+        "personality-team"
+      ],
+      "currentPhase": "adaptive",
+      "targetPhase": "trusted",
+      "metrics": {
+        "trustScore": 0.69,
+        "hallucinationRate": 0.14,
+        "emotionalConsistency": 0.66,
+        "responseCoherence": 0.74,
+        "driftScore": 0.63
+      },
+      "gateChecks": {
+        "dataReadiness": {
+          "pass": false,
+          "evidence": [
+            "missingness exceeded threshold"
+          ],
+          "failedReasons": [
+            "coverage instability in key cohorts"
+          ]
+        },
+        "offlineUplift": {
+          "pass": false,
+          "evidence": [
+            "uplift reversed on holdout"
+          ],
+          "failedReasons": [
+            "hallucination rate regression"
+          ]
+        },
+        "shadowSafety": {
+          "pass": false,
+          "evidence": [
+            "latency and error burst observed in shadow replay"
+          ],
+          "failedReasons": [
+            "p95 latency over SLO"
+          ]
+        },
+        "transparency": {
+          "pass": false,
+          "evidence": [
+            "uncertainty labels dropped below policy target"
+          ],
+          "failedReasons": [
+            "explanation fallback not applied consistently"
+          ]
+        },
+        "rollbackReadiness": {
+          "pass": true,
+          "evidence": [
+            "auto-freeze trigger path verified"
+          ]
+        }
+      },
+      "rollbackTriggered": true,
+      "decision": "hold",
+      "notes": "Auto-freeze engaged. Reverting adaptive outputs until trust and drift recover.",
+      "decidedAt": "2026-05-28T19:03:33.913Z"
+    },
+    "trustCalibration": {
+      "modelId": "voxis-luna-v0.4",
+      "window": "2026-W22",
+      "overallTrustScore": 0.69,
+      "overallCalibrationError": 0.22,
+      "cohorts": [
+        {
+          "cohortId": "global-primary",
+          "sampleSize": 799,
+          "trustScore": 0.73,
+          "calibrationError": 0.19,
+          "hallucinationRate": 0.12,
+          "emotionalConsistency": 0.71,
+          "responseCoherence": 0.77
+        },
+        {
+          "cohortId": "evening-shift",
+          "sampleSize": 184,
+          "trustScore": 0.58,
+          "calibrationError": 0.31,
+          "hallucinationRate": 0.2,
+          "emotionalConsistency": 0.55,
+          "responseCoherence": 0.62
+        }
+      ],
+      "alerts": [
+        {
+          "type": "drift",
+          "message": "Drift exceeded freeze threshold for 3 consecutive windows."
+        },
+        {
+          "type": "trust_drop",
+          "message": "Trust score dropped more than 0.15 from prior week."
+        }
+      ],
+      "generatedAt": "2026-05-28T19:03:33.913Z"
+    },
+    "rollbackEvent": {
+      "eventId": "rollback-1779995013913",
+      "modelId": "voxis-luna-v0.4",
+      "fromPhase": "adaptive",
+      "toPhase": "trusted",
+      "trigger": "drift_threshold_exceeded",
+      "severity": "critical",
+      "initiatedBy": "auto-freeze",
+      "metricsSnapshot": {
+        "trustScore": 0.69,
+        "hallucinationRate": 0.14,
+        "responseCoherence": 0.74,
+        "driftScore": 0.63
+      },
+      "summary": "Automatic rollback due to drift and trust regression.",
+      "actionItems": [
+        "Freeze adaptive phase",
+        "Run cohort-level calibration audit"
+      ],
+      "occurredAt": "2026-05-28T19:03:33.913Z"
+    }
+  },
+  "events": [
+    {
+      "id": "cmppv2mwb0003imk39b9yvv0l",
+      "type": "ops_rollback_event_v1",
+      "content": "Rollback event (degraded)",
+      "createdAt": "2026-05-28T18:33:33.993Z",
+      "payload": {
+        "eventId": "rollback-1779995013913",
+        "modelId": "voxis-luna-v0.4",
+        "fromPhase": "adaptive",
+        "toPhase": "trusted",
+        "trigger": "drift_threshold_exceeded",
+        "severity": "critical",
+        "initiatedBy": "auto-freeze",
+        "metricsSnapshot": {
+          "trustScore": 0.69,
+          "hallucinationRate": 0.14,
+          "responseCoherence": 0.74,
+          "driftScore": 0.63
+        },
+        "summary": "Automatic rollback due to drift and trust regression.",
+        "actionItems": [
+          "Freeze adaptive phase",
+          "Run cohort-level calibration audit"
+        ],
+        "occurredAt": "2026-05-28T19:03:33.913Z"
+      }
+    },
+    {
+      "id": "cmppv2mvo0002imk3zxph3y44",
+      "type": "ops_trust_calibration_v1",
+      "content": "Trust calibration 2026-W22 (degraded)",
+      "createdAt": "2026-05-28T18:03:33.970Z",
+      "payload": {
+        "modelId": "voxis-luna-v0.4",
+        "window": "2026-W22",
+        "overallTrustScore": 0.69,
+        "overallCalibrationError": 0.22,
+        "cohorts": [
+          {
+            "cohortId": "global-primary",
+            "sampleSize": 799,
+            "trustScore": 0.73,
+            "calibrationError": 0.19,
+            "hallucinationRate": 0.12,
+            "emotionalConsistency": 0.71,
+            "responseCoherence": 0.77
+          },
+          {
+            "cohortId": "evening-shift",
+            "sampleSize": 184,
+            "trustScore": 0.58,
+            "calibrationError": 0.31,
+            "hallucinationRate": 0.2,
+            "emotionalConsistency": 0.55,
+            "responseCoherence": 0.62
+          }
+        ],
+        "alerts": [
+          {
+            "type": "drift",
+            "message": "Drift exceeded freeze threshold for 3 consecutive windows."
+          },
+          {
+            "type": "trust_drop",
+            "message": "Trust score dropped more than 0.15 from prior week."
+          }
+        ],
+        "generatedAt": "2026-05-28T19:03:33.913Z"
+      }
+    },
+    {
+      "id": "cmppv2mv00001imk3ogu6w0i5",
+      "type": "ops_phase_gate_v1",
+      "content": "Phase gate adaptive -> trusted (degraded)",
+      "createdAt": "2026-05-28T17:03:33.946Z",
+      "payload": {
+        "modelId": "voxis-luna-v0.4",
+        "evaluationWindow": "2026-W22",
+        "approvedBy": [
+          "ops",
+          "safety",
+          "personality-team"
+        ],
+        "currentPhase": "adaptive",
+        "targetPhase": "trusted",
+        "metrics": {
+          "trustScore": 0.69,
+          "hallucinationRate": 0.14,
+          "emotionalConsistency": 0.66,
+          "responseCoherence": 0.74,
+          "driftScore": 0.63
+        },
+        "gateChecks": {
+          "dataReadiness": {
+            "pass": false,
+            "evidence": [
+              "missingness exceeded threshold"
+            ],
+            "failedReasons": [
+              "coverage instability in key cohorts"
+            ]
+          },
+          "offlineUplift": {
+            "pass": false,
+            "evidence": [
+              "uplift reversed on holdout"
+            ],
+            "failedReasons": [
+              "hallucination rate regression"
+            ]
+          },
+          "shadowSafety": {
+            "pass": false,
+            "evidence": [
+              "latency and error burst observed in shadow replay"
+            ],
+            "failedReasons": [
+              "p95 latency over SLO"
+            ]
+          },
+          "transparency": {
+            "pass": false,
+            "evidence": [
+              "uncertainty labels dropped below policy target"
+            ],
+            "failedReasons": [
+              "explanation fallback not applied consistently"
+            ]
+          },
+          "rollbackReadiness": {
+            "pass": true,
+            "evidence": [
+              "auto-freeze trigger path verified"
+            ]
+          }
+        },
+        "rollbackTriggered": true,
+        "decision": "hold",
+        "notes": "Auto-freeze engaged. Reverting adaptive outputs until trust and drift recover.",
+        "decidedAt": "2026-05-28T19:03:33.913Z"
+      }
+    },
+    {
+      "id": "cmppv2mue0000imk38ix206pt",
+      "type": "ops_scorecard_v1",
+      "content": "Scorecard 2026-W22 (degraded)",
+      "createdAt": "2026-05-28T16:03:33.913Z",
+      "payload": {
+        "evaluationWindow": "2026-W22",
+        "modelId": "voxis-luna-v0.4",
+        "status": "red",
+        "objective": "Contain drift spike and restore trust calibration in affected cohorts.",
+        "quality": {
+          "calibrationScore": 0.72,
+          "coherenceScore": 0.74,
+          "hallucinationRate": 0.14,
+          "driftScore": 0.63
+        },
+        "trust": {
+          "trustScore": 0.69,
+          "sourceTransparencyRate": 0.91,
+          "uncertaintyInclusionRate": 0.84,
+          "emotionalConsistency": 0.66
+        },
+        "dataHealth": {
+          "optInReports": 1318,
+          "missingnessRate": 0.11,
+          "freshnessHours": 13
+        },
+        "risks": [
+          {
+            "id": "risk-drift-severity-high",
+            "severity": "critical",
+            "description": "Drift exceeded threshold and caused trust degradation.",
+            "mitigationOwner": "safety",
+            "status": "mitigating"
+          }
+        ],
+        "decisions": {
+          "kept": [
+            "fallback transparency copy"
+          ],
+          "changed": [
+            "reduced adaptive traffic to 0%"
+          ],
+          "deferred": [
+            "new personality style rollout"
+          ],
+          "rolledBack": [
+            "adaptive response blending"
+          ]
+        },
+        "updatedAt": "2026-05-28T19:03:33.912Z"
+      }
+    }
+  ]
+}

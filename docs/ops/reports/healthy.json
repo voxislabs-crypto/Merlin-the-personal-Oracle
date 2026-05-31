@@ -1,0 +1,294 @@
+{
+  "generatedAt": "2026-05-28T19:03:33.686Z",
+  "scenario": "healthy",
+  "eventCount": 3,
+  "latest": {
+    "scorecard": {
+      "evaluationWindow": "2026-W22",
+      "modelId": "voxis-luna-v0.4",
+      "status": "green",
+      "objective": "Improve trust calibration and keep hallucination drift below threshold.",
+      "quality": {
+        "calibrationScore": 0.91,
+        "coherenceScore": 0.9,
+        "hallucinationRate": 0.03,
+        "driftScore": 0.16
+      },
+      "trust": {
+        "trustScore": 0.92,
+        "sourceTransparencyRate": 0.99,
+        "uncertaintyInclusionRate": 0.98,
+        "emotionalConsistency": 0.88
+      },
+      "dataHealth": {
+        "optInReports": 1462,
+        "missingnessRate": 0.04,
+        "freshnessHours": 5
+      },
+      "risks": [
+        {
+          "id": "risk-cohort-evening-shift",
+          "severity": "medium",
+          "description": "Evening-shift cohort has lower calibration reliability.",
+          "mitigationOwner": "ops",
+          "status": "mitigating"
+        }
+      ],
+      "decisions": {
+        "kept": [
+          "post-meal mood smoothing"
+        ],
+        "changed": [
+          "confidence-band wording"
+        ],
+        "deferred": [
+          "multilingual explanation layer"
+        ],
+        "rolledBack": []
+      },
+      "updatedAt": "2026-05-28T19:03:33.608Z"
+    },
+    "phaseGate": {
+      "modelId": "voxis-luna-v0.4",
+      "evaluationWindow": "2026-W22",
+      "approvedBy": [
+        "ops",
+        "safety",
+        "personality-team"
+      ],
+      "currentPhase": "trusted",
+      "targetPhase": "adaptive",
+      "metrics": {
+        "trustScore": 0.92,
+        "hallucinationRate": 0.03,
+        "emotionalConsistency": 0.88,
+        "responseCoherence": 0.9,
+        "driftScore": 0.16
+      },
+      "gateChecks": {
+        "dataReadiness": {
+          "pass": true,
+          "evidence": [
+            "opt-in coverage above threshold",
+            "missingness under 5%"
+          ]
+        },
+        "offlineUplift": {
+          "pass": true,
+          "evidence": [
+            "calibration uplift +6.3% vs baseline"
+          ]
+        },
+        "shadowSafety": {
+          "pass": true,
+          "evidence": [
+            "no SLO violation in 72h shadow run"
+          ]
+        },
+        "transparency": {
+          "pass": true,
+          "evidence": [
+            "99% outputs include source transparency and uncertainty"
+          ]
+        },
+        "rollbackReadiness": {
+          "pass": true,
+          "evidence": [
+            "rollback simulation completed in under 3 minutes"
+          ]
+        }
+      },
+      "rollbackTriggered": false,
+      "decision": "approve",
+      "notes": "Advance to adaptive under 10% traffic flag for 48 hours.",
+      "decidedAt": "2026-05-28T19:03:33.608Z"
+    },
+    "trustCalibration": {
+      "modelId": "voxis-luna-v0.4",
+      "window": "2026-W22",
+      "overallTrustScore": 0.92,
+      "overallCalibrationError": 0.08,
+      "cohorts": [
+        {
+          "cohortId": "global-primary",
+          "sampleSize": 862,
+          "trustScore": 0.93,
+          "calibrationError": 0.07,
+          "hallucinationRate": 0.03,
+          "emotionalConsistency": 0.89,
+          "responseCoherence": 0.91
+        },
+        {
+          "cohortId": "evening-shift",
+          "sampleSize": 211,
+          "trustScore": 0.86,
+          "calibrationError": 0.13,
+          "hallucinationRate": 0.05,
+          "emotionalConsistency": 0.81,
+          "responseCoherence": 0.84
+        }
+      ],
+      "alerts": [
+        {
+          "type": "cohort_regression",
+          "message": "Evening-shift cohort underperforms baseline trust target by 0.04."
+        }
+      ],
+      "generatedAt": "2026-05-28T19:03:33.608Z"
+    },
+    "rollbackEvent": null
+  },
+  "events": [
+    {
+      "id": "cmppv2mml0002to4gbp2noal1",
+      "type": "ops_trust_calibration_v1",
+      "content": "Trust calibration 2026-W22 (healthy)",
+      "createdAt": "2026-05-28T18:03:33.644Z",
+      "payload": {
+        "modelId": "voxis-luna-v0.4",
+        "window": "2026-W22",
+        "overallTrustScore": 0.92,
+        "overallCalibrationError": 0.08,
+        "cohorts": [
+          {
+            "cohortId": "global-primary",
+            "sampleSize": 862,
+            "trustScore": 0.93,
+            "calibrationError": 0.07,
+            "hallucinationRate": 0.03,
+            "emotionalConsistency": 0.89,
+            "responseCoherence": 0.91
+          },
+          {
+            "cohortId": "evening-shift",
+            "sampleSize": 211,
+            "trustScore": 0.86,
+            "calibrationError": 0.13,
+            "hallucinationRate": 0.05,
+            "emotionalConsistency": 0.81,
+            "responseCoherence": 0.84
+          }
+        ],
+        "alerts": [
+          {
+            "type": "cohort_regression",
+            "message": "Evening-shift cohort underperforms baseline trust target by 0.04."
+          }
+        ],
+        "generatedAt": "2026-05-28T19:03:33.608Z"
+      }
+    },
+    {
+      "id": "cmppv2mma0001to4gahfer479",
+      "type": "ops_phase_gate_v1",
+      "content": "Phase gate trusted -> adaptive",
+      "createdAt": "2026-05-28T17:03:33.633Z",
+      "payload": {
+        "modelId": "voxis-luna-v0.4",
+        "evaluationWindow": "2026-W22",
+        "approvedBy": [
+          "ops",
+          "safety",
+          "personality-team"
+        ],
+        "currentPhase": "trusted",
+        "targetPhase": "adaptive",
+        "metrics": {
+          "trustScore": 0.92,
+          "hallucinationRate": 0.03,
+          "emotionalConsistency": 0.88,
+          "responseCoherence": 0.9,
+          "driftScore": 0.16
+        },
+        "gateChecks": {
+          "dataReadiness": {
+            "pass": true,
+            "evidence": [
+              "opt-in coverage above threshold",
+              "missingness under 5%"
+            ]
+          },
+          "offlineUplift": {
+            "pass": true,
+            "evidence": [
+              "calibration uplift +6.3% vs baseline"
+            ]
+          },
+          "shadowSafety": {
+            "pass": true,
+            "evidence": [
+              "no SLO violation in 72h shadow run"
+            ]
+          },
+          "transparency": {
+            "pass": true,
+            "evidence": [
+              "99% outputs include source transparency and uncertainty"
+            ]
+          },
+          "rollbackReadiness": {
+            "pass": true,
+            "evidence": [
+              "rollback simulation completed in under 3 minutes"
+            ]
+          }
+        },
+        "rollbackTriggered": false,
+        "decision": "approve",
+        "notes": "Advance to adaptive under 10% traffic flag for 48 hours.",
+        "decidedAt": "2026-05-28T19:03:33.608Z"
+      }
+    },
+    {
+      "id": "cmppv2mlx0000to4g5ilstgu8",
+      "type": "ops_scorecard_v1",
+      "content": "Scorecard 2026-W22 (healthy)",
+      "createdAt": "2026-05-28T16:03:33.608Z",
+      "payload": {
+        "evaluationWindow": "2026-W22",
+        "modelId": "voxis-luna-v0.4",
+        "status": "green",
+        "objective": "Improve trust calibration and keep hallucination drift below threshold.",
+        "quality": {
+          "calibrationScore": 0.91,
+          "coherenceScore": 0.9,
+          "hallucinationRate": 0.03,
+          "driftScore": 0.16
+        },
+        "trust": {
+          "trustScore": 0.92,
+          "sourceTransparencyRate": 0.99,
+          "uncertaintyInclusionRate": 0.98,
+          "emotionalConsistency": 0.88
+        },
+        "dataHealth": {
+          "optInReports": 1462,
+          "missingnessRate": 0.04,
+          "freshnessHours": 5
+        },
+        "risks": [
+          {
+            "id": "risk-cohort-evening-shift",
+            "severity": "medium",
+            "description": "Evening-shift cohort has lower calibration reliability.",
+            "mitigationOwner": "ops",
+            "status": "mitigating"
+          }
+        ],
+        "decisions": {
+          "kept": [
+            "post-meal mood smoothing"
+          ],
+          "changed": [
+            "confidence-band wording"
+          ],
+          "deferred": [
+            "multilingual explanation layer"
+          ],
+          "rolledBack": []
+        },
+        "updatedAt": "2026-05-28T19:03:33.608Z"
+      }
+    }
+  ]
+}

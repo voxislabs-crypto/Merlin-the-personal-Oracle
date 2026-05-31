@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
+import { resonanceDB } from '@/lib/resonance-database';
 import { prisma } from '@/lib/prisma';
 
 const DOMAIN_KEYS = ['love', 'career', 'money', 'family', 'health', 'self'] as const;
@@ -18,6 +19,8 @@ interface CheckinRequest {
   confidence?: number;
   domains?: DomainRatings;
   notes?: string;
+  resonanceAspectId?: string;
+  resonanceTheme?: string;
 }
 
 function isValidScale(value: unknown): value is number {
@@ -32,6 +35,22 @@ function normalizeDomains(domains: unknown): DomainRatings {
   });
 
   return Object.fromEntries(entries) as DomainRatings;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function deriveAccuracyScore(body: CheckinRequest): number {
+  if (typeof body.confidence === 'number') {
+    return clamp(body.confidence / 10, 0.2, 1);
+  }
+
+  const mood = body.mood || 5;
+  const stress = body.stress || 5;
+  const energy = body.energy || 5;
+  const raw = (mood + energy - stress + 10) / 20;
+  return clamp(raw, 0.2, 1);
 }
 
 export async function POST(request: Request) {
@@ -89,6 +108,22 @@ export async function POST(request: Request) {
         createdAt: true,
       },
     });
+
+    if (body.resonanceAspectId && body.resonanceTheme) {
+      const accuracyScore = deriveAccuracyScore(body);
+      const resonated = accuracyScore >= 0.6;
+
+      await resonanceDB.ensureUser({
+        userId: targetUserId,
+        createdAt: createdAt,
+      });
+
+      await resonanceDB.processFeedback(targetUserId, body.resonanceAspectId, body.resonanceTheme, {
+        resonated,
+        accuracyScore,
+        notes: body.notes || `checkin:${body.resonanceTheme}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,

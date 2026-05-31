@@ -4,6 +4,7 @@ import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
+import { buildWeatherForecastReport } from '@/lib/astrology/pressure-engine/weather-language';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
 import type { BirthChartData, DomainScore } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
@@ -38,6 +39,22 @@ function buildDailyDomainSeries(days: number, baseline: DomainScore[]) {
       domains: baseline,
     };
   });
+}
+
+function mapWindowDaysToHorizonHours(windowDays: number): 24 | 72 | 168 | 720 {
+  if (windowDays <= 1) {
+    return 24;
+  }
+
+  if (windowDays <= 3) {
+    return 72;
+  }
+
+  if (windowDays <= 7) {
+    return 168;
+  }
+
+  return 720;
 }
 
 export async function POST(request: Request) {
@@ -113,6 +130,32 @@ export async function POST(request: Request) {
       confidence,
     });
 
+    const weatherReport = buildWeatherForecastReport({
+      generatedAt: new Date().toISOString(),
+      globalPressure,
+      confidence,
+      domainScores: explainability.domainScores,
+      defaultHours: mapWindowDaysToHorizonHours(windowDays),
+      provenance: {
+        source: source === 'swiss-real' ? 'domain-forecast:swiss-real' : 'domain-forecast:fallback',
+        signalSources: [
+          'natal chart',
+          'predictive transits',
+          'resonance weights',
+          'merlin context',
+        ],
+        confidence,
+        generatedAt: new Date().toISOString(),
+        fallbackUsed: source !== 'swiss-real',
+        freshnessHours: windowDays * 24,
+        notes: [
+          appliedOffsetHours === null
+            ? 'timezone offset unavailable; using provided local time'
+            : `timezone offset ${appliedOffsetHours}h applied`,
+        ],
+      },
+    });
+
     return NextResponse.json({
       success: true,
       source,
@@ -122,6 +165,7 @@ export async function POST(request: Request) {
         windowDays,
         domains: explainability.domainScores,
         daily: buildDailyDomainSeries(windowDays, explainability.domainScores),
+        weather: weatherReport,
       },
     });
   } catch (error) {

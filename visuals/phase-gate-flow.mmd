@@ -1,0 +1,37 @@
+flowchart TD
+  B[Baseline] --> S[Stable]
+  S --> T[Trusted]
+  T --> A[Adaptive]
+  A --> U[Autonomous]
+
+  S -. rollback .-> B
+  T -. rollback .-> S
+  A -. rollback .-> T
+  U -. rollback .-> A
+
+  S --> GS{Gate checks pass?}
+  T --> GT{Gate checks pass?}
+  A --> GA{Gate checks pass?}
+
+  GS -->|yes| T
+  GS -->|no| RB1[Auto-freeze and rollback]
+  GT -->|yes| A
+  GT -->|no| RB2[Auto-freeze and rollback]
+  GA -->|yes| U
+  GA -->|no| RB3[Auto-freeze and rollback]
+
+  RB1 --> B
+  RB2 --> S
+  RB3 --> T
+
+  HC1[Human checkpoint\nOps + Safety + Personality] --> GS
+  HC2[Human checkpoint\nOps + Safety + Personality] --> GT
+  HC3[Human checkpoint\nOps + Safety + Personality] --> GA
+
+  D1[Drift detector] --> RB1
+  D2[Drift detector] --> RB2
+  D3[Drift detector] --> RB3
+
+  C1[Confidence threshold met] --> GS
+  C2[Confidence threshold met] --> GT
+  C3[Confidence threshold met] --> GA

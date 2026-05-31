@@ -1,5 +1,7 @@
 # Merlin Rework Sprint Roadmap
 
+Note: For the updated cross-product strategy and phased roadmap spanning Merlin, CAFE, and Voxis AIOS, see [docs/VOXIS_COGNITIVE_CLIMATE_ROADMAP.md](docs/VOXIS_COGNITIVE_CLIMATE_ROADMAP.md).
+
 ## Planning Horizon
 
 - Total duration: 12 to 16 weeks

@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Lightbulb, Sparkles, Heart, Briefcase, MessageSquare, Waves } from 'lucide-react';
 import ThumbsFeedback from './ThumbsFeedback';
-import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
+import type { DomainScore, ExplainabilityPacket, ForecastProvenance } from '@/types/astrology';
 
 // eslint-disable-next-line no-unused-vars
 type AskContextFn = (s1: string, s2: string) => void;
@@ -47,6 +47,7 @@ interface DailyForecastProps {
   domainScores?: DomainScore[];
   insightLoading?: boolean;
   insightError?: string;
+  provenance?: ForecastProvenance;
 }
 
 export function DailyForecast({
@@ -71,6 +72,7 @@ export function DailyForecast({
   domainScores,
   insightLoading = false,
   insightError,
+  provenance,
 }: DailyForecastProps) {
   if (loading) {
     return (
@@ -314,6 +316,22 @@ export function DailyForecast({
           ) : null}
 
           {insightError ? <p className="text-xs text-rose-300 mt-3">{insightError}</p> : null}
+
+          {provenance ? (
+            <div className="mt-4 rounded border border-slate-600/40 bg-slate-950/45 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Forecast provenance</p>
+              <p className="text-xs text-slate-200 mt-1">
+                Source {provenance.source} · Confidence {provenance.confidence}/100
+                {provenance.fallbackUsed ? ' · fallback route used' : ''}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Signals: {provenance.signalSources.join(', ')}
+              </p>
+              {provenance.notes?.length ? (
+                <p className="text-xs text-slate-400 mt-1">Notes: {provenance.notes.join(' · ')}</p>
+              ) : null}
+            </div>
+          ) : null}
         </motion.div>
       )}
 

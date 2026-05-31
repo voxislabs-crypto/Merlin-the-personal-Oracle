@@ -20,10 +20,14 @@ import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard'
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import { PatternMirrorPanel } from '@/components/astrology/PatternMirrorPanel';
+import { WeatherOverviewPanel } from '@/components/astrology/WeatherOverviewPanel';
+import { AtmosphericMap } from '@/components/astrology/AtmosphericMap';
+import { WeatherDeepDivePanel } from '@/components/astrology/WeatherDeepDivePanel';
+import { CalibrationMasteryCard } from '@/components/astrology/CalibrationMasteryCard';
 import QuestLog from '@/components/astrology/QuestLog';
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
-import { useForecast } from '@/hooks/useForecast';
+import { useForecast, type ForecastIntakeOptions } from '@/hooks/useForecast';
 import { useTransits } from '@/hooks/useTransits';
 import { usePressureWindow } from '@/hooks/usePressureWindow';
 import { useDomainForecast } from '@/hooks/useDomainForecast';
@@ -35,7 +39,6 @@ import { usePersonality } from '@/hooks/usePersonality';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { GeocodingService } from '@/lib/astrology/geocoding';
-import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +61,8 @@ import {
 import { getMBTITypeDescription, applyMBTIOverlay } from '@/lib/mbti-overlay';
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import { resolveTierFromMetadata, type SubscriptionTier } from '@/lib/subscription-tier';
+import type { SharedAtmosphereReport, SharedSignalSource } from '@/types/astrology';
+import type { TimeHorizonHours } from '@/shared/cafe-contracts';
 
 const STORAGE_KEY = 'merlin_chart_data';
 const STORAGE_BIRTH_KEY = 'merlin_birth_data';
@@ -72,10 +77,45 @@ const WEEKLY_RESET_PROMPT_KEY = 'merlin_weekly_reset_prompt_seen';
 const CALIBRATION_HISTORY_DAYS_KEY = 'merlin_calibration_history_days';
 const CALIBRATION_SORT_MODE_KEY = 'merlin_calibration_sort_mode';
 
+type HorizonHours = 24 | 72 | 168 | 720;
+
+const HORIZON_TO_WINDOW_DAYS: Record<HorizonHours, 1 | 3 | 7 | 30> = {
+  24: 1,
+  72: 3,
+  168: 7,
+  720: 30,
+};
+
 type DashboardEvent = {
   eventName: string;
   at: string;
   detail: Record<string, unknown>;
+};
+
+type CafeGatewayHealthResponse = {
+  success: boolean;
+  data?: {
+    configured: {
+      generic: boolean;
+      local: boolean;
+      remote: boolean;
+    };
+    targets: Array<{
+      mode: 'generic' | 'local' | 'remote';
+      provider: string;
+      model: string;
+      url: string;
+      apiKeyPresent: boolean;
+    }>;
+    probeEnabled: boolean;
+    probes: Array<{
+      mode: 'generic' | 'local' | 'remote';
+      reachable: boolean;
+      status?: number;
+      statusText?: string;
+      error?: string;
+    }>;
+  };
 };
 
 type ClientTier = SubscriptionTier;
@@ -120,6 +160,7 @@ export default function UnifiedDashboard() {
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
   const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc' | 'personality' | 'stormradar'>('wheel');
+  const [forecastHorizonHours, setForecastHorizonHours] = useState<HorizonHours>(72);
   // Life Arc mode removed - now just raw timeline
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
   const [interpretMode, setInterpretMode] = useState<'grok' | 'traditional'>('grok');
@@ -140,6 +181,12 @@ export default function UnifiedDashboard() {
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
+  const [userContextSnapshot, setUserContextSnapshot] = useState<{
+    situation?: string;
+    mood?: string;
+    goals?: string[];
+    lastFeedbackNotes?: string;
+  } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [dailyOracle, setDailyOracle] = useState<{
     message?: string;
@@ -160,6 +207,9 @@ export default function UnifiedDashboard() {
   const [hasAskedMerlin, setHasAskedMerlin] = useState(false);
   const [dashboardEvents, setDashboardEvents] = useState<DashboardEvent[]>([]);
   const [showDevDiagnostics, setShowDevDiagnostics] = useState(false);
+  const [cafeGatewayHealth, setCafeGatewayHealth] = useState<CafeGatewayHealthResponse['data'] | null>(null);
+  const [cafeGatewayLoading, setCafeGatewayLoading] = useState(false);
+  const [cafeGatewayError, setCafeGatewayError] = useState<string>('');
   const [showWeeklyResetPrompt, setShowWeeklyResetPrompt] = useState(false);
   const [prophecyStyle, setProphecyStyle] = useState<ProphecyStyle>('omen');
   const [prophecyEra, setProphecyEra] = useState<ProphecyEra>('babylonian');
@@ -177,10 +227,17 @@ export default function UnifiedDashboard() {
     birthTime: '',
     birthCity: '',
   });
-  const [relationshipReport, setRelationshipReport] = useState<SynastryReport | null>(null);
+  const [sharedAtmosphereReport, setSharedAtmosphereReport] = useState<SharedAtmosphereReport | null>(null);
   const [relationshipLoading, setRelationshipLoading] = useState(false);
   const [relationshipError, setRelationshipError] = useState('');
   const [relationshipLocationHint, setRelationshipLocationHint] = useState('');
+  const [sharedAtmosphereMode, setSharedAtmosphereMode] = useState<'couple' | 'team'>('couple');
+  const [sharedAtmosphereConsent, setSharedAtmosphereConsent] = useState(false);
+  const [sharedSignalSources, setSharedSignalSources] = useState<Record<SharedSignalSource, boolean>>({
+    calendar: false,
+    location: false,
+    sleep: false,
+  });
   const [navigatorCollapsed, setNavigatorCollapsed] = useState(false);
   const [activeNavSection, setActiveNavSection] = useState<'chart' | 'forecast' | 'analysis' | 'weekly' | 'personality' | 'prophecy'>('chart');
   const navigatorCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,6 +281,32 @@ export default function UnifiedDashboard() {
     loadHistory,
     markHistoryFulfilled,
   } = useProphecy();
+
+  const cafeHorizonHours: TimeHorizonHours = forecastHorizonHours === 720 ? 168 : forecastHorizonHours;
+
+  const forecastIntakeOptions = React.useMemo<ForecastIntakeOptions>(() => {
+    const latestEntry = checkinEntries[0];
+    const journalText = [latestEntry?.notes, userContextSnapshot?.situation, userContextSnapshot?.lastFeedbackNotes]
+      .filter((line): line is string => Boolean(line && line.trim().length > 0))
+      .join('\n\n');
+
+    return {
+      userId: userId || undefined,
+      mbtiType: mbtiType || undefined,
+      horizonHours: cafeHorizonHours,
+      mood: userContextSnapshot?.mood,
+      goals: userContextSnapshot?.goals,
+      situation: userContextSnapshot?.situation,
+      lastFeedbackNotes: userContextSnapshot?.lastFeedbackNotes,
+      journalText: journalText || undefined,
+      intention: userContextSnapshot?.goals?.[0],
+      behavioral: {
+        energy: typeof latestEntry?.energy === 'number' ? latestEntry.energy * 10 : undefined,
+        focus: typeof latestEntry?.confidence === 'number' ? latestEntry.confidence * 10 : undefined,
+        emotionalLoad: typeof latestEntry?.stress === 'number' ? latestEntry.stress * 10 : undefined,
+      },
+    };
+  }, [cafeHorizonHours, checkinEntries, mbtiType, userContextSnapshot, userId]);
   
   // Load interpretation mode from localStorage after mount to avoid hydration mismatch
   useEffect(() => {
@@ -345,7 +428,12 @@ export default function UnifiedDashboard() {
   const previousImpact = calibrationImpactSeries.length > 1 ? calibrationImpactSeries[calibrationImpactSeries.length - 2] : null;
   const impactTrendDelta = previousImpact === null ? null : latestImpact - previousImpact;
   const impactStability = getCalibrationStability(calibrationImpactSeries);
+  const calibrationScore = Math.max(
+    0,
+    Math.min(100, Number((100 - impactStability.normalizedStepChange * 100).toFixed(1)))
+  );
   const impactStabilityHelp = `Stability uses normalized step variance across recent impact points. Current: ${(impactStability.normalizedStepChange * 100).toFixed(0)}%. Stable <= 18%, Settling <= 38%, Volatile > 38%.`;
+  const forecastWindowDays = HORIZON_TO_WINDOW_DAYS[forecastHorizonHours];
 
   const appendDashboardEvent = useCallback((eventName: string, detail?: Record<string, unknown>) => {
     try {
@@ -426,7 +514,11 @@ export default function UnifiedDashboard() {
         await Promise.all([
           calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
           calculatePressureWindow(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculateDomainForecast(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculateDomainForecast(birthData, {
+            mbtiType: mbtiType || undefined,
+            userId: userId || undefined,
+            windowDays: forecastWindowDays,
+          }),
         ]);
       }
 
@@ -444,6 +536,7 @@ export default function UnifiedDashboard() {
     calculatePressureWindow,
     calculateTransits,
     calibrationHistoryDays,
+    forecastWindowDays,
     loadCalibrationHistory,
     mbtiType,
     userId,
@@ -472,6 +565,16 @@ export default function UnifiedDashboard() {
         if (!res.ok) return;
         const result = await res.json();
         if (!result?.success || !result?.data) return;
+
+        setUserContextSnapshot({
+          situation: result.data.situation || '',
+          mood: result.data.mood || '',
+          goals: Array.isArray(result.data.goals)
+            ? (result.data.goals as unknown[]).filter((goal): goal is string => typeof goal === 'string' && goal.trim().length > 0)
+            : [],
+          lastFeedbackNotes: result.data.lastFeedbackNotes || '',
+        });
+
         if (result.data.archetypeName || result.data.patternSignature || result.data.coreContradiction) {
           setIdentityPack({
             archetypeName: result.data.archetypeName,
@@ -686,6 +789,12 @@ export default function UnifiedDashboard() {
 
       if (lastCheckin !== todayKey) {
         appendDashboardEvent('dashboard_daily_checkin', { streak: nextCount });
+        const predictiveTopEvent = transits?.predictive?.events?.[0];
+        const resonanceAspectId = predictiveTopEvent
+          ? `${predictiveTopEvent.transit.transitingPlanet}-${predictiveTopEvent.transit.natalPlanet}-${predictiveTopEvent.transit.aspect}`
+          : undefined;
+        const resonanceTheme = predictiveTopEvent?.domains?.[0]?.name || 'self';
+
         void submitCheckin({
           mood: 6,
           stress: 5,
@@ -697,6 +806,10 @@ export default function UnifiedDashboard() {
           },
           notes: 'Auto check-in from dashboard streak refresh.',
           timestamp: today.toISOString(),
+          resonanceAspectId,
+          resonanceTheme,
+        }).then(() => {
+          void loadCalibrationHistory(calibrationHistoryDays);
         });
       }
 
@@ -728,7 +841,7 @@ export default function UnifiedDashboard() {
     } catch {
       // localStorage failures should never block the dashboard
     }
-  }, [chartData, appendDashboardEvent, submitCheckin]);
+  }, [chartData, appendDashboardEvent, submitCheckin, transits]);
 
   useEffect(() => {
     if (!chartData || !featureFlags.persistenceEnabled) return;
@@ -758,6 +871,38 @@ export default function UnifiedDashboard() {
     });
     setShowOnboarding(false);
   }, [showOnboarding, hasAskedMerlin, activeSection, appendDashboardEvent]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production' || !showDevDiagnostics) return;
+
+    let cancelled = false;
+    setCafeGatewayLoading(true);
+    setCafeGatewayError('');
+
+    fetch('/api/internal/cafe-gateway/health?probe=1')
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Health endpoint failed (${response.status})`);
+        }
+        return response.json();
+      })
+      .then((result: CafeGatewayHealthResponse) => {
+        if (cancelled) return;
+        setCafeGatewayHealth(result.data || null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setCafeGatewayError(error instanceof Error ? error.message : 'Failed to load gateway health');
+        setCafeGatewayHealth(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCafeGatewayLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showDevDiagnostics]);
 
   useEffect(() => {
     if (!userId || !featureFlags.persistenceEnabled) return;
@@ -822,7 +967,7 @@ export default function UnifiedDashboard() {
           featureFlags.premiumInsights
             ? generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
             : Promise.resolve(null),
-          featureFlags.premiumInsights ? calculateForecast(birth) : Promise.resolve(null),
+          featureFlags.premiumInsights ? calculateForecast(birth, forecastIntakeOptions) : Promise.resolve(null),
           featureFlags.premiumInsights
             ? calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
@@ -830,7 +975,11 @@ export default function UnifiedDashboard() {
             ? calculatePressureWindow(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
           featureFlags.premiumInsights
-            ? calculateDomainForecast(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+            ? calculateDomainForecast(birth, {
+                mbtiType: mbtiType || undefined,
+                userId: userId || undefined,
+                windowDays: forecastWindowDays,
+              })
             : Promise.resolve(null),
           featureFlags.premiumInsights ? calculateLifeArc(birth, chart) : Promise.resolve(null),
           featureFlags.premiumInsights ? calculateWeeklyForecast(birth) : Promise.resolve(null),
@@ -858,6 +1007,8 @@ export default function UnifiedDashboard() {
     interpretMode,
     isLoaded,
     mbtiType,
+    forecastIntakeOptions,
+    forecastWindowDays,
     user,
     userId,
   ]);
@@ -917,7 +1068,7 @@ export default function UnifiedDashboard() {
       featureFlags.premiumInsights
         ? generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
         : Promise.resolve(null),
-      featureFlags.premiumInsights ? calculateForecast(derived) : Promise.resolve(null),
+      featureFlags.premiumInsights ? calculateForecast(derived, forecastIntakeOptions) : Promise.resolve(null),
       featureFlags.premiumInsights
         ? calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
@@ -925,7 +1076,11 @@ export default function UnifiedDashboard() {
         ? calculatePressureWindow(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
       featureFlags.premiumInsights
-        ? calculateDomainForecast(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
+        ? calculateDomainForecast(derived, {
+            mbtiType: mbtiType || undefined,
+            userId: userId || undefined,
+            windowDays: forecastWindowDays,
+          })
         : Promise.resolve(null),
       featureFlags.premiumInsights ? calculateLifeArc(derived, data) : Promise.resolve(null),
       featureFlags.premiumInsights ? calculateWeeklyForecast(derived) : Promise.resolve(null),
@@ -946,7 +1101,31 @@ export default function UnifiedDashboard() {
     calculatePersonality,
     calculateStorms,
     featureFlags.premiumInsights,
+    forecastIntakeOptions,
     interpretMode,
+    mbtiType,
+    forecastWindowDays,
+    userId,
+  ]);
+
+  useEffect(() => {
+    if (!birthData || !featureFlags.premiumInsights) return;
+    void calculateForecast(birthData, forecastIntakeOptions);
+  }, [birthData, calculateForecast, featureFlags.premiumInsights, forecastIntakeOptions]);
+
+  useEffect(() => {
+    if (!birthData || !featureFlags.premiumInsights) return;
+
+    void calculateDomainForecast(birthData, {
+      mbtiType: mbtiType || undefined,
+      userId: userId || undefined,
+      windowDays: forecastWindowDays,
+    });
+  }, [
+    birthData,
+    calculateDomainForecast,
+    featureFlags.premiumInsights,
+    forecastWindowDays,
     mbtiType,
     userId,
   ]);
@@ -1107,7 +1286,7 @@ export default function UnifiedDashboard() {
 
     if (!sections.length) {
       if (premiumLocked) {
-        return 'Your chart is calculated. Premium interpretation is currently locked, but Merlin can still read your core placements and major aspects once available in this session.';
+        return 'Your chart is calculated. Premium interpretation is not available in free mode. Upgrade to unlock the full reading layer.';
       }
       return 'Your chart is ready, but there is no readable summary yet. Try recalculating your chart once.';
     }
@@ -1196,10 +1375,19 @@ export default function UnifiedDashboard() {
     setRelationshipError('');
   }, []);
 
+  const updateSharedSignalSource = useCallback((source: SharedSignalSource, enabled: boolean) => {
+    setSharedSignalSources((prev) => ({ ...prev, [source]: enabled }));
+  }, []);
+
   const handleRelationshipReading = useCallback(async () => {
     if (!chartData) {
       setRelationshipError('Calculate your chart first before opening Relationship Space.');
       scrollToBlock(chartSectionRef);
+      return;
+    }
+
+    if (!sharedAtmosphereConsent) {
+      setRelationshipError('Shared atmosphere requires consent from everyone involved.');
       return;
     }
 
@@ -1238,7 +1426,7 @@ export default function UnifiedDashboard() {
         throw new Error(partnerChartResult?.error || 'Failed to calculate the partner chart.');
       }
 
-      const synastryResponse = await fetch('/api/synastry', {
+      const synastryResponse = await fetch('/api/shared-atmosphere', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1246,6 +1434,18 @@ export default function UnifiedDashboard() {
           chart2: partnerChartResult.data,
           person1Name: user?.firstName || user?.fullName || 'You',
           person2Name: relationshipForm.personName.trim() || 'Partner',
+          mode: sharedAtmosphereMode,
+          sharedConsent: sharedAtmosphereConsent,
+          sources: (Object.entries(sharedSignalSources) as Array<[SharedSignalSource, boolean]>).map(([source, enabled]) => ({
+            source,
+            enabled,
+            note:
+              source === 'calendar'
+                ? 'Calendar context sharpens timing and demand load.'
+                : source === 'location'
+                  ? 'Location context helps localize rhythm and day-cycle shifts.'
+                  : 'Sleep context helps weight fatigue and recovery windows.',
+          })),
         }),
       });
 
@@ -1255,15 +1455,15 @@ export default function UnifiedDashboard() {
         throw new Error(synastryResult?.error || 'Failed to generate the relationship reading.');
       }
 
-      const report = synastryResult.data as SynastryReport;
-      setRelationshipReport(report);
+      const report = synastryResult.data as SharedAtmosphereReport;
+      setSharedAtmosphereReport(report);
       queueAskContext(
-        `${report.person1Name || 'You'} + ${report.person2Name || 'Partner'} relationship space`,
-        `Read the relationship dynamic between ${report.person1Name || 'me'} and ${report.person2Name || 'my partner'}. Compatibility is ${report.overallCompatibility}%. Narrative: ${report.narrative} Strengths: ${report.strengths.join(', ') || 'none noted'}. Challenges: ${report.challenges.join(', ') || 'none noted'}. What is the clearest next move?`
+        `${report.synastry.person1Name || 'You'} + ${report.synastry.person2Name || 'Partner'} shared atmosphere`,
+        `Read the shared atmosphere between ${report.synastry.person1Name || 'me'} and ${report.synastry.person2Name || 'my partner'}. Compatibility is ${report.compatibility}%. Summary: ${report.summary} Strengths: ${report.synastry.strengths.join(', ') || 'none noted'}. Challenges: ${report.synastry.challenges.join(', ') || 'none noted'}. Guidance: ${report.guidance.join(' ')} What is the clearest next move?`
       );
       toast({
-        title: 'Relationship Space updated',
-        description: `Compatibility reading ready for ${report.person2Name || 'your partner'}.`,
+        title: 'Shared atmosphere updated',
+        description: `Consent-based compatibility reading ready for ${report.synastry.person2Name || 'your partner'}.`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Relationship Space failed to load.';
@@ -1276,7 +1476,7 @@ export default function UnifiedDashboard() {
     } finally {
       setRelationshipLoading(false);
     }
-  }, [chartData, relationshipForm, user, queueAskContext, toast]);
+  }, [chartData, relationshipForm, sharedAtmosphereConsent, sharedAtmosphereMode, sharedSignalSources, user, queueAskContext, toast]);
 
   const calcSource =
     ((chartData as any)?.metadata?.ephemeris as string | undefined) ||
@@ -1530,9 +1730,43 @@ export default function UnifiedDashboard() {
               <h1 className="text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
                 Your Cosmic Dashboard
               </h1>
+              <div className="mb-4 flex justify-center">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-300/45 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100"
+                  >
+                    Frozen • Stable
+                  </Link>
+                  <Link
+                    href="/dashboard-v2"
+                    className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100 hover:bg-cyan-500/20 transition"
+                  >
+                    V2 Live • Test
+                  </Link>
+                  <Link
+                    href="/dashboard-v3"
+                    className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-100 hover:bg-violet-500/20 transition"
+                  >
+                    V3 Draft • Draft
+                  </Link>
+                  <Link
+                    href="/enhanced-dashboard"
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 hover:bg-amber-500/20 transition"
+                  >
+                    Enhanced • Pilot
+                  </Link>
+                  <Link
+                    href="/dashboard-v2-preview.html"
+                    className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-100 hover:bg-violet-500/20 transition"
+                  >
+                    V2 Preview • Fallback
+                  </Link>
+                </div>
+              </div>
               {premiumLocked ? (
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/45 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold text-amber-100">
-                  Premium insights are locked on free tier
+                  Premium insights are not available in free mode
                   <Link href="/checkout-subscription" className="underline underline-offset-2 hover:text-amber-50">
                     Upgrade
                   </Link>
@@ -2059,7 +2293,8 @@ export default function UnifiedDashboard() {
                         {showDevDiagnostics ? 'Hide' : 'Show'} dashboard event diagnostics
                       </button>
                       {showDevDiagnostics ? (
-                        <div className="mt-2 max-h-44 overflow-y-auto space-y-1 rounded-lg border border-white/10 bg-slate-950/55 p-2">
+                        <div className="mt-2 space-y-2">
+                          <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-white/10 bg-slate-950/55 p-2">
                           {dashboardEvents.length ? dashboardEvents.slice(-10).reverse().map((event, idx) => (
                             <div key={`${event.at}-${idx}`} className="text-[11px] text-slate-200/85">
                               <span className="text-cyan-200">{event.eventName}</span>
@@ -2068,6 +2303,46 @@ export default function UnifiedDashboard() {
                           )) : (
                             <p className="text-[11px] text-slate-400">No events yet.</p>
                           )}
+                          </div>
+
+                          <div className="rounded-lg border border-white/10 bg-slate-950/55 p-2">
+                            <p className="text-[11px] font-semibold text-slate-200">CAFE Gateway Health</p>
+                            {cafeGatewayLoading ? (
+                              <p className="mt-1 text-[11px] text-slate-400">Probing gateway endpoints...</p>
+                            ) : cafeGatewayError ? (
+                              <p className="mt-1 text-[11px] text-rose-300">{cafeGatewayError}</p>
+                            ) : cafeGatewayHealth ? (
+                              <div className="mt-1 space-y-1.5 text-[11px]">
+                                <p className="text-slate-400">
+                                  Config: generic={String(cafeGatewayHealth.configured.generic)} local={String(cafeGatewayHealth.configured.local)} remote={String(cafeGatewayHealth.configured.remote)}
+                                </p>
+                                {cafeGatewayHealth.targets.map((target) => {
+                                  const probe = cafeGatewayHealth.probes.find((item) => item.mode === target.mode);
+                                  const colorClass = !probe
+                                    ? 'text-amber-300'
+                                    : probe.reachable
+                                      ? 'text-emerald-300'
+                                      : 'text-rose-300';
+                                  const indicator = !probe ? 'YELLOW' : probe.reachable ? 'GREEN' : 'RED';
+
+                                  return (
+                                    <div key={`${target.mode}-${target.url}`} className="rounded border border-white/10 bg-black/20 px-2 py-1">
+                                      <p className="text-slate-200">
+                                        <span className="font-semibold">{target.mode.toUpperCase()}</span> · {target.provider} · {target.model}
+                                      </p>
+                                      <p className="text-slate-400 break-all">{target.url}</p>
+                                      <p className={colorClass}>
+                                        {indicator} · {probe ? (probe.reachable ? `${probe.status || 0} ${probe.statusText || ''}`.trim() : probe.error || 'Probe failed') : 'No probe result'}
+                                        {' · key='}{target.apiKeyPresent ? 'set' : 'missing'}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-[11px] text-slate-400">No gateway data yet.</p>
+                            )}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -2214,8 +2489,8 @@ export default function UnifiedDashboard() {
                     />
                     <div className="rounded-[1.4rem] border border-amber-400/20 bg-amber-950/10 p-4 backdrop-blur-sm space-y-4">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80 mb-2">Synastry Portal</p>
-                        <p className="text-sm text-slate-300 leading-relaxed">Compare your chart with someone else and turn Relationship Space into a real compatibility reading.</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80 mb-2">Shared Atmosphere Portal</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">Compare your chart with someone else and turn Relationship Space into a consent-based atmosphere reading.</p>
                       </div>
 
                       {!chartData ? (
@@ -2231,6 +2506,60 @@ export default function UnifiedDashboard() {
                         </div>
                       ) : (
                         <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-3 rounded-xl border border-white/8 bg-white/5 p-4 sm:grid-cols-2">
+                            <label className="space-y-2 text-sm text-slate-200">
+                              <span className="block text-xs uppercase tracking-[0.2em] text-slate-400">Mode</span>
+                              <select
+                                value={sharedAtmosphereMode}
+                                onChange={(e) => setSharedAtmosphereMode(e.target.value as 'couple' | 'team')}
+                                className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 focus:border-amber-400/50 focus:outline-none"
+                              >
+                                <option value="couple">Couple</option>
+                                <option value="team">Small Team</option>
+                              </select>
+                            </label>
+                            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/50 px-3 py-2.5 text-sm text-slate-100">
+                              <input
+                                type="checkbox"
+                                checked={sharedAtmosphereConsent}
+                                onChange={(e) => setSharedAtmosphereConsent(e.target.checked)}
+                                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400 focus:ring-amber-400/40"
+                              />
+                              I have consent to compare these charts
+                            </label>
+                          </div>
+
+                          <div className="rounded-xl border border-white/8 bg-white/5 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Optional signal sources</p>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                              {([
+                                ['calendar', 'Calendar'] as const,
+                                ['location', 'Location'] as const,
+                                ['sleep', 'Sleep'] as const,
+                              ]).map(([source, label]) => (
+                                <label key={source} className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={sharedSignalSources[source]}
+                                    onChange={(e) => updateSharedSignalSource(source, e.target.checked)}
+                                    className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-400 focus:ring-cyan-400/40"
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-xs text-slate-400">Each signal is individually opt-in and can stay off until you want more refinement.</p>
+                          </div>
+
+                          <div className="rounded-xl border border-violet-400/15 bg-violet-950/10 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Privacy & Influence</p>
+                            <div className="space-y-2 text-xs text-slate-300">
+                              <p>Calendar: only used for workload and timing pressure when enabled.</p>
+                              <p>Location: only used for local rhythm and day-cycle context when enabled.</p>
+                              <p>Sleep: only used for recovery and stamina weighting when enabled.</p>
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <input
                               type="text"
@@ -2267,7 +2596,7 @@ export default function UnifiedDashboard() {
                               disabled={relationshipLoading}
                               className="rounded-full border border-amber-300/45 bg-amber-400/15 px-4 py-2 text-sm font-semibold text-amber-50 hover:bg-amber-400/25 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {relationshipLoading ? 'Reading connection...' : 'Read the connection'}
+                              {relationshipLoading ? 'Reading shared atmosphere...' : 'Read the shared atmosphere'}
                             </button>
                             {relationshipLocationHint ? (
                               <span className="text-xs text-amber-100/75">Using: {relationshipLocationHint}</span>
@@ -2280,27 +2609,44 @@ export default function UnifiedDashboard() {
                             </div>
                           ) : null}
 
-                          {relationshipReport ? (
+                          {sharedAtmosphereReport ? (
                             <div className="space-y-4 rounded-[1.2rem] border border-amber-300/20 bg-gradient-to-br from-amber-950/20 to-slate-950/40 p-4">
                               <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                   <p className="text-sm text-amber-100 font-semibold">
-                                    {relationshipReport.person1Name || 'You'} + {relationshipReport.person2Name || 'Partner'}
+                                    {sharedAtmosphereReport.synastry.person1Name || 'You'} + {sharedAtmosphereReport.synastry.person2Name || 'Partner'}
                                   </p>
-                                  <p className="text-xs text-slate-400">Live synastry based on both birth charts</p>
+                                  <p className="text-xs text-slate-400">Consent-based shared atmosphere from both birth charts</p>
                                 </div>
                                 <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-100">
-                                  {relationshipReport.overallCompatibility}% compatibility
+                                  {sharedAtmosphereReport.compatibility}% compatibility
                                 </div>
                               </div>
 
-                              <p className="text-sm leading-relaxed text-slate-200">{relationshipReport.narrative}</p>
+                              <p className="text-sm leading-relaxed text-slate-200">{sharedAtmosphereReport.summary}</p>
+
+                              <div className="rounded-lg border border-cyan-400/20 bg-cyan-500/10 p-3 text-xs text-cyan-100">
+                                {sharedAtmosphereReport.privacyNote}
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {sharedAtmosphereReport.windows.map((window) => (
+                                  <div key={window.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-semibold text-white">{window.label}</span>
+                                      <span className="text-xs text-slate-400">{window.kind}</span>
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-300">Score {window.score}/100</p>
+                                    <p className="mt-1 text-xs text-slate-300">{window.recommendation}</p>
+                                  </div>
+                                ))}
+                              </div>
 
                               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                   <p className="mb-2 text-xs uppercase tracking-[0.2em] text-emerald-300/80">Strengths</p>
                                   <div className="space-y-2">
-                                    {relationshipReport.strengths.length ? relationshipReport.strengths.map((strength) => (
+                                    {sharedAtmosphereReport.synastry.strengths.length ? sharedAtmosphereReport.synastry.strengths.map((strength) => (
                                       <div key={strength} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
                                         {strength}
                                       </div>
@@ -2310,7 +2656,7 @@ export default function UnifiedDashboard() {
                                 <div>
                                   <p className="mb-2 text-xs uppercase tracking-[0.2em] text-rose-300/80">Challenges</p>
                                   <div className="space-y-2">
-                                    {relationshipReport.challenges.length ? relationshipReport.challenges.map((challenge) => (
+                                    {sharedAtmosphereReport.synastry.challenges.length ? sharedAtmosphereReport.synastry.challenges.map((challenge) => (
                                       <div key={challenge} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
                                         {challenge}
                                       </div>
@@ -2322,11 +2668,40 @@ export default function UnifiedDashboard() {
                               <div>
                                 <p className="mb-2 text-xs uppercase tracking-[0.2em] text-cyan-300/80">Key Aspects</p>
                                 <div className="space-y-2">
-                                  {relationshipReport.aspects.slice(0, 4).map((aspect) => (
+                                  {sharedAtmosphereReport.aspects.slice(0, 4).map((aspect) => (
                                     <div key={`${aspect.person1Planet}-${aspect.person2Planet}-${aspect.aspectType}`} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
                                       <span className="font-semibold text-white">{aspect.person1Planet} {aspect.aspectType} {aspect.person2Planet}</span>
                                       <span className="ml-2 text-xs text-slate-400">orb {aspect.orb.toFixed(1)}{aspect.exact ? ' • exact' : ''}</span>
                                       <p className="mt-1 text-xs leading-relaxed text-slate-300">{aspect.interpretation}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-violet-300/80">Optional Signals</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {sharedAtmosphereReport.sources.map((source) => (
+                                    <span key={source.source} className={`rounded-full border px-3 py-1 text-xs ${source.enabled ? 'border-cyan-400/30 bg-cyan-500/10 text-cyan-100' : 'border-slate-600/40 bg-slate-900/70 text-slate-400'}`}>
+                                      {source.source}: {source.enabled ? 'enabled' : 'off'}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-violet-300/80">Connector Scaffolding</p>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                  {sharedAtmosphereReport.connectors.map((connector) => (
+                                    <div key={connector.source} className="rounded-lg border border-white/10 bg-slate-950/55 px-3 py-2 text-xs text-slate-200">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="font-semibold text-white capitalize">{connector.source}</span>
+                                        <span className={`rounded-full px-2 py-0.5 ${connector.enabled ? 'bg-cyan-500/15 text-cyan-100' : 'bg-slate-800 text-slate-400'}`}>
+                                          {connector.enabled ? 'active' : 'off'}
+                                        </span>
+                                      </div>
+                                      <p className="mt-2 text-slate-300">{connector.privacyLabel}</p>
+                                      <p className="mt-1 text-slate-400">Influence: {connector.influenceLabel}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -2386,7 +2761,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition"
                     >
-                      Chart Reading{premiumLocked ? ' • Locked' : ''}
+                      Chart Reading{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('transits')}
@@ -2394,7 +2769,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition"
                     >
-                      Active Transits{premiumLocked ? ' • Locked' : ''}
+                      Active Transits{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('lifearc')}
@@ -2402,7 +2777,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition"
                     >
-                      Life Timeline{premiumLocked ? ' • Locked' : ''}
+                      Life Timeline{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('personality')}
@@ -2410,7 +2785,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition"
                     >
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('stormradar')}
@@ -2418,7 +2793,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition"
                     >
-                      Storm Radar{premiumLocked ? ' • Locked' : ''}
+                      Storm Radar{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => scrollToBlock(prophecySectionRef)}
@@ -2474,19 +2849,19 @@ export default function UnifiedDashboard() {
                           Chart + Chat
                         </button>
                         <button onClick={() => scrollToBlock(forecastSectionRef)} className={navigatorButtonClass('forecast')} title="Go to daily forecast">
-                          Daily Forecast
+                          Daily Forecast{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(focusPanelRef)} className={navigatorButtonClass('analysis')} title="Go to analysis panels">
-                          Analysis Panels
+                          Analysis Panels{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(weeklySectionRef)} className={navigatorButtonClass('weekly')} title="Go to weekly forecast">
-                          Weekly Forecast
+                          Weekly Forecast{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(personalitySectionRef)} className={navigatorButtonClass('personality')} title="Go to dual MBTI cards">
-                          Dual MBTI Cards
+                          Dual MBTI Cards{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(prophecySectionRef)} className={navigatorButtonClass('prophecy')} title="Go to personal prophecy">
-                          Prophecy
+                          Prophecy{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                       </>
                     ) : null}
@@ -2613,23 +2988,23 @@ export default function UnifiedDashboard() {
                   <h3 className="text-xl font-bold text-amber-300 mb-4">Focus Views</h3>
                   <p className="text-sm text-slate-300 mb-4">Open a dedicated view for each module.</p>
                   {premiumLocked ? (
-                    <p className="text-xs text-amber-200 mb-3">These modules require a paid plan.</p>
+                    <p className="text-xs text-amber-200 mb-3">These modules are not available in free mode.</p>
                   ) : null}
                   <div className="flex flex-wrap gap-3">
                     <Link href="/dashboard/chart-reading" className="px-4 py-2 rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition">
-                      Chart Reading{premiumLocked ? ' • Locked' : ''}
+                      Chart Reading{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/active-transits" className="px-4 py-2 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition">
-                      Active Transits{premiumLocked ? ' • Locked' : ''}
+                      Active Transits{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/life-timeline" className="px-4 py-2 rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition">
-                      Life Timeline{premiumLocked ? ' • Locked' : ''}
+                      Life Timeline{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/dual-mbti" className="px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition">
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/storm-radar" className="px-4 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition">
-                      Storm Radar{premiumLocked ? ' • Locked' : ''}
+                      Storm Radar{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                   </div>
                 </motion.div>
@@ -2674,6 +3049,9 @@ export default function UnifiedDashboard() {
                       <div className="px-0 pb-4">
                         <div className="bg-slate-900/40 rounded-lg p-8 border-t border-amber-500/20 backdrop-blur-sm">
                           <h2 className="text-2xl font-bold text-amber-300 mb-6">7-Day Cosmic Forecast</h2>
+                          {premiumLocked ? (
+                            <p className="mb-4 text-xs text-amber-200">Weekly forecast is not available in free mode.</p>
+                          ) : null}
                           <WeeklyCalendar
                             week={weeklyForecast?.week || []}
                             loading={weeklyLoading}
@@ -2709,16 +3087,26 @@ export default function UnifiedDashboard() {
                       <span className="text-sm font-semibold text-slate-200">Dual MBTI Cards</span>
                       <span className="text-xs text-slate-400">{showPersonalityCardsPanel ? 'Hide' : 'Show'}</span>
                     </button>
-                    {showPersonalityCardsPanel && mbtiType && (
+                    {showPersonalityCardsPanel && (
                       <div className="px-4 pb-4">
-                        <DualPersonalityCards
-                          mbtiType={mbtiType}
-                          dualOverlay={dualOverlay}
-                          transits={transits}
-                          loading={personalityLoading}
-                          onAskContext={queueAskContext}
-                          selectedContextLabel={askDraftLabel}
-                        />
+                        {premiumLocked ? (
+                          <p className="mb-4 text-xs text-amber-200">Dual MBTI cards are not available in free mode.</p>
+                        ) : null}
+                        {!mbtiType ? (
+                          <p className="mb-4 text-xs text-slate-300">
+                            MBTI profile is not ready yet. Calculate your chart to generate the Dual MBTI cards.
+                          </p>
+                        ) : null}
+                        {!premiumLocked && mbtiType ? (
+                          <DualPersonalityCards
+                            mbtiType={mbtiType}
+                            dualOverlay={dualOverlay}
+                            transits={transits}
+                            loading={personalityLoading}
+                            onAskContext={queueAskContext}
+                            selectedContextLabel={askDraftLabel}
+                          />
+                        ) : null}
                       </div>
                     )}
                   </motion.div>
@@ -2755,6 +3143,40 @@ export default function UnifiedDashboard() {
                     </div>
                     
                     <div className="bg-slate-900/40 rounded-lg p-8 border border-purple-500/20 backdrop-blur-sm">
+                      <div className="mb-5">
+                        <WeatherOverviewPanel
+                          weather={domainForecast?.weather}
+                          loading={domainForecastLoading}
+                          error={domainForecastError?.message}
+                          selectedHorizon={forecastHorizonHours}
+                          onHorizonChange={setForecastHorizonHours}
+                        />
+                      </div>
+
+                      <div className="mb-5">
+                        <AtmosphericMap
+                          weather={domainForecast?.weather}
+                          loading={domainForecastLoading}
+                        />
+                      </div>
+
+                      <div className="mb-5">
+                        <WeatherDeepDivePanel
+                          weather={domainForecast?.weather}
+                          horizonHours={forecastHorizonHours}
+                          mbtiType={mbtiType}
+                        />
+                      </div>
+
+                      <div className="mb-5">
+                        <CalibrationMasteryCard
+                          streak={dailyCheckinStreak}
+                          calibrationScore={calibrationScore}
+                          trendDelta={impactTrendDelta}
+                          stabilityLabel={impactStability.label}
+                        />
+                      </div>
+
                       {transits?.predictive?.lunarTiming && transits?.predictive?.progressedMoon && (
                         <div className="mb-5 rounded-lg border border-violet-500/25 bg-violet-950/20 p-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2802,7 +3224,7 @@ export default function UnifiedDashboard() {
                             : forecastError?.message ||
                               (featureFlags.premiumInsights
                                 ? 'The cosmic story is quiet right now. Please try again in a moment.'
-                                : 'Daily forecast is currently unavailable for your plan.'))
+                                : 'Daily forecast is not available in free mode.'))
                         }
                         planetaryHighlights={forecast?.planetaryHighlights || []}
                         moonPhase={forecast?.moonPhase || 'Unknown'}
@@ -2844,7 +3266,7 @@ export default function UnifiedDashboard() {
                       >
                         {premiumLocked ? (
                           <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
-                            <p className="font-semibold mb-2">This module is locked on your current plan.</p>
+                            <p className="font-semibold mb-2">This module is not available in free mode.</p>
                             <p className="text-amber-200/90 mb-3">Upgrade to unlock chart interpretations, transits, life timeline, personality insights, and storm radar.</p>
                             <Link href="/checkout-subscription" className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300/50 bg-amber-500/20 hover:bg-amber-500/30 text-amber-50">
                               Upgrade Plan
@@ -2999,6 +3421,9 @@ export default function UnifiedDashboard() {
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
                       <h4 className="mt-1 text-base md:text-lg font-semibold text-violet-50">{prophecy?.title || 'Chart-anchored omen'}</h4>
+                      {premiumLocked ? (
+                        <p className="mt-2 text-xs text-amber-200">Personal prophecy is not available in free mode.</p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -3012,6 +3437,7 @@ export default function UnifiedDashboard() {
                             ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
                             : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
                         }`}
+                        disabled={premiumLocked}
                       >
                         Omen
                       </button>
@@ -3026,13 +3452,14 @@ export default function UnifiedDashboard() {
                             ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
                             : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
                         }`}
+                        disabled={premiumLocked}
                       >
                         Sonnet
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          if (!chartData) return;
+                          if (!chartData || premiumLocked) return;
                           appendDashboardEvent('dashboard_prophecy_regenerated', {
                             style: prophecyStyle,
                             era: prophecyEra,
@@ -3050,6 +3477,7 @@ export default function UnifiedDashboard() {
                           });
                         }}
                         className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                        disabled={premiumLocked}
                       >
                         <RefreshCcw className="h-3.5 w-3.5" />
                         Regenerate
@@ -3074,6 +3502,7 @@ export default function UnifiedDashboard() {
                         setProphecyEra(nextEra);
                       }}
                       className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
+                      disabled={premiumLocked}
                     >
                       <option value="babylonian">Babylonian</option>
                       <option value="hermetic">Hermetic</option>
@@ -3089,6 +3518,7 @@ export default function UnifiedDashboard() {
                           appendDashboardEvent('dashboard_prophecy_meter_toggled', { strictMeter: event.target.checked });
                           setStrictMeter(event.target.checked);
                         }}
+                        disabled={premiumLocked}
                       />
                       Strict sonnet meter
                     </label>

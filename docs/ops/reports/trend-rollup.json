@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-05-28T20:35:52.052Z",
+  "windowDays": 14,
+  "summary": {
+    "trustSamples": 1,
+    "rollbackCount": 0,
+    "latestTrustScore": 0.92,
+    "trustDelta": null
+  },
+  "trustSeries": [
+    {
+      "ts": "2026-05-28T18:03:34.472Z",
+      "window": "2026-W22",
+      "trustScore": 0.92,
+      "calibrationError": 0.08,
+      "cohorts": 2
+    }
+  ],
+  "rollbacks": []
+}

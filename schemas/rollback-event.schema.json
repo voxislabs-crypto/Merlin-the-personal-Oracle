@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxislabs.ai/schemas/rollback-event.schema.json",
+  "title": "Rollback Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "modelId",
+    "fromPhase",
+    "toPhase",
+    "trigger",
+    "severity",
+    "initiatedBy",
+    "occurredAt"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 8
+    },
+    "modelId": {
+      "type": "string"
+    },
+    "fromPhase": {
+      "type": "string",
+      "enum": ["stable", "trusted", "adaptive", "autonomous"]
+    },
+    "toPhase": {
+      "type": "string",
+      "enum": ["baseline", "stable", "trusted", "adaptive"]
+    },
+    "trigger": {
+      "type": "string",
+      "enum": [
+        "hallucination_spike",
+        "trust_drop",
+        "coherence_regression",
+        "drift_threshold_exceeded",
+        "policy_violation",
+        "manual_override"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "initiatedBy": {
+      "type": "string",
+      "enum": ["auto-freeze", "ops", "safety", "engineering", "product"]
+    },
+    "metricsSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trustScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hallucinationRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "responseCoherence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "driftScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "summary": {
+      "type": "string"
+    },
+    "actionItems": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -19,6 +19,8 @@ export interface CheckinPayload {
   domains?: Record<string, number>;
   notes?: string;
   timestamp?: string;
+  resonanceAspectId?: string;
+  resonanceTheme?: string;
 }
 
 export function useCheckins() {

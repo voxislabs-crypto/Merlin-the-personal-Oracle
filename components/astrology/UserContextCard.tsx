@@ -2,6 +2,18 @@
 
 import React from 'react';
 
+interface UserContextApiResult {
+  success?: boolean;
+  error?: string;
+  data?: {
+    situation?: string;
+    mood?: string;
+    goals?: string[];
+    lastFeedbackNotes?: string;
+    updatedAt?: string;
+  } | null;
+}
+
 interface UserContextCardProps {
   userId?: string;
   onSaved?: () => void;
@@ -27,6 +39,7 @@ export function UserContextCard({ userId, onSaved }: UserContextCardProps) {
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [status, setStatus] = React.useState('');
+  const [statusTone, setStatusTone] = React.useState<'success' | 'error'>('success');
 
   React.useEffect(() => {
     if (!userId) return;
@@ -36,8 +49,13 @@ export function UserContextCard({ userId, onSaved }: UserContextCardProps) {
 
     fetch(`/api/user-context?userId=${encodeURIComponent(userId)}`)
       .then(async (response) => {
-        if (!response.ok) throw new Error('Failed to load context');
-        return response.json();
+        const result = (await response.json().catch(() => null)) as UserContextApiResult | null;
+
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.error || 'Failed to load context');
+        }
+
+        return result;
       })
       .then((result) => {
         if (cancelled || !result.success || !result.data) return;
@@ -52,6 +70,8 @@ export function UserContextCard({ userId, onSaved }: UserContextCardProps) {
       .catch((error) => {
         if (!cancelled) {
           console.warn('[UserContextCard] Failed to load user context:', error);
+          setStatus(error instanceof Error ? error.message : 'Failed to load context');
+          setStatusTone('error');
         }
       })
       .finally(() => {
@@ -90,24 +110,23 @@ export function UserContextCard({ userId, onSaved }: UserContextCardProps) {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save context');
-      }
+      const result = (await response.json().catch(() => null)) as UserContextApiResult | null;
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save context');
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || 'Failed to save context');
       }
 
       setContext((prev) => ({
         ...prev,
-        updatedAt: result.data.updatedAt,
+        updatedAt: result.data?.updatedAt,
       }));
       setStatus('Context saved');
+      setStatusTone('success');
       onSaved?.();
     } catch (error) {
       console.error('[UserContextCard] Failed to save context:', error);
-      setStatus('Save failed');
+      setStatus(error instanceof Error ? error.message : 'Failed to save context');
+      setStatusTone('error');
     } finally {
       setSaving(false);
       window.setTimeout(() => setStatus(''), 2000);
@@ -192,7 +211,11 @@ export function UserContextCard({ userId, onSaved }: UserContextCardProps) {
               Merlin uses these notes to bias domain impact, tone, and risk framing.
             </p>
             <div className="flex items-center gap-3">
-              {status ? <span className="text-xs text-cyan-200">{status}</span> : null}
+              {status ? (
+                <span className={statusTone === 'error' ? 'text-xs text-rose-300' : 'text-xs text-cyan-200'}>
+                  {status}
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={handleSave}

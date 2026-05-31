@@ -358,3 +358,123 @@ export interface ExplainabilityPacket {
   archetypes: ArchetypeSignal[];
   safety: SafetyGuidance;
 }
+
+export type SharedAtmosphereMode = 'couple' | 'team';
+
+export type SharedSignalSource = 'calendar' | 'location' | 'sleep';
+
+export interface SharedSignalConsent {
+  source: SharedSignalSource;
+  enabled: boolean;
+  note: string;
+}
+
+export interface SharedConnectorProfile {
+  source: SharedSignalSource;
+  enabled: boolean;
+  privacyLabel: string;
+  influenceLabel: string;
+  confidenceWeight: number;
+}
+
+export interface SharedConnectorSummary {
+  source: SharedSignalSource;
+  enabled: boolean;
+  privacyLabel: string;
+  influenceLabel: string;
+}
+
+export interface SharedSynastrySnapshot {
+  person1Name?: string;
+  person2Name?: string;
+  overallCompatibility: number;
+  narrative: string;
+  strengths: string[];
+  challenges: string[];
+}
+
+export interface SharedAtmosphereAspect {
+  person1Planet: string;
+  person2Planet: string;
+  aspectType: string;
+  orb: number;
+  exact: boolean;
+  interpretation: string;
+  chemistry: 'magnetic' | 'harmonious' | 'challenging' | 'neutral';
+}
+
+export interface SharedAtmosphereWindow {
+  label: string;
+  kind: 'resonance' | 'tension' | 'communication' | 'rest';
+  score: number;
+  recommendation: string;
+}
+
+export interface SharedAtmosphereReport {
+  version: 'shared-atmosphere-v1';
+  mode: SharedAtmosphereMode;
+  sharedConsent: boolean;
+  sources: SharedSignalConsent[];
+  connectors: SharedConnectorSummary[];
+  summary: string;
+  compatibility: number;
+  windows: SharedAtmosphereWindow[];
+  guidance: string[];
+  privacyNote: string;
+  synastry: SharedSynastrySnapshot;
+  aspects: SharedAtmosphereAspect[];
+}
+
+export type WeatherCondition = 'flow' | 'variable' | 'fog' | 'turbulence' | 'storm';
+
+export interface ForecastProvenance {
+  source: string;
+  signalSources: string[];
+  confidence: number;
+  generatedAt: string;
+  fallbackUsed?: boolean;
+  freshnessHours?: number;
+  notes?: string[];
+}
+
+export type WeatherSeverityBand = 'low' | 'moderate' | 'high' | 'severe';
+
+export type WeatherConfidenceBand = 'low' | 'medium' | 'high';
+
+export interface WeatherSeverity {
+  score: number;
+  band: WeatherSeverityBand;
+}
+
+export interface WeatherConfidence {
+  score: number;
+  band: WeatherConfidenceBand;
+}
+
+export interface WeatherHorizonConfig {
+  defaultHours: 24 | 72 | 168 | 720;
+  options: Array<24 | 72 | 168 | 720>;
+}
+
+export interface WeatherDomainForecast {
+  domain: LifeDomain;
+  condition: WeatherCondition;
+  pressure: number;
+  confidence: number;
+  headline: string;
+  recommendations: string[];
+  topDrivers: TransitDriver[];
+}
+
+export interface WeatherForecastReport {
+  version: 'weather-v1';
+  generatedAt: string;
+  summary: string;
+  severity: WeatherSeverity;
+  confidence: WeatherConfidence;
+  horizons: WeatherHorizonConfig;
+  domains: WeatherDomainForecast[];
+  navigation: string[];
+  notes: string[];
+  provenance?: ForecastProvenance;
+}

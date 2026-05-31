@@ -4,6 +4,8 @@
 
 Merlin combines Swiss Ephemeris precision with MBTI personality insights to deliver professional-grade astrological analysis. Built with Next.js 15, TypeScript, and modern web technologies.
 
+Merlin is evolving into a weather-intelligence system: a practical forecast layer that translates symbolic signals into glanceable, actionable navigation.
+
 ---
 
 ## 🚀 **Live Demo**
@@ -22,6 +24,8 @@ Merlin combines Swiss Ephemeris precision with MBTI personality insights to deli
 - ✅ **7-Day Predictive Transit Intelligence** - 6-hour sampling with intensity/confidence/volatility scoring
 - ✅ **Lunar Timing Engine** - phase-aware action bias with void-of-course caution windows
 - ✅ **Progressed Moon Overlay** - domain emphasis boosts integrated into predictive scoring
+- ✅ **Weather Intelligence Layer** - instant forecast summaries, atmospheric map, deep-dive drivers, multi-horizon views
+- ✅ **Consent-Based Shared Atmosphere** - relationship/team forecasting with explicit opt-in
 - ✅ **MBTI Integration** - Personality type overlays
 - ✅ **Life Timeline** - Major life events and timing
 - ✅ **Weekly Whispers** - 7-day forecasts
@@ -84,6 +88,30 @@ Merlin combines Swiss Ephemeris precision with MBTI personality insights to deli
   - **Active Transits** clairvoyance panel (context read, lunar read, score explainability)
   - **Action Signal** badges (`DO NOW` / `DELAY NOW`) for top predictive events
 
+### 7. **Weather Intelligence Layer**
+- Adds a human-readable forecast translation layer on top of transit and pressure data
+- Dashboard surfaces include:
+  - **Instant Forecast** card with severity, confidence, and horizon toggles
+  - **Atmospheric Map** visualizing pressure fronts across life domains
+  - **Deep Dive** driver analysis with MBTI-aware guidance
+  - **Calibration Mastery** card with streaks and forecast precision trends
+- Shared Atmosphere mode supports consent-based relationship/team readings with optional signal sources
+
+### 8. **Automation Strategy**
+- Core forecasting, consent checks, and API contracts are baked into the app
+- Use external workflow tools like n8n only for optional automation around the core system:
+  - scheduled emails
+  - follow-up reminders
+  - reporting or admin notifications
+  - data sync jobs that do not control forecast logic
+- Avoid moving the core weather translation engine into n8n; keep the model deterministic and versioned in code
+
+### 9. **CAFE Gateway Split**
+- User-facing forecast requests continue to use `/api/forecast`
+- External server-to-server CAFE requests use `/api/cafe/forecast`
+- Protect the CAFE gateway with `Authorization: Bearer ${MERLIN_GATEWAY_KEY}`
+- Shared request and response contracts live in `shared/cafe-contracts.ts`
+
 ---
 
 ## 📦 **Tech Stack**
@@ -101,6 +129,12 @@ Backend:
 - Next.js API Routes
 - Swiss Ephemeris (sweph)
 - Node.js
+
+Forecast Intelligence:
+- deterministic translation layer in `lib/astrology/pressure-engine/`
+- domain forecast API in `app/api/domain-forecast/route.ts`
+- shared atmosphere API in `app/api/shared-atmosphere/route.ts`
+- weather-first dashboard panels in `components/astrology/`
 
 Services:
 - Clerk (Authentication)
@@ -153,6 +187,9 @@ NEXT_PUBLIC_STRIPE_PRICE_ID=price_xxxxx
 
 # Development mode (bypasses payment)
 NEXT_PUBLIC_DEV_MODE=true
+
+# CAFE gateway auth for external/server-to-server access
+MERLIN_GATEWAY_KEY=replace-with-a-long-random-secret
 ```
 
 Full configuration options in [`.env.example`](.env.example)
