@@ -8,6 +8,18 @@
 
 ---
 
+## Product Framing (V2 North Star)
+
+Use this framing for all new dashboard and forecast work:
+
+- Merlin is a life weather intelligence system blended with horoscope output.
+- Forecasts should combine symbolic weather language with personalized astrological context.
+- Prioritize meaning, timing, preparation, and user agency over deterministic claims.
+- Tone should stay calm, insightful, and slightly mysterious (never generic horoscope filler).
+- Every reading should feel specific to the user, not like mass-market copy.
+
+---
+
 ## Architecture & Data Flow
 
 ### Core Components

@@ -7,6 +7,7 @@ import type { Metadata, Viewport } from 'next';
 
 const rawUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin-oracle.com';
 const siteUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+const isDev = process.env.NODE_ENV !== 'production';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  manifest: '/manifest.json',
+  manifest: isDev ? undefined : '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -99,7 +100,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-          <link rel="manifest" href="/manifest.json" />
+          {!isDev ? <link rel="manifest" href="/manifest.json" /> : null}
           <meta name="theme-color" content="#fcd34d" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-capable" content="yes" />

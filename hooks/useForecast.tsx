@@ -283,9 +283,20 @@ export function useForecast() {
       setForecast(result.data);
       return result.data;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      setError(error);
-      console.error('Forecast error:', error);
+      const fallbackError = err instanceof Error ? err : new Error('Unknown error');
+
+      // Codespaces/GitHub tunnel auth can block API requests and surface generic fetch failures.
+      if (fallbackError instanceof TypeError && /Failed to fetch/i.test(fallbackError.message)) {
+        setError(
+          new Error(
+            'Forecast request could not reach the API. If you are in Codespaces, refresh once and sign into the forwarded port.'
+          )
+        );
+        return null;
+      }
+
+      setError(fallbackError);
+      console.error('Forecast error:', fallbackError);
       return null;
     } finally {
       setLoading(false);

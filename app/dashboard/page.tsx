@@ -1286,7 +1286,7 @@ export default function UnifiedDashboard() {
 
     if (!sections.length) {
       if (premiumLocked) {
-        return 'Your chart is calculated. Premium interpretation is currently locked, but Merlin can still read your core placements and major aspects once available in this session.';
+        return 'Your chart is calculated. Premium interpretation is not available in free mode. Upgrade to unlock the full reading layer.';
       }
       return 'Your chart is ready, but there is no readable summary yet. Try recalculating your chart once.';
     }
@@ -1730,9 +1730,43 @@ export default function UnifiedDashboard() {
               <h1 className="text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
                 Your Cosmic Dashboard
               </h1>
+              <div className="mb-4 flex justify-center">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-300/45 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100"
+                  >
+                    Frozen • Stable
+                  </Link>
+                  <Link
+                    href="/dashboard-v2"
+                    className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100 hover:bg-cyan-500/20 transition"
+                  >
+                    V2 Live • Test
+                  </Link>
+                  <Link
+                    href="/dashboard-v3"
+                    className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-100 hover:bg-violet-500/20 transition"
+                  >
+                    V3 Draft • Draft
+                  </Link>
+                  <Link
+                    href="/enhanced-dashboard"
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100 hover:bg-amber-500/20 transition"
+                  >
+                    Enhanced • Pilot
+                  </Link>
+                  <Link
+                    href="/dashboard-v2-preview.html"
+                    className="inline-flex items-center gap-2 rounded-full border border-violet-400/40 bg-violet-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-100 hover:bg-violet-500/20 transition"
+                  >
+                    V2 Preview • Fallback
+                  </Link>
+                </div>
+              </div>
               {premiumLocked ? (
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/45 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold text-amber-100">
-                  Premium insights are locked on free tier
+                  Premium insights are not available in free mode
                   <Link href="/checkout-subscription" className="underline underline-offset-2 hover:text-amber-50">
                     Upgrade
                   </Link>
@@ -2727,7 +2761,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition"
                     >
-                      Chart Reading{premiumLocked ? ' • Locked' : ''}
+                      Chart Reading{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('transits')}
@@ -2735,7 +2769,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition"
                     >
-                      Active Transits{premiumLocked ? ' • Locked' : ''}
+                      Active Transits{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('lifearc')}
@@ -2743,7 +2777,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition"
                     >
-                      Life Timeline{premiumLocked ? ' • Locked' : ''}
+                      Life Timeline{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('personality')}
@@ -2751,7 +2785,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition"
                     >
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => openSection('stormradar')}
@@ -2759,7 +2793,7 @@ export default function UnifiedDashboard() {
                       disabled={premiumLocked}
                       className="px-3 py-1.5 text-xs rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition"
                     >
-                      Storm Radar{premiumLocked ? ' • Locked' : ''}
+                      Storm Radar{premiumLocked ? ' • Not available in free mode' : ''}
                     </button>
                     <button
                       onClick={() => scrollToBlock(prophecySectionRef)}
@@ -2815,19 +2849,19 @@ export default function UnifiedDashboard() {
                           Chart + Chat
                         </button>
                         <button onClick={() => scrollToBlock(forecastSectionRef)} className={navigatorButtonClass('forecast')} title="Go to daily forecast">
-                          Daily Forecast
+                          Daily Forecast{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(focusPanelRef)} className={navigatorButtonClass('analysis')} title="Go to analysis panels">
-                          Analysis Panels
+                          Analysis Panels{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(weeklySectionRef)} className={navigatorButtonClass('weekly')} title="Go to weekly forecast">
-                          Weekly Forecast
+                          Weekly Forecast{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(personalitySectionRef)} className={navigatorButtonClass('personality')} title="Go to dual MBTI cards">
-                          Dual MBTI Cards
+                          Dual MBTI Cards{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                         <button onClick={() => scrollToBlock(prophecySectionRef)} className={navigatorButtonClass('prophecy')} title="Go to personal prophecy">
-                          Prophecy
+                          Prophecy{premiumLocked ? ' • Not available in free mode' : ''}
                         </button>
                       </>
                     ) : null}
@@ -2954,23 +2988,23 @@ export default function UnifiedDashboard() {
                   <h3 className="text-xl font-bold text-amber-300 mb-4">Focus Views</h3>
                   <p className="text-sm text-slate-300 mb-4">Open a dedicated view for each module.</p>
                   {premiumLocked ? (
-                    <p className="text-xs text-amber-200 mb-3">These modules require a paid plan.</p>
+                    <p className="text-xs text-amber-200 mb-3">These modules are not available in free mode.</p>
                   ) : null}
                   <div className="flex flex-wrap gap-3">
                     <Link href="/dashboard/chart-reading" className="px-4 py-2 rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition">
-                      Chart Reading{premiumLocked ? ' • Locked' : ''}
+                      Chart Reading{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/active-transits" className="px-4 py-2 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition">
-                      Active Transits{premiumLocked ? ' • Locked' : ''}
+                      Active Transits{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/life-timeline" className="px-4 py-2 rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition">
-                      Life Timeline{premiumLocked ? ' • Locked' : ''}
+                      Life Timeline{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/dual-mbti" className="px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition">
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
+                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                     <Link href="/dashboard/storm-radar" className="px-4 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition">
-                      Storm Radar{premiumLocked ? ' • Locked' : ''}
+                      Storm Radar{premiumLocked ? ' • Not available in free mode' : ''}
                     </Link>
                   </div>
                 </motion.div>
@@ -3015,6 +3049,9 @@ export default function UnifiedDashboard() {
                       <div className="px-0 pb-4">
                         <div className="bg-slate-900/40 rounded-lg p-8 border-t border-amber-500/20 backdrop-blur-sm">
                           <h2 className="text-2xl font-bold text-amber-300 mb-6">7-Day Cosmic Forecast</h2>
+                          {premiumLocked ? (
+                            <p className="mb-4 text-xs text-amber-200">Weekly forecast is not available in free mode.</p>
+                          ) : null}
                           <WeeklyCalendar
                             week={weeklyForecast?.week || []}
                             loading={weeklyLoading}
@@ -3050,16 +3087,26 @@ export default function UnifiedDashboard() {
                       <span className="text-sm font-semibold text-slate-200">Dual MBTI Cards</span>
                       <span className="text-xs text-slate-400">{showPersonalityCardsPanel ? 'Hide' : 'Show'}</span>
                     </button>
-                    {showPersonalityCardsPanel && mbtiType && (
+                    {showPersonalityCardsPanel && (
                       <div className="px-4 pb-4">
-                        <DualPersonalityCards
-                          mbtiType={mbtiType}
-                          dualOverlay={dualOverlay}
-                          transits={transits}
-                          loading={personalityLoading}
-                          onAskContext={queueAskContext}
-                          selectedContextLabel={askDraftLabel}
-                        />
+                        {premiumLocked ? (
+                          <p className="mb-4 text-xs text-amber-200">Dual MBTI cards are not available in free mode.</p>
+                        ) : null}
+                        {!mbtiType ? (
+                          <p className="mb-4 text-xs text-slate-300">
+                            MBTI profile is not ready yet. Calculate your chart to generate the Dual MBTI cards.
+                          </p>
+                        ) : null}
+                        {!premiumLocked && mbtiType ? (
+                          <DualPersonalityCards
+                            mbtiType={mbtiType}
+                            dualOverlay={dualOverlay}
+                            transits={transits}
+                            loading={personalityLoading}
+                            onAskContext={queueAskContext}
+                            selectedContextLabel={askDraftLabel}
+                          />
+                        ) : null}
                       </div>
                     )}
                   </motion.div>
@@ -3177,7 +3224,7 @@ export default function UnifiedDashboard() {
                             : forecastError?.message ||
                               (featureFlags.premiumInsights
                                 ? 'The cosmic story is quiet right now. Please try again in a moment.'
-                                : 'Daily forecast is currently unavailable for your plan.'))
+                                : 'Daily forecast is not available in free mode.'))
                         }
                         planetaryHighlights={forecast?.planetaryHighlights || []}
                         moonPhase={forecast?.moonPhase || 'Unknown'}
@@ -3219,7 +3266,7 @@ export default function UnifiedDashboard() {
                       >
                         {premiumLocked ? (
                           <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
-                            <p className="font-semibold mb-2">This module is locked on your current plan.</p>
+                            <p className="font-semibold mb-2">This module is not available in free mode.</p>
                             <p className="text-amber-200/90 mb-3">Upgrade to unlock chart interpretations, transits, life timeline, personality insights, and storm radar.</p>
                             <Link href="/checkout-subscription" className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300/50 bg-amber-500/20 hover:bg-amber-500/30 text-amber-50">
                               Upgrade Plan
@@ -3374,6 +3421,9 @@ export default function UnifiedDashboard() {
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
                       <h4 className="mt-1 text-base md:text-lg font-semibold text-violet-50">{prophecy?.title || 'Chart-anchored omen'}</h4>
+                      {premiumLocked ? (
+                        <p className="mt-2 text-xs text-amber-200">Personal prophecy is not available in free mode.</p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -3387,6 +3437,7 @@ export default function UnifiedDashboard() {
                             ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
                             : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
                         }`}
+                        disabled={premiumLocked}
                       >
                         Omen
                       </button>
@@ -3401,13 +3452,14 @@ export default function UnifiedDashboard() {
                             ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
                             : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
                         }`}
+                        disabled={premiumLocked}
                       >
                         Sonnet
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          if (!chartData) return;
+                          if (!chartData || premiumLocked) return;
                           appendDashboardEvent('dashboard_prophecy_regenerated', {
                             style: prophecyStyle,
                             era: prophecyEra,
@@ -3425,6 +3477,7 @@ export default function UnifiedDashboard() {
                           });
                         }}
                         className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                        disabled={premiumLocked}
                       >
                         <RefreshCcw className="h-3.5 w-3.5" />
                         Regenerate
@@ -3449,6 +3502,7 @@ export default function UnifiedDashboard() {
                         setProphecyEra(nextEra);
                       }}
                       className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
+                      disabled={premiumLocked}
                     >
                       <option value="babylonian">Babylonian</option>
                       <option value="hermetic">Hermetic</option>
@@ -3464,6 +3518,7 @@ export default function UnifiedDashboard() {
                           appendDashboardEvent('dashboard_prophecy_meter_toggled', { strictMeter: event.target.checked });
                           setStrictMeter(event.target.checked);
                         }}
+                        disabled={premiumLocked}
                       />
                       Strict sonnet meter
                     </label>
