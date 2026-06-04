@@ -107,6 +107,20 @@ export function isMoodAdjudicationEnabled() {
   return process.env.MOOD_ADJUDICATION_ENABLED !== "false" && isLlmConfigured();
 }
 
+export function isAudioOutputModel(model) {
+  const normalized = String(model || "").trim().toLowerCase();
+  return normalized.includes("audio-preview") || normalized.includes("audio-mini");
+}
+
+const OPENAI_AUDIO_VOICES = new Set([
+  "alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse",
+]);
+
+function normalizeAudioVoice(voice) {
+  const v = String(voice || "").trim().toLowerCase();
+  return OPENAI_AUDIO_VOICES.has(v) ? v : "alloy";
+}
+
 function isOpenRouterConfig({ provider = "", baseUrl = "" } = {}) {
   const normalizedProvider = String(provider || "").trim().toLowerCase();
   const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/$/, "");
@@ -555,7 +569,7 @@ async function requestChatCompletion({ messages, temperature = 0.85, includeMeta
   throw lastError;
 }
 
-async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, onToken, config }) {
+async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, onToken, onAudioChunk, audioVoice, config }) {
   const { baseUrl, model, apiKey, provider } = config;
   const requestMessages = normalizeMessagesForProvider(messages, config);
 
@@ -575,6 +589,9 @@ async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, o
       messages: requestMessages,
       temperature,
       stream: true,
+      ...(isAudioOutputModel(model) && typeof onAudioChunk === "function" && !isOpenRouterConfig({ provider, baseUrl })
+        ? { modalities: ["text", "audio"], audio: { voice: normalizeAudioVoice(audioVoice), format: "mp3" } }
+        : {}),
     }),
   });
 
@@ -623,6 +640,11 @@ async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, o
           responseModel = String(parsed.data.model).trim() || responseModel;
         }
 
+        const audioDeltaData = parsed.data?.choices?.[0]?.delta?.audio?.data;
+        if (audioDeltaData && typeof onAudioChunk === "function") {
+          onAudioChunk(audioDeltaData);
+        }
+
         const delta = parsed.data?.choices?.[0]?.delta?.content;
         if (!delta) {
           continue;
@@ -653,7 +675,7 @@ async function requestChatCompletionStreamOnce({ messages, temperature = 0.85, o
   };
 }
 
-async function requestChatCompletionStream({ messages, temperature = 0.85, onToken, includeMeta = false }) {
+async function requestChatCompletionStream({ messages, temperature = 0.85, onToken, onAudioChunk, audioVoice, includeMeta = false }) {
   const config = getLlmConfig();
   const candidateModels = [config.model, ...getFallbackModels(config)].filter(
     (model, index, list) => model && list.indexOf(model) === index,
@@ -682,6 +704,8 @@ async function requestChatCompletionStream({ messages, temperature = 0.85, onTok
         messages,
         temperature,
         onToken,
+        onAudioChunk,
+        audioVoice,
         config: attemptConfig,
       });
 
@@ -1205,11 +1229,13 @@ export async function generateChatCompletionStream(messages, onToken) {
   return requestChatCompletionStream({ messages, temperature: 0.85, onToken });
 }
 
-export async function generateChatCompletionStreamWithMeta(messages, onToken) {
+export async function generateChatCompletionStreamWithMeta(messages, onToken, { onAudioChunk, audioVoice } = {}) {
   return requestChatCompletionStream({
     messages,
     temperature: 0.85,
     onToken,
+    onAudioChunk,
+    audioVoice,
     includeMeta: true,
   });
 }

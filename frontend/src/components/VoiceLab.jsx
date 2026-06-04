@@ -32,683 +32,359 @@ const voiceLabStyles = `
   }
 
   @keyframes vlab-pulse-ring {
-    0%,100% { box-shadow: 0 0 0   rgba(74, 222, 128, 0.0); }
-    50%     { box-shadow: 0 0 10px rgba(74, 222, 128, 0.8); }
+    0%,100% { box-shadow: 0 0 0   rgba(0, 245, 255, 0.0); }
+    50%     { box-shadow: 0 0 10px rgba(0, 245, 255, 0.5); }
   }
 
   /* ── Shell ────────────────────────────────────────────────── */
   .vlab-shell {
     position: relative;
-    border: 1px solid rgba(0, 180, 255, 0.22);
-    border-radius: 20px;
-    background: rgba(4, 10, 22, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 32px;
+    background: linear-gradient(170deg, rgba(0, 4, 14, 0.95), rgba(2, 5, 18, 0.92));
     overflow: hidden;
     box-shadow:
-      0 0 40px rgba(0, 120, 255, 0.10),
-      inset 0 1px 0 rgba(0, 200, 255, 0.07);
-    animation: vlab-slide-in 260ms ease;
+      0 0 80px -20px rgba(78, 255, 200, 0.15),
+      0 32px 100px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    animation: vlab-slide-in 450ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
   }
 
-  /* CRT scan-line texture */
-  .vlab-shell::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 9;
-    border-radius: inherit;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 3px,
-      rgba(0, 0, 0, 0.05) 3px,
-      rgba(0, 0, 0, 0.05) 4px
-    );
-  }
+  .vlab-shell::before,
+  .vlab-shell::after { display: none; }
 
-  /* Moving light sweep */
-  .vlab-shell::after {
-    content: "";
-    position: absolute;
-    left: 0; right: 0;
-    height: 120px;
-    background: linear-gradient(180deg, transparent, rgba(0, 200, 255, 0.025) 50%, transparent);
-    pointer-events: none;
-    z-index: 10;
-    animation: vlab-scanline 9s linear infinite;
-  }
-
-  /* ── Tab Bar ───────────────────────────────────────────────── */
+  /* ── Tabs ─────────────────────────────────────────────────── */
   .vlab-tab-bar {
     display: flex;
-    gap: 0;
-    border-bottom: 1px solid rgba(0, 200, 255, 0.12);
-    background: rgba(0, 10, 24, 0.6);
+    gap: 4px;
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 4, 12, 0.4);
     position: relative;
-    z-index: 4;
+    z-index: 11;
   }
 
   .vlab-tab-btn {
     flex: 1;
-    padding: 0.55rem 1rem;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
+    padding: 12px 16px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 14px;
     cursor: pointer;
-    font-size: 0.68rem;
-    letter-spacing: 0.1em;
-    color: rgba(100, 180, 210, 0.55);
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    font-size: 0.7rem;
+    font-weight: 300;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(230, 255, 248, 0.4);
+    transition: all 0.3s ease;
   }
 
   .vlab-tab-btn:hover {
-    color: rgba(125, 249, 255, 0.75);
-    background: rgba(0, 180, 255, 0.04);
+    color: rgba(230, 255, 248, 0.8);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .vlab-tab-btn.active {
-    color: #7df9ff;
-    border-bottom-color: #00b4ff;
-    background: rgba(0, 180, 255, 0.06);
+    color: #4effd8;
+    background: rgba(78, 255, 200, 0.08);
+    border-color: rgba(78, 255, 200, 0.2);
+    box-shadow: 0 0 20px rgba(78, 255, 200, 0.1);
   }
 
   /* ── Header ───────────────────────────────────────────────── */
   .vlab-header {
+    padding: 24px 32px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: radial-gradient(circle at top left, rgba(78, 255, 200, 0.05), transparent 70%);
     position: relative;
-    z-index: 5;
-    padding: 18px 22px 16px;
-    border-bottom: 1px solid rgba(0, 200, 255, 0.10);
-    background: linear-gradient(135deg, rgba(0, 36, 72, 0.65), rgba(0, 18, 44, 0.85));
+    z-index: 11;
   }
 
   .vlab-eyebrow {
     display: flex;
     align-items: center;
-    gap: 7px;
-    margin-bottom: 8px;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.18em;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.25em;
     text-transform: uppercase;
-    color: var(--accent);
-    font-family: "JetBrains Mono", "Courier New", monospace;
+    color: rgba(78, 255, 200, 0.7);
+    font-family: "JetBrains Mono", monospace;
   }
 
   .vlab-eyebrow-dot {
-    flex-shrink: 0;
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: vlab-blink 1.4s ease-in-out infinite;
+    background: #4effd8;
+    box-shadow: 0 0 12px #4effd8;
+    animation: vlab-blink 2s infinite;
   }
 
   .vlab-title {
     margin: 0;
-    font-size: 1.28rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    background: linear-gradient(130deg, #ffffff 30%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: vlab-glitch 8s ease infinite;
+    font-size: 1.6rem;
+    font-weight: 300;
+    color: rgba(230, 255, 248, 0.95);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
 
   .vlab-header-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 11px;
+    gap: 8px;
+    margin-top: 14px;
   }
 
   .vlab-meta-pill {
-    padding: 3px 9px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 180, 255, 0.18);
-    background: rgba(0, 180, 255, 0.05);
-    color: var(--muted);
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 245, 255, 0.18);
+    background: rgba(0, 245, 255, 0.05);
+    color: #87a8b9;
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    font-family: "JetBrains Mono", "Courier New", monospace;
+    letter-spacing: 0.06em;
+    font-family: "JetBrains Mono", monospace;
   }
 
   .vlab-meta-pill.on {
-    color: #4ade80;
-    border-color: rgba(74, 222, 128, 0.30);
-    background: rgba(74, 222, 128, 0.06);
-    box-shadow: 0 0 8px rgba(74, 222, 128, 0.10);
+    color: #00ff9d;
+    border-color: rgba(0, 255, 157, 0.3);
+    background: rgba(0, 255, 157, 0.06);
   }
 
   /* ── Body ─────────────────────────────────────────────────── */
   .vlab-body {
-    position: relative;
-    z-index: 5;
-    padding: 18px 22px 24px;
+    padding: 28px;
     display: grid;
-    gap: 22px;
+    gap: 32px;
+    position: relative;
+    z-index: 11;
   }
 
-  /* ── Section ──────────────────────────────────────────────── */
   .vlab-section {
     display: grid;
-    gap: 12px;
+    gap: 16px;
   }
 
   .vlab-section-label {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.67rem;
-    font-weight: 800;
+    width: fit-content;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(136, 102, 255, 0.08);
+    color: rgba(160, 255, 225, 0.7);
+    font-size: 0.62rem;
+    font-weight: 400;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--accent);
-    opacity: 0.70;
-    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 6px;
+    backdrop-filter: blur(10px);
   }
 
-  .vlab-section-label::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, rgba(0, 200, 255, 0.18), transparent);
-  }
-
-  /* ── Grid & Fields ────────────────────────────────────────── */
   .vlab-grid {
     display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   }
 
   .vlab-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .vlab-field > label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .vlab-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
     gap: 10px;
   }
 
-  .vlab-reload-btn {
-    border: 1px solid rgba(0, 180, 255, 0.25);
-    background: rgba(0, 180, 255, 0.08);
-    color: var(--accent);
-    border-radius: 8px;
-    padding: 2px 8px;
-    font-size: 0.68rem;
-    font-weight: 700;
+  .vlab-field label {
+    color: rgba(135, 168, 185, 0.8);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: border-color 140ms ease, background 140ms ease;
-  }
-
-  .vlab-reload-btn:hover {
-    border-color: rgba(0, 200, 255, 0.5);
-    background: rgba(0, 180, 255, 0.15);
-  }
-
-  .vlab-reload-btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .vlab-reload-meta {
-    font-size: 0.68rem;
-    color: #4ade80;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-family: "JetBrains Mono", "Courier New", monospace;
   }
 
   .vlab-input,
   .vlab-select,
   .vlab-textarea {
     width: 100%;
-    padding: 10px 13px;
-    border: 1px solid rgba(0, 180, 255, 0.15);
-    border-radius: 10px;
-    background: rgba(2, 8, 20, 0.92);
-    color: var(--text);
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(0, 4, 12, 0.6);
+    color: rgba(230, 255, 248, 0.9);
+    font-size: 0.92rem;
+    transition: all 0.3s ease;
     font-family: inherit;
-    transition: border-color 170ms ease, box-shadow 170ms ease;
+    backdrop-filter: blur(10px);
   }
 
   .vlab-input:focus,
   .vlab-select:focus,
   .vlab-textarea:focus {
     outline: none;
-    border-color: rgba(0, 200, 255, 0.48);
-    box-shadow: 0 0 0 2px rgba(0, 200, 255, 0.07), 0 0 14px rgba(0, 200, 255, 0.09);
+    border-color: rgba(78, 255, 200, 0.3);
+    box-shadow: 0 0 20px rgba(78, 255, 200, 0.15);
+    background: rgba(0, 4, 12, 0.8);
   }
 
-  .vlab-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%2300c8ff' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 32px;
-  }
-
-  .vlab-textarea {
-    min-height: 84px;
-    resize: vertical;
-    line-height: 1.55;
-  }
-
-  .vlab-small {
-    margin-top: 3px;
-    font-size: 0.75rem;
-    color: var(--muted);
-    line-height: 1.5;
-    font-family: "JetBrains Mono", "Courier New", monospace;
-  }
-
-  .vlab-callout {
-    grid-column: 1 / -1;
-    padding: 14px;
-    border: 1px solid rgba(0, 180, 255, 0.16);
-    border-radius: 12px;
-    background: rgba(0, 180, 255, 0.05);
-    display: grid;
-    gap: 12px;
-  }
-
-  /* Amber warning variant */
-  .vlab-callout.warn {
-    border-color: rgba(251, 191, 36, 0.35);
-    background: rgba(251, 191, 36, 0.06);
-  }
-  .vlab-callout.warn .vlab-callout-title { color: #fcd34d; }
-
-  /* Green info variant */
-  .vlab-callout.ok {
-    border-color: rgba(74, 222, 128, 0.30);
-    background: rgba(74, 222, 128, 0.05);
-  }
-  .vlab-callout.ok .vlab-callout-title { color: #86efac; }
-
-  .vlab-callout-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .vlab-callout-title {
-    margin: 0;
-    font-size: 0.82rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
+  .vlab-btn {
+    padding: 14px 28px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(78, 255, 200, 0.15), rgba(136, 102, 255, 0.2));
+    color: #4effd8;
+    font-weight: 300;
+    font-size: 0.85rem;
     text-transform: uppercase;
-    color: #9fe7ff;
-  }
-
-  .vlab-callout-copy {
-    margin: 4px 0 0;
-    font-size: 0.8rem;
-    line-height: 1.55;
-    color: var(--muted);
-  }
-
-  .vlab-inline-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .vlab-key-hint {
+    letter-spacing: 0.15em;
+    border: 1px solid rgba(78, 255, 200, 0.25);
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(78, 255, 200, 0.15);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.72rem;
-    color: #7fe7b1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-family: "JetBrains Mono", "Courier New", monospace;
+    justify-content: center;
+    gap: 12px;
+    backdrop-filter: blur(10px);
   }
 
-  .vlab-doc-link {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 700;
+  .vlab-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    background: linear-gradient(135deg, rgba(78, 255, 200, 0.25), rgba(136, 102, 255, 0.3));
+    box-shadow: 0 0 45px rgba(78, 255, 200, 0.35);
+    border-color: rgba(78, 255, 200, 0.4);
   }
 
-  .vlab-doc-link:hover {
-    text-decoration: underline;
+  .vlab-btn.secondary {
+    background: rgba(136, 102, 255, 0.06);
+    border: 1px solid rgba(136, 102, 255, 0.25);
+    color: rgba(160, 255, 225, 0.7);
+    box-shadow: none;
   }
 
-  /* ── Sliders ──────────────────────────────────────────────── */
+  .vlab-btn.secondary:hover {
+    background: rgba(136, 102, 255, 0.12);
+    color: #4effd8;
+    border-color: rgba(136, 102, 255, 0.4);
+  }
+
   .vlab-slider-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
 
   .vlab-slider {
     flex: 1;
+    height: 4px;
     -webkit-appearance: none;
-    appearance: none;
-    height: 3px;
-    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
     outline: none;
-    cursor: pointer;
   }
 
   .vlab-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px rgba(0, 200, 255, 0.70);
+    background: #4effd8;
+    box-shadow: 0 0 15px rgba(78, 255, 200, 0.4);
     cursor: pointer;
-    transition: box-shadow 140ms ease;
+    transition: transform 0.2s ease;
   }
 
   .vlab-slider::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 16px rgba(0, 200, 255, 1.0);
-  }
-
-  .vlab-slider::-moz-range-thumb {
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: none;
-    box-shadow: 0 0 8px rgba(0, 200, 255, 0.70);
-    cursor: pointer;
+    transform: scale(1.2);
   }
 
   .vlab-slider-readout {
-    min-width: 44px;
-    text-align: right;
+    font-family: "JetBrains Mono", monospace;
     font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--accent);
-    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-weight: 300;
+    color: #4effd8;
+    min-width: 45px;
+    text-align: right;
   }
 
-  /* ── Toggle Switches ──────────────────────────────────────── */
   .vlab-toggle-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
-  .vlab-toggle {
-    display: flex;
     align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    background: rgba(136, 102, 255, 0.04);
+    backdrop-filter: blur(10px);
   }
 
-  .vlab-toggle input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
+  .vlab-toggle-copy strong {
+    display: block;
+    color: #dcf7ff;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
   }
 
-  .vlab-toggle-track {
-    position: relative;
-    flex-shrink: 0;
-    width: 38px;
-    height: 21px;
-    border-radius: 11px;
-    background: rgba(0, 180, 255, 0.10);
-    border: 1px solid rgba(0, 180, 255, 0.20);
-    transition: background 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  .vlab-toggle-copy span {
+    color: #87a8b9;
+    font-size: 0.82rem;
   }
 
-  .vlab-toggle-track::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    background: rgba(0, 180, 255, 0.35);
-    transition: transform 200ms ease, background 200ms ease, box-shadow 200ms ease;
-  }
-
-  .vlab-toggle input:checked + .vlab-toggle-track {
-    background: rgba(0, 200, 255, 0.18);
-    border-color: rgba(0, 200, 255, 0.55);
-    box-shadow: 0 0 10px rgba(0, 200, 255, 0.24);
-  }
-
-  .vlab-toggle input:checked + .vlab-toggle-track::after {
-    transform: translateX(17px);
-    background: var(--accent);
-    box-shadow: 0 0 8px rgba(0, 200, 255, 0.80);
-  }
-
-  .vlab-toggle-label {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--muted);
-  }
-
-  /* ── Waveform canvas ──────────────────────────────────────── */
   .vlab-waveform-wrap {
     position: relative;
-    border-radius: 12px;
-    border: 1px solid rgba(0, 180, 255, 0.13);
-    background: rgba(1, 6, 16, 0.98);
+    border-radius: 18px;
+    border: 1px solid rgba(0, 245, 255, 0.15);
+    background: #01060e;
     overflow: hidden;
   }
 
   .vlab-waveform-tag {
     position: absolute;
-    top: 8px;
-    left: 12px;
-    font-size: 0.63rem;
+    top: 10px;
+    left: 14px;
+    font-size: 0.6rem;
     font-weight: 800;
-    letter-spacing: 0.15em;
+    color: rgba(0, 245, 255, 0.3);
     text-transform: uppercase;
-    color: rgba(0, 200, 255, 0.35);
-    font-family: "JetBrains Mono", "Courier New", monospace;
-    z-index: 2;
-    pointer-events: none;
-  }
-
-  .vlab-gen-badge {
-    position: absolute;
-    top: 7px;
-    right: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.66rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    color: #4ade80;
-    font-family: "JetBrains Mono", "Courier New", monospace;
-    z-index: 2;
-    pointer-events: none;
-  }
-
-  .vlab-gen-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #4ade80;
-    animation: vlab-pulse-ring 0.55s ease-in-out infinite;
-  }
-
-  .vlab-canvas {
-    display: block;
-    width: 100%;
-    height: 108px;
+    letter-spacing: 0.1em;
   }
 
   .vlab-audio-player {
     width: 100%;
-    margin-top: 10px;
-    border-radius: 8px;
-    accent-color: var(--accent);
-  }
-
-  /* ── Action Buttons ───────────────────────────────────────── */
-  .vlab-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .vlab-btn {
-    padding: 10px 18px;
-    border: none;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-    color: #fff;
-    font-weight: 800;
-    font-size: 0.84rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    box-shadow: 0 4px 16px rgba(0, 160, 255, 0.26);
-    transition: box-shadow 160ms ease, transform 100ms ease;
-    cursor: pointer;
-  }
-
-  .vlab-btn:hover {
-    box-shadow: 0 6px 22px rgba(0, 160, 255, 0.42);
-    transform: translateY(-1px);
-  }
-
-  .vlab-btn:active {
-    transform: translateY(0);
-  }
-
-  .vlab-btn.sec {
-    background: rgba(0, 180, 255, 0.06);
-    border: 1px solid rgba(0, 180, 255, 0.22);
-    color: var(--accent);
-    box-shadow: none;
-  }
-
-  .vlab-btn.sec:hover {
-    background: rgba(0, 180, 255, 0.11);
-    box-shadow: 0 0 12px rgba(0, 200, 255, 0.14);
-  }
-
-  .vlab-btn:disabled {
-    opacity: 0.42;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-  }
-
-  /* ── Empty state ──────────────────────────────────────────── */
-  .vlab-empty {
-    padding: 28px 22px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.9rem;
-    line-height: 1.75;
-  }
-
-  .vlab-empty-link {
-    display: inline-block;
     margin-top: 12px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    letter-spacing: 0.04em;
+    accent-color: #00f5ff;
   }
 
   .vlab-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(2, 6, 16, 0.72);
-    backdrop-filter: blur(6px);
-    z-index: 1200;
+    background: rgba(2, 6, 14, 0.85);
+    backdrop-filter: blur(10px);
+    z-index: 1000;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px;
   }
 
   .vlab-modal {
-    width: min(880px, 100%);
-    max-height: 86vh;
-    overflow: auto;
-    border-radius: 16px;
-    border: 1px solid rgba(0, 180, 255, 0.24);
-    background: rgba(4, 10, 24, 0.98);
-    box-shadow: 0 22px 56px rgba(0, 0, 0, 0.55);
-    padding: 18px;
-    display: grid;
-    gap: 14px;
+    width: min(900px, 100%);
+    max-height: 90vh;
+    background: rgba(0, 4, 14, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 36px;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+    padding: 40px;
+    overflow-y: auto;
+    backdrop-filter: blur(50px);
   }
 
-  .vlab-modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .vlab-modal-title {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 800;
-    letter-spacing: 0.03em;
-    color: var(--text);
-  }
-
-  .vlab-modal-copy {
-    margin: 6px 0 0;
-    color: var(--muted);
-    font-size: 0.82rem;
-    line-height: 1.55;
-  }
-
-  .vlab-modal-close {
-    border: 1px solid rgba(0, 180, 255, 0.22);
-    border-radius: 8px;
-    background: rgba(0, 180, 255, 0.08);
-    color: var(--accent);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 6px 10px;
-    cursor: pointer;
-  }
-
-  .vlab-progress-panel {
-    border: 1px solid rgba(0, 180, 255, 0.18);
-    border-radius: 12px;
-    background: rgba(0, 180, 255, 0.05);
-    padding: 12px;
-    display: grid;
-    gap: 8px;
-  }
 
   .vlab-progress-step {
     display: flex;
@@ -927,6 +603,7 @@ const REALISM_PRESETS = [
 ];
 
 const CUSTOM_OPTION = "__custom__";
+const QUICK_VOICE_FAVORITES_KEY = "voxis.quickVoiceFavorites.v1";
 const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
 const PROSODY_PROGRESS_STEPS = [
   "Scraping source audio",
@@ -940,7 +617,7 @@ function normalizeVoiceEngineForDebug(engine) {
   if (!TTS_DEBUG_PROVIDER_LOCK) {
     return normalized || "auto";
   }
-  return ["auto", "kokoro", "cartesia"].includes(normalized) ? normalized : "auto";
+  return ["auto", "kokoro", "openvoice", "kokoro-rvc", "cartesia"].includes(normalized) ? normalized : "auto";
 }
 
 function getProviderCatalogMeta(options) {
@@ -977,6 +654,47 @@ function getProviderModelHelpText(providerId, options) {
   }
 
   return options?.error || "Auto-loaded from your configured provider API key.";
+}
+
+function readQuickVoiceFavorites() {
+  try {
+    if (typeof window === "undefined") {
+      return { cartesia: [], kokoro: [] };
+    }
+    const raw = window.localStorage.getItem(QUICK_VOICE_FAVORITES_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return {
+      cartesia: Array.isArray(parsed?.cartesia) ? parsed.cartesia : [],
+      kokoro: Array.isArray(parsed?.kokoro) ? parsed.kokoro : [],
+    };
+  } catch {
+    return { cartesia: [], kokoro: [] };
+  }
+}
+
+function buildPersonaKeywords(personality) {
+  const sourceText = [
+    personality?.name,
+    personality?.role,
+    personality?.tagline,
+    personality?.description,
+    personality?.creativeContext,
+    personality?.speakingStyle,
+    personality?.voiceStyle,
+    personality?.alignment,
+    personality?.tone,
+    ...(Array.isArray(personality?.voiceTags) ? personality.voiceTags : []),
+  ]
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+
+  return new Set(
+    sourceText
+      .split(/[^a-z0-9]+/g)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 3),
+  );
 }
 
 export default function VoiceLab({
@@ -1072,6 +790,21 @@ export default function VoiceLab({
   const [isSavingVoiceMap, setIsSavingVoiceMap] = useState(false);
   const [isDeletingVoiceMap, setIsDeletingVoiceMap] = useState(false);
   const [syncMapOnProfileSave, setSyncMapOnProfileSave] = useState(true);
+  const [voiceFavorites, setVoiceFavorites] = useState(() => readQuickVoiceFavorites());
+
+  // Load voice favorites from server on mount
+  useEffect(() => {
+    authFetch("/settings/voice-favorites")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.favorites) {
+          setVoiceFavorites(data.favorites);
+          try { window.localStorage.setItem(QUICK_VOICE_FAVORITES_KEY, JSON.stringify(data.favorites)); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { /* keep local */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Refs
   const audioRef = useRef(null);
@@ -1124,6 +857,53 @@ export default function VoiceLab({
   const cartesiaVoicePreviewUrl = selectedProviderId === "cartesia" && activeVoiceValue
     ? (activeProviderOptions.voices.find((v) => v.id === activeVoiceValue)?.previewUrl || "")
     : "";
+
+  const favoriteCartesiaVoiceIds = useMemo(
+    () => new Set((Array.isArray(voiceFavorites?.cartesia) ? voiceFavorites.cartesia : []).map((item) => String(item?.id || "").trim()).filter(Boolean)),
+    [voiceFavorites?.cartesia],
+  );
+
+  const recommendedCartesiaVoice = useMemo(() => {
+    if (selectedProviderId !== "cartesia") {
+      return null;
+    }
+    const keywords = buildPersonaKeywords(personality);
+    const voices = Array.isArray(activeProviderOptions?.voices) ? activeProviderOptions.voices : [];
+    if (!keywords.size || voices.length === 0) {
+      return null;
+    }
+
+    let best = null;
+    let bestScore = 0;
+    for (const voice of voices) {
+      const label = String(voice?.label || voice?.id || "").trim().toLowerCase();
+      if (!label) {
+        continue;
+      }
+      const tags = Array.isArray(voice?.tags)
+        ? voice.tags.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean)
+        : [];
+      const terms = new Set(
+        [label, ...tags]
+          .join(" ")
+          .split(/[^a-z0-9]+/g)
+          .map((item) => item.trim())
+          .filter((item) => item.length >= 3),
+      );
+      let score = 0;
+      for (const term of terms) {
+        if (keywords.has(term)) {
+          score += 1;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = voice;
+      }
+    }
+
+    return bestScore > 0 ? best : null;
+  }, [activeProviderOptions?.voices, personality, selectedProviderId]);
 
   const activeModelValue = selectedProviderId === "elevenlabs"
     ? voiceProfile.elevenLabsModel || ""
@@ -1273,7 +1053,7 @@ export default function VoiceLab({
     setProsodyUrl(personality.prosodySourceUrl || "");
     setVoiceSamples(personality.voiceSampleAnalysis || null);
     setVoiceMapName((current) => current || `${personality.name} Voice`);
-  }, [personality]);
+  }, [personality?.id]);
 
   useEffect(() => {
     let ignore = false;
@@ -1303,12 +1083,30 @@ export default function VoiceLab({
     return () => {
       ignore = true;
     };
-  }, [authFetch, onStatus, personality?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authFetch, personality?.id]);
+  // Note: onStatus intentionally excluded to prevent render loops
 
   useEffect(() => {
     setDirectedPreview("");
     setPreviewTelemetry(null);
   }, [sampleText, personality?.id]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(QUICK_VOICE_FAVORITES_KEY, JSON.stringify(voiceFavorites));
+      }
+    } catch {
+      // Ignore localStorage write failures.
+    }
+    // Sync to server (fire-and-forget)
+    authFetch("/settings/voice-favorites", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favorites: voiceFavorites }),
+    }).catch(() => { /* ignore */ });
+  }, [voiceFavorites]);
 
   useEffect(() => {
     if (!personality || voiceProfile.engine !== "piper") return;
@@ -2054,6 +1852,31 @@ export default function VoiceLab({
     }
   }
 
+  function toggleVoiceFavorite(engine, voice) {
+    const targetEngine = String(engine || "").trim().toLowerCase();
+    if (!["cartesia", "kokoro"].includes(targetEngine)) {
+      return;
+    }
+
+    const id = String(voice?.id || "").trim();
+    const label = String(voice?.label || id).trim();
+    if (!id) {
+      return;
+    }
+
+    setVoiceFavorites((current) => {
+      const existing = Array.isArray(current?.[targetEngine]) ? current[targetEngine] : [];
+      const found = existing.some((item) => String(item?.id || "").trim() === id);
+      const nextItems = found
+        ? existing.filter((item) => String(item?.id || "").trim() !== id)
+        : [...existing, { id, label }];
+      return {
+        ...(current || {}),
+        [targetEngine]: nextItems,
+      };
+    });
+  }
+
   function applyVoiceMap(id) {
     const map = savedVoiceMaps.find((entry) => entry.id === id);
     if (!map?.voiceProfile || typeof map.voiceProfile !== "object") {
@@ -2495,13 +2318,15 @@ export default function VoiceLab({
                         ))}
                         <option value={CUSTOM_OPTION}>Custom voice id</option>
                       </select>
-                      {cartesiaVoicePreviewUrl ? (
-                        <button
-                          type="button"
-                          title={cartesiaPreviewPlaying ? "Stop sample" : "Play voice sample (free — no tokens)"}
-                          className="vlab-btn sec"
-                          style={{ flexShrink: 0, padding: "0 11px", fontSize: "1rem", minHeight: "36px" }}
-                          onClick={() => {
+                      <button
+                        type="button"
+                        title={cartesiaVoicePreviewUrl
+                          ? (cartesiaPreviewPlaying ? "Stop sample" : "Play provider sample")
+                          : "Preview using Voxis synthesis path"}
+                        className="vlab-btn sec"
+                        style={{ flexShrink: 0, padding: "0 11px", fontSize: "1rem", minHeight: "36px" }}
+                        onClick={() => {
+                          if (cartesiaVoicePreviewUrl) {
                             if (cartesiaPreviewPlaying) {
                               if (voiceSampleAudioRef.current) {
                                 voiceSampleAudioRef.current.pause();
@@ -2520,9 +2345,48 @@ export default function VoiceLab({
                             audio.play()
                               .then(() => setCartesiaPreviewPlaying(true))
                               .catch(() => setCartesiaPreviewPlaying(false));
+                            return;
+                          }
+
+                          void generateAudio(
+                            "Voice lab quick check: this is a preview generated through the live Voxis Cartesia pipeline.",
+                            {
+                              cartesiaVoiceId: voiceProfile.cartesiaVoiceId,
+                              providerVoice: voiceProfile.cartesiaVoiceId || voiceProfile.providerVoice,
+                              preferredVoice: voiceProfile.cartesiaVoiceId || voiceProfile.preferredVoice,
+                            },
+                            "voice preview",
+                          );
+                        }}
+                      >
+                        {cartesiaPreviewPlaying ? "■" : "▶"}
+                      </button>
+                    </div>
+                    <div className="vlab-inline-actions" style={{ marginTop: 6 }}>
+                      <button
+                        type="button"
+                        className="vlab-reload-btn"
+                        onClick={() => {
+                          const activeVoice = activeProviderOptions.voices.find((voice) => voice.id === activeVoiceValue);
+                          if (!activeVoice) {
+                            return;
+                          }
+                          toggleVoiceFavorite("cartesia", activeVoice);
+                        }}
+                      >
+                        {favoriteCartesiaVoiceIds.has(String(activeVoiceValue || "").trim()) ? "★ Unfavorite" : "☆ Favorite"}
+                      </button>
+                      {recommendedCartesiaVoice && String(activeVoiceValue || "").trim() !== String(recommendedCartesiaVoice.id || "").trim() ? (
+                        <button
+                          type="button"
+                          className="vlab-reload-btn"
+                          onClick={() => {
+                            updateVoiceField("cartesiaVoiceId", recommendedCartesiaVoice.id);
+                            updateVoiceField("providerVoice", recommendedCartesiaVoice.id);
+                            updateVoiceField("preferredVoice", recommendedCartesiaVoice.id);
                           }}
                         >
-                          {cartesiaPreviewPlaying ? "■" : "▶"}
+                          Use Recommended: {recommendedCartesiaVoice.label}
                         </button>
                       ) : null}
                     </div>
@@ -2544,7 +2408,9 @@ export default function VoiceLab({
                       {getProviderVoiceHelpText("cartesia", activeProviderOptions)}
                     </small>
                     <small className="vlab-small">
-                      The ▶ sample button plays Cartesia's provider demo clip for that voice id only. Use GENERATE SAMPLE below to test your saved rate/prosody path.
+                      {cartesiaVoicePreviewUrl
+                        ? "The ▶ button is using Cartesia's provider sample URL for this voice id."
+                        : "This voice does not expose a provider sample URL; ▶ falls back to live synthesis preview through Voxis."}
                     </small>
                   </>
                 ) : (

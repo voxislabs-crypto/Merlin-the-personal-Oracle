@@ -16,6 +16,7 @@ import {
   explainBehaviorHandler,
   classifyIntentHandler,
 } from "../controllers/personalityController.js";
+import { generateAvatarHandler } from "../controllers/imageController.js";
 import { runHarnessHandler } from "../controllers/harnessController.js";
 import { researchProfileHandler } from "../controllers/researchController.js";
 import { chatHistoryHandler, personaOpenerHandler } from "../controllers/chatController.js";
@@ -100,6 +101,7 @@ router.get("/personality/:id/voice-samples/audio/:clipFile", requireAuth, stream
 router.patch("/personality/:id/voice", requireAuth, updateVoiceProfileHandler);
 router.post("/personality/:id/performance", requireAuth, performanceHandler);
 router.post("/personality/:id/performance/parse", requireAuth, parsePerformanceHandler);
+router.post("/personality/:id/generate-avatar", requireAuth, generateAvatarHandler);
 
 // ── Voice Clone routes ───────────────────────────────────────────────────────
 router.get("/personality/:id/voice-clone", requireAuth, getVoiceCloneStatusHandler);

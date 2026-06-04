@@ -94,6 +94,8 @@ import {
 import { detectMemoryConflicts } from "../services/memoryConflictService.js";
 import { regulateReplyCadence } from "../services/cadenceRegulator.js";
 import { buildUtterancePlan } from "../services/utterancePlanService.js";
+import { resolveAdaptiveUtteranceMode } from "../services/utteranceModeController.js";
+import { drainFromRequestBody, buildVoiceBufferPromptSection } from "../services/voiceBufferService.js";
 import { extractRefinementSuggestions } from "../services/refinementSuggestionService.js";
 import {
   normalizeDriftState,
@@ -566,9 +568,18 @@ async function generateReplyWithRecovery({
   streamedDebugData,
   inputTokenEstimate,
   contextWindow,
+  audioVoice,
 }) {
   try {
     if (stream.enabled) {
+      let nativeTtsActive = false;
+      const onAudioChunk = audioVoice
+        ? (chunk) => {
+            nativeTtsActive = true;
+            stream.write("audio_chunk", { data: chunk });
+          }
+        : undefined;
+
       const generation = await generateChatCompletionStreamWithMeta(messages, async (delta, accumulated) => {
         const liveUsage = buildUsageSnapshot({
           model: null,
@@ -586,7 +597,7 @@ async function generateReplyWithRecovery({
           debug: streamedDebugData,
           usage: liveUsage,
         });
-      });
+      }, { onAudioChunk, audioVoice });
 
       const usage = buildUsageSnapshot({
         model: generation.model,
@@ -607,6 +618,7 @@ async function generateReplyWithRecovery({
         model: generation.model,
         rateLimit: null,
         usedFallbackReply: false,
+        nativeTtsActive,
       };
     }
 
@@ -625,6 +637,7 @@ async function generateReplyWithRecovery({
       model: generation.model,
       rateLimit: null,
       usedFallbackReply: false,
+      nativeTtsActive: false,
     };
   } catch (error) {
     if (!isRateLimitError(error)) {
@@ -747,7 +760,13 @@ export async function chatHandler(req, res, next) {
     const message = String(req.body.message || "").trim();
     const userId = req.body.userId;
     const requestedMode = String(req.body.mode || "").trim().toLowerCase();
+    const isLiveCall = req.body.isLiveCall === true;
     const forceWebSearch = req.body.enableSearch === true;
+
+    const conversationKey = `${personalityId}:${userId ?? "anon"}`;
+    const voiceBufferItems = isLiveCall
+      ? drainFromRequestBody(req, conversationKey)
+      : [];
 
     console.log("[VOXIS DEBUG] Backend received - personalityId:", personalityId);
 
@@ -1266,6 +1285,12 @@ export async function chatHandler(req, res, next) {
     }
 
     messages.push({ role: "user", content: message });
+    // Inject parallel voice buffer context just before the user turn so it has
+    // maximum recency in the context window. Only present on live-call turns.
+    const voiceBufferSection = buildVoiceBufferPromptSection(voiceBufferItems);
+    if (voiceBufferSection) {
+      messages.splice(messages.length - 1, 0, { role: "system", content: voiceBufferSection });
+    }
     const inputTokenEstimate = estimateMessagesTokenCount(messages);
     const contextWindow = estimateModelContextWindow(process.env.LLM_MODEL || "");
 
@@ -1292,6 +1317,9 @@ export async function chatHandler(req, res, next) {
       streamedDebugData,
       inputTokenEstimate,
       contextWindow,
+      audioVoice: personality.voiceProfile?.enabled !== false
+        ? (personality.voiceProfile?.preferredVoice || "alloy")
+        : null,
     });
     let reply = generation.reply;
     let usage = generation.usage;
@@ -1402,9 +1430,27 @@ export async function chatHandler(req, res, next) {
       };
     }
 
+    const utteranceModeDecision = resolveAdaptiveUtteranceMode({
+      policy,
+      message,
+      reply,
+      isLiveCall,
+      stateRuntime: {
+        stabilityIndex: stateFlawStep.stabilityIndex,
+        directives: stateFlawStep.directives,
+      },
+      usage,
+      rateLimit,
+      conversationKey: `${personalityId}:${userScopedId ?? "anon"}`,
+      turnCount: totalMessages,
+    });
+    const utteranceMode = String(utteranceModeDecision?.mode || policy.activeMode || "normal").trim().toLowerCase() || "normal";
+    policy.utteranceMode = utteranceMode;
+    policy.utteranceModeDecision = utteranceModeDecision;
+
     const sampled = applyBoundedExpressionSampling(reply, {
       config: getExpressionSamplingConfig(),
-      mode: policy.activeMode || "normal",
+      mode: utteranceMode,
       seedInput: `${personalityId}:${userScopedId ?? "anon"}:${message}`,
       mood: newMood,
       emotionSignal: newMood?.emotionalState?.signal || "neutral",
@@ -1447,6 +1493,7 @@ export async function chatHandler(req, res, next) {
       repairApplied: emotionalRepairApplied,
     };
     streamedDebugData.expressionSampling = sampled;
+    streamedDebugData.utteranceMode = utteranceModeDecision;
     stream.write("debug", {
       phase: "reply",
       debug: streamedDebugData,
@@ -1542,6 +1589,7 @@ export async function chatHandler(req, res, next) {
         directives: stateFlawStep.directives,
       },
       expressionSampling: sampled,
+      utteranceMode: utteranceModeDecision,
       webSearch: webSearchResult
         ? {
             query: webSearchResult.query,
@@ -1622,7 +1670,7 @@ export async function chatHandler(req, res, next) {
     const utterancePlan = buildUtterancePlan({
       reply,
       stateFlaws: personality.stateFlaws,
-      mode: policy.activeMode,
+      mode: utteranceMode,
     });
 
     const refinementSuggestions = extractRefinementSuggestions({
@@ -1647,6 +1695,7 @@ export async function chatHandler(req, res, next) {
       // without needing to parse the debug event stream.
       voiceAdjustments: streamedDebugData.voiceAdjustments || null,
       singingActive: singingActive || false,
+      nativeTtsActive: generation.nativeTtsActive || false,
       webSearch: webSearchResult
         ? {
             query: webSearchResult.query,

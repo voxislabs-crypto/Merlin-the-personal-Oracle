@@ -99,6 +99,7 @@ ensureColumn(
   "vocalMannerisms",
   `TEXT NOT NULL DEFAULT '{"frequency":0.15,"items":[],"sfxTags":[],"sfxFrequency":0.25,"sfxPlacement":"random"}'`,
 );
+ensureColumn("personalities", "voiceTags", "TEXT NOT NULL DEFAULT '[]'");
 
 // ── Voice clone metadata ─────────────────────────────────────────────────────
 // Stores which clone engine is active and where reference files live on disk.

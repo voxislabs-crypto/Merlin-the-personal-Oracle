@@ -331,6 +331,104 @@ const forgeStyles = `
     font-weight: 700;
   }
 
+  .live-phase-chip {
+    position: absolute;
+    top: 36px;
+    left: 14px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.64rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 800;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .live-phase-chip.listening {
+    border-color: rgba(255, 43, 214, 0.45);
+    color: #ffd6f7;
+    background: rgba(255, 43, 214, 0.16);
+  }
+
+  .live-phase-chip.thinking {
+    border-color: rgba(255, 195, 70, 0.45);
+    color: #ffe3a6;
+    background: rgba(255, 195, 70, 0.16);
+  }
+
+  .live-phase-chip.speaking {
+    border-color: rgba(38, 255, 255, 0.55);
+    color: #c8ffff;
+    background: rgba(38, 255, 255, 0.16);
+  }
+
+  .live-phase-chip.recovering {
+    border-color: rgba(190, 190, 255, 0.4);
+    color: #dadaff;
+    background: rgba(190, 190, 255, 0.12);
+  }
+
+  .live-brain-hud {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 64px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .live-brain-cell {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(3, 6, 22, 0.72);
+    border-radius: 10px;
+    padding: 5px 7px;
+    min-width: 0;
+  }
+
+  .live-brain-key {
+    display: block;
+    font-size: 0.56rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(184, 212, 255, 0.72);
+    margin-bottom: 2px;
+  }
+
+  .live-brain-value {
+    display: block;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    color: #d7f8ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 700;
+  }
+
+  .waveform-frame.interruptible {
+    cursor: pointer;
+  }
+
+  .waveform-frame.interruptible:hover {
+    box-shadow: inset 0 0 80px rgba(38, 255, 255, 0.14), 0 0 22px rgba(38, 255, 255, 0.28);
+  }
+
+  .waveform-interrupt-hint {
+    position: absolute;
+    top: 36px;
+    right: 14px;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(38, 255, 255, 0.78);
+    font-weight: 700;
+  }
+
   .stats-grid {
     display: grid;
     gap: 10px;
@@ -723,6 +821,19 @@ const forgeStyles = `
     color: #26ffff;
   }
 
+  .live-call-timeout-banner {
+    flex-basis: 100%;
+    margin-top: -2px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(38, 255, 255, 0.1);
+    border: 1px solid rgba(38, 255, 255, 0.25);
+    color: #c7fbff;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
   .mic-button {
     width: 64px;
     height: 64px;
@@ -791,6 +902,61 @@ const forgeStyles = `
   }
 
   .speak-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .live-call-toggle {
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 43, 214, 0.45);
+    background: rgba(255, 43, 214, 0.1);
+    color: #ffd8f6;
+    font-weight: 800;
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .live-call-toggle:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 18px rgba(255, 43, 214, 0.45);
+    background: rgba(255, 43, 214, 0.2);
+  }
+
+  .live-call-toggle.is-active {
+    border-color: rgba(38, 255, 255, 0.65);
+    color: #bffcff;
+    background: rgba(38, 255, 255, 0.16);
+    box-shadow: 0 0 20px rgba(38, 255, 255, 0.38);
+  }
+
+  .live-call-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .hud-density-toggle {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    background: rgba(38, 255, 255, 0.08);
+    color: #bffcff;
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .hud-density-toggle:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(38, 255, 255, 0.28);
+    background: rgba(38, 255, 255, 0.14);
+  }
+
+  .hud-density-toggle:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
@@ -1016,8 +1182,18 @@ const forgeStyles = `
     .stat-value {
       text-align: left;
     }
+
+    .live-brain-hud {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      top: 60px;
+    }
   }
 `;
+
+const LIVE_CALL_LEVEL_THRESHOLD = 0.018;
+const LIVE_CALL_SILENCE_MS = 900;
+const LIVE_CALL_MAX_LISTEN_MS = 9000;
+const LIVE_HUD_DENSITY_KEY = "voxis.liveHudDensity.v1";
 
 const STAT_KEYWORDS = {
   confidence: [
@@ -1497,8 +1673,8 @@ function OrbitalArray({
     };
   }, []);
 
-  const radius = Math.max(110, Math.min(size.w, size.h) / 2 - 50);
-  const innerRadius = Math.max(70, radius * 0.6);
+  const radius = Math.max(100, Math.min(size.w, size.h) / 2 - 90);
+  const innerRadius = Math.max(65, radius * 0.55);
   const positions = computeOrbitalPositions(traits, rotationRef.current, radius, innerRadius);
 
   useEffect(() => {
@@ -1719,6 +1895,9 @@ export default function VoxisTab({
   mode = "scientist",
 }) {
   const authFetch = useAuthFetch();
+  // Guide conversation history — never persisted to DB, never shared with ChatWindow.
+  // Passed to /api/voxis/chat so the Voxis entity has conversation continuity.
+  const [guideMessages, setGuideMessages] = useState([]);
   const [activeTrait, setActiveTrait] = useState(null);
   const [pendingSeed, setPendingSeed] = useState("");
   const [refinements, setRefinements] = useState([]);
@@ -1733,6 +1912,16 @@ export default function VoxisTab({
   const [autoSpeak, setAutoSpeak] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ttsBusy, setTtsBusy] = useState(false);
+  const [isLiveCallActive, setIsLiveCallActive] = useState(false);
+  const [liveCallPhase, setLiveCallPhase] = useState("idle");
+  const [liveCallListenRemainingMs, setLiveCallListenRemainingMs] = useState(null);
+  const [liveHudDensity, setLiveHudDensity] = useState(() => {
+    if (typeof window === "undefined") {
+      return "full";
+    }
+    const stored = String(window.localStorage.getItem(LIVE_HUD_DENSITY_KEY) || "").trim().toLowerCase();
+    return stored === "minimal" ? "minimal" : "full";
+  });
   const [constellationMode, setConstellationMode] = useState(false);
   const recognitionRef = useRef(null);
   const echoAbortRef = useRef(null);
@@ -1748,8 +1937,22 @@ export default function VoxisTab({
   const traitKeywordsRef = useRef([]);
   const replyTextRef = useRef("");
   const lastSpokenIndexRef = useRef(0);
+  const liveCallActiveRef = useRef(false);
+  const liveCallResumeTimerRef = useRef(null);
+  const liveCallPreviousAutoSpeakRef = useRef(true);
+  const liveCallListenTimeoutRef = useRef(null);
+  const liveCallListenTickerRef = useRef(null);
+  const liveCallMicStreamRef = useRef(null);
+  const liveCallMediaRecorderRef = useRef(null);
 
   const traits = useMemo(() => selectOrbitalTraits(personality), [personality]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LIVE_HUD_DENSITY_KEY, liveHudDensity);
+  }, [liveHudDensity]);
 
   useEffect(() => {
     traitKeywordsRef.current = traits
@@ -1765,6 +1968,47 @@ export default function VoxisTab({
       })
       .filter((entry) => entry.re);
   }, [traits]);
+
+  // Reset guide conversation when the user switches to a different persona so
+  // Voxis starts fresh with the correct persona context.
+  useEffect(() => {
+    setGuideMessages([]);
+    setEcho(null);
+    liveCallActiveRef.current = false;
+    setIsLiveCallActive(false);
+    setLiveCallPhase("idle");
+    setLiveCallListenRemainingMs(null);
+    if (liveCallResumeTimerRef.current) {
+      clearTimeout(liveCallResumeTimerRef.current);
+      liveCallResumeTimerRef.current = null;
+    }
+    if (liveCallListenTimeoutRef.current) {
+      clearTimeout(liveCallListenTimeoutRef.current);
+      liveCallListenTimeoutRef.current = null;
+    }
+    if (liveCallListenTickerRef.current) {
+      clearInterval(liveCallListenTickerRef.current);
+      liveCallListenTickerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      recognitionRef.current = null;
+    }
+    if (liveCallMicStreamRef.current) {
+      try {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        /* ignore */
+      }
+      liveCallMicStreamRef.current = null;
+    }
+    liveCallMediaRecorderRef.current = null;
+    setListening(false);
+  }, [personality?.id]);
   const stats = useMemo(() => computeStats([...(personality?.traits || []), ...(personality?.coreValues || [])]), [
     personality,
   ]);
@@ -1774,6 +2018,95 @@ export default function VoxisTab({
   const showToast = (text, isError = false) => {
     setToast({ text, isError });
     setTimeout(() => setToast(null), 3600);
+  };
+
+  const clearLiveCallResumeTimer = () => {
+    if (liveCallResumeTimerRef.current) {
+      clearTimeout(liveCallResumeTimerRef.current);
+      liveCallResumeTimerRef.current = null;
+    }
+  };
+
+  const clearLiveCallListenTimers = () => {
+    if (liveCallListenTimeoutRef.current) {
+      clearTimeout(liveCallListenTimeoutRef.current);
+      liveCallListenTimeoutRef.current = null;
+    }
+    if (liveCallListenTickerRef.current) {
+      clearInterval(liveCallListenTickerRef.current);
+      liveCallListenTickerRef.current = null;
+    }
+    setLiveCallListenRemainingMs(null);
+  };
+
+  const queueLiveCallListening = (delayMs = 380) => {
+    clearLiveCallResumeTimer();
+    if (!liveCallActiveRef.current) return;
+    liveCallResumeTimerRef.current = setTimeout(() => {
+      liveCallResumeTimerRef.current = null;
+      if (!liveCallActiveRef.current) return;
+      if (recognitionRef.current || listening || busy || echoStreaming || isSpeaking || ttsBusy) return;
+      startListening({ autoSubmit: true });
+    }, delayMs);
+  };
+
+  const stopLiveCall = ({ restoreAutoSpeak = true } = {}) => {
+    liveCallActiveRef.current = false;
+    setIsLiveCallActive(false);
+    setLiveCallPhase("idle");
+    clearLiveCallListenTimers();
+    clearLiveCallResumeTimer();
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      recognitionRef.current = null;
+    }
+    if (liveCallMicStreamRef.current) {
+      try {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        /* ignore */
+      }
+      liveCallMicStreamRef.current = null;
+    }
+    liveCallMediaRecorderRef.current = null;
+    setListening(false);
+
+    if (restoreAutoSpeak) {
+      setAutoSpeak(liveCallPreviousAutoSpeakRef.current);
+    }
+  };
+
+  const startLiveCall = () => {
+    if (!personality?.id) {
+      showToast("Select a persona first, then start a live call.", true);
+      return;
+    }
+    if (busy || echoStreaming || ttsBusy) {
+      showToast("Wait for the current turn to finish before starting live call.", true);
+      return;
+    }
+
+    liveCallPreviousAutoSpeakRef.current = autoSpeak;
+    setAutoSpeak(true);
+    stopSpeaking();
+    liveCallActiveRef.current = true;
+    setIsLiveCallActive(true);
+    setLiveCallPhase("listening");
+    queueLiveCallListening(60);
+  };
+
+  const interruptLiveCallSpeaking = () => {
+    if (!isLiveCallActive || (!isSpeaking && !ttsBusy)) {
+      return;
+    }
+    stopSpeaking();
+    setLiveCallPhase("recovering");
+    queueLiveCallListening(70);
   };
 
   const handleSelectOrbital = (trait) => {
@@ -2100,102 +2433,66 @@ export default function VoxisTab({
     echoAbortRef.current = controller;
 
     stopSpeaking();
-    setEcho({ name: personality.name, body: "", error: false });
+    setEcho({ name: "Voxis", body: "", error: false });
     setEchoStreaming(true);
     let finalReply = "";
     let finalRefinementSuggestions = [];
 
+    // Build the conversation history to send — Voxis entity keeps its own context.
+    const nextMessages = [...guideMessages, { role: "user", content: text }];
+
     try {
-      const response = await authFetch("/chat", {
+      // Route to the Voxis entity endpoint — completely separate from the persona
+      // chat endpoint. This means guide conversations are never written to
+      // chat_messages and never appear in ChatWindow.
+      const response = await authFetch("/api/voxis/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          personalityId: personality.id,
-          userId: userId ?? undefined,
-          mode,
-          message: text,
-          streamDebug: true,
+          messages: nextMessages,
+          currentPersona: personality
+            ? {
+                name: personality.name,
+                description: personality.description,
+                traits: personality.traits,
+              }
+            : null,
         }),
         signal: controller.signal,
       });
-
-      const contentType = response.headers.get("content-type") || "";
 
       if (!response.ok) {
         let errMsg = `Forge link failed (${response.status})`;
         try {
           const errBody = await response.json();
-          errMsg = errBody.error || errMsg;
+          errMsg = errBody.error || errBody.reply || errMsg;
         } catch {
           /* ignore */
         }
-        setEcho({ name: personality.name, body: errMsg, error: true });
+        setEcho({ name: "Voxis", body: errMsg, error: true });
         setEchoStreaming(false);
         return;
       }
 
-      if (contentType.includes("text/event-stream") && response.body) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let accumulated = "";
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const events = buffer.split("\n\n");
-          buffer = events.pop() || "";
-          for (const raw of events) {
-            const lines = raw.split("\n");
-            let eventName = "message";
-            let dataLine = "";
-            for (const ln of lines) {
-              if (ln.startsWith("event:")) eventName = ln.slice(6).trim();
-              else if (ln.startsWith("data:")) dataLine += ln.slice(5).trim();
-            }
-            if (!dataLine) continue;
-            let payload = null;
-            try {
-              payload = JSON.parse(dataLine);
-            } catch {
-              continue;
-            }
-            if (eventName === "token" && typeof payload.delta === "string") {
-              accumulated += payload.delta;
-              setEcho({ name: personality.name, body: accumulated, error: false });
-            } else if (eventName === "final" && typeof payload.reply === "string") {
-              accumulated = payload.reply;
-              finalReply = payload.reply;
-              if (Array.isArray(payload.refinementSuggestions)) {
-                finalRefinementSuggestions = payload.refinementSuggestions;
-              }
-              setEcho({ name: personality.name, body: accumulated, error: false });
-            } else if (eventName === "error") {
-              setEcho({
-                name: personality.name,
-                body: payload.error || "Forge link failed.",
-                error: true,
-              });
-            }
-          }
-        }
-        if (!finalReply) finalReply = accumulated;
-      } else {
-        const data = await response.json();
-        finalReply = data.reply || "";
-        if (Array.isArray(data.refinementSuggestions)) {
-          finalRefinementSuggestions = data.refinementSuggestions;
-        }
-        setEcho({
-          name: personality.name,
-          body: data.reply || "(silence from the forge)",
-          error: false,
-        });
+      const data = await response.json();
+      finalReply = String(data.reply || "");
+      setEcho({
+        name: "Voxis",
+        body: finalReply || "(silence from the forge)",
+        error: !data.success && !finalReply,
+      });
+
+      // Update local guide history so Voxis retains conversation context.
+      if (finalReply) {
+        setGuideMessages([
+          ...nextMessages,
+          { role: "assistant", content: finalReply },
+        ]);
       }
     } catch (err) {
       if (err.name !== "AbortError") {
         setEcho({
-          name: personality.name,
+          name: "Voxis",
           body: err.message || "Forge link failed.",
           error: true,
         });
@@ -2246,12 +2543,166 @@ export default function VoxisTab({
     });
   };
 
-  const startListening = () => {
+  const startListeningViaStt = async ({ autoSubmit = false } = {}) => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      showToast("Voice capture is unavailable in this browser. Type instead.", true);
+      return;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      showToast("Microphone access denied. Enable mic permission and try again.", true);
+      return;
+    }
+
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/ogg";
+
+    const chunks = [];
+    const recorder = new MediaRecorder(stream, { mimeType });
+    liveCallMicStreamRef.current = stream;
+    liveCallMediaRecorderRef.current = recorder;
+
+    const stopRecorder = () => {
+      if (recorder.state === "recording") {
+        recorder.stop();
+      }
+    };
+
+    recognitionRef.current = { stop: stopRecorder };
+
+    recorder.onstart = () => {
+      setListening(true);
+      if (!autoSubmit) return;
+      clearLiveCallListenTimers();
+      const deadline = Date.now() + LIVE_CALL_MAX_LISTEN_MS;
+      setLiveCallListenRemainingMs(LIVE_CALL_MAX_LISTEN_MS);
+      liveCallListenTickerRef.current = setInterval(() => {
+        const remaining = Math.max(0, deadline - Date.now());
+        setLiveCallListenRemainingMs(remaining);
+      }, 200);
+      liveCallListenTimeoutRef.current = setTimeout(() => {
+        stopRecorder();
+      }, LIVE_CALL_MAX_LISTEN_MS);
+    };
+
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    recorder.onerror = () => {
+      clearLiveCallListenTimers();
+      setListening(false);
+      recognitionRef.current = null;
+      if (liveCallMicStreamRef.current) {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      liveCallMicStreamRef.current = null;
+      liveCallMediaRecorderRef.current = null;
+      if (autoSubmit && liveCallActiveRef.current) {
+        queueLiveCallListening(450);
+      }
+    };
+
+    recorder.onstop = async () => {
+      clearLiveCallListenTimers();
+      setListening(false);
+      recognitionRef.current = null;
+      if (liveCallMicStreamRef.current) {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      liveCallMicStreamRef.current = null;
+      liveCallMediaRecorderRef.current = null;
+
+      if (!chunks.length) {
+        if (autoSubmit && liveCallActiveRef.current) {
+          queueLiveCallListening(320);
+        }
+        return;
+      }
+
+      try {
+        const blob = new Blob(chunks, { type: mimeType });
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || "").split(",")[1] || "");
+          reader.readAsDataURL(blob);
+        });
+
+        if (!base64) {
+          if (autoSubmit && liveCallActiveRef.current) {
+            queueLiveCallListening(320);
+          }
+          return;
+        }
+
+        const response = await authFetch("/api/stt/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioBase64: base64,
+            mimeType,
+            language: String(navigator?.language || "auto").split("-")[0] || "auto",
+          }),
+        });
+
+        if (!response.ok) {
+          if (autoSubmit && liveCallActiveRef.current) {
+            queueLiveCallListening(380);
+          }
+          showToast("Speech recognition failed. Check STT settings/API key.", true);
+          return;
+        }
+
+        const data = await response.json();
+        const transcript = String(data?.text || data?.transcript || "").trim();
+        if (!transcript) {
+          if (autoSubmit && liveCallActiveRef.current) {
+            queueLiveCallListening(300);
+          }
+          return;
+        }
+
+        if (!autoSubmit) {
+          setInputValue(transcript);
+          return;
+        }
+
+        setInputValue("");
+        sendForgeMessage(transcript, {
+          populateRefinementsFromReply: true,
+          seedText: transcript,
+        });
+      } catch {
+        if (autoSubmit && liveCallActiveRef.current) {
+          queueLiveCallListening(380);
+        }
+        showToast("Speech transcription failed. Try again.", true);
+      }
+    };
+
+    recorder.start();
+  };
+
+  const startListening = ({ autoSubmit = false } = {}) => {
+    if (isLiveCallActive) {
+      void startListeningViaStt({ autoSubmit });
+      return;
+    }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      setListening(true);
-      showToast("Voice capture isn't available in this browser. Type instead.", true);
-      setTimeout(() => setListening(false), 1400);
+      void startListeningViaStt({ autoSubmit });
       return;
     }
     if (recognitionRef.current) {
@@ -2262,27 +2713,117 @@ export default function VoxisTab({
     rec.continuous = false;
     rec.interimResults = true;
     rec.lang = "en-US";
-    rec.onstart = () => setListening(true);
+    let latestTranscript = "";
+    let finalTranscript = "";
+    rec.onstart = () => {
+      setListening(true);
+      if (!autoSubmit) return;
+      clearLiveCallListenTimers();
+      const deadline = Date.now() + LIVE_CALL_MAX_LISTEN_MS;
+      setLiveCallListenRemainingMs(LIVE_CALL_MAX_LISTEN_MS);
+      liveCallListenTickerRef.current = setInterval(() => {
+        const remaining = Math.max(0, deadline - Date.now());
+        setLiveCallListenRemainingMs(remaining);
+      }, 200);
+      liveCallListenTimeoutRef.current = setTimeout(() => {
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.stop();
+          } catch {
+            /* ignore */
+          }
+        }
+      }, LIVE_CALL_MAX_LISTEN_MS);
+    };
     rec.onresult = (event) => {
-      const text = Array.from(event.results)
-        .map((r) => r[0].transcript)
-        .join(" ");
+      const chunks = [];
+      for (let i = 0; i < event.results.length; i += 1) {
+        const segment = event.results[i];
+        const phrase = String(segment?.[0]?.transcript || "").trim();
+        if (!phrase) continue;
+        if (segment.isFinal) {
+          finalTranscript = `${finalTranscript} ${phrase}`.trim();
+        } else {
+          chunks.push(phrase);
+        }
+      }
+      const text = `${finalTranscript} ${chunks.join(" ")}`.trim();
+      latestTranscript = text;
       setInputValue(text);
     };
-    rec.onerror = () => {
+    rec.onerror = (event) => {
+      clearLiveCallListenTimers();
       setListening(false);
       recognitionRef.current = null;
+      const errorCode = String(event?.error || "").trim();
+      if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
+        showToast("Microphone permission blocked. Enable mic access and retry.", true);
+      } else if (errorCode === "audio-capture") {
+        showToast("No microphone was detected by the browser.", true);
+      } else if (errorCode === "network") {
+        showToast("Browser speech service is unreachable. Switching to local STT.", true);
+      } else if (errorCode && errorCode !== "aborted" && errorCode !== "no-speech") {
+        showToast(`Speech recognition error: ${errorCode}`, true);
+      }
+      if (errorCode === "network" || errorCode === "service-not-allowed") {
+        void startListeningViaStt({ autoSubmit });
+        return;
+      }
+      if (autoSubmit && liveCallActiveRef.current) {
+        queueLiveCallListening(450);
+      }
     };
     rec.onend = () => {
+      clearLiveCallListenTimers();
       setListening(false);
       recognitionRef.current = null;
+      if (!autoSubmit || !liveCallActiveRef.current) return;
+      const transcript = (finalTranscript || latestTranscript || "").trim();
+      if (!transcript) {
+        queueLiveCallListening(300);
+        return;
+      }
+      setInputValue("");
+      sendForgeMessage(transcript, {
+        populateRefinementsFromReply: true,
+        seedText: transcript,
+      });
     };
     recognitionRef.current = rec;
     rec.start();
   };
 
   useEffect(() => {
+    if (!isLiveCallActive) {
+      setLiveCallPhase("idle");
+      return;
+    }
+    if (listening) {
+      setLiveCallPhase("listening");
+      return;
+    }
+    if (echoStreaming || busy) {
+      setLiveCallPhase("thinking");
+      return;
+    }
+    if (isSpeaking || ttsBusy) {
+      setLiveCallPhase("speaking");
+      return;
+    }
+    setLiveCallPhase("recovering");
+  }, [isLiveCallActive, listening, echoStreaming, busy, isSpeaking, ttsBusy]);
+
+  useEffect(() => {
+    if (!isLiveCallActive) return;
+    if (listening || recognitionRef.current || echoStreaming || busy || isSpeaking || ttsBusy) return;
+    queueLiveCallListening(500);
+  }, [isLiveCallActive, listening, echoStreaming, busy, isSpeaking, ttsBusy]);
+
+  useEffect(() => {
     return () => {
+      liveCallActiveRef.current = false;
+      clearLiveCallResumeTimer();
+      clearLiveCallListenTimers();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -2290,6 +2831,15 @@ export default function VoxisTab({
           /* ignore */
         }
       }
+      if (liveCallMicStreamRef.current) {
+        try {
+          liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+        } catch {
+          /* ignore */
+        }
+        liveCallMicStreamRef.current = null;
+      }
+      liveCallMediaRecorderRef.current = null;
       if (echoAbortRef.current) {
         try {
           echoAbortRef.current.abort();
@@ -2336,6 +2886,68 @@ export default function VoxisTab({
     const sum = Object.values(stats).reduce((a, b) => a + b, 0);
     return clamp(sum / (Object.keys(stats).length * 100) + 0.1, 0.2, 1);
   }, [stats]);
+
+  const liveCallPhaseChip = useMemo(() => {
+    if (!isLiveCallActive) {
+      return { className: "recovering", label: "idle" };
+    }
+    if (liveCallPhase === "listening") {
+      return { className: "listening", label: "listening" };
+    }
+    if (liveCallPhase === "speaking") {
+      return { className: "speaking", label: "speaking" };
+    }
+    if (liveCallPhase === "thinking") {
+      return { className: "thinking", label: "thinking" };
+    }
+    return { className: "recovering", label: liveCallPhase };
+  }, [isLiveCallActive, liveCallPhase]);
+
+  const liveBrainHud = useMemo(() => {
+    const transcriptChars = Number(inputValue?.length || 0);
+    const replyChars = Number(echo?.body?.length || 0);
+    const confidence = clamp(0.28 + (replyChars / 360), 0.12, 0.98);
+
+    let signal = "standby";
+    if (listening) {
+      const remaining = typeof liveCallListenRemainingMs === "number"
+        ? Math.max(0.1, liveCallListenRemainingMs / 1000).toFixed(1)
+        : "...";
+      signal = `listen ${remaining}s`;
+    } else if (isSpeaking) {
+      signal = `voice ${Math.round(clamp(audioLevelRef.current || 0, 0, 1) * 100)}%`;
+    } else if (echoStreaming) {
+      signal = "streaming";
+    }
+
+    const full = [
+      { key: "phase", value: liveCallPhaseChip.label },
+      { key: "confidence", value: `${Math.round(confidence * 100)}%` },
+      { key: "anchor", value: activeTrait || "none" },
+      { key: "signal", value: signal },
+      { key: "heard", value: transcriptChars > 0 ? `${transcriptChars} chars` : "none" },
+      { key: "reply", value: replyChars > 0 ? `${replyChars} chars` : "pending" },
+      { key: "mood", value: mood?.label || "forming" },
+      { key: "intent", value: activeTrait ? "refine" : "forge" },
+    ];
+
+    if (liveHudDensity === "minimal") {
+      return full.filter((item) => item.key === "phase" || item.key === "signal");
+    }
+
+    return full;
+  }, [
+    inputValue,
+    echo?.body,
+    listening,
+    liveCallListenRemainingMs,
+    isSpeaking,
+    echoStreaming,
+    liveCallPhaseChip.label,
+    activeTrait,
+    mood?.label,
+    liveHudDensity,
+  ]);
 
   const showSelector = !personality && personalities.length > 0;
 
@@ -2389,6 +3001,10 @@ export default function VoxisTab({
                   isSpeaking ? "is-speaking" : ""
                 }`}
                 onClick={() => {
+                  if (isLiveCallActive) {
+                    showToast("Live call keeps voice playback on. End call to mute.", true);
+                    return;
+                  }
                   const next = !autoSpeak;
                   setAutoSpeak(next);
                   if (!next) stopSpeaking();
@@ -2460,9 +3076,41 @@ export default function VoxisTab({
 
         <section className="forge-panel center-panel">
           <h3 className="forge-panel-title">Voice Synapse Matrix</h3>
-          <div className="waveform-frame">
+          <div
+            className={`waveform-frame ${isLiveCallActive && (isSpeaking || ttsBusy) ? "interruptible" : ""}`}
+            role={isLiveCallActive && (isSpeaking || ttsBusy) ? "button" : undefined}
+            tabIndex={isLiveCallActive && (isSpeaking || ttsBusy) ? 0 : undefined}
+            title={isLiveCallActive && (isSpeaking || ttsBusy) ? "Tap to interrupt speaking" : undefined}
+            onClick={isLiveCallActive && (isSpeaking || ttsBusy) ? interruptLiveCallSpeaking : undefined}
+            onKeyDown={isLiveCallActive && (isSpeaking || ttsBusy)
+              ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    interruptLiveCallSpeaking();
+                  }
+                }
+              : undefined}
+          >
             <div className="waveform-tag">Live Input</div>
             <div className="waveform-tag-right">Cortex Feed</div>
+            {isLiveCallActive && (
+              <div className={`live-phase-chip ${liveCallPhaseChip.className}`}>
+                {liveCallPhaseChip.label}
+              </div>
+            )}
+            {isLiveCallActive && (
+              <div className="live-brain-hud">
+                {liveBrainHud.map((entry) => (
+                  <div className="live-brain-cell" key={entry.key}>
+                    <span className="live-brain-key">{entry.key}</span>
+                    <span className="live-brain-value" title={entry.value}>{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {isLiveCallActive && (isSpeaking || ttsBusy) && (
+              <div className="waveform-interrupt-hint">tap to interrupt</div>
+            )}
             <Waveform
               intensity={intensity}
               listening={listening}
@@ -2556,7 +3204,11 @@ export default function VoxisTab({
         </div>
         <form className="speak-row" onSubmit={handleSpeakSubmit}>
           <div className="speak-row-status">
-            {activeTrait ? (
+            {isLiveCallActive ? (
+              <>
+                Live Call <strong>{liveCallPhase}</strong> · Speak naturally, Voxis will respond and re-listen automatically.
+              </>
+            ) : activeTrait ? (
               <>
                 Focus Trait <strong>{activeTrait}</strong>
               </>
@@ -2564,10 +3216,36 @@ export default function VoxisTab({
               <>Speak a trait, mood, or behavior to seed the forge.</>
             )}
           </div>
+          {isLiveCallActive && listening && typeof liveCallListenRemainingMs === "number" && (
+            <div className="live-call-timeout-banner">
+              Auto-send on pause · listening timeout in {Math.max(0.1, liveCallListenRemainingMs / 1000).toFixed(1)}s
+            </div>
+          )}
+          <button
+            type="button"
+            className={`live-call-toggle ${isLiveCallActive ? "is-active" : ""}`}
+            onClick={() => {
+              if (isLiveCallActive) stopLiveCall();
+              else startLiveCall();
+            }}
+            disabled={!personality?.id || busy || echoStreaming || ttsBusy}
+          >
+            {isLiveCallActive ? "End Call" : "2-Way Call"}
+          </button>
+          <button
+            type="button"
+            className="hud-density-toggle"
+            onClick={() => setLiveHudDensity((prev) => (prev === "full" ? "minimal" : "full"))}
+            disabled={!isLiveCallActive}
+            aria-label="Toggle live HUD density"
+            title={isLiveCallActive ? "Switch Brain HUD density" : "Start live call to use HUD toggle"}
+          >
+            HUD {liveHudDensity === "full" ? "Full" : "Minimal"}
+          </button>
           <button
             type="button"
             className={`mic-button ${listening ? "is-listening" : ""}`}
-            onClick={startListening}
+            onClick={() => startListening({ autoSubmit: isLiveCallActive })}
             aria-label="Speak to the Forge"
           >
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">

@@ -1,3 +1,5 @@
+import { trackedFetch } from "../utils/requestTracker.js";
+
 let cachedBackendUrl = null;
 
 export async function getBackendUrl() {
@@ -11,7 +13,7 @@ export async function getBackendUrl() {
   }
 
   try {
-    const res = await fetch("/ports.json");
+    const res = await trackedFetch("/ports.json", {}, { cause: "getBackendUrl:ports" });
     if (!res.ok) {
       throw new Error("Cannot find backend port config");
     }

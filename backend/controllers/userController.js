@@ -3,6 +3,7 @@ import {
   getUserById,
   getUserProfile,
   listUsers,
+  updateUserDisplayName,
   updateUserProfile,
 } from "../models/userModel.js";
 
@@ -88,6 +89,10 @@ export function updateUserProfileHandler(req, res, next) {
       return res.status(404).json({ error: "User not found." });
     }
 
+    if (req.body?.displayName !== undefined) {
+      updateUserDisplayName(userId, req.body.displayName);
+    }
+
     const profile = updateUserProfile(userId, {
       defaultMode: req.body?.defaultMode,
       safetyTier: req.body?.safetyTier,
@@ -99,7 +104,8 @@ export function updateUserProfileHandler(req, res, next) {
       parentalConsentVerifiedAt: req.body?.parentalConsentVerifiedAt,
     });
 
-    return res.json({ user, profile });
+    const updatedUser = getUserById(userId);
+    return res.json({ user: updatedUser, profile });
   } catch (error) {
     return next(error);
   }

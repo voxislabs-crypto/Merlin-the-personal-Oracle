@@ -5,42 +5,52 @@ const styles = `
   .expression-settings-panel {
     display: flex;
     flex-direction: column;
-    gap: 24px;
-    padding: 20px;
-    border-radius: 12px;
-    background: rgba(6, 14, 28, 0.88);
-    border: 1px solid rgba(0, 180, 255, 0.12);
+    gap: 32px;
+    padding: 32px;
+    border-radius: 28px;
+    background: linear-gradient(170deg, rgba(0, 4, 14, 0.9), rgba(2, 5, 18, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
   }
 
   .expression-settings-section {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
   }
 
   .expression-settings-heading {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #4effd8;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0;
+    letter-spacing: 0.15em;
+    margin: 0 0 4px 0;
+    opacity: 0.8;
   }
 
   .expression-settings-toggle {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    background: rgba(0, 180, 255, 0.06);
-    border: 1px solid rgba(0, 180, 255, 0.12);
+    gap: 16px;
+    padding: 18px 22px;
+    border-radius: 20px;
+    background: rgba(136, 102, 255, 0.04);
+    border: 1px solid rgba(136, 102, 255, 0.08);
+    transition: all 0.3s ease;
+  }
+
+  .expression-settings-toggle:hover {
+    background: rgba(136, 102, 255, 0.06);
+    border-color: rgba(136, 102, 255, 0.15);
   }
 
   .expression-settings-toggle input[type="checkbox"] {
     cursor: pointer;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    accent-color: #4effd8;
   }
 
   .expression-settings-toggle-label {
@@ -51,40 +61,45 @@ const styles = `
   }
 
   .expression-settings-toggle-main {
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.9rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.95rem;
   }
 
   .expression-settings-toggle-hint {
     font-size: 0.75rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.4);
   }
 
   .expression-settings-mode {
-    border: 1px solid rgba(0, 180, 255, 0.12);
-    border-radius: 8px;
-    padding: 16px;
-    background: rgba(0, 180, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 24px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
   .expression-settings-mode-title {
-    font-weight: 700;
-    color: var(--text);
-    margin: 0 0 12px 0;
-    font-size: 0.9rem;
-    text-transform: capitalize;
+    font-weight: 500;
+    color: #4effd8;
+    margin: 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.9;
   }
 
   .expression-settings-mode-control {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 12px;
-    padding: 10px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.2);
+    gap: 20px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .expression-settings-mode-label {
@@ -96,36 +111,40 @@ const styles = `
 
   .expression-settings-mode-label-main {
     font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .expression-settings-mode-label-hint {
     font-size: 0.7rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.4);
   }
 
   .expression-settings-input {
-    width: 80px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 180, 255, 0.2);
-    background: rgba(0, 180, 255, 0.04);
-    color: var(--text);
-    font-weight: 600;
+    width: 72px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.4);
+    color: #4effd8;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 500;
     text-align: center;
+    transition: all 0.3s ease;
+  }
+
+  .expression-settings-input:focus {
+    outline: none;
+    border-color: rgba(78, 255, 216, 0.4);
+    box-shadow: 0 0 15px rgba(78, 255, 216, 0.15);
   }
 
   .expression-settings-slider {
     flex: 1;
-    max-width: 120px;
-    height: 5px;
-    border-radius: 8px;
-    background: linear-gradient(
-      to right,
-      rgba(0, 180, 255, 0.2),
-      rgba(0, 180, 255, 0.4)
-    );
+    max-width: 140px;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
     -webkit-appearance: none;
     appearance: none;
     outline: none;
@@ -134,67 +153,63 @@ const styles = `
   .expression-settings-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: var(--accent);
+    background: #4effd8;
     cursor: pointer;
-    box-shadow: 0 0 6px rgba(0, 180, 255, 0.5);
-  }
-
-  .expression-settings-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 0 6px rgba(0, 180, 255, 0.5);
+    box-shadow: 0 0 12px rgba(78, 255, 216, 0.5);
+    border: 2px solid #fff;
   }
 
   .expression-settings-actions {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     margin-top: 12px;
   }
 
   .expression-settings-button {
-    padding: 10px 16px;
-    border-radius: 8px;
-    border: 1px solid rgba(0, 180, 255, 0.3);
-    background: rgba(0, 180, 255, 0.08);
-    color: var(--accent);
-    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
     font-size: 0.85rem;
     cursor: pointer;
-    transition: all 200ms ease;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  .expression-settings-button:hover {
-    background: rgba(0, 180, 255, 0.15);
-    box-shadow: 0 0 12px rgba(0, 180, 255, 0.25);
+  .expression-settings-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
   }
 
   .expression-settings-button.primary {
-    background: rgba(0, 180, 255, 0.2);
-    border-color: rgba(0, 180, 255, 0.5);
+    background: linear-gradient(135deg, rgba(78, 255, 216, 0.2), rgba(136, 102, 255, 0.2));
+    border-color: rgba(78, 255, 216, 0.3);
+    color: #4effd8;
+    box-shadow: 0 0 25px rgba(78, 255, 216, 0.15);
   }
 
   .expression-settings-button:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
   }
 
   .expression-settings-status {
-    font-size: 0.8rem;
-    color: var(--muted);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.3);
     padding-top: 8px;
+    font-family: "JetBrains Mono", monospace;
   }
 `;
 
 export default function ExpressionSamplingSettings({ onStatus }) {
   const authFetch = useAuthFetch();
   const [config, setConfig] = useState(null);
+  const [error, setError] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -202,20 +217,23 @@ export default function ExpressionSamplingSettings({ onStatus }) {
     loadConfig();
   }, []);
 
-  async function loadConfig() {
+  const loadConfig = async () => {
     try {
+      setError(null);
       const response = await authFetch("/settings/expression-sampling");
-      if (!response.ok) throw new Error("Failed to load expression sampling settings");
+      if (!response.ok) throw new Error("HTTP " + response.status + ": Failed to load expression settings");
       const data = await response.json();
       setConfig(data);
       setIsDirty(false);
     } catch (error) {
+      console.error("Failed to load expression sampling:", error);
+      setError(error.message);
       onStatus?.({
         type: "error",
-        message: `Failed to load expression settings: ${error.message}`,
+        message: "Failed to load expression settings: " + error.message,
       });
     }
-  }
+  };
 
   async function saveConfig() {
     if (!config) return;
@@ -244,8 +262,17 @@ export default function ExpressionSamplingSettings({ onStatus }) {
     }
   }
 
+  if (error) {
+    return (
+      <div className="expression-settings-panel" style={{ color: "#ff9999", padding: 24, textAlign: "center" }}>
+        <div style={{ marginBottom: 16 }}>⚠️ {error}</div>
+        <button className="expression-settings-button" onClick={loadConfig}>Retry</button>
+      </div>
+    );
+  }
+
   if (!config) {
-    return <div className="expression-settings-panel">Loading expression sampling settings...</div>;
+    return <div className="expression-settings-panel" style={{ padding: 48, textAlign: "center", color: "rgba(255,255,255,0.4)" }}>Loading expression sampling settings...</div>;
   }
 
   const handleGlobalToggle = (key) => {
@@ -375,7 +402,7 @@ export default function ExpressionSamplingSettings({ onStatus }) {
                   className="expression-settings-slider"
                   disabled={!profile.enabled}
                 />
-                <span style={{ minWidth: 40, textAlign: "right", fontWeight: 600, fontSize: "0.85rem", color: "#00f5ff" }}>
+                <span style={{ minWidth: 40, textAlign: "right", fontWeight: 500, fontSize: "0.8rem", color: "#4effd8", fontFamily: "JetBrains Mono, monospace" }}>
                   {profile.temperature.toFixed(2)}
                 </span>
               </div>

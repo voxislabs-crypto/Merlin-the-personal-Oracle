@@ -74,11 +74,16 @@ const PersonaCard3D = ({ persona, position, onClick, isHovered, onHover }) => {
           onClick={onClick}
         >
           <div className="persona-image-container">
-            <img 
-              src={persona.image || '/default-avatar.png'} 
-              alt={persona.name}
-              className="persona-image"
-            />
+            {(persona.avatarImageUrl || persona.image) ? (
+              <img 
+                src={persona.avatarImageUrl || persona.image}
+                alt={persona.name}
+                className="persona-image"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            ) : (
+              <div className="persona-image-placeholder" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.4rem", opacity: 0.55 }}>🤖</div>
+            )}
           </div>
           <h2 className="persona-name">{persona.name}</h2>
           <p className="persona-description">{persona.description}</p>

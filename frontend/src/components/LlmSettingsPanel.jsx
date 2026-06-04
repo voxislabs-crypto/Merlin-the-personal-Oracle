@@ -38,180 +38,190 @@ const CARTESIA_MODEL_QUICK_PICKS = ["sonic-3", "sonic-3-latest", "sonic-turbo"];
 const settingsStyles = `
   .llm-settings {
     display: grid;
-    gap: 18px;
+    gap: 22px;
+    padding-bottom: 40px;
   }
 
   .settings-section {
-    border: 1px solid rgba(0, 180, 255, 0.12);
-    border-radius: 22px;
-    background: rgba(6, 14, 28, 0.72);
-    padding: 20px;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 28px;
+    background: linear-gradient(170deg, rgba(0, 4, 14, 0.9), rgba(2, 5, 18, 0.85));
+    padding: 24px 28px;
     display: grid;
-    gap: 14px;
+    gap: 18px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
+    overflow: hidden;
+  }
+
+  .settings-section::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 100% 4px;
+    pointer-events: none;
+    opacity: 0.3;
   }
 
   .settings-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    border-bottom: 1px solid rgba(0, 245, 255, 0.1);
+    padding-bottom: 14px;
+  }
+
+  .settings-section-title-wrap {
     display: grid;
-    gap: 6px;
+    gap: 4px;
   }
 
   .settings-section-tag {
     display: inline-flex;
     align-items: center;
     width: fit-content;
-    padding: 4px 9px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 180, 255, 0.18);
-    background: rgba(0, 180, 255, 0.06);
-    color: #8fdfff;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
+    padding: 4px 11px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(136, 102, 255, 0.08);
+    color: rgba(160, 255, 225, 0.7);
+    font-size: 0.6rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
+    font-family: "JetBrains Mono", monospace;
+    backdrop-filter: blur(10px);
   }
 
   .settings-section h3 {
     margin: 0;
-    font-size: 1.05rem;
-    color: var(--text);
-  }
-
-  .settings-section p,
-  .llm-field p {
-    margin: 0;
-    color: var(--muted);
-    line-height: 1.6;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #e0f8ff;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
 
   .settings-section-copy {
+    margin: 0;
+    color: #87a8b9;
+    font-size: 0.88rem;
+    line-height: 1.6;
     max-width: 72ch;
-    font-size: 0.92rem;
   }
 
   .llm-grid {
     display: grid;
-    gap: 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 
   .llm-field {
     display: grid;
-    gap: 6px;
-  }
-
-  .llm-field-helper {
-    font-size: 0.82rem;
+    gap: 8px;
   }
 
   .llm-field label {
-    color: var(--muted);
-    font-size: 0.86rem;
-    font-weight: 700;
+    color: rgba(135, 168, 185, 0.8);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
   .llm-field input,
   .llm-field select {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid rgba(0, 180, 255, 0.16);
-    border-radius: 12px;
-    background: rgba(6, 14, 28, 0.9);
-    color: var(--text);
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(0, 4, 12, 0.6);
+    color: rgba(230, 255, 248, 0.9);
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+  }
+
+  .llm-field input:focus,
+  .llm-field select:focus {
+    outline: none;
+    border-color: rgba(78, 255, 200, 0.3);
+    box-shadow: 0 0 20px rgba(78, 255, 200, 0.15);
+    background: rgba(0, 4, 12, 0.8);
+  }
+
+  .llm-field-helper {
+    font-size: 0.78rem;
+    color: #648291;
+    line-height: 1.4;
   }
 
   .llm-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .llm-actions.compact {
-    align-items: flex-start;
+    gap: 12px;
+    margin-top: 8px;
   }
 
   .llm-actions button {
-    padding: 10px 16px;
-    border: 0;
-    border-radius: 999px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-    color: #fff;
-    font-weight: 800;
+    padding: 12px 24px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(78, 255, 200, 0.15), rgba(136, 102, 255, 0.2));
+    color: #4effd8;
+    font-weight: 300;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border: 1px solid rgba(78, 255, 200, 0.25);
+    cursor: pointer;
+    box-shadow: 0 0 25px rgba(78, 255, 200, 0.15);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .llm-actions button:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.02);
+    background: linear-gradient(135deg, rgba(78, 255, 200, 0.25), rgba(136, 102, 255, 0.3));
+    box-shadow: 0 0 40px rgba(78, 255, 200, 0.35);
+    border-color: rgba(78, 255, 200, 0.4);
   }
 
   .llm-actions button.secondary {
-    background: rgba(0, 180, 255, 0.06);
-    border: 1px solid rgba(0, 180, 255, 0.2);
-    color: var(--accent);
+    background: rgba(0, 245, 255, 0.08);
+    border: 1px solid rgba(0, 245, 255, 0.3);
+    color: #00f5ff;
+    box-shadow: none;
   }
 
-  .llm-actions button:disabled {
-    opacity: 0.6;
-    cursor: wait;
+  .llm-actions button.secondary:hover {
+    background: rgba(0, 245, 255, 0.14);
+    border-color: #00f5ff;
   }
 
   .llm-toggle-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid rgba(0, 180, 255, 0.14);
-    border-radius: 14px;
-    background: rgba(0, 180, 255, 0.05);
-  }
-
-  .llm-toggle-copy {
-    display: grid;
-    gap: 4px;
+    gap: 16px;
+    padding: 18px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    background: rgba(136, 102, 255, 0.04);
+    backdrop-filter: blur(10px);
   }
 
   .llm-toggle-copy strong {
-    color: var(--text);
-    font-size: 0.92rem;
+    display: block;
+    color: #dcf7ff;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
   }
 
   .llm-toggle-copy span {
-    color: var(--muted);
+    color: #87a8b9;
     font-size: 0.82rem;
-    line-height: 1.5;
-  }
-
-  .llm-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    color: var(--text);
-    font-weight: 700;
-  }
-
-  .llm-toggle input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: #00bfff;
-    cursor: pointer;
-  }
-
-  .llm-connected {
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(0, 200, 120, 0.18);
-    background: rgba(0, 200, 120, 0.07);
-    color: #7fe7b1;
-    line-height: 1.6;
-    font-size: 0.9rem;
-  }
-
-  .llm-connected.info {
-    border-color: rgba(0, 180, 255, 0.18);
-    background: rgba(0, 180, 255, 0.07);
-    color: #8fdfff;
-  }
-
-  .llm-connected.warn {
-    border-color: rgba(255, 191, 64, 0.26);
-    background: rgba(255, 191, 64, 0.08);
-    color: #ffd58a;
   }
 
   .llm-quick-picks {
@@ -221,16 +231,46 @@ const settingsStyles = `
   }
 
   .llm-quick-picks button {
-    padding: 8px 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 180, 255, 0.2);
-    background: rgba(0, 180, 255, 0.06);
-    color: var(--accent);
-    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 245, 255, 0.2);
+    background: rgba(0, 245, 255, 0.05);
+    color: #00f5ff;
+    font-size: 0.72rem;
     font-weight: 700;
+    transition: all 0.15s ease;
   }
 
-  @media (max-width: 900px) {
+  .llm-quick-picks button:hover {
+    border-color: #00f5ff;
+    background: rgba(0, 245, 255, 0.1);
+  }
+
+  .llm-connected {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    background: rgba(0, 255, 157, 0.06);
+    color: #00ff9d;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .llm-connected.info {
+    border-color: rgba(0, 245, 255, 0.2);
+    background: rgba(0, 245, 255, 0.06);
+    color: #00f5ff;
+  }
+
+  .llm-connected.warn {
+    border-color: rgba(255, 204, 0, 0.2);
+    background: rgba(255, 204, 0, 0.06);
+    color: #ffcc00;
+  }
+
+  @media (max-width: 768px) {
     .llm-grid {
       grid-template-columns: 1fr;
     }

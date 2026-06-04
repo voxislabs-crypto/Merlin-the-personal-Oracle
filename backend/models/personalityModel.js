@@ -126,6 +126,7 @@ function normalizeRow(row) {
       sfxFrequency: 0.25,
       sfxPlacement: "random",
     }),
+    voiceTags: parseJsonArray(row.voiceTags),
   };
 }
 
@@ -161,7 +162,8 @@ export function createPersonality(personality) {
       vocalMannerisms,
       gender,
       avatarImageUrl,
-      ownerId
+      ownerId,
+      voiceTags
     )
     VALUES (
       @name,
@@ -193,7 +195,8 @@ export function createPersonality(personality) {
       @vocalMannerisms,
       @gender,
       @avatarImageUrl,
-      @ownerId
+      @ownerId,
+      @voiceTags
     )
   `);
 
@@ -222,6 +225,7 @@ export function createPersonality(personality) {
     gender: String(personality.gender || "").trim(),
     avatarImageUrl: String(personality.avatarImageUrl || "").trim(),
     ownerId: personality.ownerId || null,
+    voiceTags: JSON.stringify(personality.voiceTags || []),
   });
 
   return getPersonalityById(result.lastInsertRowid);
@@ -237,7 +241,7 @@ export function getAllPersonalities(ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId, voiceTags
         FROM personalities
         WHERE ownerId = ?
         ORDER BY id DESC
@@ -250,7 +254,7 @@ export function getAllPersonalities(ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId, voiceTags
         FROM personalities
         ORDER BY id DESC
       `);
@@ -288,7 +292,7 @@ export function getPersonalityById(id, ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId, voiceTags
         FROM personalities
         WHERE id = ? AND ownerId = ?
       `)
@@ -300,7 +304,7 @@ export function getPersonalityById(id, ownerId = null) {
           goals, coreValues, creativeContext, moodBaseline, moodState,
           moodSensitivity, expressionProfile, bigFiveProfile, alignmentProfile, responseFocusProfile, expressionStyle, stateFlaws, vocalMannerisms,
           prosodyTemplate, prosodyTemplatePath, prosodySourceUrl, prosodyUpdatedAt,
-          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId
+          voiceSampleAnalysis, voiceSampleSelectedAt, gender, avatarImageUrl, ownerId, voiceTags
         FROM personalities
         WHERE id = ?
       `);
@@ -403,7 +407,8 @@ export function updatePersonality(id, personality) {
       avatarImageUrl = @avatarImageUrl,
       singingProfile = @singingProfile,
       emotionDrift = @emotionDrift,
-      llmConfig = @llmConfig
+      llmConfig = @llmConfig,
+      voiceTags = @voiceTags
     WHERE id = @id
   `);
 
@@ -436,6 +441,7 @@ export function updatePersonality(id, personality) {
     singingProfile: JSON.stringify(personality.singingProfile || {}),
     emotionDrift: JSON.stringify(personality.emotionDrift || {}),
     llmConfig: JSON.stringify(personality.llmConfig || {}),
+    voiceTags: JSON.stringify(personality.voiceTags || []),
   });
 
   return getPersonalityById(id);

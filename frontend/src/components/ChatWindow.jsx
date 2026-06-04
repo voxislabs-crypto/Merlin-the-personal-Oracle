@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAuth } from "@clerk/react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
 import { getApiErrorMessage, readApiResponsePayload } from "../lib/apiResponse.js";
 import { buildTtsCacheKey, getTtsCache, setTtsCache } from "../utils/ttsCache.js";
+import { getRequestMetricsSnapshot, trackedFetch } from "../utils/requestTracker.js";
+import { useParallelVoiceBuffer } from "../hooks/useParallelVoiceBuffer.js";
 import NeuralCore from "./NeuralCore.jsx";
 import AvatarCore from "./AvatarCore.jsx";
+import BrainTab from "./BrainTab.jsx";
 import PerformancePlayer from "./PerformancePlayer.jsx";
 import usePrefersReducedMotion from "../hooks/usePrefersReducedMotion.js";
 import { interpretEmotionSpectrum } from "../lib/emotionSpectrum.js";
@@ -13,11 +15,101 @@ const TTS_DEBUG_PROVIDER_LOCK = String(import.meta.env.VITE_TTS_DEBUG_PROVIDER_L
 const TTS_DISABLE_KOKORO = String(import.meta.env.VITE_TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
 const DEFAULT_DISABLE_NEURONMAP_3D = String(import.meta.env.VITE_DISABLE_NEURONMAP_3D ?? "true").trim().toLowerCase() !== "false";
 const CUSTOM_CARTESIA_VOICE_OPTION = "__custom_cartesia_voice__";
+const QUICK_VOICE_FAVORITES_KEY = "voxis.quickVoiceFavorites.v1";
+const LIVE_CALL_LEVEL_THRESHOLD = 0.018;
+const LIVE_CALL_SILENCE_MS = 900;
+const LIVE_CALL_MAX_RECORDING_MS = 12000;
+const LIVE_CALL_RECOVER_MS = 700; // settle delay between turns
+const STREAM_POST_SEND_GRACE_MS = 1200;
+
+// ── Live Call Conversation State Machine ────────────────────────────────────
+// Single source of truth for the live voice turn lifecycle.
+// Replaces the previous "liveCallPhase" + boolean-soup of isSending /
+// isGeneratingAudio / isAudioPlaying guards with explicit transitions.
+const CONV_PHASE = Object.freeze({
+  IDLE:             "idle",
+  LISTENING:        "listening",
+  TRANSCRIBING:     "transcribing",
+  THINKING:         "thinking",
+  GENERATING_AUDIO: "generating_audio",
+  SPEAKING:         "speaking",
+  RECOVERING:       "recovering",
+  ERROR:            "error",
+});
+
+function convPhaseReducer(state, action) {
+  switch (action.type) {
+    // Call lifecycle
+    case "CALL_START":   return CONV_PHASE.LISTENING;
+    case "CALL_END":     return CONV_PHASE.IDLE;
+    // Recorder lifecycle
+    case "RECORDED":     return state === CONV_PHASE.LISTENING    ? CONV_PHASE.TRANSCRIBING     : state;
+    // STT result
+    case "TRANSCRIPT":   return state === CONV_PHASE.TRANSCRIBING ? CONV_PHASE.THINKING          : state;
+    case "NO_SPEECH":    return state === CONV_PHASE.TRANSCRIBING ? CONV_PHASE.RECOVERING        : state;
+    // LLM + TTS lifecycle (driven by observed external props)
+    case "LLM_DONE":     return state === CONV_PHASE.THINKING     ? CONV_PHASE.GENERATING_AUDIO  : state;
+    case "AUDIO_START":  return (state === CONV_PHASE.GENERATING_AUDIO || state === CONV_PHASE.THINKING) ? CONV_PHASE.SPEAKING : state;
+    case "AUDIO_END":    return state === CONV_PHASE.SPEAKING      ? CONV_PHASE.RECOVERING        : state;
+    // Recovery → next turn
+    case "RECOVERED":    return state === CONV_PHASE.RECOVERING    ? CONV_PHASE.LISTENING         : state;
+    // User interruption — cut AI response, re-arm microphone immediately
+    case "INTERRUPT":    return (
+      state === CONV_PHASE.SPEAKING ||
+      state === CONV_PHASE.GENERATING_AUDIO ||
+      state === CONV_PHASE.THINKING
+    ) ? CONV_PHASE.LISTENING : state;
+    // Error terminal
+    case "ERROR":        return CONV_PHASE.ERROR;
+    default:             return state;
+  }
+}
 const CARTESIA_QUICK_VOICE_OPTIONS = [
   { id: "a0e99841-438c-4a64-b679-ae501e7d6091", label: "Sonic default" },
   { id: "694f9389-aac1-45b6-b726-9d9369183238", label: "Warm Narrator" },
   { id: "2ee87190-8f84-4925-97da-e52547f9462c", label: "Balanced Voice" },
 ];
+
+function readQuickVoiceFavorites() {
+  try {
+    if (typeof window === "undefined") {
+      return { cartesia: [], kokoro: [] };
+    }
+    const raw = window.localStorage.getItem(QUICK_VOICE_FAVORITES_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return {
+      cartesia: Array.isArray(parsed?.cartesia) ? parsed.cartesia : [],
+      kokoro: Array.isArray(parsed?.kokoro) ? parsed.kokoro : [],
+    };
+  } catch {
+    return { cartesia: [], kokoro: [] };
+  }
+}
+
+function buildPersonaKeywords(personality) {
+  const sourceText = [
+    personality?.name,
+    personality?.role,
+    personality?.tagline,
+    personality?.description,
+    personality?.creativeContext,
+    personality?.speakingStyle,
+    personality?.voiceStyle,
+    personality?.alignment,
+    personality?.tone,
+    ...(Array.isArray(personality?.voiceTags) ? personality.voiceTags : []),
+  ]
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join(" ");
+
+  const tokens = sourceText
+    .split(/[^a-z0-9]+/g)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 3);
+
+  return new Set(tokens);
+}
 
 function normalizeVoiceEngineForDebug(engine) {
   const normalized = String(engine || "auto").trim().toLowerCase();
@@ -33,6 +125,120 @@ function normalizeVoiceEngineForDebug(engine) {
   }
 
   return ["auto", "kokoro", "cartesia"].includes(normalized) ? normalized : "auto";
+}
+
+function MiniBrain({ brainEvents = [] }) {
+  const latest = useMemo(() => {
+    const map = {};
+    for (const ev of brainEvents) {
+      map[ev.stage] = ev;
+    }
+    return map;
+  }, [brainEvents]);
+
+  const mood = latest["mood_update"]?.mood;
+  const narrative = [...brainEvents].reverse().find(ev => ev.narrative)?.narrative;
+
+  if (!mood && !narrative) return null;
+
+  const vadBar = (val) => {
+    const pct = Math.round(((val + 1) / 2) * 100);
+    return (
+      <div className="mb-bar-track">
+        <div className="mb-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
+    );
+  };
+
+  return (
+    <div className="mini-brain">
+      <div className="mini-brain-header">◈ Cognitive State</div>
+      {mood && (
+        <div className="mini-brain-mood">
+          <div className="mb-stat">
+            <span className="mb-label">VAL</span>
+            {vadBar(mood.valence || 0)}
+            <span className="mb-val">{(mood.valence || 0).toFixed(2)}</span>
+          </div>
+          <div className="mb-stat">
+            <span className="mb-label">ARO</span>
+            {vadBar(mood.arousal || 0)}
+            <span className="mb-val">{(mood.arousal || 0).toFixed(2)}</span>
+          </div>
+          <div className="mb-stat">
+            <span className="mb-label">DOM</span>
+            {vadBar(mood.dominance || 0)}
+            <span className="mb-val">{(mood.dominance || 0).toFixed(2)}</span>
+          </div>
+        </div>
+      )}
+      {narrative && (
+        <div className="mini-brain-narrative">
+          {narrative}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompactLiveBrain({ brainEvents = [], livePhase = "" }) {
+  const latest = useMemo(() => {
+    const map = {};
+    for (const ev of brainEvents) {
+      map[ev.stage] = ev;
+    }
+    return map;
+  }, [brainEvents]);
+
+  const mood = latest["mood_update"]?.mood || null;
+  const memCount = Array.isArray(latest["memory_retrieval"]?.memories)
+    ? latest["memory_retrieval"].memories.length
+    : 0;
+
+  const now = Date.now();
+  const hotEvents = brainEvents.filter((ev) => {
+    const ts = Number(new Date(ev?.timestamp || 0));
+    return Number.isFinite(ts) && now - ts < 2200;
+  }).length;
+
+  const pulseIntensity = Math.min(1, hotEvents / 4 + (livePhase && livePhase !== "reply-complete" ? 0.25 : 0));
+  const activeLineCount = Math.max(2, Math.min(8, Math.round(pulseIntensity * 8)));
+
+  return (
+    <div className="compact-live-brain">
+      <div className="compact-live-brain-network">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={`n-${i}`}
+            className={`clb-node ${i % 2 === 0 ? "warm" : "cool"}`}
+            style={{ animationDelay: `${i * 120}ms` }}
+          />
+        ))}
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <span
+            key={`l-${i}`}
+            className={`clb-line ${i < activeLineCount ? "active" : ""}`}
+            style={{ animationDelay: `${i * 70}ms` }}
+          />
+        ))}
+      </div>
+      <div className="compact-live-brain-stats">
+        <span className="clb-chip">events {brainEvents.length}</span>
+        <span className="clb-chip">hot {hotEvents}</span>
+        <span className="clb-chip">mem {memCount}</span>
+        <span className="clb-chip">phase {String(livePhase || "idle").replace(/_/g, " ")}</span>
+      </div>
+      {mood ? (
+        <div className="compact-live-brain-vad">
+          <span>V {Number(mood.valence || 0).toFixed(2)}</span>
+          <span>A {Number(mood.arousal || 0).toFixed(2)}</span>
+          <span>D {Number(mood.dominance || 0).toFixed(2)}</span>
+        </div>
+      ) : (
+        <div className="compact-live-brain-vad">Awaiting telemetry…</div>
+      )}
+    </div>
+  );
 }
 
 // Lightweight EPF detection — mirrors backend isPerformanceOutput
@@ -582,6 +788,456 @@ const chatStyles = `
     50% { box-shadow: 0 0 0 8px rgba(255, 96, 96, 0); }
   }
 
+  .live-call-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .live-call-layout {
+    width: min(1400px, 96vw);
+    max-height: 92vh;
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(520px, 1fr);
+    gap: 18px;
+    align-items: stretch;
+    position: relative;
+  }
+
+  .live-call-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    background: rgba(8, 18, 32, 0.96);
+    border: 1px solid rgba(0, 234, 255, 0.25);
+    border-radius: 24px;
+    padding: 40px 48px;
+    min-width: 280px;
+    box-shadow: 0 0 60px rgba(0, 180, 255, 0.15);
+    min-height: 360px;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+
+  .live-call-brain-window {
+    display: flex;
+    flex-direction: column;
+    min-height: 360px;
+    max-height: 92vh;
+    min-width: 420px;
+    border-radius: 22px;
+    border: 1px solid rgba(0, 234, 255, 0.28);
+    background: radial-gradient(circle at 20% 0%, rgba(0, 210, 255, 0.14), rgba(6, 14, 28, 0.94) 45%);
+    box-shadow: 0 0 60px rgba(0, 180, 255, 0.2);
+    overflow: hidden;
+    resize: both;
+    position: relative;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .live-call-brain-window.compact {
+    min-width: 440px;
+    min-height: 320px;
+    background: radial-gradient(circle at 50% -10%, rgba(0, 234, 255, 0.22), rgba(10, 12, 24, 0.96) 42%);
+  }
+
+  .live-call-brain-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(0, 234, 255, 0.2);
+    background: rgba(2, 10, 20, 0.7);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .live-call-brain-head:active {
+    cursor: grabbing;
+  }
+
+  .live-call-brain-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(156, 251, 255, 0.92);
+    font-weight: 700;
+  }
+
+  .live-call-brain-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .live-call-brain-body .brain-tab {
+    padding: 14px;
+  }
+
+  .live-call-brain-body .bt-grid {
+    gap: 10px;
+  }
+
+  .live-call-brain-body .bt-panel {
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+
+  .live-call-brain-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .live-call-brain-window.compact .live-call-brain-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .compact-live-brain {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(0, 234, 255, 0.2);
+    padding: 14px;
+    background: linear-gradient(140deg, rgba(0, 18, 32, 0.78), rgba(10, 12, 22, 0.92));
+  }
+
+  .compact-live-brain-network {
+    position: relative;
+    height: 170px;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 234, 255, 0.18);
+    background: radial-gradient(circle at 30% 20%, rgba(0, 234, 255, 0.14), rgba(2, 8, 18, 0.94) 55%);
+    overflow: hidden;
+  }
+
+  .clb-node {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    margin-top: -5px;
+    margin-left: -5px;
+    animation: clbNodePulse 1.8s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.6);
+  }
+
+  .clb-node.cool { background: #67e8f9; }
+  .clb-node.warm { background: #f59e0b; }
+
+  .clb-node:nth-child(1) { transform: translate(-118px, -48px); }
+  .clb-node:nth-child(2) { transform: translate(-42px, -63px); }
+  .clb-node:nth-child(3) { transform: translate(48px, -32px); }
+  .clb-node:nth-child(4) { transform: translate(-86px, 48px); }
+  .clb-node:nth-child(5) { transform: translate(4px, 56px); }
+  .clb-node:nth-child(6) { transform: translate(98px, 42px); }
+
+  .clb-line {
+    position: absolute;
+    height: 2px;
+    left: 50%;
+    top: 50%;
+    transform-origin: 0 50%;
+    background: rgba(100, 180, 210, 0.2);
+    opacity: 0.45;
+    animation: clbLineFlow 1.6s linear infinite;
+  }
+
+  .clb-line.active {
+    background: linear-gradient(90deg, rgba(0, 234, 255, 0.45), rgba(245, 158, 11, 0.7));
+    opacity: 0.95;
+  }
+
+  .clb-line:nth-child(7) { width: 86px; transform: translate(-114px, -50px) rotate(14deg); }
+  .clb-line:nth-child(8) { width: 104px; transform: translate(-36px, -58px) rotate(16deg); }
+  .clb-line:nth-child(9) { width: 112px; transform: translate(-84px, 42px) rotate(-36deg); }
+  .clb-line:nth-child(10) { width: 98px; transform: translate(4px, 52px) rotate(-12deg); }
+  .clb-line:nth-child(11) { width: 120px; transform: translate(-30px, -6px) rotate(38deg); }
+  .clb-line:nth-child(12) { width: 104px; transform: translate(8px, -24px) rotate(62deg); }
+  .clb-line:nth-child(13) { width: 90px; transform: translate(-72px, -32px) rotate(84deg); }
+  .clb-line:nth-child(14) { width: 92px; transform: translate(10px, -4px) rotate(-68deg); }
+
+  .compact-live-brain-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .clb-chip {
+    border: 1px solid rgba(0, 234, 255, 0.28);
+    background: rgba(0, 234, 255, 0.08);
+    color: rgba(175, 244, 255, 0.92);
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 0.64rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .compact-live-brain-vad {
+    display: flex;
+    gap: 10px;
+    color: rgba(170, 220, 245, 0.88);
+    font-family: monospace;
+    font-size: 0.78rem;
+  }
+
+  @keyframes clbNodePulse {
+    0%, 100% { opacity: 0.65; box-shadow: 0 0 10px rgba(0, 234, 255, 0.45); }
+    50% { opacity: 1; box-shadow: 0 0 18px rgba(0, 234, 255, 0.9); }
+  }
+
+  @keyframes clbLineFlow {
+    0% { filter: brightness(0.8); }
+    50% { filter: brightness(1.4); }
+    100% { filter: brightness(0.8); }
+  }
+
+  .live-call-secondary-btn {
+    border: 1px solid rgba(0, 234, 255, 0.34);
+    background: rgba(0, 234, 255, 0.08);
+    color: #8ef9ff;
+    border-radius: 999px;
+    padding: 7px 11px;
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+  }
+
+  .live-call-secondary-btn:hover {
+    background: rgba(0, 234, 255, 0.16);
+    border-color: rgba(0, 234, 255, 0.55);
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 1080px) {
+    .live-call-layout {
+      width: min(900px, 96vw);
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .live-call-card,
+    .live-call-brain-window {
+      max-height: 44vh;
+      min-height: 300px;
+      min-width: 0;
+      resize: none;
+      transform: none !important;
+    }
+
+    .live-call-brain-head {
+      cursor: default;
+    }
+  }
+
+  .live-call-name {
+    font-size: 1.05rem;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 0.04em;
+  }
+
+  .live-call-avatar-portrait {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top center;
+    border: 2px solid rgba(0,234,255,0.4);
+    box-shadow: 0 0 18px rgba(0,180,255,0.3);
+    flex-shrink: 0;
+  }
+
+  .live-call-snap-guides {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    z-index: 9999;
+  }
+
+  .live-call-snap-zone {
+    flex: 1;
+    border: 1.5px dashed rgba(0,234,255,0.18);
+    border-radius: 14px;
+    margin: 12px 6px;
+    transition: background 140ms ease, border-color 140ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .live-call-snap-zone.active {
+    background: rgba(0,234,255,0.07);
+    border-color: rgba(0,234,255,0.55);
+  }
+
+  .live-call-snap-zone-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(0,234,255,0.5);
+    font-weight: 600;
+  }
+
+  .live-call-snap-zone.active .live-call-snap-zone-label {
+    color: rgba(0,234,255,0.9);
+  }
+
+  .live-call-orb {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    transition: background 300ms, box-shadow 300ms;
+  }
+
+  .live-call-orb.listening {
+    background: rgba(255, 96, 96, 0.18);
+    animation: callListenPulse 1.4s ease-in-out infinite;
+  }
+
+  .live-call-orb.processing {
+    background: rgba(255, 200, 50, 0.18);
+    box-shadow: 0 0 24px rgba(255, 200, 50, 0.25);
+  }
+
+  .live-call-orb.speaking {
+    background: rgba(0, 234, 255, 0.18);
+    animation: callSpeakPulse 0.9s ease-in-out infinite;
+  }
+
+  .live-call-orb.error {
+    background: rgba(255, 60, 60, 0.18);
+    box-shadow: 0 0 24px rgba(255, 60, 60, 0.35);
+  }
+
+  .live-call-orb.interruptible {
+    cursor: pointer;
+    transition: background 300ms, box-shadow 300ms, filter 150ms, transform 100ms;
+  }
+
+  .live-call-orb.interruptible:hover {
+    filter: brightness(1.25);
+    transform: scale(1.06);
+  }
+
+  .live-call-interrupt-hint {
+    font-size: 0.68rem;
+    color: rgba(0,234,255,0.45);
+    letter-spacing: 0.08em;
+    margin-top: -8px;
+  }
+
+  .live-call-debug-log {
+    margin-top: 8px;
+    width: 100%;
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.35);
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 8px;
+  }
+
+  @keyframes callListenPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 96, 96, 0.5); }
+    50% { box-shadow: 0 0 0 20px rgba(255, 96, 96, 0); }
+  }
+
+  @keyframes callSpeakPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 234, 255, 0.5); }
+    50% { box-shadow: 0 0 0 20px rgba(0, 234, 255, 0); }
+  }
+
+  .live-call-phase-label {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .live-call-tap-hint {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .live-call-end-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 60, 60, 0.9);
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(255, 60, 60, 0.4);
+    transition: background 150ms, transform 100ms;
+  }
+
+  .live-call-end-btn:hover {
+    background: rgba(255, 60, 60, 1);
+    transform: scale(1.06);
+  }
+
+  .live-call-stop-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,234,255,0.35);
+    background: rgba(0,234,255,0.08);
+    color: #00eaff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 150ms;
+  }
+
+  .live-call-stop-btn:hover {
+    background: rgba(0,234,255,0.15);
+  }
+
+  .composer-icon-btn.live-call-active {
+    background: rgba(0, 234, 255, 0.18);
+    border-color: rgba(0, 234, 255, 0.6);
+    color: #00eaff;
+    animation: recordingPulse 1.8s ease-in-out infinite;
+  }
+
   .composer-icon-btn svg {
     width: 18px;
     height: 18px;
@@ -700,6 +1356,85 @@ const chatStyles = `
     background: rgba(255, 96, 96, 0.16);
     color: rgba(255, 188, 188, 0.98);
     box-shadow: 0 0 12px rgba(255, 96, 96, 0.2);
+  }
+
+  /* ── Mini Brain ────────────────────────────────────────────── */
+  .mini-brain {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(4, 12, 28, 0.5);
+    backdrop-filter: blur(20px);
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    box-shadow: inset 0 1px 0 rgba(78, 255, 200, 0.05), 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .mini-brain-header {
+    font-size: 0.55rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(160, 255, 225, 0.5);
+    margin-bottom: 10px;
+  }
+
+  .mini-brain-mood {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 245, 255, 0.08);
+  }
+
+  .mb-stat {
+    display: grid;
+    grid-template-columns: 28px 1fr 36px;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mb-label {
+    font-size: 0.54rem;
+    font-weight: 900;
+    color: rgba(0, 245, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .mb-bar-track {
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(0, 245, 255, 0.08);
+    overflow: hidden;
+  }
+
+  .mb-bar-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4effd8, #8866ff);
+    box-shadow: 0 0 8px rgba(78, 255, 200, 0.4);
+    transition: width 0.5s ease;
+  }
+
+  .mb-val {
+    font-size: 0.66rem;
+    font-weight: 500;
+    color: rgba(160, 255, 225, 0.9);
+    text-align: right;
+    letter-spacing: 0.02em;
+  }
+
+  .mini-brain-narrative {
+    font-size: 0.63rem;
+    line-height: 1.45;
+    color: rgba(180, 230, 255, 0.75);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-style: italic;
   }
 
   .voice-panel-label {
@@ -922,6 +1657,89 @@ const chatStyles = `
     margin-bottom: 3px;
   }
 
+  /* ── Icon Action Buttons ───────────────────────────────────── */
+  .voice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 14px;
+  }
+
+  .voice-icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(78, 255, 200, 0.06);
+    color: rgba(160, 255, 225, 0.85);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    flex-shrink: 0;
+  }
+
+  .voice-icon-btn:hover:not(:disabled) {
+    background: rgba(78, 255, 200, 0.12);
+    border-color: rgba(78, 255, 200, 0.3);
+    box-shadow: 0 0 20px rgba(78, 255, 200, 0.2), inset 0 0 12px rgba(78, 255, 200, 0.05);
+    transform: translateY(-1px);
+    color: #7effd8;
+  }
+
+  .voice-icon-btn:active {
+    transform: translateY(0);
+  }
+
+  .voice-icon-btn.primary {
+    background: linear-gradient(135deg, rgba(78, 255, 200, 0.14), rgba(100, 60, 220, 0.16));
+    border-color: rgba(78, 255, 200, 0.25);
+    box-shadow: 0 4px 20px rgba(78, 255, 200, 0.12);
+  }
+
+  .voice-icon-btn.primary:hover:not(:disabled) {
+    box-shadow: 0 6px 28px rgba(78, 255, 200, 0.28);
+  }
+
+  .voice-icon-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Tooltip */
+  .voice-icon-btn::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    padding: 5px 11px;
+    border-radius: 10px;
+    background: rgba(2, 8, 20, 0.96);
+    border: 1px solid rgba(78, 255, 200, 0.15);
+    color: rgba(200, 255, 240, 0.9);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+
+  .voice-icon-btn:hover::after {
+    opacity: 1;
+  }
+
+  /* Keep legacy voice-btn for any remaining uses */
   .voice-btn {
     padding: 9px 15px;
     border: none;
@@ -1033,18 +1851,61 @@ const chatStyles = `
     100% { transform: scale(0.85); opacity: 0.55; }
   }
 
-  /* Cyberpunk control deck overrides */
+  /* ── Spatial Organic Card (Vision Pro + Bioluminescent) ──── */
   .chat-card {
     display: grid;
     grid-template-columns: 190px minmax(0, 1fr) 280px;
     grid-template-rows: auto minmax(680px, auto) auto;
-    border-radius: 24px;
-    border: 1px solid rgba(16, 226, 255, 0.16);
-    background: linear-gradient(180deg, rgba(3, 10, 20, 0.96), rgba(3, 8, 18, 0.92));
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 0 18px rgba(0, 234, 255, 0.04);
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: linear-gradient(160deg, rgba(0, 4, 14, 0.90), rgba(2, 5, 18, 0.94));
+    box-shadow:
+      0 0 80px -20px rgba(78, 255, 200, 0.18),
+      0 0 120px -40px rgba(130, 80, 255, 0.12),
+      0 32px 100px rgba(0, 0, 0, 0.75),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+    will-change: transform;
   }
 
-  /* ── Ambient Avatar Panel ───────────────────────────────────── */
+  /* Shimmer overlay — follows cursor */
+  .holo-shimmer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    border-radius: inherit;
+    mix-blend-mode: screen;
+    transition: background 0.1s linear;
+  }
+
+  /* No scan-lines — clean spatial look */
+  .chat-card::before { display: none; }
+
+  /* Soft top-left bioluminescent bloom */
+  .chat-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(
+      ellipse at 15% 10%,
+      rgba(78, 255, 200, 0.04) 0%,
+      transparent 50%
+    ), radial-gradient(
+      ellipse at 85% 90%,
+      rgba(130, 80, 255, 0.04) 0%,
+      transparent 50%
+    );
+  }
+
+  /* ── Ambient Avatar Panel ───────────────────────────────── */
   .avatar-panel {
     grid-column: 1;
     grid-row: 2;
@@ -1054,10 +1915,10 @@ const chatStyles = `
     justify-content: flex-start;
     gap: 0;
     padding: 22px 12px 18px;
-    border-right: 1px solid rgba(0, 234, 255, 0.08);
+    border-right: 1px solid rgba(0, 245, 255, 0.1);
     background: linear-gradient(180deg,
-      rgba(0, 234, 255, 0.03) 0%,
-      rgba(180, 60, 248, 0.03) 60%,
+      rgba(0, 245, 255, 0.04) 0%,
+      rgba(176, 60, 248, 0.04) 60%,
       rgba(3, 8, 18, 0.0) 100%);
     position: relative;
     overflow: hidden;
@@ -1068,7 +1929,22 @@ const chatStyles = `
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(0, 234, 255, 0.18), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.3), transparent);
+  }
+
+  /* ── Avatar Orb: bioluminescent breathing glow ──────────────── */
+  @keyframes holoAvatarPulse {
+    0%, 100% {
+      filter:
+        drop-shadow(0 0 14px rgba(78, 255, 200, 0.35))
+        drop-shadow(0 0 32px rgba(130, 80, 255, 0.18));
+    }
+    50% {
+      filter:
+        drop-shadow(0 0 28px rgba(78, 255, 200, 0.65))
+        drop-shadow(0 0 60px rgba(130, 80, 255, 0.38))
+        drop-shadow(0 0 10px rgba(200, 255, 240, 0.2));
+    }
   }
 
   .avatar-panel-orb {
@@ -1076,23 +1952,28 @@ const chatStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 110px;
-    height: 110px;
+    width: 120px;
+    height: 120px;
     flex-shrink: 0;
+    animation: holoAvatarPulse 4s ease-in-out infinite;
   }
 
   .avatar-panel-orb .avatar-core {
-    --size: 96px !important;
+    --size: 104px !important;
   }
 
+  /* ── Persona name: clean spatial typography ─────────────── */
   .avatar-panel-name {
-    margin-top: 14px;
-    font-size: 0.82rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
+    margin-top: 16px;
+    font-size: 1.1rem;
+    font-weight: 300;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #c8f0ff;
+    color: rgba(230, 255, 248, 0.95);
     text-align: center;
+    text-shadow:
+      0 0 18px rgba(78, 255, 200, 0.55),
+      0 0 40px rgba(78, 255, 200, 0.2);
   }
 
   .avatar-panel-mood {
@@ -1332,40 +2213,47 @@ const chatStyles = `
     min-height: 680px;
     max-height: min(88vh, 980px);
     padding: 16px 18px;
+    position: relative;
+    z-index: 1;
     background:
-      linear-gradient(180deg, rgba(1, 7, 18, 0.82), rgba(4, 10, 22, 0.72)),
-      radial-gradient(circle at top left, rgba(0, 234, 255, 0.06), transparent 40%);
+      linear-gradient(180deg, rgba(1, 7, 18, 0.88), rgba(4, 10, 22, 0.80)),
+      radial-gradient(circle at 20% 10%, rgba(0, 245, 255, 0.05), transparent 45%),
+      radial-gradient(circle at 80% 90%, rgba(180, 60, 255, 0.04), transparent 45%);
   }
 
   .message-bubble {
-    border-radius: 16px;
-    backdrop-filter: blur(8px);
+    border-radius: 18px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .message-bubble.user {
-    background: linear-gradient(135deg, rgba(128, 53, 235, 0.34), rgba(39, 81, 190, 0.28));
-    border-color: rgba(191, 125, 255, 0.22);
+    background: linear-gradient(135deg, rgba(110, 60, 200, 0.22), rgba(60, 30, 160, 0.18));
+    border-color: rgba(160, 120, 255, 0.15);
   }
 
   .message-bubble.assistant {
-    background: linear-gradient(135deg, rgba(6, 22, 42, 0.95), rgba(9, 18, 36, 0.82));
-    border-color: rgba(0, 234, 255, 0.10);
+    background: rgba(4, 16, 32, 0.55);
+    border-color: rgba(255, 255, 255, 0.06);
   }
 
   .message-role {
-    color: #88f0ff;
+    color: rgba(160, 255, 225, 0.7);
   }
 
+  /* Voice panel */
   .voice-panel {
     grid-column: 3;
     grid-row: 2;
     align-self: start;
     margin: 16px 16px 0 0;
     padding: 14px;
-    border-radius: 18px;
-    border: 1px solid rgba(0, 234, 255, 0.12);
-    background: linear-gradient(180deg, rgba(5, 14, 28, 0.96), rgba(4, 10, 22, 0.90));
-    box-shadow: inset 0 0 18px rgba(0, 234, 255, 0.04);
+    border-radius: 22px;
+    border: 1px solid rgba(0, 245, 255, 0.15);
+    background: linear-gradient(180deg, rgba(0, 5, 18, 0.97), rgba(2, 8, 24, 0.94));
+    box-shadow:
+      inset 0 0 24px rgba(0, 245, 255, 0.05),
+      0 0 28px rgba(0, 245, 255, 0.08);
   }
 
   .voice-quick-copy {
@@ -1386,14 +2274,77 @@ const chatStyles = `
   }
 
   .voice-actions {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding-bottom: 14px;
+    margin-top: 18px;
   }
 
-  .voice-actions button {
-    width: 100%;
-    border-radius: 12px;
+  .voice-actions .voice-icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .voice-quick-controls {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 234, 255, 0.08);
+  }
+
+  .voice-control-row {
+    display: grid;
+    gap: 4px;
+  }
+
+  .voice-control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .voice-control-label {
+    font-size: 0.65rem;
+    font-weight: 800;
     text-transform: uppercase;
+    color: rgba(144, 224, 255, 0.6);
     letter-spacing: 0.05em;
+  }
+
+  .voice-control-value {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  .voice-slider {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(0, 234, 255, 0.1);
+    border-radius: 999px;
+    outline: none;
+  }
+
+  .voice-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.5);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .voice-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
   }
 
   .audio-player {
@@ -1422,8 +2373,20 @@ const chatStyles = `
 
   /* ── Neural activity sync — chat-card glow + avatar tilt ───── */
   @keyframes neuralCardPulse {
-    0%, 100% { box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 0 18px rgba(0, 234, 255, 0.04); }
-    50% { box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 0 32px rgba(0, 234, 255, 0.22), 0 0 0 1px rgba(0, 234, 255, 0.14); }
+    0%, 100% {
+      box-shadow:
+        0 0 80px -20px rgba(78, 255, 200, 0.18),
+        0 0 120px -40px rgba(130, 80, 255, 0.12),
+        0 32px 100px rgba(0, 0, 0, 0.75),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    50% {
+      box-shadow:
+        0 0 100px -15px rgba(78, 255, 200, 0.38),
+        0 0 140px -30px rgba(130, 80, 255, 0.25),
+        0 32px 100px rgba(0, 0, 0, 0.75),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
   }
 
   @keyframes avatarTiltThink {
@@ -2004,6 +2967,8 @@ export default function ChatWindow({
   liveUsage,
   liveVoiceAdjustments = null,
   liveSingingActive = false,
+  nativeLlmAudioChunks = null,
+  nativeTtsActive = false,
   activeMode,
   neuralProfile,
   disableNeuronMap3d = DEFAULT_DISABLE_NEURONMAP_3D,
@@ -2016,8 +2981,8 @@ export default function ChatWindow({
   onStatus,
   onUpdateMemory,
   onOpenPersonaEditor,
+  brainEvents = null,
 }) {
-  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const authFetch = useAuthFetch();
   const [draft, setDraft] = useState("");
   const [attachedFile, setAttachedFile] = useState(null);
@@ -2041,14 +3006,36 @@ export default function ChatWindow({
   const [isSavingVoice, setIsSavingVoice] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
+  const currentPlayingUrlRef = useRef("");
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [speechPlaybackRate, setSpeechPlaybackRate] = useState(1);
   const [cartesiaVoiceOptions, setCartesiaVoiceOptions] = useState(CARTESIA_QUICK_VOICE_OPTIONS);
+  const [isLoadingCartesiaVoices, setIsLoadingCartesiaVoices] = useState(false);
+  const [cartesiaVoiceLoadError, setCartesiaVoiceLoadError] = useState("");
+  const [voiceFavorites, setVoiceFavorites] = useState(() => readQuickVoiceFavorites());
+
+  // Stable ref so the parallel voice buffer hook can reach interruptLiveCall before it's defined
+  const interruptLiveCallRef = useRef(null);
+
+  // Load voice favorites from server on mount, merging with local cache
+  useEffect(() => {
+    authFetch("/settings/voice-favorites")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.favorites) {
+          setVoiceFavorites(data.favorites);
+          try { window.localStorage.setItem(QUICK_VOICE_FAVORITES_KEY, JSON.stringify(data.favorites)); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { /* network failure — keep local */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [speechEnergy, setSpeechEnergy] = useState(0);
   const [voiceTelemetry, setVoiceTelemetry] = useState(null);
   const [activePersonalityEvents, setActivePersonalityEvents] = useState([]);
   const [debugMode, setDebugMode] = useState(false);
   const [sysObserverOpen, setSysObserverOpen] = useState(false);
+  const [requestMetrics, setRequestMetrics] = useState(() => getRequestMetricsSnapshot());
   const [performanceText, setPerformanceText] = useState(null); // EPF text to perform
   const [emotionDrift, setEmotionDrift] = useState([]);
   const [zoneShiftActive, setZoneShiftActive] = useState(false);
@@ -2056,6 +3043,7 @@ export default function ChatWindow({
   const lastNarrationRef = useRef("");
   const messageListRef = useRef(null);
   const audioRef = useRef(null);
+  const currentAudioUrlRef = useRef("");
   const speechPlaybackRateRef = useRef(1);
   const speechEnergyTimerRef = useRef(null);
   const ttsRequestAbortRef = useRef(null);
@@ -2071,13 +3059,118 @@ export default function ChatWindow({
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const streamPlaybackActiveRef = useRef(false);
+  // ── Live Call ──────────────────────────────────────────────────────────────
+  const [isLiveCallActive, setIsLiveCallActive] = useState(false);
+  const [showLiveBrainWindow, setShowLiveBrainWindow] = useState(true);
+  const [liveBrainViewMode, setLiveBrainViewMode] = useState("full");
+  const [liveBrainSnapZone, setLiveBrainSnapZone] = useState("center");
+  const [liveBrainIsDragging, setLiveBrainIsDragging] = useState(false);
+  const [liveBrainDragActiveZone, setLiveBrainDragActiveZone] = useState("center");
+  const [liveBrainWindow, setLiveBrainWindow] = useState({
+    x: 0,
+    y: 0,
+    width: 720,
+    height: 560,
+  });
+  const [convPhase, rawDispatchConvPhase] = useReducer(convPhaseReducer, CONV_PHASE.IDLE);
+
+  // ── Parallel voice buffer — shadow-listens while AI is speaking ─────────
+  // Captures user utterances in the background during SPEAKING / GENERATING_AUDIO.
+  // Hard interrupt words ("stop", "no", "wait") fire interruptLiveCall() immediately.
+  // Fillers and substantive commentary are buffered and sent with the next message.
+  const parallelListenActive =
+    convPhase === CONV_PHASE.SPEAKING ||
+    convPhase === CONV_PHASE.GENERATING_AUDIO;
+
+  const { getBuffer: getVoiceBuffer, clearBuffer: clearVoiceBuffer } =
+    useParallelVoiceBuffer({
+      isActive: parallelListenActive,
+      onHardInterrupt: () => {
+        interruptLiveCallRef.current?.();
+      },
+    });
+  // Debug event log — only active when ?debug-voice is in the URL.
+  const liveCallDebugMode = useMemo(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug-voice"),
+    [],
+  );
+  const [convEventLog, setConvEventLog] = useState([]);
+  // Wrapped dispatcher: logs to convEventLog in debug mode, otherwise transparent.
+  const dispatchConvPhase = useCallback((action) => {
+    rawDispatchConvPhase(action);
+    if (liveCallDebugMode) {
+      setConvEventLog((prev) =>
+        [{ action: action.type, ts: Date.now() }, ...prev].slice(0, 6),
+      );
+    }
+  }, [liveCallDebugMode]);
+  const liveCallActiveRef = useRef(false); // sync ref for async closures
+  const liveCallMediaRecorderRef = useRef(null);
+  const liveCallChunksRef = useRef([]);
+  const liveCallMicStreamRef = useRef(null);
+  const liveCallSilenceDetectorRef = useRef(null);
+  const liveCallSilenceStartedAtRef = useRef(0);
+  const liveCallSpeechDetectedRef = useRef(false);
+  const liveCallMaxDurationTimerRef = useRef(null);
+  const liveBrainWindowRef = useRef(null);
+  const liveBrainDragRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+  });
   const streamAutoplayUsedRef = useRef(false);
+  const streamPostSendGraceUntilRef = useRef(0);
+  const prevIsSendingRef = useRef(false);
   const autoplayAssistantBaselineRef = useRef(0);
   const prevZoneKeyRef = useRef("");
   // Tracks the latest voice adjustments from the chat pipeline — applied to TTS requests
   const pendingVoiceAdjustmentsRef = useRef(null);
   const pendingSingingActiveRef = useRef(false);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const cartesiaCatalogRequestInFlightRef = useRef(false);
+  const cartesiaCatalogLastAttemptRef = useRef(0);
+  const cartesiaCatalogActivatedRef = useRef(false);
+
+  // Play audio produced natively by the LLM (gpt-4o-audio-preview) instead of calling TTS.
+  const nativeAudioPlayedRef = useRef(null);
+  useEffect(() => {
+    if (!nativeTtsActive || !Array.isArray(nativeLlmAudioChunks) || nativeLlmAudioChunks.length === 0) {
+      return;
+    }
+    const chunkKey = nativeLlmAudioChunks.length + ":" + (nativeLlmAudioChunks[0] || "").slice(0, 8);
+    if (nativeAudioPlayedRef.current === chunkKey) {
+      return;
+    }
+    nativeAudioPlayedRef.current = chunkKey;
+
+    try {
+      const combined = nativeLlmAudioChunks.join("");
+      const byteChars = atob(combined);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteArray[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteArray], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      setAudioUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+      requestAnimationFrame(() => {
+        const audioElement = audioRef.current;
+        if (audioElement instanceof HTMLAudioElement) {
+          audioElement.muted = false;
+          audioElement.volume = 1;
+          audioElement.playbackRate = speechPlaybackRateRef.current;
+          void audioElement.play().catch(() => {});
+        }
+      });
+    } catch {
+      // Ignore decoding errors — TTS fallback can still work.
+    }
+  }, [nativeTtsActive, nativeLlmAudioChunks]);
 
   const latestAssistantMessage = useMemo(
     () => [...messages].reverse().find((message) => message.role === "assistant") || null,
@@ -2159,6 +3252,12 @@ export default function ChatWindow({
     };
   }, [isGeneratingAudio, voiceProfile.enabled, voiceProfile.engine, voiceTelemetry]);
 
+  const currentTtsEngine = useMemo(() => {
+    return String(
+      voiceTelemetry?.chosenEngine || voiceTelemetry?.requested || voiceProfile.engine || "auto",
+    ).trim().toLowerCase() || "auto";
+  }, [voiceProfile.engine, voiceTelemetry]);
+
   const selectedCartesiaVoiceOption = useMemo(() => {
     const currentVoiceId = String(voiceProfile.cartesiaVoiceId || "").trim();
     if (!currentVoiceId) {
@@ -2170,6 +3269,100 @@ export default function ChatWindow({
     // so the injected "(saved)" option renders as selected instead of "Custom voice ID..."
     return knownVoice ? currentVoiceId : currentVoiceId;
   }, [voiceProfile.cartesiaVoiceId, cartesiaVoiceOptions]);
+
+  const favoriteCartesiaVoiceIds = useMemo(
+    () => new Set((Array.isArray(voiceFavorites?.cartesia) ? voiceFavorites.cartesia : []).map((item) => String(item?.id || "").trim()).filter(Boolean)),
+    [voiceFavorites?.cartesia],
+  );
+
+  const favoriteKokoroVoiceIds = useMemo(
+    () => new Set((Array.isArray(voiceFavorites?.kokoro) ? voiceFavorites.kokoro : []).map((item) => String(item?.id || "").trim()).filter(Boolean)),
+    [voiceFavorites?.kokoro],
+  );
+
+  const cartesiaFavoriteOptions = useMemo(() => {
+    if (!Array.isArray(voiceFavorites?.cartesia) || voiceFavorites.cartesia.length === 0) {
+      return [];
+    }
+    const byId = new Map(cartesiaVoiceOptions.map((voice) => [String(voice.id || "").trim(), voice]));
+    const merged = voiceFavorites.cartesia
+      .map((favorite) => {
+        const id = String(favorite?.id || "").trim();
+        if (!id) {
+          return null;
+        }
+        const live = byId.get(id);
+        return {
+          id,
+          label: String(live?.label || favorite?.label || id),
+        };
+      })
+      .filter(Boolean);
+
+    const seen = new Set();
+    return merged.filter((item) => {
+      if (seen.has(item.id)) {
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    });
+  }, [cartesiaVoiceOptions, voiceFavorites?.cartesia]);
+
+  const recommendedCartesiaVoice = useMemo(() => {
+    const keywords = buildPersonaKeywords(personality);
+    if (!keywords.size || !Array.isArray(cartesiaVoiceOptions) || cartesiaVoiceOptions.length === 0) {
+      return null;
+    }
+
+    let best = null;
+    let bestScore = 0;
+
+    for (const voice of cartesiaVoiceOptions) {
+      const label = String(voice?.label || voice?.id || "").trim().toLowerCase();
+      if (!label) {
+        continue;
+      }
+      const tags = Array.isArray(voice?.tags)
+        ? voice.tags.map((item) => String(item || "").trim().toLowerCase()).filter(Boolean)
+        : [];
+      const voiceTerms = new Set(
+        [label, ...tags]
+          .join(" ")
+          .split(/[^a-z0-9]+/g)
+          .map((item) => item.trim())
+          .filter((item) => item.length >= 3),
+      );
+      let score = 0;
+      for (const term of voiceTerms) {
+        if (keywords.has(term)) {
+          score += 1;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = voice;
+      }
+    }
+
+    return bestScore > 0 ? best : null;
+  }, [cartesiaVoiceOptions, personality]);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(QUICK_VOICE_FAVORITES_KEY, JSON.stringify(voiceFavorites));
+      }
+    } catch {
+      // Ignore localStorage write failures.
+    }
+    // Sync to server (fire-and-forget)
+    authFetch("/settings/voice-favorites", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favorites: voiceFavorites }),
+    }).catch(() => { /* ignore network failures */ });
+  }, [voiceFavorites]);
 
   const displayDebug = liveDebug || latestAssistantDebug;
 
@@ -2183,45 +3376,168 @@ export default function ChatWindow({
     pendingSingingActiveRef.current = liveSingingActive;
   }, [liveSingingActive]);
 
-  // Fetch Cartesia voice catalog when the engine is Cartesia (or auto w/ debug lock).
-  // Falls back to CARTESIA_QUICK_VOICE_OPTIONS when API key is missing or the call fails.
   useEffect(() => {
-    if (!authLoaded || !isSignedIn) {
+    const wasSending = prevIsSendingRef.current;
+    if (wasSending && !isSending && streamAutoplayUsedRef.current) {
+      // When SSE flips from sending->not-sending, final trailing sentence chunks
+      // may be enqueued a tick later by the finalize branch. Hold FSM end briefly.
+      streamPostSendGraceUntilRef.current = Date.now() + STREAM_POST_SEND_GRACE_MS;
+    }
+    prevIsSendingRef.current = isSending;
+  }, [isSending]);
+
+  useEffect(() => {
+    if (!sysObserverOpen) {
       return;
     }
 
+    setRequestMetrics(getRequestMetricsSnapshot());
+    const timerId = window.setInterval(() => {
+      setRequestMetrics(getRequestMetricsSnapshot());
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [sysObserverOpen]);
+
+  // ── FSM Effect 1: observe external booleans → dispatch phase transitions ──
+  // Translates the parent-owned isSending / isGeneratingAudio / isAudioPlaying
+  // props into explicit FSM events so the call loop never needs to inspect them
+  // directly.
+  useEffect(() => {
+    if (!isLiveCallActive) return;
+
+    const inPostSendGrace = Date.now() < streamPostSendGraceUntilRef.current;
+
+    const hasPendingStreamSpeech =
+      streamPlaybackActiveRef.current ||
+      streamQueueProcessingRef.current ||
+      streamReadyAudioQueueRef.current.length > 0 ||
+      streamPendingSentenceQueueRef.current.length > 0 ||
+      inPostSendGrace;
+
+    // LLM finished streaming → move to TTS
+    if (convPhase === CONV_PHASE.THINKING && !isSending) {
+      if (isAudioPlaying) {
+        // Edge case: audio already started before we noticed (fast TTS)
+        dispatchConvPhase({ type: "AUDIO_START" });
+      } else {
+        dispatchConvPhase({ type: "LLM_DONE" });
+      }
+    }
+
+    // TTS audio begins
+    if (convPhase === CONV_PHASE.GENERATING_AUDIO && isAudioPlaying) {
+      dispatchConvPhase({ type: "AUDIO_START" });
+    }
+
+    // AI finished speaking — begin recovery pause before next turn
+    if (
+      convPhase === CONV_PHASE.SPEAKING &&
+      !isAudioPlaying &&
+      !isSending &&
+      !isGeneratingAudio &&
+      !hasPendingStreamSpeech
+    ) {
+      console.log('[FSM] Dispatching AUDIO_END - all conditions met');
+      dispatchConvPhase({ type: "AUDIO_END" });
+    } else if (convPhase === CONV_PHASE.SPEAKING && !isAudioPlaying) {
+      // Debug: what's blocking the transition?
+      console.log('[FSM] SPEAKING but blocked from AUDIO_END:', {
+        isSending,
+        isGeneratingAudio,
+        streamPlaybackActive: streamPlaybackActiveRef.current,
+        streamQueueProcessing: streamQueueProcessingRef.current,
+        readyQueueLength: streamReadyAudioQueueRef.current.length,
+        pendingQueueLength: streamPendingSentenceQueueRef.current.length,
+        inPostSendGrace,
+        graceUntil: streamPostSendGraceUntilRef.current,
+        now: Date.now(),
+      });
+    }
+  }, [isLiveCallActive, convPhase, isSending, isGeneratingAudio, isAudioPlaying, liveReply]);
+
+  // ── FSM Effect 2: RECOVERING → LISTENING after settle delay ──────────────
+  useEffect(() => {
+    if (!isLiveCallActive || convPhase !== CONV_PHASE.RECOVERING) return;
+    const id = setTimeout(() => {
+      if (liveCallActiveRef.current) dispatchConvPhase({ type: "RECOVERED" });
+    }, LIVE_CALL_RECOVER_MS);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLiveCallActive, convPhase]);
+
+  // ── FSM Effect 3: LISTENING → arm the microphone recorder ────────────────
+  useEffect(() => {
+    if (!isLiveCallActive || convPhase !== CONV_PHASE.LISTENING) return;
+    if (liveCallMediaRecorderRef.current && liveCallMediaRecorderRef.current.state !== "inactive") return;
+    void liveCallStartRecording();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLiveCallActive, convPhase]);
+
+  const loadCartesiaVoiceOptions = useCallback(async ({ force = false } = {}) => {
+    if (cartesiaCatalogRequestInFlightRef.current) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - cartesiaCatalogLastAttemptRef.current < 15000) {
+      return;
+    }
+
+    cartesiaCatalogLastAttemptRef.current = now;
+    cartesiaCatalogRequestInFlightRef.current = true;
+    setIsLoadingCartesiaVoices(true);
+    setCartesiaVoiceLoadError("");
+
+    try {
+      const response = await authFetch("/tts/provider-options?provider=cartesia");
+      const payload = await readApiResponsePayload(response);
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(response, payload, `Failed to load Cartesia voices (${response.status}).`));
+      }
+
+      const voices = Array.isArray(payload?.voices) && payload.voices.length
+        ? payload.voices
+          .map((voice) => ({
+            id: String(voice?.id || "").trim(),
+            label: String(voice?.label || voice?.id || "").trim(),
+            tags: Array.isArray(voice?.tags) ? voice.tags : [],
+          }))
+          .filter((voice) => voice.id)
+        : CARTESIA_QUICK_VOICE_OPTIONS;
+
+      setCartesiaVoiceOptions(voices.length ? voices : CARTESIA_QUICK_VOICE_OPTIONS);
+    } catch (error) {
+      console.warn("[ChatWindow] Cartesia voice catalog fallback:", error?.message || error);
+      setCartesiaVoiceLoadError(error?.message || "Failed to load Cartesia voice catalog.");
+      setCartesiaVoiceOptions((current) => (
+        Array.isArray(current) && current.length > 0 ? current : CARTESIA_QUICK_VOICE_OPTIONS
+      ));
+    } finally {
+      cartesiaCatalogRequestInFlightRef.current = false;
+      setIsLoadingCartesiaVoices(false);
+    }
+  }, [authFetch]);
+
+  // Fetch Cartesia voice catalog when the engine is Cartesia (or auto w/ debug lock).
+  useEffect(() => {
     const isCartesiaActive =
       voiceProfile.engine === "cartesia" ||
       (TTS_DEBUG_PROVIDER_LOCK && voiceProfile.engine === "auto");
 
     if (!isCartesiaActive) {
+      cartesiaCatalogActivatedRef.current = false;
       return;
     }
 
-    let cancelled = false;
+    // Only auto-load once per activation; manual refresh still uses force:true.
+    if (cartesiaCatalogActivatedRef.current) {
+      return;
+    }
 
-    authFetch("/tts/provider-options?provider=cartesia")
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(String(data?.error || "Failed to load Cartesia voices."));
-        }
-        return data;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        const voices = Array.isArray(data?.voices) && data.voices.length
-          ? data.voices.map((v) => ({ id: String(v.id || ""), label: String(v.label || v.id || "") }))
-          : CARTESIA_QUICK_VOICE_OPTIONS;
-        setCartesiaVoiceOptions(voices);
-      })
-      .catch((error) => {
-        console.warn("[ChatWindow] Cartesia voice catalog fallback:", error?.message || error);
-        if (!cancelled) setCartesiaVoiceOptions(CARTESIA_QUICK_VOICE_OPTIONS);
-      });
+    cartesiaCatalogActivatedRef.current = true;
 
-    return () => { cancelled = true; };
-  }, [authFetch, authLoaded, isSignedIn, voiceProfile.engine]);
+    void loadCartesiaVoiceOptions({ force: false });
+  }, [loadCartesiaVoiceOptions, voiceProfile.engine]);
   const pendingAssistantMessage = useMemo(() => {
     if (!isSending && !liveReply) {
       return null;
@@ -2322,6 +3638,8 @@ export default function ChatWindow({
   const [activitySpike, setActivitySpike] = useState(false);
   const spikeTimerRef = useRef(null);
 
+  // Chat card tilt is intentionally disabled to keep the surface stable.
+
   const handleBrainActivity = useCallback((activity) => {
     setBrainActivity(activity);
   }, []);
@@ -2408,8 +3726,18 @@ export default function ChatWindow({
   useEffect(() => {
     setVoiceTelemetry(null);
     setActivePersonalityEvents([]);
-    streamAutoplaySessionRef.current = null;
-    clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
+    const hasActiveStreamAutoplay =
+      streamPlaybackActiveRef.current ||
+      streamQueueProcessingRef.current ||
+      streamReadyAudioQueueRef.current.length > 0 ||
+      streamPendingSentenceQueueRef.current.length > 0;
+
+    // Do not reset stream session/queues while a streamed reply is still
+    // speaking, otherwise only the first sentence can play before truncation.
+    if (!hasActiveStreamAutoplay) {
+      streamAutoplaySessionRef.current = null;
+      clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
+    }
     autoplayAssistantBaselineRef.current = assistantMessageCount;
     lastGeneratedRef.current = `${personality?.id || "none"}:${latestAssistantSpeechText}`;
     if (personalityEventsTimerRef.current) {
@@ -2520,14 +3848,19 @@ export default function ChatWindow({
   }, [voiceTelemetry?.personalityEvents]);
 
   useEffect(() => {
+    currentAudioUrlRef.current = audioUrl;
+  }, [audioUrl]);
+
+  useEffect(() => {
     return () => {
       if (speechEnergyTimerRef.current) {
         window.clearInterval(speechEnergyTimerRef.current);
         speechEnergyTimerRef.current = null;
       }
 
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+        currentAudioUrlRef.current = "";
       }
 
       if (zoneShiftTimerRef.current) {
@@ -2540,7 +3873,7 @@ export default function ChatWindow({
 
       clearStreamingAutoplayQueues({ revokeQueuedAudio: true });
     };
-  }, [audioUrl]);
+  }, []);
 
   useEffect(() => {
     if (speechEnergyTimerRef.current) {
@@ -2577,7 +3910,7 @@ export default function ChatWindow({
   }, [isAudioPlaying]);
 
   useEffect(() => {
-    if (!voiceProfile.enabled || !voiceProfile.autoplay || !personality) {
+    if (!voiceProfile.enabled || !voiceProfile.autoplay || !personality || nativeTtsActive) {
       return;
     }
 
@@ -2786,6 +4119,79 @@ export default function ChatWindow({
     }));
   }
 
+  function toggleQuickVoiceFavorite(engine, voice) {
+    const targetEngine = String(engine || "").trim().toLowerCase();
+    if (!["cartesia", "kokoro"].includes(targetEngine)) {
+      return;
+    }
+    const id = String(voice?.id || "").trim();
+    const label = String(voice?.label || id).trim();
+    if (!id) {
+      return;
+    }
+
+    setVoiceFavorites((current) => {
+      const existing = Array.isArray(current?.[targetEngine]) ? current[targetEngine] : [];
+      const found = existing.some((item) => String(item?.id || "").trim() === id);
+      const nextItems = found
+        ? existing.filter((item) => String(item?.id || "").trim() !== id)
+        : [...existing, { id, label }];
+      return {
+        ...(current || {}),
+        [targetEngine]: nextItems,
+      };
+    });
+  }
+
+  function handleQuickKokoroVoiceChange(nextVoiceId) {
+    const voiceId = String(nextVoiceId || "").trim();
+    if (!voiceId) {
+      return;
+    }
+
+    const nextProfile = {
+      kokoroVoice: voiceId,
+      providerVoice: voiceId,
+      preferredVoice: voiceId,
+    };
+    setVoiceProfile((current) => ({
+      ...current,
+      ...nextProfile,
+    }));
+
+    // Persist immediately so the personality re-load effect doesn't reset the selection
+    void onSaveVoiceProfile?.({ ...voiceProfile, ...nextProfile });
+
+    if (latestAssistantSpeechText?.trim()) {
+      void generateAudio(latestAssistantSpeechText, { silentAutoplayBlock: true, voiceOverride: nextProfile });
+    }
+  }
+
+  function handleQuickCartesiaVoiceChange(nextVoiceId) {
+    const voiceId = String(nextVoiceId || "").trim();
+    if (!voiceId) {
+      return;
+    }
+
+    const nextProfile = {
+      engine: "cartesia",
+      cartesiaVoiceId: voiceId,
+      providerVoice: voiceId,
+      preferredVoice: voiceId,
+    };
+    setVoiceProfile((current) => ({
+      ...current,
+      ...nextProfile,
+    }));
+
+    // Persist immediately so the personality re-load effect doesn't reset the selection
+    void onSaveVoiceProfile?.({ ...voiceProfile, ...nextProfile });
+
+    if (latestAssistantSpeechText?.trim()) {
+      void generateAudio(latestAssistantSpeechText, { silentAutoplayBlock: true, voiceOverride: nextProfile });
+    }
+  }
+
   function clearStreamingAutoplayQueues({ revokeQueuedAudio = true } = {}) {
     streamPendingSentenceQueueRef.current = [];
     streamQueuedSentenceKeysRef.current = new Set();
@@ -2808,9 +4214,10 @@ export default function ChatWindow({
     return streamPendingSentenceQueueRef.current.length + streamReadyAudioQueueRef.current.length;
   }
 
-  async function requestSpeechAudio(text, controller, meta = {}) {
+  async function requestSpeechAudio(text, controller, meta = {}, voiceOverride = null) {
     const requestStartedAt = performance.now();
-    const cacheKey = buildTtsCacheKey(personality.id, text, voiceProfile);
+    const effectiveVoiceProfile = voiceOverride ? { ...voiceProfile, ...voiceOverride } : voiceProfile;
+    const cacheKey = buildTtsCacheKey(personality.id, text, effectiveVoiceProfile);
     const cachedBlob = getTtsCache(cacheKey);
     if (cachedBlob) {
       return {
@@ -2827,7 +4234,8 @@ export default function ChatWindow({
       body: JSON.stringify({
         text,
         voiceProfile: {
-          ...voiceProfile,
+          ...effectiveVoiceProfile,
+          strictEngine: String(effectiveVoiceProfile?.engine || "").trim().toLowerCase() === "cartesia",
           // Merge emotion-graph voice adjustments so Cartesia receives speed/emotion controls
           voiceAdjustments: pendingVoiceAdjustmentsRef.current || undefined,
           singingActive: pendingSingingActiveRef.current || false,
@@ -2920,12 +4328,15 @@ export default function ChatWindow({
       const sfxPromises = parsedSfxTimeline.map(async (sfxEvent) => {
         const sfxUrl = `/api/sfx/audio/${encodeURIComponent(sfxEvent.tag)}`;
         try {
-          const sfxResponse = await fetch(sfxUrl);
+          const sfxResponse = await trackedFetch(sfxUrl, {}, { cause: `chat:sfx-prefetch:${sfxEvent.tag}` });
           if (!sfxResponse.ok) {
-            onStatus?.({
-              type: "warn",
-              message: `SFX audio unavailable for: ${sfxEvent.tag}.`,
-            });
+            // Silently skip missing SFX files (404s are expected for undefined sounds)
+            if (sfxResponse.status !== 404) {
+              onStatus?.({
+                type: "warn",
+                message: `SFX audio unavailable for: ${sfxEvent.tag} (${sfxResponse.status}).`,
+              });
+            }
             return null;
           }
           const sfxBlob = await sfxResponse.blob();
@@ -2935,10 +4346,13 @@ export default function ChatWindow({
           sfxBuffers.set(sfxEvent.tag, audioBuffer);
           return { tag: sfxEvent.tag, buffer: audioBuffer };
         } catch (err) {
-          onStatus?.({
-            type: "warn",
-            message: `SFX failed to load: ${sfxEvent.tag}.`,
-          });
+          // Only warn on actual errors, not missing files
+          if (err?.status !== 404) {
+            onStatus?.({
+              type: "warn",
+              message: `SFX failed to load: ${sfxEvent.tag}.`,
+            });
+          }
           return null;
         }
       });
@@ -2956,6 +4370,21 @@ export default function ChatWindow({
           streamingSegment: Boolean(meta?.streamingSegment),
         }
       : parsedTelemetry;
+
+    const desiredEngine = String(effectiveVoiceProfile?.engine || "auto").trim().toLowerCase();
+    const chosenEngine = String(telemetry?.chosenEngine || "").trim().toLowerCase();
+    const hasCartesiaVoiceSelection = Boolean(String(effectiveVoiceProfile?.cartesiaVoiceId || "").trim());
+    if (
+      hasCartesiaVoiceSelection &&
+      (desiredEngine === "cartesia" || desiredEngine === "auto") &&
+      chosenEngine &&
+      chosenEngine !== "cartesia"
+    ) {
+      onStatus?.({
+        type: "warn",
+        message: `Cartesia voice selected, but audio came from ${chosenEngine}. Check Cartesia credentials/availability in Voice Provider settings.`,
+      });
+    }
 
     return {
       url: nextAudioUrl,
@@ -2984,10 +4413,8 @@ export default function ChatWindow({
       });
     }
 
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-    }
-
+    // Don't revoke old URL here - let handleAudioEnded do it after audio finishes
+    currentPlayingUrlRef.current = nextItem.url;
     setAudioUrl(nextItem.url);
 
     requestAnimationFrame(() => {
@@ -3038,7 +4465,7 @@ export default function ChatWindow({
         });
         streamReadyAudioQueueRef.current.push(audioResult);
 
-        if (!streamPlaybackActiveRef.current && !isAudioPlaying) {
+        if (!streamPlaybackActiveRef.current) {
           playNextQueuedStreamAudio({ silentAutoplayBlock: true });
         }
       }
@@ -3053,6 +4480,14 @@ export default function ChatWindow({
           statusPayload.actionLabel = "Run diagnostics";
         }
         onStatus?.(statusPayload);
+        
+        // Clear pending sentences on error - they can't be generated anyway
+        streamPendingSentenceQueueRef.current = [];
+        
+        // If no audio is playing, mark stream as complete to unblock FSM
+        if (!streamPlaybackActiveRef.current && streamReadyAudioQueueRef.current.length === 0) {
+          streamPlaybackActiveRef.current = false;
+        }
       }
     } finally {
       if (ttsRequestAbortRef.current) {
@@ -3110,8 +4545,8 @@ export default function ChatWindow({
     }
   }
 
-  async function generateAudio(text, { silentAutoplayBlock = false } = {}) {
-    if (!voiceProfile.enabled || !text.trim() || !personality) {
+  async function generateAudio(text, { silentAutoplayBlock = false, voiceOverride = null } = {}) {
+    if (!voiceProfile.enabled || !text.trim() || !personality || nativeTtsActive) {
       return;
     }
 
@@ -3124,7 +4559,7 @@ export default function ChatWindow({
     ttsRequestAbortRef.current = controller;
 
     try {
-      const audioResult = await requestSpeechAudio(text, controller);
+      const audioResult = await requestSpeechAudio(text, controller, {}, voiceOverride);
       const nextAudioUrl = audioResult.url;
 
       setVoiceTelemetry(audioResult.telemetry);
@@ -3138,10 +4573,8 @@ export default function ChatWindow({
         });
       }
 
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-
+      // Don't revoke old URL here - let handleAudioEnded do it after audio finishes
+      currentPlayingUrlRef.current = nextAudioUrl;
       setAudioUrl(nextAudioUrl);
 
       requestAnimationFrame(() => {
@@ -3183,19 +4616,46 @@ export default function ChatWindow({
   }
 
   function handleAudioEnded() {
+    console.log('[AUDIO] Audio ended - checking queues:', {
+      readyQueue: streamReadyAudioQueueRef.current.length,
+      pendingQueue: streamPendingSentenceQueueRef.current.length,
+      queueProcessing: streamQueueProcessingRef.current,
+      playbackActive: streamPlaybackActiveRef.current,
+    });
+    
+    // Revoke the blob URL that just finished playing (tracked via ref)
+    const finishedUrl = currentPlayingUrlRef.current;
+    if (finishedUrl) {
+      console.log('[AUDIO] Revoking finished audio blob URL');
+      URL.revokeObjectURL(finishedUrl);
+      currentPlayingUrlRef.current = "";
+    }
+    
     setIsAudioPlaying(false);
 
     if (streamReadyAudioQueueRef.current.length > 0) {
+      console.log('[AUDIO] Playing next from ready queue');
       playNextQueuedStreamAudio({ silentAutoplayBlock: true });
       if (streamPendingSentenceQueueRef.current.length > 0 && !streamQueueProcessingRef.current) {
+        console.log('[AUDIO] Resuming TTS processing for pending sentences');
         void processStreamingSentenceQueue();
       }
       return;
     }
 
-    streamPlaybackActiveRef.current = false;
-    if (streamPendingSentenceQueueRef.current.length > 0 && !streamQueueProcessingRef.current) {
-      void processStreamingSentenceQueue();
+    // Only mark stream playback as fully complete if there are NO pending sentences
+    if (streamPendingSentenceQueueRef.current.length > 0) {
+      console.log('[AUDIO] Still have pending sentences, processing...');
+      // Clear playbackActive so newly generated audio will start playing
+      streamPlaybackActiveRef.current = false;
+      if (!streamQueueProcessingRef.current) {
+        void processStreamingSentenceQueue();
+      }
+    } else {
+      console.log('[AUDIO] All audio complete - clearing refs and grace period');
+      // Truly done with streaming playback - clear grace period so FSM can transition
+      streamPlaybackActiveRef.current = false;
+      streamPostSendGraceUntilRef.current = 0;
     }
   }
 
@@ -3349,7 +4809,15 @@ export default function ChatWindow({
       recognition.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
         setIsRecording(false);
-        onStatus?.({ type: "error", message: "Speech recognition failed. Please try again." });
+        const errorMessages = {
+          network: "Speech recognition requires a network connection to Google's servers. Check your internet connection or try typing instead.",
+          "not-allowed": "Microphone access was denied. Allow microphone permissions in your browser settings.",
+          "no-speech": "No speech detected. Please try again.",
+          "audio-capture": "No microphone found. Ensure a microphone is connected and try again.",
+          "service-not-allowed": "Speech recognition is not available. Use HTTPS or try a different browser.",
+        };
+        const message = errorMessages[event.error] ?? "Speech recognition failed. Please try again.";
+        onStatus?.({ type: "error", message });
       };
 
       recognition.onend = () => {
@@ -3361,6 +4829,426 @@ export default function ChatWindow({
       setIsRecording(true);
     }
   }
+
+  // ── Live Call ──────────────────────────────────────────────────────────────
+
+  function stopLiveCallSilenceDetection() {
+    if (liveCallSilenceDetectorRef.current) {
+      liveCallSilenceDetectorRef.current.stop();
+      liveCallSilenceDetectorRef.current = null;
+    }
+    liveCallSilenceStartedAtRef.current = 0;
+    liveCallSpeechDetectedRef.current = false;
+  }
+
+  function startLiveCallSilenceDetection(stream) {
+    stopLiveCallSilenceDetection();
+
+    const AudioContextCtor =
+      typeof window !== "undefined"
+        ? (window.AudioContext || window.webkitAudioContext)
+        : null;
+    if (!AudioContextCtor || !(stream instanceof MediaStream)) {
+      return;
+    }
+
+    const context = new AudioContextCtor();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.1;
+
+    const source = context.createMediaStreamSource(stream);
+    source.connect(analyser);
+    const samples = new Float32Array(analyser.fftSize);
+
+    let rafId = 0;
+    let stopped = false;
+
+    const stop = () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      try {
+        source.disconnect();
+        analyser.disconnect();
+      } catch {
+        // Ignore disconnect races during teardown.
+      }
+      if (context.state !== "closed") {
+        void context.close().catch(() => {});
+      }
+    };
+
+    const tick = () => {
+      if (stopped || !liveCallActiveRef.current) {
+        return;
+      }
+
+      analyser.getFloatTimeDomainData(samples);
+      let sum = 0;
+      for (let i = 0; i < samples.length; i += 1) {
+        const s = samples[i];
+        sum += s * s;
+      }
+      const rms = Math.sqrt(sum / samples.length);
+      const now = Date.now();
+
+      if (rms >= LIVE_CALL_LEVEL_THRESHOLD) {
+        liveCallSpeechDetectedRef.current = true;
+        liveCallSilenceStartedAtRef.current = 0;
+      } else if (liveCallSpeechDetectedRef.current) {
+        if (!liveCallSilenceStartedAtRef.current) {
+          liveCallSilenceStartedAtRef.current = now;
+        }
+        if (now - liveCallSilenceStartedAtRef.current >= LIVE_CALL_SILENCE_MS) {
+          liveCallStopListening();
+          return;
+        }
+      }
+
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    liveCallSilenceDetectorRef.current = { stop };
+  }
+
+  async function liveCallStartRecording() {
+    if (!liveCallActiveRef.current) return;
+    const activeRecorder = liveCallMediaRecorderRef.current;
+    if (activeRecorder && activeRecorder.state !== "inactive") {
+      return;
+    }
+
+    // convPhase is already LISTENING — no dispatch needed here
+    liveCallChunksRef.current = [];
+    stopLiveCallSilenceDetection();
+    if (liveCallMaxDurationTimerRef.current) {
+      window.clearTimeout(liveCallMaxDurationTimerRef.current);
+      liveCallMaxDurationTimerRef.current = null;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      onStatus?.({ type: "error", message: "Microphone access denied. Cannot start live call." });
+      endLiveCall();
+      return;
+    }
+    liveCallMicStreamRef.current = stream;
+
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/ogg";
+    const recorder = new MediaRecorder(stream, { mimeType });
+    liveCallMediaRecorderRef.current = recorder;
+
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) liveCallChunksRef.current.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      if (liveCallMaxDurationTimerRef.current) {
+        window.clearTimeout(liveCallMaxDurationTimerRef.current);
+        liveCallMaxDurationTimerRef.current = null;
+      }
+      stopLiveCallSilenceDetection();
+
+      // Stop mic tracks
+      stream.getTracks().forEach((t) => t.stop());
+      liveCallMicStreamRef.current = null;
+      liveCallMediaRecorderRef.current = null;
+
+      if (!liveCallActiveRef.current) return;
+      const chunks = liveCallChunksRef.current;
+      if (!chunks.length) {
+        // Nothing recorded — recover and listen again
+        dispatchConvPhase({ type: "NO_SPEECH" });
+        return;
+      }
+
+      dispatchConvPhase({ type: "RECORDED" }); // LISTENING → TRANSCRIBING
+      const blob = new Blob(chunks, { type: mimeType });
+      const base64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result || "").split(",")[1] || "");
+        reader.readAsDataURL(blob);
+      });
+
+      if (!base64 || !liveCallActiveRef.current) {
+        if (liveCallActiveRef.current) dispatchConvPhase({ type: "NO_SPEECH" });
+        return;
+      }
+
+      let transcript = "";
+      let sttError = "";
+      try {
+        const resp = await authFetch("/api/stt/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioBase64: base64,
+            mimeType,
+            language: String(navigator?.language || "auto").split("-")[0] || "auto",
+          }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          transcript = String(data?.text || data?.transcript || "").trim();
+        } else {
+          let errBody = null;
+          try { errBody = await resp.json(); } catch { /* ignore */ }
+          sttError = String(errBody?.error || `STT returned ${resp.status}`);
+        }
+      } catch (err) {
+        sttError = String(err?.message || "STT provider unreachable");
+      }
+
+      if (!liveCallActiveRef.current) return;
+
+      if (sttError) {
+        onStatus?.({
+          type: "error",
+          message: `Live call: speech recognition failed — ${sttError}. Check STT settings or configure an API key.`,
+        });
+        dispatchConvPhase({ type: "ERROR" });
+        endLiveCall();
+        return;
+      }
+
+      if (transcript) {
+        dispatchConvPhase({ type: "TRANSCRIPT" }); // TRANSCRIBING → THINKING
+        try {
+          const voiceBuffer = getVoiceBuffer();
+          clearVoiceBuffer();
+          await onSend(transcript, { isLiveCall: true, voiceBuffer });
+        } catch {
+          if (liveCallActiveRef.current) {
+            dispatchConvPhase({ type: "NO_SPEECH" }); // recover and listen again
+          }
+        }
+        // After onSend, the FSM observer effect (Effect 1) watches isSending /
+        // isGeneratingAudio / isAudioPlaying and drives the remaining transitions.
+      } else {
+        // No speech above threshold — recover and listen again
+        dispatchConvPhase({ type: "NO_SPEECH" });
+      }
+    };
+
+    recorder.start();
+    startLiveCallSilenceDetection(stream);
+    liveCallMaxDurationTimerRef.current = window.setTimeout(() => {
+      if (liveCallActiveRef.current) {
+        liveCallStopListening();
+      }
+    }, LIVE_CALL_MAX_RECORDING_MS);
+  }
+
+  function liveCallStopListening() {
+    if (liveCallMaxDurationTimerRef.current) {
+      window.clearTimeout(liveCallMaxDurationTimerRef.current);
+      liveCallMaxDurationTimerRef.current = null;
+    }
+    stopLiveCallSilenceDetection();
+
+    if (liveCallMediaRecorderRef.current && liveCallMediaRecorderRef.current.state === "recording") {
+      liveCallMediaRecorderRef.current.stop();
+    }
+  }
+
+  function startLiveCall() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      onStatus?.({ type: "error", message: "Live call needs browser microphone recording support (MediaRecorder)." });
+      return;
+    }
+    if (!voiceProfile.enabled) {
+      onStatus?.({ type: "error", message: "Enable voice playback before starting a live call." });
+      return;
+    }
+    liveCallActiveRef.current = true;
+    streamPostSendGraceUntilRef.current = 0;
+    setIsLiveCallActive(true);
+    setShowLiveBrainWindow(true);
+    setLiveBrainViewMode("full");
+    setLiveBrainSnapZone("center");
+    setLiveBrainWindow({ x: 0, y: 0, width: 720, height: 560 });
+    dispatchConvPhase({ type: "CALL_START" }); // → LISTENING; FSM Effect 3 arms the recorder
+    // Force autoplay on during live call
+    setVoiceProfile((prev) => ({ ...prev, autoplay: true }));
+  }
+
+  // Interrupt the AI mid-turn: stops TTS/audio immediately and re-arms the microphone.
+  function interruptLiveCall() {
+    if (
+      convPhase !== CONV_PHASE.SPEAKING &&
+      convPhase !== CONV_PHASE.GENERATING_AUDIO &&
+      convPhase !== CONV_PHASE.THINKING
+    ) return;
+    stopSpeaking();
+    dispatchConvPhase({ type: "INTERRUPT" }); // → LISTENING; FSM Effect 3 re-arms recorder
+  }
+
+  // Keep the ref in sync so the parallel voice buffer hook can reach it
+  interruptLiveCallRef.current = interruptLiveCall;
+
+  function endLiveCall() {
+    liveCallActiveRef.current = false;
+    streamPostSendGraceUntilRef.current = 0;
+    setIsLiveCallActive(false);
+    dispatchConvPhase({ type: "CALL_END" }); // → IDLE
+    liveCallStopListening();
+    if (liveCallMicStreamRef.current) {
+      liveCallMicStreamRef.current.getTracks().forEach((t) => t.stop());
+      liveCallMicStreamRef.current = null;
+    }
+    liveCallMediaRecorderRef.current = null;
+  }
+
+  function handleLiveBrainDragStart(event) {
+    if (window.innerWidth <= 1080) return;
+    if (event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest("button")) return;
+
+    liveBrainDragRef.current = {
+      active: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: liveBrainWindow.x,
+      originY: liveBrainWindow.y,
+    };
+    setLiveBrainIsDragging(true);
+    setLiveBrainDragActiveZone(liveBrainSnapZone);
+    event.preventDefault();
+  }
+
+  function handleLiveBrainResizeCommit() {
+    if (!liveBrainWindowRef.current) return;
+    const nextWidth = liveBrainWindowRef.current.offsetWidth;
+    const nextHeight = liveBrainWindowRef.current.offsetHeight;
+    if (!Number.isFinite(nextWidth) || !Number.isFinite(nextHeight)) return;
+
+    setLiveBrainWindow((prev) => ({
+      ...prev,
+      width: Math.max(420, Math.min(1200, Math.round(nextWidth))),
+      height: Math.max(300, Math.min(900, Math.round(nextHeight))),
+    }));
+  }
+
+  function getLiveBrainSnapTarget(windowState) {
+    const maxX = Math.max(0, Math.round(window.innerWidth * 0.26));
+    const maxY = Math.max(0, Math.round(window.innerHeight * 0.2));
+    const leftThreshold = -Math.round(maxX * 0.38);
+    const rightThreshold = Math.round(maxX * 0.38);
+    const topThreshold = -Math.round(maxY * 0.45);
+    const bottomThreshold = Math.round(maxY * 0.45);
+
+    let snapZone = "center";
+    let x = 0;
+    if (windowState.x <= leftThreshold) {
+      snapZone = "left";
+      x = -Math.round(maxX * 0.82);
+    } else if (windowState.x >= rightThreshold) {
+      snapZone = "right";
+      x = Math.round(maxX * 0.82);
+    }
+
+    let y = 0;
+    if (windowState.y <= topThreshold) {
+      y = -maxY;
+    } else if (windowState.y >= bottomThreshold) {
+      y = maxY;
+    }
+
+    return { x, y, snapZone };
+  }
+
+  useEffect(() => {
+    let rafId = null;
+    const onMove = (event) => {
+      const drag = liveBrainDragRef.current;
+      if (!drag.active) return;
+
+      // Throttle updates with requestAnimationFrame to prevent setState storm
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        
+        const deltaX = event.clientX - drag.startX;
+        const deltaY = event.clientY - drag.startY;
+        const maxX = Math.max(0, Math.round(window.innerWidth * 0.26));
+        const minX = -Math.max(0, Math.round(window.innerWidth * 0.26));
+        const maxY = Math.max(0, Math.round(window.innerHeight * 0.2));
+        const minY = -Math.max(0, Math.round(window.innerHeight * 0.2));
+
+        const nextX = Math.max(minX, Math.min(maxX, Math.round(drag.originX + deltaX)));
+        const leftThreshold = -Math.round(maxX * 0.38);
+        const rightThreshold = Math.round(maxX * 0.38);
+        const zone = nextX <= leftThreshold ? "left" : nextX >= rightThreshold ? "right" : "center";
+        setLiveBrainDragActiveZone(zone);
+
+        setLiveBrainWindow((prev) => ({
+          ...prev,
+          x: nextX,
+          y: Math.max(minY, Math.min(maxY, Math.round(drag.originY + deltaY))),
+        }));
+      });
+    };
+
+    const onUp = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      
+      liveBrainDragRef.current.active = false;
+      setLiveBrainIsDragging(false);
+      handleLiveBrainResizeCommit();
+      setLiveBrainWindow((prev) => {
+        const snapped = getLiveBrainSnapTarget(prev);
+        setLiveBrainSnapZone(snapped.snapZone);
+        setLiveBrainDragActiveZone(snapped.snapZone);
+        return {
+          ...prev,
+          x: snapped.x,
+          y: snapped.y,
+        };
+      });
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+
+    return () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      liveCallActiveRef.current = false;
+      liveCallStopListening();
+      if (liveCallMicStreamRef.current) {
+        liveCallMicStreamRef.current.getTracks().forEach((t) => t.stop());
+        liveCallMicStreamRef.current = null;
+      }
+      if (liveCallMaxDurationTimerRef.current) {
+        window.clearTimeout(liveCallMaxDurationTimerRef.current);
+        liveCallMaxDurationTimerRef.current = null;
+      }
+      stopLiveCallSilenceDetection();
+    };
+  }, []);
 
   if (!personality) {
     return (
@@ -3377,12 +5265,186 @@ export default function ChatWindow({
       </>
     );
   }
-
+              <div className="live-call-tap-hint">Speak naturally. Voxis sends after a short pause.</div>
   const avatarSpeaking = Boolean(liveReply) || isAudioPlaying;
 
   return (
     <>
       <style>{chatStyles}</style>
+
+      {/* ── Live Call Overlay ─────────────────────────────────────────── */}
+      {isLiveCallActive && (
+        <div className="live-call-overlay">
+          {liveBrainIsDragging && (
+            <div className="live-call-snap-guides">
+              {["left", "center", "right"].map((zone) => (
+                <div key={zone} className={`live-call-snap-zone${liveBrainDragActiveZone === zone ? " active" : ""}`}>
+                  <span className="live-call-snap-zone-label">{zone}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="live-call-layout">
+            <div className="live-call-card">
+              <div className="live-call-name">Live call · {personality.name}</div>
+              {personality.avatarImageUrl && (
+                <img
+                  src={personality.avatarImageUrl}
+                  alt={personality.name}
+                  className="live-call-avatar-portrait"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              )}
+              {(() => {
+                const isInterruptible =
+                  convPhase === CONV_PHASE.SPEAKING ||
+                  convPhase === CONV_PHASE.GENERATING_AUDIO ||
+                  convPhase === CONV_PHASE.THINKING;
+                const orbClass = [
+                  "live-call-orb",
+                  convPhase === CONV_PHASE.LISTENING        ? "listening"
+                  : convPhase === CONV_PHASE.SPEAKING || convPhase === CONV_PHASE.RECOVERING ? "speaking"
+                  : convPhase === CONV_PHASE.ERROR          ? "error"
+                  : "processing",
+                  isInterruptible ? "interruptible" : "",
+                ].filter(Boolean).join(" ");
+                const orbEmoji =
+                  convPhase === CONV_PHASE.LISTENING   ? "🎙"
+                  : convPhase === CONV_PHASE.SPEAKING || convPhase === CONV_PHASE.RECOVERING ? "🔊"
+                  : convPhase === CONV_PHASE.ERROR     ? "⚠"
+                  : "⟳";
+                return (
+                  <div
+                    className={orbClass}
+                    role={isInterruptible ? "button" : undefined}
+                    tabIndex={isInterruptible ? 0 : undefined}
+                    title={isInterruptible ? "Tap to interrupt" : undefined}
+                    onClick={isInterruptible ? interruptLiveCall : undefined}
+                    onKeyDown={isInterruptible ? (e) => { if (e.key === "Enter" || e.key === " ") interruptLiveCall(); } : undefined}
+                  >
+                    {orbEmoji}
+                  </div>
+                );
+              })()}
+              <div className="live-call-phase-label">
+                {convPhase === CONV_PHASE.LISTENING        ? "Listening…"
+                 : convPhase === CONV_PHASE.TRANSCRIBING   ? "Understanding…"
+                 : convPhase === CONV_PHASE.THINKING       ? "Thinking…"
+                 : convPhase === CONV_PHASE.GENERATING_AUDIO ? "Preparing voice…"
+                 : convPhase === CONV_PHASE.SPEAKING       ? "Speaking…"
+                 : convPhase === CONV_PHASE.RECOVERING     ? ""
+                 : convPhase === CONV_PHASE.ERROR          ? "Error — tap ✕ to exit"
+                 : ""}
+              </div>
+              {convPhase === CONV_PHASE.LISTENING && (
+                <div className="live-call-tap-hint">Speak, then press stop to send</div>
+              )}
+              {(convPhase === CONV_PHASE.SPEAKING ||
+                convPhase === CONV_PHASE.GENERATING_AUDIO ||
+                convPhase === CONV_PHASE.THINKING) && (
+                <div className="live-call-interrupt-hint">tap orb to interrupt</div>
+              )}
+              {liveCallDebugMode && convEventLog.length > 0 && (
+                <div className="live-call-debug-log">
+                  {convEventLog.map((entry, i) => (
+                    <div key={i}>{new Date(entry.ts).toISOString().slice(11, 23)} {entry.action}</div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 12, marginTop: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  className="live-call-secondary-btn"
+                  onClick={() => setShowLiveBrainWindow((prev) => !prev)}
+                >
+                  {showLiveBrainWindow ? "Hide Neural Core" : "Show Neural Core"}
+                </button>
+                {convPhase === CONV_PHASE.LISTENING && (
+                  <button
+                    type="button"
+                    className="live-call-stop-btn"
+                    title="Stop listening and send"
+                    onClick={liveCallStopListening}
+                  >
+                    ⬛
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="live-call-end-btn"
+                  title="End call"
+                  onClick={endLiveCall}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Neural Core Window (persists beyond live call) ──────────────── */}
+      {showLiveBrainWindow && (
+        <aside
+          ref={liveBrainWindowRef}
+          className={`live-call-brain-window${liveBrainViewMode === "compact" ? " compact" : ""}`}
+          aria-label="Live neural core telemetry"
+          style={{
+            width: `${liveBrainWindow.width}px`,
+            height: `${liveBrainWindow.height}px`,
+            transform: `translate(${liveBrainWindow.x}px, ${liveBrainWindow.y}px)`,
+            position: 'fixed',
+            zIndex: 9999,
+          }}
+        >
+          <div className="live-call-brain-head" onPointerDown={handleLiveBrainDragStart}>
+            <span className="live-call-brain-title">
+              Neural Core · {liveBrainSnapZone}
+            </span>
+            <div className="live-call-brain-controls">
+              <button
+                type="button"
+                className="live-call-secondary-btn"
+                onClick={() => setLiveBrainViewMode((prev) => (prev === "full" ? "compact" : "full"))}
+              >
+                {liveBrainViewMode === "full" ? "Compact" : "Full"}
+              </button>
+              <button
+                type="button"
+                className="live-call-secondary-btn"
+                onClick={() => {
+                  setLiveBrainWindow({ x: 0, y: 0, width: 720, height: 560 });
+                  setLiveBrainSnapZone("center");
+                }}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="live-call-secondary-btn"
+                onClick={() => setShowLiveBrainWindow(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+          <div className="live-call-brain-body">
+            {liveBrainViewMode === "compact" ? (
+              <CompactLiveBrain
+                brainEvents={Array.isArray(brainEvents) ? brainEvents : []}
+                livePhase={convPhase}
+              />
+            ) : (
+              <BrainTab
+                brainEvents={Array.isArray(brainEvents) ? brainEvents : []}
+                personality={personality}
+                livePhase={convPhase}
+              />
+            )}
+          </div>
+        </aside>
+      )}
+
       {performanceText && (
         <PerformancePlayer
           personalityId={personality.id}
@@ -3393,6 +5455,13 @@ export default function ChatWindow({
       )}
       <div className="chat-shell">
         <div className={`chat-card${!disableNeuronMap3d && neuralActivity > 0.4 ? " neural-active" : ""}`}>
+          {/* Holographic shimmer overlay — static in chat mode */}
+          <div
+            className="holo-shimmer"
+            style={{
+              background: "radial-gradient(ellipse at 50% 50%, rgba(78,255,200,0.06) 0%, rgba(130,80,255,0.04) 35%, transparent 60%)",
+            }}
+          />
           <NeuralCore
             personality={personality}
             mode={activeMode || "scientist"}
@@ -3500,6 +5569,14 @@ export default function ChatWindow({
                   <div className="sys-observer-card">
                     <div className="sys-observer-card-title">LLM</div>
                     <div className="sys-observer-row">
+              <div className="voice-telemetry" style={{ marginTop: 6, marginBottom: 6 }}>
+                Current TTS Engine: <strong>{currentTtsEngine}</strong>
+                {voiceTelemetry?.fallbackUsed ? (
+                  <span style={{ marginLeft: 6 }}>
+                    (fallback from {String(voiceTelemetry?.fallbackFrom || "primary")})
+                  </span>
+                ) : null}
+              </div>
                       <span className="sys-observer-label">model</span>
                       <span className="sys-observer-value" title={activeUsage?.model || "unknown"}>
                         {activeUsage?.model ? activeUsage.model.split("/").pop() : "—"}
@@ -3607,6 +5684,146 @@ export default function ChatWindow({
                         </>
                       ) : <span className="sys-observer-label">No adjudication data yet</span>;
                     })()}
+                  </div>
+
+                  {/* Request Rates */}
+                  <div className="sys-observer-card">
+                    <div className="sys-observer-card-title">Requests (60s)</div>
+                    {requestMetrics?.alerts?.highRequestRate ? (
+                      <div className="sys-observer-row" style={{ marginBottom: 6 }}>
+                        <span className="sys-observer-status warn">high activity</span>
+                        <span className="sys-observer-value">{requestMetrics.alerts.message}</span>
+                      </div>
+                    ) : null}
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">total</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.all?.perMin || 0).toLocaleString()} req/min
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">cartesia</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.cartesia?.perMin || 0).toLocaleString()} req/min
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">tts</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.tts?.perMin || 0).toLocaleString()} req/min
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">stt</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.stt?.perMin || 0).toLocaleString()} req/min
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">llm</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.llm?.perMin || 0).toLocaleString()} req/min
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">settings</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.settings?.perMin || 0).toLocaleString()} req/min
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">lifetime total</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.categories?.all?.total || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">websockets active</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.transport?.websocketsActive || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">event sources active</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.transport?.eventSourcesActive || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="sys-observer-row">
+                      <span className="sys-observer-label">streams active</span>
+                      <span className="sys-observer-value">
+                        {Number(requestMetrics?.transport?.streamsActive || 0).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 8 }}>
+                      <div className="sys-observer-label" style={{ marginBottom: 6 }}>Top Talkers</div>
+                      {Array.isArray(requestMetrics?.topTalkers) && requestMetrics.topTalkers.length > 0 ? (
+                        <div style={{ display: "grid", gap: 4 }}>
+                          {requestMetrics.topTalkers.map((item) => {
+                            const bins = Array.isArray(item.sparkBins) ? item.sparkBins : [];
+                            const maxBin = Math.max(1, ...bins);
+                            const severity = String(item.severity || "normal");
+                            const sparkColor =
+                              severity === "hot"
+                                ? "#fb7185"
+                                : severity === "warn"
+                                  ? "#fbbf24"
+                                  : "rgba(78,255,216,0.9)";
+                            const badgeStyle =
+                              severity === "hot"
+                                ? { background: "rgba(251,113,133,0.22)", color: "#fb7185", border: "1px solid rgba(251,113,133,0.45)" }
+                                : severity === "warn"
+                                  ? { background: "rgba(251,191,36,0.2)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.45)" }
+                                  : { background: "rgba(78,255,216,0.14)", color: "#4effd8", border: "1px solid rgba(78,255,216,0.35)" };
+                            const points = bins.length > 1
+                              ? bins
+                                .map((value, index) => {
+                                  const x = (index / (bins.length - 1)) * 56;
+                                  const y = 16 - (Number(value || 0) / maxBin) * 14;
+                                  return `${x.toFixed(1)},${y.toFixed(1)}`;
+                                })
+                                .join(" ")
+                              : "0,16 56,16";
+
+                            return (
+                              <div className="sys-observer-row" key={item.endpoint}>
+                                <span className="sys-observer-label" title={item.endpoint} style={{ maxWidth: "58%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {item.endpoint}
+                                </span>
+                                <svg width="56" height="16" viewBox="0 0 56 16" aria-hidden="true" style={{ opacity: 0.85, marginLeft: 6, marginRight: 6 }}>
+                                  <polyline points={points} fill="none" stroke={sparkColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                <span style={{ ...badgeStyle, borderRadius: 999, padding: "0 6px", fontSize: "0.63rem", lineHeight: "1.1rem", marginRight: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                  {severity}
+                                </span>
+                                <span className="sys-observer-value">{Number(item.perMin || 0).toLocaleString()} req/min</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="sys-observer-label">No active endpoints in the last minute.</span>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 8 }}>
+                      <div className="sys-observer-label" style={{ marginBottom: 6 }}>Recent Lineage</div>
+                      {Array.isArray(requestMetrics?.recentRequests) && requestMetrics.recentRequests.length > 0 ? (
+                        <div style={{ display: "grid", gap: 4 }}>
+                          {requestMetrics.recentRequests.slice(-5).reverse().map((item, index) => (
+                            <div className="sys-observer-row" key={`${item.at}-${index}`}>
+                              <span className="sys-observer-label" title={`${item.cause || "unknown-cause"} -> ${item.endpoint}`} style={{ maxWidth: "74%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {item.cause || "unknown-cause"}{" -> "}{item.endpoint}
+                              </span>
+                              <span className="sys-observer-value">{item.method}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="sys-observer-label">No recent lineage data.</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Persona State Monitor */}
@@ -3775,6 +5992,61 @@ export default function ChatWindow({
               </button>
             </div>
 
+            {/* ── Voice Stack quick row ──────────────────────────────── */}
+            {(() => {
+              const engine = String(voiceProfile.engine || "auto").trim().toLowerCase();
+              const voiceName = (() => {
+                if (engine === "kokoro") return String(voiceProfile.kokoroVoice || "af_heart").trim();
+                if (engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && engine === "auto")) {
+                  const id = String(voiceProfile.cartesiaVoiceId || "").trim();
+                  if (!id) return "— none —";
+                  const found = cartesiaVoiceOptions.find((v) => v.id === id);
+                  return found ? found.label : id.slice(0, 16) + (id.length > 16 ? "…" : "");
+                }
+                return String(voiceProfile.providerVoice || "alloy").trim();
+              })();
+              const voiceId = engine === "kokoro"
+                ? String(voiceProfile.kokoroVoice || "af_heart").trim()
+                : engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && engine === "auto")
+                  ? String(voiceProfile.cartesiaVoiceId || "").trim()
+                  : String(voiceProfile.providerVoice || "").trim();
+              const isFav = engine === "kokoro"
+                ? favoriteKokoroVoiceIds.has(voiceId)
+                : favoriteCartesiaVoiceIds.has(voiceId);
+              const suggested = recommendedCartesiaVoice;
+              const showSuggested = suggested && suggested.id !== String(voiceProfile.cartesiaVoiceId || "").trim() && (engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && engine === "auto"));
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "4px 0 6px", borderBottom: "1px solid rgba(0,234,255,0.08)", marginBottom: 8 }}>
+                  <span style={{ fontSize: "0.68rem", opacity: 0.55, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{engine}</span>
+                  <span style={{ fontSize: "0.8rem", opacity: 0.9, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{voiceName}</span>
+                  {voiceId ? (
+                    <button
+                      type="button"
+                      title={isFav ? "Unfavorite" : "Favorite this voice"}
+                      onClick={() => {
+                        const voiceObj = { id: voiceId, label: voiceName };
+                        const eng = (engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && engine === "auto")) ? "cartesia" : "kokoro";
+                        toggleQuickVoiceFavorite(eng, voiceObj);
+                      }}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", color: isFav ? "#ffd700" : "rgba(255,255,255,0.45)", padding: "0 2px" }}
+                    >
+                      {isFav ? "★" : "☆"}
+                    </button>
+                  ) : null}
+                  {showSuggested ? (
+                    <button
+                      type="button"
+                      title={`Suggested: ${suggested.label}`}
+                      onClick={() => handleQuickCartesiaVoiceChange(suggested.id)}
+                      style={{ background: "none", border: "1px solid rgba(0,234,255,0.35)", borderRadius: 10, cursor: "pointer", fontSize: "0.7rem", color: "#00eaff", padding: "1px 7px", whiteSpace: "nowrap" }}
+                    >
+                      💡 {suggested.label.split(" ")[0]}
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })()}
+
             <div className="voice-toggles">
               <label className="voice-toggle">
                 <input
@@ -3823,23 +6095,41 @@ export default function ChatWindow({
               </select>
               <label htmlFor="voice-quick-select">Voice:</label>
               {voiceProfile.engine === "kokoro" ? (
-                <select
-                  id="voice-quick-select"
-                  value={voiceProfile.kokoroVoice || "af_heart"}
-                  onChange={(event) => updateVoiceField("kokoroVoice", event.target.value)}
-                >
-                  <option value="af_heart">af_heart — warm female</option>
-                  <option value="af_nova">af_nova — energetic female</option>
-                  <option value="af_sarah">af_sarah — casual female</option>
-                  <option value="af_sky">af_sky — light female</option>
-                  <option value="am_adam">am_adam — warm male</option>
-                  <option value="am_onyx">am_onyx — deep male</option>
-                  <option value="am_michael">am_michael — mid male</option>
-                  <option value="bf_alice">bf_alice — British female</option>
-                  <option value="bf_emma">bf_emma — expressive British female</option>
-                  <option value="bm_george">bm_george — engaging British male</option>
-                  <option value="bm_lewis">bm_lewis — calm British male</option>
-                </select>
+                <>
+                  <select
+                    id="voice-quick-select"
+                    value={voiceProfile.kokoroVoice || "af_heart"}
+                    onChange={(event) => handleQuickKokoroVoiceChange(event.target.value)}
+                  >
+                    <option value="af_heart">af_heart — warm female</option>
+                    <option value="af_nova">af_nova — energetic female</option>
+                    <option value="af_sarah">af_sarah — casual female</option>
+                    <option value="af_sky">af_sky — light female</option>
+                    <option value="am_adam">am_adam — warm male</option>
+                    <option value="am_onyx">am_onyx — deep male</option>
+                    <option value="am_michael">am_michael — mid male</option>
+                    <option value="bf_alice">bf_alice — British female</option>
+                    <option value="bf_emma">bf_emma — expressive British female</option>
+                    <option value="bm_george">bm_george — engaging British male</option>
+                    <option value="bm_lewis">bm_lewis — calm British male</option>
+                  </select>
+                  <div className="voice-telemetry" style={{ marginTop: 6 }}>
+                    <button
+                      type="button"
+                      className="voice-open-lab"
+                      style={{ padding: "2px 8px", fontSize: "0.68rem" }}
+                      onClick={() =>
+                        toggleQuickVoiceFavorite("kokoro", {
+                          id: String(voiceProfile.kokoroVoice || "").trim(),
+                          label: String(voiceProfile.kokoroVoice || "kokoro").trim(),
+                        })
+                      }
+                    >
+                      {favoriteKokoroVoiceIds.has(String(voiceProfile.kokoroVoice || "").trim()) ? "★ Unfavorite" : "☆ Favorite"}
+                    </button>
+                    <span style={{ marginLeft: 8, opacity: 0.85 }}>Switching voice re-renders latest reply audio.</span>
+                  </div>
+                </>
               ) : voiceProfile.engine === "cartesia" || (TTS_DEBUG_PROVIDER_LOCK && voiceProfile.engine === "auto") ? (
                 <>
                   <select
@@ -3853,9 +6143,17 @@ export default function ChatWindow({
                         }
                         return;
                       }
-                      updateVoiceField("cartesiaVoiceId", nextValue);
+                      handleQuickCartesiaVoiceChange(nextValue);
                     }}
                   >
+                    {cartesiaFavoriteOptions.length > 0 ? (
+                      <>
+                        <option value="" disabled>Favorites</option>
+                        {cartesiaFavoriteOptions.map((voice) => (
+                          <option key={`fav-${voice.id}`} value={voice.id}>★ {voice.label}</option>
+                        ))}
+                      </>
+                    ) : null}
                     {cartesiaVoiceOptions.map((voice) => (
                       <option key={voice.id} value={voice.id}>{voice.label}</option>
                     ))}
@@ -3873,9 +6171,57 @@ export default function ChatWindow({
                       type="text"
                       placeholder="Cartesia voice ID (UUID)"
                       value={voiceProfile.cartesiaVoiceId || ""}
-                      onChange={(event) => updateVoiceField("cartesiaVoiceId", event.target.value)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        updateVoiceField("cartesiaVoiceId", value);
+                        updateVoiceField("providerVoice", value);
+                        updateVoiceField("preferredVoice", value);
+                      }}
                       style={{ marginTop: 8, fontFamily: "monospace", fontSize: "0.78rem", padding: "4px 8px", borderRadius: "6px", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,234,255,0.2)", color: "#88ecff", width: "100%", boxSizing: "border-box" }}
                     />
+                  ) : null}
+                  <div className="voice-telemetry" style={{ marginTop: 6 }}>
+                    <button
+                      type="button"
+                      className="voice-open-lab"
+                      style={{ padding: "2px 8px", fontSize: "0.68rem" }}
+                      disabled={isLoadingCartesiaVoices}
+                      onClick={() => void loadCartesiaVoiceOptions({ force: true })}
+                    >
+                      {isLoadingCartesiaVoices ? "Refreshing..." : `Refresh list (${cartesiaVoiceOptions.length})`}
+                    </button>
+                    <button
+                      type="button"
+                      className="voice-open-lab"
+                      style={{ padding: "2px 8px", fontSize: "0.68rem", marginLeft: 8 }}
+                      onClick={() => {
+                        const selectedVoice = cartesiaVoiceOptions.find((voice) => voice.id === String(voiceProfile.cartesiaVoiceId || "").trim());
+                        if (!selectedVoice) {
+                          return;
+                        }
+                        toggleQuickVoiceFavorite("cartesia", selectedVoice);
+                      }}
+                    >
+                      {favoriteCartesiaVoiceIds.has(String(voiceProfile.cartesiaVoiceId || "").trim()) ? "★ Unfavorite" : "☆ Favorite"}
+                    </button>
+                  </div>
+                  {recommendedCartesiaVoice && String(voiceProfile.cartesiaVoiceId || "").trim() !== String(recommendedCartesiaVoice.id || "").trim() ? (
+                    <div className="voice-telemetry" style={{ marginTop: 4 }}>
+                      Suggested for this persona: {recommendedCartesiaVoice.label}
+                      <button
+                        type="button"
+                        className="voice-open-lab"
+                        style={{ padding: "2px 8px", fontSize: "0.68rem", marginLeft: 8 }}
+                        onClick={() => handleQuickCartesiaVoiceChange(recommendedCartesiaVoice.id)}
+                      >
+                        Use Suggested
+                      </button>
+                    </div>
+                  ) : null}
+                  {cartesiaVoiceLoadError ? (
+                    <div className="voice-telemetry" style={{ marginTop: 4, color: "#ff9b9b" }}>
+                      {cartesiaVoiceLoadError}
+                    </div>
                   ) : null}
                 </>
               ) : (
@@ -3896,20 +6242,68 @@ export default function ChatWindow({
               )}
             </div>
 
+            <div className="voice-quick-controls">
+              <div className="voice-control-row">
+                <div className="voice-control-header">
+                  <span className="voice-control-label">Pitch</span>
+                  <span className="voice-control-value">{(voiceProfile.pitch || 0).toFixed(2)}</span>
+                </div>
+                <input
+                  type="range"
+                  className="voice-slider"
+                  min="-20"
+                  max="20"
+                  step="0.1"
+                  value={voiceProfile.pitch || 0}
+                  onChange={(e) => updateVoiceField("pitch", parseFloat(e.target.value))}
+                />
+              </div>
+              <div className="voice-control-row">
+                <div className="voice-control-header">
+                  <span className="voice-control-label">Rate</span>
+                  <span className="voice-control-value">{(voiceProfile.rate || 1).toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  className="voice-slider"
+                  min="0.5"
+                  max="2.0"
+                  step="0.05"
+                  value={voiceProfile.rate || 1}
+                  onChange={(e) => updateVoiceField("rate", parseFloat(e.target.value))}
+                />
+              </div>
+            </div>
+
             <div className="voice-actions">
               <button
                 type="button"
-                  className="voice-btn"
-                  onClick={() => void generateAudio(latestAssistantSpeechText)}
+                className="voice-icon-btn primary"
+                data-tip={isGeneratingAudio ? "Generating…" : "Play Latest Reply"}
+                onClick={() => void generateAudio(latestAssistantSpeechText)}
                 disabled={isGeneratingAudio || !latestAssistantMessage}
+                aria-label="Play Latest Reply"
               >
-                {isGeneratingAudio ? "Generating…" : "▶ Play Latest Reply"}
+                {isGeneratingAudio ? "⟳" : "▶"}
               </button>
-              <button type="button" className="voice-btn sec" onClick={stopSpeaking}>
-                ■ Stop
+              <button
+                type="button"
+                className="voice-icon-btn"
+                data-tip="Stop Playback"
+                onClick={stopSpeaking}
+                aria-label="Stop Playback"
+              >
+                ■
               </button>
-              <button type="button" className="voice-btn sec" onClick={handleSaveVoiceProfile}>
-                {isSavingVoice ? "Saving…" : "✦ Save Quick Voice"}
+              <button
+                type="button"
+                className="voice-icon-btn"
+                data-tip={isSavingVoice ? "Saving…" : "Save Quick Voice"}
+                onClick={handleSaveVoiceProfile}
+                disabled={isSavingVoice}
+                aria-label="Save Quick Voice"
+              >
+                {isSavingVoice ? "⟳" : "💾"}
               </button>
             </div>
 
@@ -4020,6 +6414,7 @@ export default function ChatWindow({
               />
             </div>
             <div className="avatar-panel-name">{personality.name}</div>
+            <MiniBrain brainEvents={brainEvents} />
             <div className="avatar-panel-mood">
               <span
                 className={`avatar-panel-zone-pill${zoneShiftActive ? " zone-shift" : ""}`}
@@ -4295,6 +6690,23 @@ export default function ChatWindow({
                 </button>
                 <button
                   type="button"
+                  className={`composer-icon-btn${isLiveCallActive ? " live-call-active" : ""}`}
+                  onClick={isLiveCallActive ? endLiveCall : startLiveCall}
+                  title={isLiveCallActive ? "End live call" : "Start live call (voice conversation)"}
+                >
+                  {isLiveCallActive ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M16 2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-1a9 9 0 0 1-9-9V2a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.38 2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6 6l.86-.86a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  type="button"
                   className="composer-icon-btn"
                   onClick={handleFileButtonClick}
                   title="Attach file"
@@ -4303,12 +6715,6 @@ export default function ChatWindow({
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
                 </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  style={{ display: "none" }}
-                  onChange={handleFileSelect}
-                />
               </div>
               {attachedFile && (
                 <div className="composer-file-preview">

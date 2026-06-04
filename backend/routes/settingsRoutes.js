@@ -37,6 +37,8 @@ import {
   getVoiceMapsHandler,
   saveVoiceMapHandler,
   deleteVoiceMapHandler,
+  getVoiceFavoritesHandler,
+  saveVoiceFavoritesHandler,
 } from "../controllers/settingsController.js";
 import { requireAuth, requireAdmin } from "../middleware/requireAuth.js";
 
@@ -80,5 +82,7 @@ router.put("/settings/companion-aliases", requireAuth, requireAdmin, saveCompani
 router.get("/settings/voice-maps", requireAuth, getVoiceMapsHandler);
 router.put("/settings/voice-maps", requireAuth, saveVoiceMapHandler);
 router.delete("/settings/voice-maps/:id", requireAuth, deleteVoiceMapHandler);
+router.get("/settings/voice-favorites", requireAuth, getVoiceFavoritesHandler);
+router.put("/settings/voice-favorites", requireAuth, saveVoiceFavoritesHandler);
 
 export default router;

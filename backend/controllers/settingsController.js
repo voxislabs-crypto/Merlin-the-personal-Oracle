@@ -39,6 +39,8 @@ import {
   setCognitionLoopConfig,
   getCompanionAliasConfig,
   setCompanionAliasConfig,
+  getVoiceFavorites,
+  setVoiceFavorites,
 } from "../models/settingsModel.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -580,4 +582,16 @@ export function deleteVoiceMapHandler(req, res) {
 
   const maps = deleteSavedVoiceMap({ userId, id });
   return res.json({ maps });
+}
+
+export function getVoiceFavoritesHandler(req, res) {
+  const userId = req.voxisUser?.id ?? null;
+  return res.json({ favorites: getVoiceFavorites(userId) });
+}
+
+export function saveVoiceFavoritesHandler(req, res) {
+  const userId = req.voxisUser?.id ?? null;
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const saved = setVoiceFavorites(userId, body.favorites || {});
+  return res.json({ favorites: saved });
 }

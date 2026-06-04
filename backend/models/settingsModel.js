@@ -803,3 +803,34 @@ export function setCompanionAliasConfig(config) {
   writeAppSetting(COMPANION_ALIAS_CONFIG_KEY, payload);
   return getCompanionAliasConfig();
 }
+
+// ── Voice Favorites ──────────────────────────────────────────────────────────
+const VOICE_FAVORITES_KEY = "voice_favorites";
+
+function sanitizeVoiceFavorites(favs) {
+  const src = favs && typeof favs === "object" ? favs : {};
+  const cleanList = (list) =>
+    Array.isArray(list)
+      ? list
+          .filter((v) => v && String(v.id || "").trim())
+          .map((v) => ({ id: String(v.id).trim(), label: String(v.label || v.id).trim() }))
+          .slice(0, 200)
+      : [];
+  return { cartesia: cleanList(src.cartesia), kokoro: cleanList(src.kokoro) };
+}
+
+export function getVoiceFavorites(userId = null) {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(VOICE_FAVORITES_KEY);
+  const store = parseJsonObject(row?.value || "") || {};
+  const key = String(userId || "global");
+  return sanitizeVoiceFavorites(store[key] || {});
+}
+
+export function setVoiceFavorites(userId = null, favorites) {
+  const row = db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(VOICE_FAVORITES_KEY);
+  const store = parseJsonObject(row?.value || "") || {};
+  const key = String(userId || "global");
+  store[key] = sanitizeVoiceFavorites(favorites);
+  writeAppSetting(VOICE_FAVORITES_KEY, store);
+  return store[key];
+}

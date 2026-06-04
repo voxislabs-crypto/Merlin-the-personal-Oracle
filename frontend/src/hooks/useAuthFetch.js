@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useAuth } from "@clerk/react";
+import { trackedFetch } from "../utils/requestTracker.js";
 
 export function useAuthFetch() {
   const { getToken } = useAuth();
@@ -10,14 +11,18 @@ export function useAuthFetch() {
       const headers = {
         ...(options.headers || {}),
       };
+      const cause = String(options.__voxisCause || `authFetch:${url}`).trim();
 
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      return fetch(url, {
+      return trackedFetch(url, {
         ...options,
         headers,
+      }, {
+        cause,
+        transport: "auth-fetch",
       });
     },
     [getToken],

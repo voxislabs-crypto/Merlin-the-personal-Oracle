@@ -19,7 +19,7 @@ const PersonaDetailView = ({ persona, onClose }) => {
         <div className="detail-left">
           <div className="persona-visual">
             <img 
-              src={persona.image || '/default-avatar.png'} 
+              src={persona.avatarImageUrl || persona.image || '/default-avatar.png'} 
               alt={persona.name}
               className="detail-image"
             />

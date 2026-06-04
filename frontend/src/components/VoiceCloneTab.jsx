@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
+import { trackedFetch } from "../utils/requestTracker.js";
 
 const STEPS = {
   downloading: "Fetching audio…",
@@ -133,10 +134,12 @@ export default function VoiceCloneTab({ personality, onStatus }) {
       const headers = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const response = await fetch(`/api/personality/${personalityId}/voice-clone`, {
+      const response = await trackedFetch(`/api/personality/${personalityId}/voice-clone`, {
         method: "POST",
         headers,
         body: formData,
+      }, {
+        cause: `voice-clone:start:${cloneEngine}`,
       });
 
       if (!response.ok) {
@@ -239,10 +242,12 @@ export default function VoiceCloneTab({ personality, onStatus }) {
       const headers = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch("/api/voice-clone/rvc-packs", {
+      const res = await trackedFetch("/api/voice-clone/rvc-packs", {
         method: "POST",
         headers,
         body: fd,
+      }, {
+        cause: "voice-clone:upload-rvc-pack",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");

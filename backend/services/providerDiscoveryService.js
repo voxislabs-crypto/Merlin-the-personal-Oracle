@@ -60,9 +60,9 @@ const PROVIDERS = [
     modelsPath: "/models",
   },
   {
-    id: "awan",
-    name: "Awan LLM",
-    baseUrl: "https://api.awanllm.com/v1",
+    id: "aimlapi",
+    name: "AIML API",
+    baseUrl: "https://api.aimlapi.com/v1",
     auth: "bearer",
     modelsPath: "/models",
   },

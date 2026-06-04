@@ -45,6 +45,7 @@ export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
   return {
     enabled: source.enabled !== false,
     autoplay: Boolean(source.autoplay),
+    strictEngine: Boolean(source.strictEngine ?? fallback.strictEngine),
     engine: isAllowedVoiceEngine(engine)
       ? engine === "openai"
         ? "cloud"

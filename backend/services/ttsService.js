@@ -1872,12 +1872,14 @@ function buildCartesiaExperimentalControls(adj) {
 
   const { rateDelta = 0, style = "neutral", energyBoost = 0 } = adj;
 
-  // Map rate delta to Cartesia speed string
+  // Map rate delta to Cartesia speed control in the supported range [-1.0, 1.0].
+  // Upstream rejects multiplier-style values like 1.04 with:
+  // "speed float must be between -1.0 and 1.0".
   let speed = null;
-  if (rateDelta >= 0.12) speed = "fast";
-  else if (rateDelta >= 0.06) speed = "slightly_fast";
-  else if (rateDelta <= -0.10) speed = "slow";
-  else if (rateDelta <= -0.05) speed = "slightly_slow";
+  // Ignore tiny drift so neutral turns don't emit noisy controls (e.g. 0.02).
+  if (Math.abs(rateDelta) > 0.05) {
+    speed = Number(Math.min(1.0, Math.max(-1.0, rateDelta)).toFixed(2));
+  }
 
   // Map style label to Cartesia emotion tag
   const STYLE_TO_EMOTION = {
@@ -2062,6 +2064,7 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
   const requested = requestedRaw !== "auto" && !isAllowedTtsEngine(requestedRaw)
     ? "auto"
     : requestedRaw;
+  const strictEngine = Boolean(voiceProfile?.strictEngine);
 
   const engine = resolveEngine(voiceProfile);
   const { directedText, adjustedVoiceProfile, prosodyEnvelope, speechContext, speechPacket, sfx } = prepareSpeechSynthesis({
@@ -2107,6 +2110,9 @@ export async function generateSpeechAudio({ personality, text, voiceProfile, spe
     // timeout/network/upstream instability, degrade to another configured
     // engine instead of surfacing opaque gateway failures.
     if (requested === "cartesia" || provider === "cartesia") {
+      if (strictEngine) {
+        return false;
+      }
       if (isTtsDebugProviderLockEnabled()) {
         return false;
       }
@@ -2430,6 +2436,37 @@ function sortByLabel(left, right) {
   return String(left.label || left.id || "").localeCompare(String(right.label || right.id || ""));
 }
 
+function extractCartesiaVoiceTags(voice) {
+  const candidateValues = [
+    voice?.name,
+    voice?.description,
+    voice?.gender,
+    voice?.age,
+    voice?.accent,
+    voice?.language,
+    voice?.locale,
+    ...(Array.isArray(voice?.tags) ? voice.tags : []),
+    ...(Array.isArray(voice?.traits) ? voice.traits : []),
+    ...(Array.isArray(voice?.styles) ? voice.styles : []),
+  ];
+
+  const tags = candidateValues
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  const unique = [];
+  const seen = new Set();
+  for (const tag of tags) {
+    if (seen.has(tag)) {
+      continue;
+    }
+    seen.add(tag);
+    unique.push(tag);
+  }
+
+  return unique;
+}
+
 async function fetchElevenLabsOptions() {
   const config = getElevenLabsConfig();
   if (!config.apiKey) {
@@ -2565,6 +2602,7 @@ async function fetchCartesiaOptions() {
         id: String(voice?.id || voice?.voice_id || "").trim(),
         label: normalizeOptionName(voice?.name, voice?.id || voice?.voice_id),
         previewUrl: String(voice?.preview_url || "").trim(),
+        tags: extractCartesiaVoiceTags(voice),
       }))
       .filter((voice) => voice.id)
       .sort(sortByLabel);

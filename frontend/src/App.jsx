@@ -988,6 +988,7 @@ export default function App() {
   const [selectedMode, setSelectedMode] = useState("normal");
   const [chatPolicy, setChatPolicy] = useState(null);
   const [profileDraft, setProfileDraft] = useState({
+    displayName: "",
     defaultMode: "normal",
     safetyTier: "standard",
     performanceTier: "balanced",
@@ -995,7 +996,10 @@ export default function App() {
     supervisedAdvancedMode: false,
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(() => {
+    const saved = localStorage.getItem("voxis:lastPersonaId");
+    return saved ? Number(saved) : null;
+  });
   const [activeView, setActiveView] = useState("chat");
   const [personaEditorTarget, setPersonaEditorTarget] = useState(null);
   const [builderMode, setBuilderMode] = useState("create");
@@ -1075,10 +1079,14 @@ export default function App() {
       return null;
     }
 
-    return {
-      type: eventName,
-      payload: JSON.parse(dataLines.join("\n")),
-    };
+    try {
+      return {
+        type: eventName,
+        payload: JSON.parse(dataLines.join("\n")),
+      };
+    } catch {
+      return null;
+    }
   }
 
   function clipText(text, max = 72) {
@@ -1376,6 +1384,13 @@ export default function App() {
     void loadPersonalityMemory(selectedId);
   }, [selectedId]);
 
+  // Persist selected persona ID across sessions
+  useEffect(() => {
+    if (selectedId !== null) {
+      localStorage.setItem("voxis:lastPersonaId", String(selectedId));
+    }
+  }, [selectedId]);
+
   useEffect(() => {
     if (!allowedModes.includes(selectedMode)) {
       setSelectedMode(allowedModes[0] || "scientist");
@@ -1404,6 +1419,7 @@ export default function App() {
     }
 
     setProfileDraft({
+      displayName: selectedUser?.displayName || "",
       defaultMode: selectedUserProfile.defaultMode || "scientist",
       safetyTier: selectedUserProfile.safetyTier || "standard",
       performanceTier: selectedUserProfile.performanceTier || "balanced",
@@ -1656,6 +1672,9 @@ export default function App() {
         ...current,
         [selectedUserId]: data.profile,
       }));
+      if (data.user) {
+        setUsers((current) => current.map((u) => (u.id === data.user.id ? data.user : u)));
+      }
       setStatus({ type: "success", message: "User policy profile saved." });
     } catch (error) {
       setStatus({ type: "error", message: error.message || "Failed to save user profile." });
@@ -1686,6 +1705,12 @@ export default function App() {
 
       if (!selectedId && personalityList.length) {
         setSelectedId(personalityList[0].id);
+      } else if (selectedId && personalityList.length) {
+        // Verify saved ID still exists; fallback to first if not
+        const exists = personalityList.some(p => p.id === selectedId);
+        if (!exists) {
+          setSelectedId(personalityList[0].id);
+        }
       }
     } catch (error) {
       setStatus({
@@ -2358,7 +2383,7 @@ export default function App() {
     setStatus({ type: "", message: "" });
   }
 
-  async function handleSendMessage(message) {
+  async function handleSendMessage(message, { isLiveCall = false, voiceBuffer = [] } = {}) {
     if (!selectedPersonality) {
       setStatus({
         type: "error",
@@ -2391,6 +2416,9 @@ export default function App() {
       ],
     }));
 
+    let finalCommitted = false;
+    let partialReply = "";
+
     try {
       const response = await authFetch("/chat", {
         method: "POST",
@@ -2402,8 +2430,12 @@ export default function App() {
           userId: selectedUserId,
           mode: selectedMode,
           message,
+          isLiveCall: isLiveCall === true,
+          voiceBuffer: Array.isArray(voiceBuffer) ? voiceBuffer : [],
           streamDebug: true,
-          streamBrain: activeView === "brain",
+          // Keep brain events flowing during 2-way live calls even when
+          // the user is not currently on the Brain tab.
+          streamBrain: activeView === "brain" || isLiveCall === true,
         }),
       });
 
@@ -2414,7 +2446,6 @@ export default function App() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let finalCommitted = false;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -2483,6 +2514,7 @@ export default function App() {
                 };
               });
             } else if (type === "token") {
+              partialReply = payload.reply || partialReply;
               setLiveChatState((current) => ({
                 ...current,
                 [personalityId]: {
@@ -2503,6 +2535,18 @@ export default function App() {
                   seq: (current[personalityId]?.seq || 0) + 1,
                 },
               }));
+            } else if (type === "audio_chunk") {
+              setLiveChatState((current) => {
+                const prev = current[personalityId] || {};
+                const existing = Array.isArray(prev.nativeLlmAudioChunks) ? prev.nativeLlmAudioChunks : [];
+                return {
+                  ...current,
+                  [personalityId]: {
+                    ...prev,
+                    nativeLlmAudioChunks: [...existing, payload.data],
+                  },
+                };
+              });
             } else if (type === "error") {
               throw new Error(payload.error || "Failed to send chat message.");
             } else if (type === "final") {
@@ -2550,6 +2594,7 @@ export default function App() {
                     usage: payload.usage || current[personalityId]?.usage || null,
                     voiceAdjustments: payload.voiceAdjustments || null,
                     singingActive: payload.singingActive || false,
+                    nativeTtsActive: payload.nativeTtsActive || false,
                     finalReceived: true,
                     seq: (current[personalityId]?.seq || 0) + 1,
                   },
@@ -2620,10 +2665,20 @@ export default function App() {
         }));
       }
     } catch (error) {
-      setChatLogs((current) => ({
-        ...current,
-        [personalityId]: (current[personalityId] || []).slice(0, -1),
-      }));
+      if (!finalCommitted && partialReply.trim()) {
+        setChatLogs((current) => ({
+          ...current,
+          [personalityId]: [
+            ...(current[personalityId] || []),
+            {
+              ...normalizeChatMessage({
+                role: "assistant",
+                content: partialReply.trim() + " \u2026 *[interrupted]*",
+              }),
+            },
+          ],
+        }));
+      }
       setStatus({
         type: "error",
         message: error.message || "Failed to send chat message.",
@@ -2829,6 +2884,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                className={`tab futuristic-btn ${activeView === "llm" ? "active" : ""}`}
+                onClick={() => setActiveView("llm")}
+              >
+                LLM
+              </button>
+              <button
+                type="button"
                 className={`tab futuristic-btn ${activeView === "eval" ? "active" : ""}`}
                 onClick={() => setActiveView("eval")}
               >
@@ -2972,6 +3034,14 @@ export default function App() {
                   </p>
                   <HarnessReport personality={selectedPersonality} onStatus={setStatus} />
                 </>
+              ) : activeView === "llm" ? (
+                <>
+                  <h2 className="section-heading">LLM Provider Configuration</h2>
+                  <p className="section-copy">
+                    Configure chat model provider, API credentials, base URL, and related runtime model settings.
+                  </p>
+                  <LlmSettingsPanel onStatus={setStatus} />
+                </>
               ) : activeView === "settings" ? (
                 <>
                   <h2 className="section-heading">Runtime Settings</h2>
@@ -3010,22 +3080,40 @@ export default function App() {
                       Keeps Brain tab and in-chat Brain button available, while forcing layout/list mode and hiding 3D rendering.
                     </p>
                   </div>
-                  <div className="panel glass-panel holographic-border" style={{ padding: 16, marginBottom: 16 }}>
-                    <h3 style={{ marginTop: 0 }}>User Policy Profile</h3>
-                    <p className="section-copy" style={{ marginBottom: 12 }}>
+                  <div className="panel glass-panel" style={{ padding: 32, marginBottom: 32, borderRadius: 28, background: "linear-gradient(170deg, rgba(0, 4, 14, 0.9), rgba(2, 5, 18, 0.85))", border: "1px solid rgba(255, 255, 255, 0.07)", backdropFilter: "blur(24px)" }}>
+                    <h3 style={{ marginTop: 0, fontSize: "0.75rem", color: "#4effd8", textTransform: "uppercase", letterSpacing: "0.15em", opacity: 0.8 }}>User Policy Profile</h3>
+                    <p className="section-copy" style={{ marginBottom: 20, color: "rgba(255, 255, 255, 0.5)", fontSize: "0.85rem" }}>
                       Configure default mode, Neural Core intensity, and teen supervision controls for the selected profile.
                     </p>
 
-                    <div className="meta-row" style={{ marginBottom: 12 }}>
-                      <span className="meta-pill">User: {selectedUser?.displayName || "None"}</span>
-                      <span className="meta-pill">Age: {selectedUser?.ageBand || "adult"}</span>
+                    <label style={{ display: "grid", gap: 8, marginBottom: 20 }}>
+                      <span className="profile-label" style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Display Name</span>
+                      <input
+                        type="text"
+                        className="profile-select"
+                        style={{ background: "rgba(0, 0, 0, 0.3)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 12, padding: "10px 14px", color: "white", outline: "none" }}
+                        value={profileDraft.displayName}
+                        onChange={(event) =>
+                          setProfileDraft((current) => ({
+                            ...current,
+                            displayName: event.target.value,
+                          }))
+                        }
+                        placeholder="Your name"
+                      />
+                    </label>
+
+                    <div className="meta-row" style={{ marginBottom: 20 }}>
+                      <span className="meta-pill" style={{ background: "rgba(136, 102, 255, 0.1)", border: "1px solid rgba(136, 102, 255, 0.2)", color: "#8866ff" }}>User: {selectedUser?.displayName || "None"}</span>
+                      <span className="meta-pill" style={{ background: "rgba(78, 255, 216, 0.1)", border: "1px solid rgba(78, 255, 216, 0.2)", color: "#4effd8" }}>Age: {selectedUser?.ageBand || "adult"}</span>
                     </div>
 
-                    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                      <label style={{ display: "grid", gap: 6 }}>
-                        <span className="profile-label">Default Mode</span>
+                    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                      <label style={{ display: "grid", gap: 8 }}>
+                        <span className="profile-label" style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Default Mode</span>
                         <select
                           className="profile-select"
+                          style={{ background: "rgba(0, 0, 0, 0.3)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 12, padding: "10px 14px", color: "white", outline: "none" }}
                           value={profileDraft.defaultMode}
                           onChange={(event) =>
                             setProfileDraft((current) => ({
@@ -3040,10 +3128,11 @@ export default function App() {
                         </select>
                       </label>
 
-                      <label style={{ display: "grid", gap: 6 }}>
-                        <span className="profile-label">Safety Tier</span>
+                      <label style={{ display: "grid", gap: 8 }}>
+                        <span className="profile-label" style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Safety Tier</span>
                         <select
                           className="profile-select"
+                          style={{ background: "rgba(0, 0, 0, 0.3)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 12, padding: "10px 14px", color: "white", outline: "none" }}
                           value={profileDraft.safetyTier}
                           onChange={(event) =>
                             setProfileDraft((current) => ({
@@ -3059,14 +3148,15 @@ export default function App() {
                       </label>
                     </div>
 
-                    <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-                      <label style={{ display: "grid", gap: 6 }}>
-                        <span className="profile-label">Neural Core Performance Tier</span>
+                    <div style={{ marginTop: 20, display: "grid", gap: 12, padding: 20, borderRadius: 20, background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                      <label style={{ display: "grid", gap: 8 }}>
+                        <span className="profile-label" style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Neural Core Performance Tier</span>
                         <input
                           type="range"
                           min="0"
                           max="2"
                           step="1"
+                          style={{ accentColor: "#4effd8" }}
                           value={
                             profileDraft.performanceTier === "light"
                               ? 0
@@ -3083,46 +3173,51 @@ export default function App() {
                           }}
                         />
                       </label>
-                      <div className="meta-row" style={{ marginTop: -2 }}>
-                        <span className="meta-pill">Light: CSS-only pulse</span>
-                        <span className="meta-pill">Balanced: orbit + ambience</span>
-                        <span className="meta-pill">Full: prep for richer Scientist motion</span>
+                      <div className="meta-row" style={{ marginTop: 4, gap: 12 }}>
+                        <span className="meta-pill" style={{ fontSize: "0.65rem", opacity: 0.6 }}>Light: CSS-only pulse</span>
+                        <span className="meta-pill" style={{ fontSize: "0.65rem", opacity: 0.6 }}>Balanced: orbit + ambience</span>
+                        <span className="meta-pill" style={{ fontSize: "0.65rem", opacity: 0.6 }}>Full: prep for richer Scientist motion</span>
                       </div>
                     </div>
 
-                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "#87a8b9" }}>
-                      <input
-                        type="checkbox"
-                        checked={profileDraft.voiceNarrationEnabled}
-                        onChange={(event) =>
-                          setProfileDraft((current) => ({
-                            ...current,
-                            voiceNarrationEnabled: event.target.checked,
-                          }))
-                        }
-                      />
-                      Enable Kids Mode mood narration when the orb brightens positively
-                    </label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 20 }}>
+                      <label style={{ display: "inline-flex", gap: 12, alignItems: "center", color: "rgba(255, 255, 255, 0.7)", fontSize: "0.9rem", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 18, height: 18, accentColor: "#4effd8" }}
+                          checked={profileDraft.voiceNarrationEnabled}
+                          onChange={(event) =>
+                            setProfileDraft((current) => ({
+                              ...current,
+                              voiceNarrationEnabled: event.target.checked,
+                            }))
+                          }
+                        />
+                        Enable Kids Mode mood narration
+                      </label>
 
-                    <label style={{ display: "inline-flex", gap: 8, marginTop: 12, color: "#87a8b9" }}>
-                      <input
-                        type="checkbox"
-                        checked={profileDraft.supervisedAdvancedMode}
-                        onChange={(event) =>
-                          setProfileDraft((current) => ({
-                            ...current,
-                            supervisedAdvancedMode: event.target.checked,
-                          }))
-                        }
-                        disabled={selectedUser?.ageBand !== "teen"}
-                      />
-                      Enable supervised advanced mode for teen profiles
-                    </label>
+                      <label style={{ display: "inline-flex", gap: 12, alignItems: "center", color: "rgba(255, 255, 255, 0.7)", fontSize: "0.9rem", cursor: "pointer", opacity: selectedUser?.ageBand !== "teen" ? 0.3 : 1 }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 18, height: 18, accentColor: "#4effd8" }}
+                          checked={profileDraft.supervisedAdvancedMode}
+                          onChange={(event) =>
+                            setProfileDraft((current) => ({
+                              ...current,
+                              supervisedAdvancedMode: event.target.checked,
+                            }))
+                          }
+                          disabled={selectedUser?.ageBand !== "teen"}
+                        />
+                        Enable supervised advanced mode for teen profiles
+                      </label>
+                    </div>
 
-                    <div style={{ marginTop: 12 }}>
+                    <div style={{ marginTop: 24 }}>
                       <button
                         type="button"
                         className="tab active"
+                        style={{ width: "100%", padding: "14px", borderRadius: 16, background: "linear-gradient(135deg, rgba(78, 255, 216, 0.2), rgba(136, 102, 255, 0.2))", border: "1px solid rgba(78, 255, 216, 0.3)", color: "#4effd8", fontWeight: 500, cursor: "pointer", transition: "all 0.4s ease" }}
                         disabled={!selectedUserId || isSavingProfile}
                         onClick={() => void saveSelectedUserProfile()}
                       >
@@ -3131,10 +3226,6 @@ export default function App() {
                     </div>
                   </div>
                   <ApiDiagnosticsPanel onStatus={setStatus} autoRunToken={diagnosticsRunToken} />
-                  <div style={{ marginTop: 24 }}>
-                    <h3 className="section-heading">Chat Provider Configuration</h3>
-                  </div>
-                  <LlmSettingsPanel onStatus={setStatus} />
                   <div style={{ marginTop: 24 }}>
                     <h3 className="section-heading">Emotional Engine Tuning</h3>
                     <p className="section-copy">
@@ -3224,12 +3315,15 @@ export default function App() {
                     messages={chatLogs[selectedId] || []}
                     liveDebug={liveChatState[selectedId]?.debug || null}
                     stateDriftHistory={liveChatState[selectedId]?.stateDriftHistory || []}
+                    brainEvents={liveChatState[selectedId]?.brainEvents || []}
                     livePhase={liveChatState[selectedId]?.phase || ""}
                     liveSeq={liveChatState[selectedId]?.seq || 0}
                     liveReply={liveChatState[selectedId]?.reply || ""}
                     liveUsage={liveChatState[selectedId]?.usage || null}
                     liveVoiceAdjustments={liveChatState[selectedId]?.voiceAdjustments || null}
                     liveSingingActive={liveChatState[selectedId]?.singingActive || false}
+                    nativeLlmAudioChunks={liveChatState[selectedId]?.nativeLlmAudioChunks || null}
+                    nativeTtsActive={liveChatState[selectedId]?.nativeTtsActive || false}
                     activeMode={chatPolicy?.activeMode || selectedMode}
                     neuralProfile={selectedUserProfile || chatPolicy}
                     disableNeuronMap3d={disableNeuronMap3d}

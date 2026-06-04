@@ -27,6 +27,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      "/api/sfx": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
       "/api": {
         target: backendUrl,
         changeOrigin: true,
@@ -79,6 +84,11 @@ export default defineConfig({
         secure: false,
       },
       "/settings": {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
+      "/stt": {
         target: backendUrl,
         changeOrigin: true,
         secure: false,

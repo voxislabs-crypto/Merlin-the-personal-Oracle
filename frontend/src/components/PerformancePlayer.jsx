@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthFetch } from "../hooks/useAuthFetch.js";
+import { trackedFetch } from "../utils/requestTracker.js";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = `
@@ -337,7 +338,7 @@ class MoodLoopEngine {
       this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
-      const resp = await fetch("/api/loops/manifest");
+      const resp = await trackedFetch("/api/loops/manifest", {}, { cause: "performance:init-manifest" });
       this.manifest = await resp.json();
       this.ready = true;
       // Pre-load SFX buffers so they're ready for instant playback
@@ -351,7 +352,7 @@ class MoodLoopEngine {
   async loadSfx(name) {
     if (!this.ctx || this.sfxBuffers[name]) return;
     try {
-      const resp = await fetch(`/api/sfx/audio/${name}`);
+      const resp = await trackedFetch(`/api/sfx/audio/${name}`, {}, { cause: `performance:sfx:${name}` });
       if (!resp.ok) return; // not cached yet on backend — fail silently
       const ab = await resp.arrayBuffer();
       this.sfxBuffers[name] = await this.ctx.decodeAudioData(ab);
@@ -399,7 +400,7 @@ class MoodLoopEngine {
   async _loadBuffer(url) {
     if (this.buffers[url]) return this.buffers[url];
     try {
-      const resp = await fetch(url);
+      const resp = await trackedFetch(url, {}, { cause: `performance:loop-buffer:${url}` });
       const arrayBuffer = await resp.arrayBuffer();
       const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
       this.buffers[url] = audioBuffer;

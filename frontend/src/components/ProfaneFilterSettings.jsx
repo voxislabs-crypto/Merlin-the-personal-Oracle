@@ -5,142 +5,179 @@ const styles = `
   .profane-filter-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    max-width: 600px;
+    gap: 32px;
+    padding: 32px;
+    border-radius: 28px;
+    background: linear-gradient(170deg, rgba(0, 4, 14, 0.9), rgba(2, 5, 18, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
   }
 
   .profane-filter-section {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    border: 1px solid rgba(0, 180, 255, 0.12);
-    border-radius: 12px;
-    background: rgba(14, 22, 40, 0.6);
+    gap: 20px;
+    padding: 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .profane-filter-heading {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text);
-    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #4effd8;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin: 0 0 4px 0;
+    opacity: 0.8;
   }
 
   .profane-filter-toggle {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 16px;
+    padding: 18px 22px;
+    border-radius: 20px;
+    background: rgba(136, 102, 255, 0.04);
+    border: 1px solid rgba(136, 102, 255, 0.08);
+    transition: all 0.3s ease;
+  }
+
+  .profane-filter-toggle:hover {
+    background: rgba(136, 102, 255, 0.06);
+    border-color: rgba(136, 102, 255, 0.15);
   }
 
   .profane-filter-toggle input[type="checkbox"] {
     cursor: pointer;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    accent-color: #4effd8;
   }
 
   .profane-filter-toggle-label {
     display: flex;
     flex-direction: column;
+    gap: 4px;
   }
 
   .profane-filter-toggle-main {
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.85rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.95rem;
   }
 
   .profane-filter-toggle-hint {
-    font-size: 0.7rem;
-    color: var(--muted);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.4;
   }
 
   .profane-filter-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.03);
   }
 
   .profane-filter-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .profane-filter-hint {
     font-size: 0.7rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.4;
   }
 
   .profane-filter-textarea {
-    padding: 10px;
-    border: 1px solid rgba(0, 180, 255, 0.2);
-    border-radius: 6px;
-    background: rgba(6, 10, 20, 0.8);
-    color: var(--text);
-    font-size: 0.85rem;
+    margin-top: 4px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
     font-family: inherit;
     resize: vertical;
-    min-height: 80px;
+    min-height: 100px;
+    transition: all 0.3s ease;
   }
 
   .profane-filter-textarea:focus {
     outline: none;
-    border-color: rgba(0, 180, 255, 0.5);
-    box-shadow: 0 0 8px rgba(0, 180, 255, 0.2);
+    border-color: rgba(78, 255, 216, 0.4);
+    box-shadow: 0 0 15px rgba(78, 255, 216, 0.15);
   }
 
   .profane-filter-actions {
     display: flex;
-    gap: 12px;
-    margin-top: 8px;
+    gap: 16px;
+    margin-top: 12px;
   }
 
   .profane-filter-button {
-    padding: 10px 18px;
-    border: 1px solid rgba(0, 180, 255, 0.3);
-    border-radius: 8px;
-    background: rgba(0, 180, 255, 0.1);
-    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
     font-size: 0.85rem;
-    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  .profane-filter-button:hover {
-    background: rgba(0, 180, 255, 0.2);
-    box-shadow: 0 0 12px rgba(0, 180, 255, 0.25);
+  .profane-filter-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
   }
 
   .profane-filter-button.primary {
-    background: rgba(0, 180, 255, 0.25);
-    border-color: rgba(0, 180, 255, 0.5);
+    background: linear-gradient(135deg, rgba(78, 255, 216, 0.2), rgba(136, 102, 255, 0.2));
+    border-color: rgba(78, 255, 216, 0.3);
+    color: #4effd8;
+    box-shadow: 0 0 25px rgba(78, 255, 216, 0.15);
   }
 
   .profane-filter-button:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
   }
 
   .profane-filter-status {
-    font-size: 0.8rem;
-    color: var(--muted);
-    margin-top: 8px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.3);
+    padding-top: 8px;
+    font-family: "JetBrains Mono", monospace;
   }
 
   .profane-filter-warning {
-    padding: 12px;
-    border: 1px solid rgba(255, 100, 100, 0.3);
-    border-radius: 8px;
-    background: rgba(100, 20, 20, 0.4);
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 100, 100, 0.05);
+    border: 1px solid rgba(255, 100, 100, 0.15);
     color: #ff9999;
     font-size: 0.8rem;
+    line-height: 1.5;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
   }
 `;
 
 export default function ProfaneFilterSettings({ onStatus }) {
   const authFetch = useAuthFetch();
   const [config, setConfig] = useState(null);
+  const [error, setError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingEnabled, setPendingEnabled] = useState(false);
@@ -151,14 +188,17 @@ export default function ProfaneFilterSettings({ onStatus }) {
 
   const loadConfig = async () => {
     try {
+      setError(null);
       const response = await authFetch("/settings/profane-filter");
-      if (!response.ok) throw new Error("Failed to load profane filter settings");
+      if (!response.ok) throw new Error("HTTP " + response.status + ": Failed to load profane filter settings");
       const data = await response.json();
       setConfig(data);
     } catch (error) {
+      console.error("Failed to load profane filter:", error);
+      setError(error.message);
       onStatus?.({
         type: "error",
-        message: `Failed to load profane filter settings: ${error.message}`,
+        message: "Failed to load profane filter settings: " + error.message,
       });
     }
   };
@@ -216,8 +256,17 @@ export default function ProfaneFilterSettings({ onStatus }) {
     loadConfig();
   };
 
+  if (error) {
+    return (
+      <div className="profane-filter-panel" style={{ color: "#ff9999", padding: 24, textAlign: "center" }}>
+        <div style={{ marginBottom: 16 }}>⚠️ {error}</div>
+        <button className="profane-filter-button" onClick={loadConfig}>Retry</button>
+      </div>
+    );
+  }
+
   if (!config) {
-    return <div className="profane-filter-panel">Loading profane filter settings...</div>;
+    return <div className="profane-filter-panel" style={{ padding: 48, textAlign: "center", color: "rgba(255,255,255,0.4)" }}>Loading profane filter settings...</div>;
   }
 
   return (
@@ -294,54 +343,38 @@ export default function ProfaneFilterSettings({ onStatus }) {
           left: 0,
           right: 0,
           bottom: 0,
-          background: "rgba(0, 0, 0, 0.7)",
+          background: "rgba(0, 5, 15, 0.85)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 10000,
+          backdropFilter: "blur(32px)",
         }}>
           <div style={{
-            background: "rgba(14, 22, 40, 0.95)",
-            border: "1px solid rgba(0, 180, 255, 0.3)",
-            borderRadius: 12,
-            padding: 24,
+            background: "linear-gradient(170deg, rgba(0, 4, 14, 0.95), rgba(2, 5, 18, 0.9))",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: 32,
+            padding: 32,
             maxWidth: 500,
             width: "90%",
+            boxShadow: "0 30px 60px rgba(0, 0, 0, 0.6), 0 0 50px rgba(78, 255, 216, 0.1)",
           }}>
-            <h3 style={{ margin: "0 0 16px 0", fontSize: "1rem", fontWeight: 700, color: "var(--text)" }}>
+            <h3 style={{ margin: "0 0 16px 0", fontSize: "1.1rem", fontWeight: 500, color: "#4effd8", letterSpacing: "0.02em" }}>
               Acknowledge Disclaimer
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: "0.9rem", color: "var(--text)", lineHeight: 1.5 }}>
+            <p style={{ margin: "0 0 24px 0", fontSize: "0.95rem", color: "rgba(255, 255, 255, 0.8)", lineHeight: 1.6 }}>
               {config.disclaimer || "This is fictional roleplay. The AI does not wish real harm on anyone."}
             </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: 16, justifyContent: "flex-end" }}>
               <button
                 onClick={handleCancelEnable}
-                style={{
-                  padding: "10px 18px",
-                  border: "1px solid rgba(0, 180, 255, 0.3)",
-                  borderRadius: 8,
-                  background: "rgba(0, 180, 255, 0.1)",
-                  color: "var(--text)",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
+                className="profane-filter-button"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmEnable}
-                style={{
-                  padding: "10px 18px",
-                  border: "1px solid rgba(0, 180, 255, 0.5)",
-                  borderRadius: 8,
-                  background: "rgba(0, 180, 255, 0.25)",
-                  color: "var(--text)",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
+                className="profane-filter-button primary"
               >
                 I Acknowledge
               </button>

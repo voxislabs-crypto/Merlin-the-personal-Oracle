@@ -292,3 +292,12 @@ export function updateUserProfile(userId, input) {
 
   return getUserProfile(userId);
 }
+
+export function updateUserDisplayName(userId, displayName) {
+  const name = String(displayName || "").trim();
+  if (!name) {
+    throw Object.assign(new Error("Display name cannot be empty."), { statusCode: 400 });
+  }
+  db.prepare("UPDATE users SET displayName = ? WHERE id = ?").run(name, userId);
+  return getUserById(userId);
+}

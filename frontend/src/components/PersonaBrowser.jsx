@@ -146,11 +146,16 @@ const PersonaBrowser = ({ personas, onSelectPersona }) => {
           <div className="selection-card">
             <div className="selection-glow" />
             
-            <img 
-              src={selectedPersona.image || '/default-avatar.png'} 
-              alt={selectedPersona.name}
-              className="selection-image"
-            />
+            {(selectedPersona.avatarImageUrl || selectedPersona.image) ? (
+              <img 
+                src={selectedPersona.avatarImageUrl || selectedPersona.image}
+                alt={selectedPersona.name}
+                className="selection-image"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            ) : (
+              <div className="selection-image" style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", opacity: 0.6 }}>🤖</div>
+            )}
             
             <h2 className="selection-name">{selectedPersona.name}</h2>
             <p className="selection-description">{selectedPersona.description}</p>

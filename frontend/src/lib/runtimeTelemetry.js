@@ -1,3 +1,5 @@
+import { trackedFetch } from "../utils/requestTracker.js";
+
 const RUNTIME_ERROR_STORAGE_KEY = "voxis:runtime-errors";
 const RUNTIME_ERROR_LIMIT = 40;
 
@@ -78,13 +80,15 @@ function sendRuntimeReport(report) {
     // Fall through to fetch.
   }
 
-  void fetch(endpoint, {
+  void trackedFetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body,
     keepalive: true,
+  }, {
+    cause: "runtime-telemetry:report",
   }).catch(() => {
     // Avoid noisy secondary failures.
   });

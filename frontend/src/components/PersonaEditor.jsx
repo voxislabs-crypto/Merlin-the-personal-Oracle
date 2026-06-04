@@ -6,161 +6,183 @@ import { usePersonaState } from "../state/PersonaStateContext.jsx";
 
 const editorStyles = `
   .persona-sync-tree {
-    margin: 0 0 16px;
-    border: 1px solid rgba(0, 180, 255, 0.14);
-    border-radius: 14px;
-    background: rgba(6, 14, 28, 0.56);
+    margin: 0 0 24px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 28px;
+    background: linear-gradient(170deg, rgba(0, 4, 14, 0.8), rgba(2, 5, 18, 0.75));
+    backdrop-filter: blur(24px);
     overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   }
 
   .persona-sync-header {
-    padding: 10px 12px;
-    border-bottom: 1px solid rgba(0, 180, 255, 0.12);
-    color: #9ad9ff;
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #4effd8;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.72rem;
-    font-weight: 700;
+    letter-spacing: 0.15em;
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0.8;
   }
 
   .persona-tree-row {
     width: 100%;
     border: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
-    background: rgba(2, 10, 22, 0.52);
-    color: var(--text);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.9);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding: 10px 12px;
+    gap: 12px;
+    padding: 14px 24px;
     text-align: left;
-    transition: background 180ms ease, box-shadow 180ms ease;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    cursor: pointer;
+  }
+
+  .persona-tree-row:hover {
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .persona-tree-row.active {
-    background: rgba(0, 180, 255, 0.14);
-    box-shadow: inset 0 0 0 1px rgba(0, 200, 255, 0.34);
+    background: rgba(136, 102, 255, 0.08);
+    color: #8866ff;
   }
 
   .persona-tree-row.recent {
-    box-shadow: inset 0 0 0 1px rgba(255, 165, 88, 0.6), 0 0 16px rgba(255, 165, 88, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(78, 255, 216, 0.3), 0 0 20px rgba(78, 255, 216, 0.1);
   }
 
   .persona-tree-badge {
-    border-radius: 999px;
-    border: 1px solid rgba(0, 200, 255, 0.25);
-    background: rgba(0, 180, 255, 0.08);
-    color: #9be9ff;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.5);
     font-size: 0.7rem;
-    padding: 2px 8px;
-    font-weight: 700;
+    padding: 2px 10px;
+    font-weight: 500;
+    font-family: "JetBrains Mono", monospace;
   }
 
   .persona-tree-sub {
     border-top: 1px solid rgba(255, 255, 255, 0.03);
-    padding-left: 14px;
-    animation: personaTreeOpen 180ms ease;
+    padding-left: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    animation: personaTreeOpen 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .persona-tree-item {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 8px;
+    gap: 12px;
     align-items: center;
-    margin: 8px 0;
-    padding-left: 16px;
+    padding: 10px 24px 10px 0;
   }
 
   .persona-tree-item button {
-    border: 1px solid rgba(0, 180, 255, 0.18);
-    background: rgba(4, 12, 22, 0.72);
-    color: #dff4ff;
-    border-radius: 10px;
-    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 14px;
+    padding: 10px 16px;
     text-align: left;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+  }
+
+  .persona-tree-item button:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: white;
   }
 
   .persona-tree-item button.recent {
-    box-shadow: inset 0 0 0 1px rgba(255, 165, 88, 0.65), 0 0 14px rgba(255, 165, 88, 0.2);
+    border-color: rgba(78, 255, 216, 0.4);
+    box-shadow: 0 0 20px rgba(78, 255, 216, 0.15);
   }
 
   .persona-tree-item .jump-btn {
-    border-radius: 999px;
-    width: 30px;
-    height: 30px;
+    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0;
-    text-align: center;
+    background: rgba(136, 102, 255, 0.1);
+    border-color: rgba(136, 102, 255, 0.2);
+    color: #8866ff;
   }
 
   .persona-tree-inline {
-    margin: 6px 0 0;
-    padding-left: 16px;
+    margin: 8px 0 0;
+    padding-left: 0;
   }
 
   .persona-tree-inline input {
     width: 100%;
-    border-radius: 10px;
-    border: 1px solid rgba(0, 200, 255, 0.24);
-    background: rgba(4, 12, 22, 0.82);
-    color: var(--text);
-    padding: 8px 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.4);
+    color: white;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+  }
+
+  .persona-tree-inline input:focus {
+    outline: none;
+    border-color: rgba(78, 255, 216, 0.4);
+    box-shadow: 0 0 15px rgba(78, 255, 216, 0.1);
   }
 
   @keyframes personaTreeOpen {
-    from { opacity: 0; transform: translateY(-3px); }
+    from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
   .persona-section-tabs {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 24px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    border-radius: 20px;
+    width: fit-content;
   }
 
   .persona-section-tab {
-    padding: 8px 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(134, 232, 255, 0.34);
-    background: linear-gradient(180deg, rgba(210, 248, 255, 0.14), rgba(18, 38, 72, 0.24));
-    color: var(--muted);
+    padding: 10px 20px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.5);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: 0.72rem;
-    font-weight: 700;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.26),
-      inset 0 -8px 14px rgba(0, 0, 0, 0.2),
-      0 8px 18px rgba(0, 16, 38, 0.32);
-    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, color 160ms ease;
+    letter-spacing: 0.1em;
+    font-size: 0.7rem;
+    font-weight: 500;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    cursor: pointer;
   }
 
   .persona-section-tab:hover {
-    transform: translateY(-2px);
-    color: #d9f4ff;
-    border-color: rgba(176, 244, 255, 0.5);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.34),
-      inset 0 -8px 14px rgba(0, 0, 0, 0.16),
-      0 12px 22px rgba(0, 164, 255, 0.22);
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .persona-section-tab.active {
-    color: #f4fdff;
-    border-color: rgba(194, 245, 255, 0.48);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 34%),
-      linear-gradient(135deg, var(--accent), var(--accent-deep));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      0 14px 26px rgba(0, 164, 255, 0.26);
+    color: #4effd8;
+    background: rgba(78, 255, 216, 0.1);
+    border-color: rgba(78, 255, 216, 0.15);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
   }
 
   .persona-editor-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    gap: 20px;
   }
 
   .persona-editor-grid .full {
@@ -169,14 +191,18 @@ const editorStyles = `
 
   .persona-field {
     display: grid;
-    gap: 7px;
+    gap: 8px;
+    padding: 20px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .persona-field label {
-    color: var(--muted);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
@@ -184,85 +210,96 @@ const editorStyles = `
   .persona-field textarea,
   .persona-field select {
     width: 100%;
-    border-radius: 12px;
-    border: 1px solid rgba(0, 180, 255, 0.18);
-    background: rgba(4, 13, 28, 0.84);
-    color: var(--text);
-    padding: 11px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+  }
+
+  .persona-field input:focus,
+  .persona-field textarea:focus,
+  .persona-field select:focus {
+    outline: none;
+    border-color: rgba(78, 255, 216, 0.3);
+    box-shadow: 0 0 20px rgba(78, 255, 216, 0.08);
   }
 
   .persona-field textarea {
-    min-height: 110px;
+    min-height: 140px;
     resize: vertical;
+    line-height: 1.5;
   }
 
   .persona-field small {
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.35);
     font-size: 0.75rem;
+    line-height: 1.4;
   }
 
   .persona-editor-actions {
-    margin-top: 14px;
+    margin-top: 24px;
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
     align-items: center;
     flex-wrap: wrap;
   }
 
   .persona-editor-hint {
     margin: 0;
-    color: var(--muted);
-    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.85rem;
   }
 
   .persona-save-btn {
-    border: 0;
-    border-radius: 999px;
-    padding: 10px 16px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 34%),
-      linear-gradient(135deg, var(--accent), var(--accent-deep));
-    color: #fff;
-    font-weight: 800;
-    letter-spacing: 0.04em;
+    padding: 14px 32px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(78, 255, 216, 0.2), rgba(136, 102, 255, 0.2));
+    color: #4effd8;
+    font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    border: 1px solid rgba(194, 245, 255, 0.48);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      0 12px 22px rgba(0, 172, 255, 0.24);
-    transition: transform 160ms ease, box-shadow 160ms ease;
+    font-size: 0.8rem;
+    border: 1px solid rgba(78, 255, 216, 0.3);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 30px rgba(78, 255, 216, 0.1);
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .persona-save-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.46),
-      0 16px 30px rgba(0, 172, 255, 0.3);
+    background: linear-gradient(135deg, rgba(78, 255, 216, 0.25), rgba(136, 102, 255, 0.25));
+    border-color: rgba(78, 255, 216, 0.4);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 40px rgba(78, 255, 216, 0.15);
   }
 
   .persona-save-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.995);
+    transform: translateY(1px);
   }
 
   .persona-save-btn:disabled {
-    opacity: 0.65;
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   .persona-block {
-    margin-top: 16px;
-    padding: 14px;
-    border-radius: 14px;
-    border: 1px solid rgba(0, 180, 255, 0.14);
-    background: rgba(0, 180, 255, 0.04);
+    margin-top: 24px;
+    padding: 24px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .persona-block h3 {
-    margin: 0 0 10px;
-    font-size: 0.95rem;
-    letter-spacing: 0.05em;
+    margin: 0 0 16px;
+    font-size: 0.75rem;
+    color: #4effd8;
     text-transform: uppercase;
-    color: #9ad9ff;
+    letter-spacing: 0.15em;
+    opacity: 0.8;
   }
 
   @media (max-width: 900px) {
@@ -364,6 +401,7 @@ function buildDraft(personality) {
     styleRules: listToText(personality.expressionStyle?.rules),
     styleInterruptionRate: String(personality.expressionStyle?.interruptionRate ?? 0.3),
     styleEnergy: personality.expressionStyle?.energy || "medium",
+    voiceTags: Array.isArray(personality.voiceTags) ? personality.voiceTags : [],
     cadenceMode: personality.expressionStyle?.cadenceRegulator?.mode || "adaptive",
     cadenceTeasingFrequency: String(personality.expressionStyle?.cadenceRegulator?.teasingFrequency ?? 0.2),
     cadenceVariability: personality.expressionStyle?.cadenceRegulator?.variability || "high",
@@ -512,7 +550,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       "name", "creativeContext", "mood", "moodLabel", "description", "systemPrompt", "sourceUrls", "prosodySourceUrl", "notablePhrases"
     ],
     behavior: [
-      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords", "intoxicationKeywordWeight", "intoxicationLongConversationWeight", "intoxicationMessageLengthWeight", "intoxicationPunctuationWeight", "fatigueEnabled", "fatigueLevel", "fatigueDecayPerTurn", "fatiguePassiveGainPerTurn", "fatigueTriggerGain", "fatigueTriggerKeywords", "fatigueKeywordWeight", "fatigueLongConversationWeight", "fatigueMessageLengthWeight", "fatiguePunctuationWeight", "agitationEnabled", "agitationLevel", "agitationDecayPerTurn", "agitationTriggerGain", "agitationTriggerKeywords", "agitationKeywordWeight", "agitationLongConversationWeight", "agitationMessageLengthWeight", "agitationPunctuationWeight", "focusEnabled", "focusLevel", "focusDecayPerTurn", "focusRecoveryPerTurn", "focusTriggerGain", "focusTriggerKeywords", "focusKeywordWeight", "focusLongConversationWeight", "focusMessageLengthWeight", "focusPunctuationWeight"
+      "speechStyle", "styleEnergy", "traits", "quirks", "goals", "values", "behaviorRules", "styleSentence", "styleInterruptionRate", "styleRules", "vocalMannerismItems", "vocalMannerismFrequency", "voiceTags", "intoxicationEnabled", "intoxicationLevel", "intoxicationDecayPerTurn", "intoxicationTriggerGain", "intoxicationTriggerKeywords", "intoxicationKeywordWeight", "intoxicationLongConversationWeight", "intoxicationMessageLengthWeight", "intoxicationPunctuationWeight", "fatigueEnabled", "fatigueLevel", "fatigueDecayPerTurn", "fatiguePassiveGainPerTurn", "fatigueTriggerGain", "fatigueTriggerKeywords", "fatigueKeywordWeight", "fatigueLongConversationWeight", "fatigueMessageLengthWeight", "fatiguePunctuationWeight", "agitationEnabled", "agitationLevel", "agitationDecayPerTurn", "agitationTriggerGain", "agitationTriggerKeywords", "agitationKeywordWeight", "agitationLongConversationWeight", "agitationMessageLengthWeight", "agitationPunctuationWeight", "focusEnabled", "focusLevel", "focusDecayPerTurn", "focusRecoveryPerTurn", "focusTriggerGain", "focusTriggerKeywords", "focusKeywordWeight", "focusLongConversationWeight", "focusMessageLengthWeight", "focusPunctuationWeight"
       , "cadenceMode", "cadenceTeasingFrequency", "cadenceVariability", "cadenceRepetitionPenalty", "cadenceCooldownTurns", "cadenceWindowTurns"
     ],
     neural: [
@@ -673,6 +711,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
         blinkRate: normalizeRatio(draft.expressionBlinkRate, 0.5),
         gazeDrift: normalizeRatio(draft.expressionGazeDrift, 0.5),
       },
+      voiceTags: Array.isArray(draft.voiceTags) ? draft.voiceTags : [],
     };
   }, [draft, hasPersonality, personality]);
 
@@ -727,7 +766,7 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
       onUpdated?.(finalData);
       onStatus?.({
         type: "success",
-        message: `${finalData.name} was updated from Persona Editor.`,
+        message: finalData.name + " was updated from Persona Editor.",
       });
     } catch (error) {
       onStatus?.({
@@ -1013,6 +1052,35 @@ export default function PersonaEditor({ personality, onUpdated, onStatus, initia
               <option value="high">high</option>
               <option value="very_high">very_high</option>
             </select>
+          </div>
+          <div className="persona-field full">
+            <label>Voice Tags <span style={{ fontWeight: 400, opacity: 0.65, fontSize: "0.78em" }}>(used for voice recommendations)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              {["calm", "warm", "energetic", "playful", "formal", "authoritative", "whispery", "deep", "bright", "feminine", "masculine", "British", "American", "narrator", "child"].map((tag) => {
+                const active = Array.isArray(draft.voiceTags) && draft.voiceTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setDraft((current) => {
+                      const current_tags = Array.isArray(current.voiceTags) ? current.voiceTags : [];
+                      return { ...current, voiceTags: active ? current_tags.filter((t) => t !== tag) : [...current_tags, tag] };
+                    })}
+                    style={{
+                      padding: "2px 10px",
+                      borderRadius: 20,
+                      border: active ? "1px solid rgba(0,234,255,0.8)" : "1px solid rgba(255,255,255,0.18)",
+                      background: active ? "rgba(0,234,255,0.15)" : "rgba(255,255,255,0.05)",
+                      color: active ? "#00eaff" : "inherit",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    {active ? "✓ " : ""}{tag}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="persona-field full">
             <label>Traits (one per line)</label>

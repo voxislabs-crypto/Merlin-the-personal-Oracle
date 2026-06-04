@@ -916,6 +916,7 @@ export default function PersonalityForm({
   const [hoveredAlignment, setHoveredAlignment] = useState(null);
   const [recommendedVoicePreset, setRecommendedVoicePreset] = useState(null);
   const [loadedPreset, setLoadedPreset] = useState(null); // key of active preset
+  const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
   const isEditing = Boolean(editingPersonality?.id);
 
   const bigFiveProfile = useMemo(
@@ -1001,6 +1002,41 @@ export default function PersonalityForm({
     setResearchResult(null);
     setResearchSources([]);
     onError({ type: "", message: "" });
+  }
+
+  async function handleGenerateAvatar() {
+    if (!editingPersonality?.id) {
+      onError({ type: "error", message: "Save the personality first before generating an avatar." });
+      return;
+    }
+
+    setIsGeneratingAvatar(true);
+    try {
+      const response = await authFetch(`/personality/${editingPersonality.id}/generate-avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: `A professional digital portrait of ${form.name}. ${form.description}. Character art style, high detail.`.trim()
+        })
+      });
+
+      const data = await readApiResponsePayload(response);
+
+      setForm((current) => ({
+        ...current,
+        avatarImageUrl: data.imageUrl,
+      }));
+      
+      if (onUpdated) {
+        onUpdated(data.personality);
+      }
+
+      onError({ type: "success", message: "AI Avatar generated successfully!" });
+    } catch (err) {
+      onError({ type: "error", message: getApiErrorMessage(err) });
+    } finally {
+      setIsGeneratingAvatar(false);
+    }
   }
 
   function updateField(event) {
@@ -1448,6 +1484,22 @@ export default function PersonalityForm({
               value={form.avatarImageUrl}
               onChange={updateField}
             />
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ padding: "8px 16px", fontSize: "0.8rem" }}
+                disabled={isGeneratingAvatar || !isEditing}
+                onClick={handleGenerateAvatar}
+              >
+                {isGeneratingAvatar ? "Generating..." : "✨ Generate AI Avatar (Flux)"}
+              </button>
+              {!isEditing && (
+                <small style={{ display: "block", marginTop: 4, opacity: 0.7 }}>
+                  (Save personality first to enable AI generation)
+                </small>
+              )}
+            </div>
             {form.avatarImageUrl ? (
               <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
                 <img
