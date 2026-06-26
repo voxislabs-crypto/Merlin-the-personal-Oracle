@@ -66,6 +66,7 @@ import {
   getTodayCheckinEntry,
   isAtmosphereEngineV1Enabled,
   resolveAtmosphereSourceEvent,
+  resolveLegacyCosmicWeatherIntensity,
 } from '@/lib/atmosphere';
 import { useAtmosphereJournal } from '@/hooks/useAtmosphereJournal';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
@@ -1527,39 +1528,15 @@ export default function UnifiedDashboard() {
 
   const activeAtmospherePacket = atmosphereEngineEnabled ? atmosphere ?? clientAtmospherePacket : null;
 
-  const legacyCosmicWeatherIntensity = React.useMemo(() => {
-    const ratingMap: Record<string, number> = {
-      'Very Positive': 28,
-      Positive: 42,
-      Neutral: 55,
-      Challenging: 74,
-      'Very Challenging': 88,
-      green: 28,
-      yellow: 55,
-      red: 74,
-    };
-
-    if (stormsReport?.storms?.length) {
-      const topStorm = stormsReport.storms[0];
-      if (typeof topStorm.intensityScore === 'number') {
-        return Math.round(Math.min(100, topStorm.intensityScore * 10));
-      }
-      if (topStorm.intensity === 'severe') return 86;
-      if (topStorm.intensity === 'moderate') return 68;
-      if (topStorm.intensity === 'mild') return 52;
-    }
-
-    if (forecast?.day_rating) {
-      return ratingMap[forecast.day_rating] ?? 55;
-    }
-
-    const topPressure = pressureWindow?.predictive?.events?.[0]?.scores?.intensity;
-    if (typeof topPressure === 'number') {
-      return Math.round(Math.min(100, Math.max(20, topPressure * 100)));
-    }
-
-    return 55;
-  }, [forecast?.day_rating, pressureWindow?.predictive?.events, stormsReport?.storms]);
+  const legacyCosmicWeatherIntensity = React.useMemo(
+    () =>
+      resolveLegacyCosmicWeatherIntensity({
+        storms: stormsReport?.storms,
+        dayRating: forecast?.day_rating,
+        topPressureIntensity: pressureWindow?.predictive?.events?.[0]?.scores?.intensity,
+      }),
+    [forecast?.day_rating, pressureWindow?.predictive?.events, stormsReport?.storms]
+  );
 
   const cosmicWeatherIntensity = activeAtmospherePacket?.intensity ?? legacyCosmicWeatherIntensity;
 

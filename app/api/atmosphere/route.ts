@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { assembleAtmosphereInput } from '@/lib/atmosphere/assemble-input';
 import { getAtmospherePatternProfile } from '@/lib/atmosphere/pattern-store.server';
+import { enhanceAtmosphereRationale } from '@/lib/atmosphere/rationale-ai';
 import { computeAtmosphere } from '@/lib/atmosphere/compute';
 import { buildAtmosphereTemporalInput } from '@/lib/atmosphere/temporal-context';
 import type {
@@ -274,7 +275,7 @@ export async function POST(request: Request) {
       mcLongitude: natalChart.mc?.longitude,
     });
 
-    const packet = computeAtmosphere(
+    const basePacket = computeAtmosphere(
       assembleAtmosphereInput({
         date: targetDate || forecastBase.date,
         explainability,
@@ -303,6 +304,8 @@ export async function POST(request: Request) {
         },
       })
     );
+
+    const packet = await enhanceAtmosphereRationale(basePacket);
 
     return NextResponse.json({
       success: true,

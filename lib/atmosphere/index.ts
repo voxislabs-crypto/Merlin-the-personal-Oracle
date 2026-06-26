@@ -6,6 +6,10 @@ export {
 export { assembleAtmosphereInput } from '@/lib/atmosphere/assemble-input';
 export { buildAtmosphereTemporalInput } from '@/lib/atmosphere/temporal-context';
 export { computeAtmosphereFromDashboardSources } from '@/lib/atmosphere/from-dashboard';
+export {
+  intensityFromLegacyStorm,
+  resolveLegacyCosmicWeatherIntensity,
+} from '@/lib/atmosphere/legacy-intensity';
 export { isAtmosphereEngineV1Enabled, type AtmosphereEngineFlagOptions } from '@/lib/atmosphere/flags';
 export { normalizePredictiveIntensity, predictiveIntensityScore } from '@/lib/atmosphere/normalize';
 export { applyPatternPersonalization, applyPatternReadinessNudge } from '@/lib/atmosphere/pattern-personalization';

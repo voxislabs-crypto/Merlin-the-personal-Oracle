@@ -180,14 +180,14 @@ Track implementation progress. Full context: [ROADMAP.md](./ROADMAP.md).
 
 ### Local AI (optional)
 
-- [ ] Spike: Ollama/OpenRouter routing for rationale prose
-- [ ] Fallback to template rationale when local unavailable
-- [ ] Document in integration contract
+- [x] Spike: Ollama/OpenRouter routing for rationale prose (2026-06-26)
+- [x] Fallback to template rationale when local unavailable (2026-06-26)
+- [x] Document in integration contract (2026-06-26)
 
 ### Deferred hooks (design only)
 
-- [ ] Biometrics adapter interface (Oura, Apple Health)
-- [ ] Calendar density adapter interface
+- [x] Biometrics adapter interface (Oura, Apple Health) (2026-06-26)
+- [x] Calendar density adapter interface (2026-06-26)
 
 ---
 
@@ -201,9 +201,9 @@ Track implementation progress. Full context: [ROADMAP.md](./ROADMAP.md).
 
 ## Cleanup (ongoing)
 
-- [ ] Remove dead `CosmicWeatherWidget` imports (if any remain)
-- [ ] Remove duplicate `ratingToIntensity` from `page.tsx` after Phase 2
-- [ ] Link `docs/atmosphere-engine/` from `docs/rework/README.md` (optional)
+- [x] Remove dead `CosmicWeatherWidget` imports (if any remain) (none found 2026-06-26)
+- [x] Remove duplicate `ratingToIntensity` from `page.tsx` after Phase 2 (2026-06-26)
+- [x] Link `docs/atmosphere-engine/` from `docs/rework/README.md` (2026-06-26)
 
 ---
 
@@ -213,6 +213,7 @@ Track implementation progress. Full context: [ROADMAP.md](./ROADMAP.md).
 
 1. Manual QA: Recalibrate updates pattern store; storm transit you've thumbs-downed amplifies felt intensity
 2. Manual QA: felt vs sky line appears when check-in/journal diverges from storm sky
-2. Manual QA: solar return card within 30 days of birthday; lunar cycle card updates each month
-2. Manual QA: 10 charts — 0 tone vs story contradictions (PR-4 carryover)
-3. Optional: `NEXT_PUBLIC_MERLIN_ATMOSPHERE_ENGINE_V1=false` to test premium rollback
+3. Manual QA: solar return card within 30 days of birthday; lunar cycle card updates each month
+4. Manual QA: 10 charts — 0 tone vs story contradictions (PR-4 carryover)
+5. Optional: enable `ATMOSPHERE_RATIONALE_LLM_ENABLED=true` with Ollama and verify `/api/atmosphere` rationale prose
+6. Optional: `NEXT_PUBLIC_MERLIN_ATMOSPHERE_ENGINE_V1=false` to test premium rollback

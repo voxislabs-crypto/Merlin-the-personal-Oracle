@@ -9,6 +9,7 @@ Start here for the full rework package.
 5. V1 build order and dependency board: [05-v1-build-order.md](05-v1-build-order.md)
 6. GitHub issue creation script: [06-github-issues-script.md](06-github-issues-script.md)
 7. Sprint board template: [07-sprint-board.md](07-sprint-board.md)
+8. Atmosphere Engine (sky tone, reality check, patterns): [../atmosphere-engine/README.md](../atmosphere-engine/README.md)
 
 ## Suggested execution sequence
 

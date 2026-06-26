@@ -9,6 +9,7 @@ Cognitive Atmosphere Forecasting — unified daily sky tone, layered predictive 
 | [ROADMAP.md](./ROADMAP.md) | Vision, architecture, gap analysis, phased plan, user stories, KPIs |
 | [TODO.md](./TODO.md) | Execution checklist (start here for implementation) |
 | [pattern-store-decision.md](./pattern-store-decision.md) | Prisma JSON vs pgvector decision (Phase 7b) |
+| [integration-contract.md](./integration-contract.md) | API surfaces, optional rationale LLM, deferred adapters |
 
 ## Source inputs
 
