@@ -1,0 +1,29 @@
+# Test files and folders
+tests/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Temporary and backup files
+temp_*/
+backup/
+possible front end stuff/
+localhost_files/
+
+# Local environment
+.env.local
+.env*.local
+
+# Development files
+.vscode/
+.idea/
+
+# Build artifacts
+.next/
+node_modules/

@@ -1,0 +1,82 @@
+{
+  "INTJ": {
+    "reaction": "Over-analysis and strategic withdrawal; irritation rises when plans are disrupted.",
+    "advice": "Pause model-building and choose one practical stabilizing action before engaging conflict.",
+    "recovery": "Decompress in silence, then re-enter with a short decision list."
+  },
+  "INTP": {
+    "reaction": "Mental spirals and detachment; emotional processing gets postponed.",
+    "advice": "Name the feeling in one sentence before solving the problem.",
+    "recovery": "Reset with low-stimulus time and one grounded conversation."
+  },
+  "ENTJ": {
+    "reaction": "Control spikes; forceful execution can create avoidable friction.",
+    "advice": "Trade speed for precision and pick one decisive move, not five.",
+    "recovery": "Recenter through body movement and boundary reset."
+  },
+  "ENTP": {
+    "reaction": "Debate mode activates; pivots multiply under stress.",
+    "advice": "Lock one priority and avoid opening new loops during peak storm hours.",
+    "recovery": "Discharge tension with novelty after core obligations are done."
+  },
+  "INFJ": {
+    "reaction": "Emotional overload + quiet shutdown; absorbs room tension quickly.",
+    "advice": "Protect nervous system first; journal before responding to provocation.",
+    "recovery": "Return through solitude, hydration, and one trusted check-in."
+  },
+  "INFP": {
+    "reaction": "Value-based hurt response; retreat when misunderstood.",
+    "advice": "Lead with needs, not assumptions; avoid all-or-nothing interpretations.",
+    "recovery": "Use art, movement, or nature to metabolize emotional load."
+  },
+  "ENFJ": {
+    "reaction": "People-pleasing intensifies; carries others' stress as own.",
+    "advice": "Set one non-negotiable boundary before offering support.",
+    "recovery": "Reconnect to self-care rhythm before re-entering group dynamics."
+  },
+  "ENFP": {
+    "reaction": "Hyper-ideas and overcommitment; burnout risk rises.",
+    "advice": "Do not start new projects at storm peak; finish one open loop.",
+    "recovery": "Nervous system reset with sleep, food, and low-social bandwidth."
+  },
+  "ISTJ": {
+    "reaction": "Rigidity increases under uncertainty; criticism tolerance drops.",
+    "advice": "Use facts + flexibility: keep structure but allow one adaptive change.",
+    "recovery": "Restore through routine and measurable progress tasks."
+  },
+  "ISFJ": {
+    "reaction": "Over-giving while suppressing personal strain.",
+    "advice": "State one need directly; avoid silent resentment buildup.",
+    "recovery": "Recover with rest, warmth, and simple relational clarity."
+  },
+  "ESTJ": {
+    "reaction": "Command mode escalates; impatience with ambiguity.",
+    "advice": "Lower force, increase listening, then execute one clear plan.",
+    "recovery": "Reset through order restoration and brief alone time."
+  },
+  "ESFJ": {
+    "reaction": "Social stress amplification; harmony-fixing can become overextension.",
+    "advice": "Contain the blast radius: fewer conversations, clearer boundaries.",
+    "recovery": "Stabilize with trusted support and reduced social throughput."
+  },
+  "ISTP": {
+    "reaction": "Emotional distance + hard pragmatism; may appear cold.",
+    "advice": "Acknowledge impact before solving mechanics of the issue.",
+    "recovery": "Repair via hands-on activity and concise honest dialogue."
+  },
+  "ISFP": {
+    "reaction": "Sensitivity spikes; avoidance if conflict tone gets harsh.",
+    "advice": "Stay present in small doses; communicate boundaries early.",
+    "recovery": "Regulate through sensory grounding, music, and calm environment."
+  },
+  "ESTP": {
+    "reaction": "Impulse and confrontation increase at peak intensity.",
+    "advice": "Delay high-stakes reactions 30-90 minutes during storm windows.",
+    "recovery": "Move the body, then review consequences before next action."
+  },
+  "ESFP": {
+    "reaction": "Drama reactivity and emotional spillover in social settings.",
+    "advice": "Reduce audience size during storms; resolve privately, not performatively.",
+    "recovery": "Rebalance with joy that does not require social overexposure."
+  }
+}

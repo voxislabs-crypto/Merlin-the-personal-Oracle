@@ -1,0 +1,96 @@
+{
+  "intro": [
+    "The stars whisper:",
+    "Ancient voices speak:",
+    "From the void, a message rises:",
+    "The cosmos decrees:",
+    "The hidden wheel turns and reveals this:",
+    "A sealed chamber of heaven opens:",
+    "The elder fire names this hour:",
+    "Beneath the night tide, the omen is clear:",
+    "The sky writes in living symbols:",
+    "From the old constellations comes this counsel:",
+    "The silent temple of stars offers this:",
+    "Across the arc of fate, one truth appears:"
+  ],
+  "close": [
+    "So it is written in the heavens.",
+    "Heed this, seeker.",
+    "The wheel turns; choose wisely.",
+    "Guard this message and walk with intention.",
+    "Let this omen guide your next step.",
+    "What is seen in the sky must be answered on earth."
+  ],
+  "genericBody": [
+    "The cosmos stirs; shadows and light collide.",
+    "A threshold opens where discipline meets desire.",
+    "Old patterns strain as new fire asks for form.",
+    "Power gathers quietly; use it with a steady hand.",
+    "The unseen currents test your center before they bless your path."
+  ],
+  "aspectTemplates": {
+    "Mars square Moon": [
+      "fire meets water: passions flare, yet tears may follow.",
+      "the warrior clashes with your inner tide; rage and sorrow entwine.",
+      "a storm brews in your heart; guard the flame before it burns the vessel.",
+      "your instinct strikes before your feelings can speak; choose breath over battle."
+    ],
+    "Mars conjunct Sun": [
+      "vital fire surges through your core; act, but do not scorch what you seek to build.",
+      "the blade and the crown align; courage is abundant, restraint is sacred.",
+      "your will blazes bright; carve a clear path, not a reckless one."
+    ],
+    "Saturn square Venus": [
+      "the old gatekeeper tests the chambers of love; devotion must prove its weight.",
+      "duty sits beside desire; only what is honest will endure.",
+      "cold winds pass through the heart; build warmth through commitment, not fantasy.",
+      "affection meets structure; choose bonds that can carry time."
+    ],
+    "Uranus opposition Mercury": [
+      "lightning splits the mind's old map; revelation arrives without warning.",
+      "thought breaks its cage; what seemed fixed now fractures into possibility.",
+      "the messenger is struck by thunder; speak carefully while truth rewires your world."
+    ],
+    "Jupiter trine Moon": [
+      "a generous moon tide lifts your spirit; healing flows where fear once tightened.",
+      "grace visits the heart; trust warmth, trust timing, trust growth.",
+      "your inner waters are blessed with expansion; receive before you rush."
+    ],
+    "Pluto square Ascendant": [
+      "the underworld presses against your mask; identity must be remade in deeper truth.",
+      "power knocks at the threshold of self; what is false cannot stand.",
+      "the old face cracks; rise from the pressure with a truer form.",
+      "a profound reckoning meets your outer life; let transformation lead, not fear."
+    ],
+    "Saturn opposition Sun": [
+      "time's hammer falls on pride and purpose; rebuild from what is real.",
+      "authority confronts identity; endure the test and earn lasting strength.",
+      "the light is tempered by stone; discipline now becomes destiny later."
+    ],
+    "Uranus conjunct Ascendant": [
+      "a wild current enters your doorway; destiny asks for reinvention.",
+      "your outward form electrifies; let authentic change outrun old permission.",
+      "the horizon cracks with freedom; become unmistakably yourself."
+    ],
+    "Neptune square Moon": [
+      "mist moves through the heart; intuition deepens as certainty dissolves.",
+      "dream and feeling entwine; seek clarity without abandoning wonder.",
+      "the inner sea is fogged; protect your boundaries while listening to the subtle."
+    ],
+    "Pluto conjunct Moon": [
+      "the deep waters rise; buried feeling seeks rebirth through surrender.",
+      "emotional roots are unearthed; grief and power become one alchemy.",
+      "the moon descends and returns transformed; do not fear the depth."
+    ],
+    "Jupiter square Saturn": [
+      "expansion strains against limits; wisdom chooses where to press and where to wait.",
+      "the builder and the prophet wrestle; pace your ambition with structure.",
+      "opportunity knocks, but discipline decides which door opens."
+    ],
+    "Mars opposition Venus": [
+      "desire and assertion pull in opposite directions; passion demands conscious balance.",
+      "the lover and the warrior circle each other; choose tenderness without surrendering truth.",
+      "attraction sparks with friction; keep your heart open and your edge clean."
+    ]
+  }
+}

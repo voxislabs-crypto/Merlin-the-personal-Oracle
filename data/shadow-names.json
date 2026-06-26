@@ -1,0 +1,62 @@
+{
+  "aries": {
+    "name": "The Berserker",
+    "description": "Rage machine—impulse turns to fists, words, or blown-up bridges. Charge first, assess the wreckage second.",
+    "recovery": "Pause. Breathe. The anger is information, not a command."
+  },
+  "taurus": {
+    "name": "The Hoarder",
+    "description": "Clings to everything—money, grudges, people, old pain. Possession masquerading as security. Release or suffocate.",
+    "recovery": "Let one thing go today. Even a small release breaks the spell."
+  },
+  "gemini": {
+    "name": "The Trickster",
+    "description": "Lies for fun, omits for convenience. Words twist truth so smoothly even you lose track of what's real.",
+    "recovery": "Say the boring, honest thing. Exactly once. Notice what happens."
+  },
+  "cancer": {
+    "name": "The Crab",
+    "description": "Shells up, claws out—one perceived slight and you disappear forever. Feels betrayed, retreats, punishes with absence.",
+    "recovery": "Say it. One sentence. Even if your voice shakes."
+  },
+  "leo": {
+    "name": "The Tyrant",
+    "description": "Needs the crown, needs the room, needs the applause. Ego eclipses everyone else—praise or they perish.",
+    "recovery": "Ask about someone else. Mean it. The spotlight looks better shared."
+  },
+  "virgo": {
+    "name": "The Critic",
+    "description": "Perfectionist poison—dissects self until bleeding, then turns the microscope on everyone else. Nothing is ever enough.",
+    "recovery": "Name one thing that's good enough. Right now. Defend it."
+  },
+  "libra": {
+    "name": "The Appeaser",
+    "description": "Harmony at any cost—lies to keep the peace, bends until shapeless, loses self in the mirror of other people.",
+    "recovery": "Disagree with someone today. Small disagreement. Big step."
+  },
+  "scorpio": {
+    "name": "The Venom",
+    "description": "Trust broken, revenge brews slow and cold. Stings with precision—knows every weak spot and uses them.",
+    "recovery": "The wound is real. The revenge won't heal it. Release the knife."
+  },
+  "sagittarius": {
+    "name": "The Wanderer",
+    "description": "Runs from truth at highway speed—freedom turns to flighty, wisdom turns to sermons, commitments quietly dissolve.",
+    "recovery": "Stay one more day. See what's actually there when you don't flee."
+  },
+  "capricorn": {
+    "name": "The Machine",
+    "description": "Emotions locked in a vault labeled 'later.' Grinds toward goals until the heart calcifies and the body revolts.",
+    "recovery": "Log off. For real. The mountain will still be there."
+  },
+  "aquarius": {
+    "name": "The Rebel",
+    "description": "Detaches when it matters—ideas over people, principles over presence. Cold revolution that leaves everyone behind.",
+    "recovery": "Pick up the phone. Not to fix anything. Just to connect."
+  },
+  "pisces": {
+    "name": "The Martyr",
+    "description": "Sacrifices everything—saves the whole world, piece by piece, while quietly drowning alone in the deep end.",
+    "recovery": "Stop saving. For twenty-four hours. Save yourself first."
+  }
+}

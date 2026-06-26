@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model UserContextSnapshot {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  situation         String?
+  mood              String?
+  goalsJson         String?
+  lastFeedbackNotes String?
+  oracleTonePreset  String?
+  archetypeName     String?
+  patternSignature  String?
+  coreContradiction String?
+  arcPath           String?
+  arcLevel          Int?
+  arcXp             Int?
+  interactionCount  Int?
+  lastInteractionAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ResonanceUser {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  mbtiType   String?
+  enneagramType String?
+  big5Json   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model PersonalResonanceRecord {
+  id             String   @id @default(cuid())
+  userId         String
+  aspectId       String
+  theme          String
+  personalWeight Float    @default(0)
+  confidence     Float    @default(0.5)
+  feedbackCount  Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, aspectId, theme])
+}
+
+model GlobalResonanceRecord {
+  id            String   @id @default(cuid())
+  aspectId      String
+  theme         String
+  globalWeight  Float    @default(0)
+  confidence    Float    @default(0.5)
+  feedbackCount Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([aspectId, theme])
+}
+
+model ClusterResonanceRecord {
+  id            String   @id @default(cuid())
+  clusterId     String
+  aspectId      String
+  theme         String
+  clusterWeight Float    @default(0)
+  confidence    Float    @default(0.5)
+  feedbackCount Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([clusterId, aspectId, theme])
+}
+
+model ResonanceFeedbackRecord {
+  id              String   @id @default(cuid())
+  feedbackId      String   @unique
+  userId          String
+  aspectId        String
+  theme           String
+  date            DateTime @default(now())
+  orb             Float    @default(0)
+  confidenceScore Float    @default(0.8)
+  resonated       Boolean
+  accuracyScore   Float
+  notes           String?
+  scoreBefore     Float?
+  scoreAfter      Float?
+  userRating      Int?
+}
+
+model UserInteractionEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String
+  content        String?
+  detectedPattern String?
+  confidence     Float?
+  feedbackSignal String?
+  metadataJson   String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, detectedPattern])
+}
+
+model AtmospherePatternRecord {
+  id               String   @id @default(cuid())
+  userId           String
+  patternKey       String
+  patternType      String
+  sensitivityScore Float    @default(0)
+  sampleCount      Int      @default(0)
+  confidence       Float    @default(0.5)
+  tagsJson         String?
+  lastSeenAt       DateTime?
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, patternKey])
+  @@index([userId, patternType])
+}

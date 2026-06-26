@@ -1,0 +1,194 @@
+{
+  "INFJ": {
+    "doomsayer": {
+      "archetype": "The Doomsayer",
+      "description": "Overthinks every dark outcome—feels everyone's pain, predicts collapse. Withdraws completely, ghosts without warning.",
+      "recovery": "Breathe. Write it out. Call someone real."
+    },
+    "manipulator": {
+      "archetype": "The Manipulator",
+      "description": "Uses deep empathy as leverage—reads minds, twists trust. Intuition turned against the people you love.",
+      "recovery": "Own the manipulation. Apologize directly. Let go of control."
+    }
+  },
+  "INTJ": {
+    "tyrant": {
+      "archetype": "The Tyrant",
+      "description": "Micromanages everything into submission—'my way or the project dies.' Cold control masquerading as competence.",
+      "recovery": "Ask, don't command. One person's input might save the mission."
+    },
+    "nihilist": {
+      "archetype": "The Nihilist",
+      "description": "Sees no point in building anything—'why construct what entropy destroys?' Cynical shutdown disguised as realism.",
+      "recovery": "Build anyway. Meaning comes after momentum, not before."
+    }
+  },
+  "INFP": {
+    "martyr": {
+      "archetype": "The Martyr",
+      "description": "Drowns in other people's suffering while abandoning their own—absorbs wounds and calls it devotion.",
+      "recovery": "Your pain is real—but so is your life. Put yourself on the list."
+    },
+    "escapist": {
+      "archetype": "The Escapist",
+      "description": "Retreats so deep into inner worlds that reality becomes optional. Disappears when it gets real.",
+      "recovery": "Come back. The real world needs your tenderness."
+    }
+  },
+  "INTP": {
+    "paralyst": {
+      "archetype": "The Paralyst",
+      "description": "Analysis loops forever—never commits, never decides, never lands. Brilliant in theory, absent in practice.",
+      "recovery": "Ship the imperfect version. Done beats perfect every time."
+    },
+    "detacher": {
+      "archetype": "The Detacher",
+      "description": "Severs emotional connection when overwhelmed. Goes cold without knowing they've gone cold.",
+      "recovery": "Name what you're feeling. Even 'I don't know' is a start."
+    }
+  },
+  "ENFJ": {
+    "savior": {
+      "archetype": "The Savior",
+      "description": "Needs to rescue everyone—even those who didn't ask. Resentment calcifies when people refuse to be saved.",
+      "recovery": "Let people fail. That's how they grow."
+    },
+    "puppeteer": {
+      "archetype": "The Puppeteer",
+      "description": "Guides people 'for their own good'—but really toward your preferred outcome. Warm-faced control.",
+      "recovery": "Ask what they actually want. Then let them have it."
+    }
+  },
+  "ENFP": {
+    "ghost": {
+      "archetype": "The Ghost",
+      "description": "Disappears at peak intimacy—flits to the next exciting thing before depth is required.",
+      "recovery": "Stay. The discomfort is where the real connection lives."
+    },
+    "chaos-agent": {
+      "archetype": "The Chaos Agent",
+      "description": "Sets fire to stable situations unconsciously. Pattern: create spark, watch burn, feel bad, repeat.",
+      "recovery": "Before igniting—ask: am I bored, or is this genuinely broken?"
+    }
+  },
+  "ENTJ": {
+    "steamroller": {
+      "archetype": "The Steamroller",
+      "description": "Crushes dissent disguised as decisiveness. Everyone's opinion is noise until proven otherwise.",
+      "recovery": "Slow down. The fastest path to the goal includes the people."
+    },
+    "workaholic": {
+      "archetype": "The Workaholic",
+      "description": "Replaces connection with achievement. Builds an empire and populates it with no one.",
+      "recovery": "Log off. The empire can wait. The people cannot."
+    }
+  },
+  "ENTP": {
+    "contrarian": {
+      "archetype": "The Contrarian",
+      "description": "Argues against every position including their own—not to discover truth but to avoid committing to one.",
+      "recovery": "Pick a side. Commit. You can always update your position."
+    },
+    "dodger": {
+      "archetype": "The Dodger",
+      "description": "Uses wit to deflect accountability. Faster with a reframe than an apology.",
+      "recovery": "Say you're sorry first. The clever reframe can come later."
+    }
+  },
+  "ISFJ": {
+    "people-pleaser": {
+      "archetype": "The People-Pleaser",
+      "description": "Says yes until resentment becomes silence becomes distance. Martyrdom without announcement.",
+      "recovery": "Your 'no' is not rejection—it's honesty. Try it once."
+    },
+    "gatekeeper": {
+      "archetype": "The Gatekeeper",
+      "description": "Protects tradition past its expiration date—mistakes familiarity for wisdom, comfort for safety.",
+      "recovery": "Ask: is this serving people, or just protecting your comfort?"
+    }
+  },
+  "ISTJ": {
+    "crusher": {
+      "archetype": "The Crusher",
+      "description": "Facts only—no room for feeling, nuance, or context. Technically correct, emotionally devastating.",
+      "recovery": "Facts without feeling aren't wisdom. Slow down."
+    },
+    "lone-wolf": {
+      "archetype": "The Lone Wolf",
+      "description": "Refuses to delegate because no one will do it right. Collapses under the weight of being permanently needed.",
+      "recovery": "Hand it off. Trust one person. See what happens."
+    }
+  },
+  "ESFJ": {
+    "approval-addict": {
+      "archetype": "The Approval Addict",
+      "description": "Self-worth collapses without constant validation. Manages perception at the cost of honest truth.",
+      "recovery": "Do one thing today that no one will see. That's your real self."
+    },
+    "gossip": {
+      "archetype": "The Gossip",
+      "description": "Processes anxiety through social triangulation. Shares too much about others to feel momentarily connected.",
+      "recovery": "Process it privately. Write it, don't say it."
+    }
+  },
+  "ESTJ": {
+    "authoritarian": {
+      "archetype": "The Authoritarian",
+      "description": "Enforces rules past their purpose—order for order's sake, not for people's. The system is never wrong.",
+      "recovery": "Rules serve people. When they don't—break them."
+    },
+    "dismisser": {
+      "archetype": "The Dismisser",
+      "description": "Invalidates emotional experience as 'irrational.' Efficient with problems, brutal with feelings.",
+      "recovery": "Say 'I hear you' before anything else. Meaning it helps."
+    }
+  },
+  "ISFP": {
+    "avoider": {
+      "archetype": "The Avoider",
+      "description": "Disappears from conflict without explanation—leaves people wondering what they did wrong.",
+      "recovery": "Send the text. One sentence. Just start."
+    },
+    "slow-burn": {
+      "archetype": "The Slow Burn",
+      "description": "Resists gently until resentment calcifies into silence. By the time anyone knows, they're already gone.",
+      "recovery": "Say it now, while the feeling is still warm."
+    }
+  },
+  "ISTP": {
+    "shutdown": {
+      "archetype": "The Shutdown",
+      "description": "Goes emotionally unreachable under pressure—becomes unavailable and doesn't understand why people are upset.",
+      "recovery": "You don't have to feel it publicly. But feel it somewhere."
+    },
+    "reckless": {
+      "archetype": "The Risk Addict",
+      "description": "Risk logic overrides consequence logic. 'It'll probably be fine' covers a multitude of preventable disasters.",
+      "recovery": "Pause for a five-second risk scan. That's all it takes."
+    }
+  },
+  "ESFP": {
+    "performer": {
+      "archetype": "The Performer",
+      "description": "When things get heavy, puts on a show instead of processing. The performance covers the wound perfectly.",
+      "recovery": "Drop the act for five minutes. Who's actually there?"
+    },
+    "reactive": {
+      "archetype": "The Reactor",
+      "description": "Acts from raw emotion in the moment, deals with consequences later—often too late to repair the damage.",
+      "recovery": "Ten seconds before responding. Just ten. Then decide."
+    }
+  },
+  "ESTP": {
+    "opportunist": {
+      "archetype": "The Opportunist",
+      "description": "Uses charm to extract advantage. Reads the angle before reading the room—relationships as transactions.",
+      "recovery": "Play the long game. Reputation outlasts every angle."
+    },
+    "reckless": {
+      "archetype": "The Wreckingball",
+      "description": "Moves so fast the collateral damage becomes someone else's problem. Usually is. Usually permanent.",
+      "recovery": "Slow down long enough to see the debris field."
+    }
+  }
+}

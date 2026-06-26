@@ -1,0 +1,82 @@
+{
+  "INFJ": {
+    "mystic": "Quiet visionary—sees souls, heals silently.",
+    "strategist": "Deep planner—feels the world, then plots change.",
+    "oracle": "Convergence of intuition and will—what you sense becomes prophecy."
+  },
+  "INTJ": {
+    "architect": "Cold genius—builds empires in silence.",
+    "oracle": "Intuitive mastermind—predicts moves before they happen.",
+    "sovereign": "Self-contained authority—needs no approval to know the answer."
+  },
+  "INFP": {
+    "dreamer": "Keeper of impossible ideals—refuses to let the world be ordinary.",
+    "healer": "Soft force of nature—mends wounds no one else can see.",
+    "poet": "The world speaks in symbols. You're the only one who listens."
+  },
+  "INTP": {
+    "theorist": "Maps reality from the inside—logic is your love language.",
+    "ghost": "Quietly dissolves into thinking. Surfaces for ideas only.",
+    "heretic": "Questions the question. Never satisfied with the first answer."
+  },
+  "ENFJ": {
+    "catalyst": "Ignites people's best selves—transformation follows you.",
+    "conductor": "Orchestrates harmony between souls who can't find it alone.",
+    "teacher": "Turns pain into curriculum. Every wound becomes a lesson."
+  },
+  "ENFP": {
+    "spark": "Sets rooms on fire with ideas—then chases the next flame.",
+    "connector": "Finds meaning everywhere, especially in people others skip.",
+    "rebel": "Allergic to 'that's just how it is.' You were born to rewrite."
+  },
+  "ENTJ": {
+    "commander": "Born to lead—every room rearranges itself around you.",
+    "empire-builder": "Long game, no mercy, total vision.",
+    "edge": "Where vision meets ruthlessness, you live there."
+  },
+  "ENTP": {
+    "provocateur": "Argues for sport—wins by making you think.",
+    "inventor": "Builds ideas like weapons, then releases them into the wild.",
+    "contrarian": "Bored by consensus. Alive in the friction."
+  },
+  "ISFJ": {
+    "guardian": "Quietly holds everything together so others don't have to.",
+    "anchor": "Your presence is safety. You remember what others forget.",
+    "keeper": "Protects traditions, people, and promises with fierce loyalty."
+  },
+  "ISTJ": {
+    "sentinel": "Immovable, reliable—the one still standing when storms pass.",
+    "archivist": "Carries the weight of precedent so others can move forward.",
+    "foundation": "Not glamorous. Essential. The bedrock beneath everyone's feet."
+  },
+  "ESFJ": {
+    "host": "Makes every person feel like the only person in the room.",
+    "weaver": "Threads people into community—does it without taking credit.",
+    "hearth": "Warmth radiates from you. People orbit your stability."
+  },
+  "ESTJ": {
+    "builder": "Takes chaos, installs structure, delivers results.",
+    "enforcer": "Holds the line when everyone else negotiates principles away.",
+    "executor": "Vision is cheap. You're the one who makes things real."
+  },
+  "ISFP": {
+    "artist": "Beauty isn't what you make—it's how you move through the world.",
+    "wanderer": "Quietly collects experiences that others miss entirely.",
+    "touch": "Your hands know what your words can't say."
+  },
+  "ISTP": {
+    "operator": "Reads the machine. Fixes what's broken. Asks nothing extra.",
+    "ghost-hand": "Present enough to solve it. Gone before the applause.",
+    "stoic": "Feelings are data. You process them, then move."
+  },
+  "ESFP": {
+    "flame": "Pure now. You don't plan the moment—you become it.",
+    "joy-bringer": "Your energy is infectious and you know it. Own it.",
+    "performer": "Life is stage and audience. You play both parts perfectly."
+  },
+  "ESTP": {
+    "blade": "Sharp, fast, decisive—you don't overthink, you act.",
+    "daredevil": "Risk is your native language. Calm is suspicious.",
+    "operator": "Reads every room in three seconds. Works every angle."
+  }
+}

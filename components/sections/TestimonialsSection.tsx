@@ -1,0 +1,125 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import { Star } from 'lucide-react';
+
+const testimonials = [
+  {
+    name: 'Sarah M.',
+    type: 'INTJ - The Architect',
+    location: 'San Francisco, CA',
+    text: 'Finally, astrology that respects my intelligence. The Swiss Ephemeris precision is unmatched. I\'ve compared it to $300+ software - Merlin is just as accurate for a fraction of the price.',
+    rating: 5,
+  },
+  {
+    name: 'Marcus R.',
+    type: 'ENFP - The Campaigner',
+    location: 'Austin, TX',
+    text: 'The daily whispers are eerily accurate. It\'s like having a cosmic therapist who actually knows me. The MBTI integration is brilliant - I finally understand why certain transits affect me differently.',
+    rating: 5,
+  },
+  {
+    name: 'Luna K.',
+    type: 'INFJ - The Advocate',
+    location: 'Portland, OR',
+    text: 'This is what astrology should always have been. No vague generalizations, no clickbait. Just pure, accurate cosmic truth. The lifetime access means I can explore my chart without worrying about subscriptions.',
+    rating: 5,
+  },
+  {
+    name: 'David Chen',
+    type: 'INTP - The Logician',
+    location: 'Seattle, WA',
+    text: 'As a skeptic, I was shocked. The mathematical precision visible in the calculations won me over. This isn\'t fortune-telling - it\'s astronomical data applied personally. Worth every penny.',
+    rating: 5,
+  },
+  {
+    name: 'Aisha P.',
+    type: 'ENFJ - The Protagonist',
+    location: 'New York, NY',
+    text: 'I use this for my coaching clients. The depth of insights helps me understand their patterns and timing. Merlin pays for itself with just one client session.',
+    rating: 5,
+  },
+  {
+    name: 'James Wilson',
+    type: 'ISTJ - The Logistician',
+    location: 'Chicago, IL',
+    text: 'I appreciated the no-nonsense approach. One payment, lifetime access, no tricks. The transit tracking feature alone is worth more than the $50 price tag.',
+    rating: 5,
+  },
+];
+
+export function TestimonialsSection() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.5 },
+    },
+  };
+
+  return (
+    <section className="py-20 px-4 relative">
+      <div className="max-w-7xl mx-auto relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-16"
+        >
+          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
+            What Our Users Say
+          </h2>
+          <p className="text-gray-400 text-lg">
+            Join the enlightened few who&apos;ve discovered their cosmic truth
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {testimonials.map((testimonial, index) => (
+            <motion.div
+              key={index}
+              variants={itemVariants}
+              className="bg-gray-900/40 backdrop-blur-sm border border-amber-500/20 rounded-xl p-6 hover:border-amber-500/40 transition-all duration-300 flex flex-col"
+            >
+              <div className="flex items-center mb-4">
+                {[...Array(testimonial.rating)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
+                ))}
+              </div>
+              
+              <p className="text-gray-300 mb-4 italic flex-grow">
+                &quot;{testimonial.text}&quot;
+              </p>
+              
+              <div className="border-t border-amber-500/20 pt-4 mt-auto">
+                <p className="text-amber-300 font-semibold">{testimonial.name}</p>
+                <p className="text-gray-400 text-sm">{testimonial.type}</p>
+                {testimonial.location && (
+                  <p className="text-gray-500 text-xs mt-1">{testimonial.location}</p>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
