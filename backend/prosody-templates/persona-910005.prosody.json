@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "sourceUrl": "uploaded:Voice - Evelynn Agonys Embrace - English-[AudioTrimmer.com].mp3",
+  "extractedAt": "2026-04-17T18:29:05.869Z",
+  "rhythm": {
+    "label": "balanced",
+    "speechDensity": 0.59,
+    "pauseRatio": 0.41
+  },
+  "cadence": {
+    "label": "deliberate",
+    "avgPauseSeconds": 1.321,
+    "pauseCount": 186
+  },
+  "prosody": {
+    "contour": "elongated",
+    "intensity": "medium"
+  },
+  "audio": {
+    "durationSeconds": 599.798,
+    "sampleRate": 44100,
+    "channels": 2
+  }
+}

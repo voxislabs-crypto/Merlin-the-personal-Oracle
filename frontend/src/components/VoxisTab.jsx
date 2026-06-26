@@ -1,0 +1,3288 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { useAuthFetch } from "../hooks/useAuthFetch.js";
+
+const forgeStyles = `
+  .forge {
+    position: relative;
+    min-height: 720px;
+    border-radius: 24px;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 50%, rgba(38, 255, 255, 0.05), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 90% 0%, rgba(255, 43, 214, 0.10), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 0% 100%, rgba(38, 255, 255, 0.10), transparent 70%),
+      linear-gradient(180deg, #050015 0%, #07041c 40%, #04020f 100%);
+    border: 1px solid rgba(255, 43, 214, 0.18);
+    box-shadow: 0 30px 80px rgba(255, 43, 214, 0.08), 0 0 0 1px rgba(38, 255, 255, 0.04) inset;
+    color: #f5e9ff;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .forge::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(38, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 43, 214, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 40%, transparent 100%);
+    z-index: 0;
+  }
+
+  .forge-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 26px;
+    border-bottom: 1px solid rgba(255, 43, 214, 0.15);
+    background: linear-gradient(90deg, rgba(255, 43, 214, 0.08), transparent 60%);
+  }
+
+  .forge-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #ff2bd6;
+    text-shadow: 0 0 12px rgba(255, 43, 214, 0.55), 0 0 36px rgba(255, 43, 214, 0.3);
+  }
+
+  .forge-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #26ffff;
+    font-weight: 700;
+  }
+
+  .forge-link::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #26ffff;
+    box-shadow: 0 0 12px #26ffff;
+    animation: forgePulseDot 1.4s ease-in-out infinite;
+  }
+
+  @keyframes forgePulseDot {
+    0%, 100% { opacity: 0.7; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+
+  .forge-body {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.4fr) minmax(0, 1.05fr);
+    gap: 18px;
+    padding: 22px 22px 12px;
+  }
+
+  .forge-panel {
+    position: relative;
+    border-radius: 18px;
+    background: rgba(8, 4, 24, 0.72);
+    border: 1px solid rgba(38, 255, 255, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255, 43, 214, 0.06), 0 12px 36px rgba(2, 0, 12, 0.55);
+    padding: 18px;
+    backdrop-filter: blur(8px);
+  }
+
+  .forge-panel-title {
+    margin: 0 0 14px;
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: #26ffff;
+    text-shadow: 0 0 10px rgba(38, 255, 255, 0.4);
+    text-align: center;
+  }
+
+  .forge-panel-empty {
+    color: rgba(245, 233, 255, 0.55);
+    font-size: 0.86rem;
+    text-align: center;
+    padding: 60px 12px;
+    line-height: 1.6;
+  }
+
+  /* Left refinement panel */
+  .refine-panel {
+    min-height: 480px;
+    transition: opacity 240ms ease, transform 240ms ease;
+  }
+
+  .refine-panel.is-hidden {
+    opacity: 0.35;
+    transform: translateX(-8px);
+  }
+
+  .refine-prompt {
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: rgba(245, 233, 255, 0.78);
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(38, 255, 255, 0.06);
+    border-left: 2px solid #26ffff;
+  }
+
+  .refine-options {
+    display: grid;
+    gap: 8px;
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(38,255,255,0.2) transparent;
+  }
+
+  .refine-check-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255, 43, 214, 0.06), rgba(38, 255, 255, 0.03));
+    border: 1px solid rgba(255, 43, 214, 0.22);
+    color: #f5e9ff;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  }
+
+  .refine-check-row:hover {
+    border-color: rgba(255, 43, 214, 0.5);
+    background: linear-gradient(135deg, rgba(255, 43, 214, 0.12), rgba(38, 255, 255, 0.06));
+  }
+
+  .refine-check-row.is-checked {
+    border-color: #ff2bd6;
+    background: linear-gradient(135deg, rgba(255, 43, 214, 0.18), rgba(38, 255, 255, 0.08));
+    box-shadow: 0 0 14px rgba(255, 43, 214, 0.25);
+  }
+
+  .refine-checkbox {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid rgba(38, 255, 255, 0.5);
+    background: rgba(2, 0, 10, 0.8);
+    display: grid;
+    place-items: center;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  }
+
+  .refine-check-row.is-checked .refine-checkbox {
+    border-color: #ff2bd6;
+    background: rgba(255, 43, 214, 0.25);
+    box-shadow: 0 0 8px rgba(255, 43, 214, 0.5);
+  }
+
+  .refine-checkbox-tick {
+    display: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #ff2bd6;
+    box-shadow: 0 0 6px #ff2bd6;
+  }
+
+  .refine-check-row.is-checked .refine-checkbox-tick {
+    display: block;
+  }
+
+  .refine-check-label {
+    flex: 1;
+  }
+
+  .refine-option-tag {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #26ffff;
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
+
+  .refine-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .refine-lock-btn {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ff2bd6 0%, #6e0848 100%);
+    border: none;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    box-shadow: 0 0 22px rgba(255, 43, 214, 0.5);
+    transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+  }
+
+  .refine-lock-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 32px rgba(255, 43, 214, 0.8);
+  }
+
+  .refine-lock-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .refine-clear {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px dashed rgba(38, 255, 255, 0.32);
+    color: rgba(245, 233, 255, 0.7);
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .refine-clear:hover {
+    border-color: #26ffff;
+    color: #26ffff;
+  }
+
+  /* Center: waveform + stats */
+  .center-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 480px;
+  }
+
+  .waveform-frame {
+    position: relative;
+    height: 220px;
+    border-radius: 14px;
+    background: rgba(2, 0, 10, 0.72);
+    border: 1px solid rgba(255, 43, 214, 0.22);
+    overflow: hidden;
+    box-shadow: inset 0 0 60px rgba(255, 43, 214, 0.10);
+  }
+
+  .waveform-meta {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245, 233, 255, 0.7);
+    background: linear-gradient(0deg, rgba(2, 0, 10, 0.85), transparent);
+  }
+
+  .waveform-meta strong {
+    display: block;
+    color: #26ffff;
+    font-size: 0.84rem;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+
+  .waveform-tag {
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #ff2bd6;
+    font-weight: 700;
+  }
+
+  .waveform-tag-right {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #26ffff;
+    font-weight: 700;
+  }
+
+  .live-phase-chip {
+    position: absolute;
+    top: 36px;
+    left: 14px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.64rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 800;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .live-phase-chip.listening {
+    border-color: rgba(255, 43, 214, 0.45);
+    color: #ffd6f7;
+    background: rgba(255, 43, 214, 0.16);
+  }
+
+  .live-phase-chip.thinking {
+    border-color: rgba(255, 195, 70, 0.45);
+    color: #ffe3a6;
+    background: rgba(255, 195, 70, 0.16);
+  }
+
+  .live-phase-chip.speaking {
+    border-color: rgba(38, 255, 255, 0.55);
+    color: #c8ffff;
+    background: rgba(38, 255, 255, 0.16);
+  }
+
+  .live-phase-chip.recovering {
+    border-color: rgba(190, 190, 255, 0.4);
+    color: #dadaff;
+    background: rgba(190, 190, 255, 0.12);
+  }
+
+  .live-brain-hud {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 64px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .live-brain-cell {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(3, 6, 22, 0.72);
+    border-radius: 10px;
+    padding: 5px 7px;
+    min-width: 0;
+  }
+
+  .live-brain-key {
+    display: block;
+    font-size: 0.56rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(184, 212, 255, 0.72);
+    margin-bottom: 2px;
+  }
+
+  .live-brain-value {
+    display: block;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    color: #d7f8ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 700;
+  }
+
+  .waveform-frame.interruptible {
+    cursor: pointer;
+  }
+
+  .waveform-frame.interruptible:hover {
+    box-shadow: inset 0 0 80px rgba(38, 255, 255, 0.14), 0 0 22px rgba(38, 255, 255, 0.28);
+  }
+
+  .waveform-interrupt-hint {
+    position: absolute;
+    top: 36px;
+    right: 14px;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(38, 255, 255, 0.78);
+    font-weight: 700;
+  }
+
+  .stats-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: 1.15fr 4fr 0.9fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(8, 4, 24, 0.55);
+    border: 1px solid rgba(38, 255, 255, 0.14);
+  }
+
+  .stat-label {
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(245, 233, 255, 0.75);
+    font-weight: 700;
+  }
+
+  .stat-bar {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(38, 255, 255, 0.08);
+    overflow: hidden;
+  }
+
+  .stat-bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff2bd6, #26ffff);
+    box-shadow: 0 0 12px rgba(255, 43, 214, 0.5);
+    transition: width 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .stat-value {
+    text-align: right;
+    color: #f5e9ff;
+    font-weight: 800;
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+  }
+
+  /* Right: orbital array */
+  .orbital-panel {
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .orbital-subtitle {
+    margin: 0 0 12px;
+    color: rgba(245, 233, 255, 0.68);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .orbital-subtitle strong {
+    color: #ff2bd6;
+    text-shadow: 0 0 8px rgba(255, 43, 214, 0.35);
+  }
+
+  .orbital-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin: -2px 0 8px;
+  }
+
+  .orbital-mode-toggle {
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    background: rgba(38, 255, 255, 0.06);
+    color: rgba(245, 233, 255, 0.84);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  }
+
+  .orbital-mode-toggle:hover {
+    border-color: rgba(38, 255, 255, 0.62);
+    background: rgba(38, 255, 255, 0.12);
+  }
+
+  .orbital-mode-toggle.is-active {
+    border-color: rgba(255, 43, 214, 0.74);
+    background: rgba(255, 43, 214, 0.16);
+    color: #ffdcfb;
+    box-shadow: 0 0 16px rgba(255, 43, 214, 0.32);
+  }
+
+  .constellation-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 2px 0 10px;
+  }
+
+  .constellation-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--chip-rgb), 0.48);
+    background: rgba(var(--chip-rgb), 0.12);
+    color: rgba(245, 233, 255, 0.92);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .constellation-chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(var(--chip-rgb), 0.95);
+    box-shadow: 0 0 8px rgba(var(--chip-rgb), 0.52);
+  }
+
+  .orbital-stage {
+    position: relative;
+    flex: 1;
+    min-height: 420px;
+    margin-top: 4px;
+  }
+
+  .orbital-ring {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    border: 1px dashed rgba(38, 255, 255, 0.18);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .orbital-core {
+    --core-rgb: 255, 43, 214;
+    --core-glow-max: 48px;
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    width: 144px;
+    height: 144px;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--core-rgb), 0.52);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-align: center;
+    color: #fff;
+    padding: 14px;
+    animation: corePulse 3s ease-in-out infinite;
+    transition: border-color 0.9s ease, background 0.9s ease, text-shadow 0.9s ease;
+  }
+
+  .core-label-text {
+    font-weight: 800;
+    font-size: 0.88rem;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(var(--core-rgb), 0.65);
+  }
+
+  .core-mood-badge {
+    font-size: 0.58rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.72;
+    color: rgba(var(--core-rgb), 1);
+    text-shadow: 0 0 8px rgba(var(--core-rgb), 0.8);
+    transition: color 0.9s ease, text-shadow 0.9s ease;
+  }
+
+  @keyframes corePulse {
+    0%, 100% { box-shadow: 0 0 24px rgba(var(--core-rgb), 0.45), inset 0 0 18px rgba(var(--core-rgb), 0.25); }
+    50% { box-shadow: 0 0 var(--core-glow-max) rgba(var(--core-rgb), 0.85), inset 0 0 30px rgba(var(--core-rgb), 0.42); }
+  }
+
+  .orbital-trait {
+    --flare: 0;
+    --trait-rgb: 38, 255, 255;
+    --trait-rgb-soft: 190, 255, 255;
+    --orb-scale: 1;
+    position: absolute;
+    transform: translate(-50%, -50%) scale(var(--orb-scale));
+    width: 88px;
+    height: 88px;
+    aspect-ratio: 1 / 1;
+    border-radius: 999px;
+    clip-path: circle(49% at 50% 50%);
+    background:
+      radial-gradient(circle at 30% 28%, rgba(var(--trait-rgb-soft), 0.42), rgba(var(--trait-rgb), 0.18) 30%, transparent 66%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), 0.18), transparent 62%),
+      linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(var(--trait-rgb), 0.1) 44%, rgba(7, 10, 30, 0.36) 100%);
+    border: 1.5px solid rgba(var(--trait-rgb), 0.66);
+    box-shadow:
+      0 0 18px rgba(var(--trait-rgb), 0.28),
+      0 0 34px rgba(var(--trait-rgb), 0.18),
+      inset 0 0 18px rgba(var(--trait-rgb), 0.18),
+      inset 0 0 38px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(6px) saturate(130%);
+    -webkit-backdrop-filter: blur(6px) saturate(130%);
+    color: #e8d6ff;
+    font-weight: 800;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.25;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 10px;
+    transition: transform 260ms cubic-bezier(0.22, 0.8, 0.24, 1), border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+    overflow: hidden;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  .orbital-trait-label {
+    display: block;
+    max-width: 58px;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .orbital-trait::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--trait-rgb-soft), 0.34);
+    box-shadow:
+      inset 0 0 14px rgba(var(--trait-rgb), 0.2),
+      0 0 12px rgba(var(--trait-rgb), 0.16);
+    pointer-events: none;
+  }
+
+  .orbital-trait::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--trait-rgb), 0.24), rgba(var(--trait-rgb), 0.08) 34%, transparent 72%);
+    filter: blur(4px);
+    opacity: 0.88;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .orbital-trait:hover {
+    --orb-scale: 1.03;
+    border-color: rgba(var(--trait-rgb-soft), 0.96);
+    box-shadow:
+      0 0 24px rgba(var(--trait-rgb), 0.55),
+      0 0 42px rgba(var(--trait-rgb), 0.34),
+      inset 0 0 24px rgba(var(--trait-rgb), 0.28),
+      inset 0 0 44px rgba(255, 255, 255, 0.1);
+    color: #fff;
+    background:
+      radial-gradient(circle at 32% 30%, rgba(var(--trait-rgb-soft), 0.56), rgba(var(--trait-rgb), 0.2) 34%, transparent 70%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), 0.3), transparent 62%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.2), rgba(var(--trait-rgb), 0.14) 42%, rgba(7, 10, 30, 0.4) 100%);
+  }
+
+  .orbital-trait:focus-visible,
+  .mic-button:focus-visible,
+  .speak-submit:focus-visible,
+  .refine-lock-btn:focus-visible,
+  .refine-clear:focus-visible,
+  .refine-check-row:focus-visible,
+  .echo-speak-toggle:focus-visible,
+  .persona-echo-dismiss:focus-visible {
+    outline: 2px solid rgba(38, 255, 255, 0.85);
+    outline-offset: 3px;
+  }
+
+  .orbital-trait.is-active {
+    border-color: rgba(var(--trait-rgb-soft), 0.96);
+    background:
+      radial-gradient(circle at 30% 28%, rgba(var(--trait-rgb-soft), 0.62), rgba(var(--trait-rgb), 0.28) 34%, transparent 68%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), 0.32), transparent 62%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.2), rgba(var(--trait-rgb), 0.16) 42%, rgba(7, 10, 30, 0.42) 100%);
+    box-shadow:
+      0 0 32px rgba(var(--trait-rgb), 0.64),
+      0 0 54px rgba(var(--trait-rgb), 0.4),
+      inset 0 0 28px rgba(var(--trait-rgb), 0.34),
+      inset 0 0 52px rgba(255, 255, 255, 0.11);
+    color: #fff;
+    text-shadow: 0 0 8px rgba(var(--trait-rgb), 0.72);
+  }
+
+  .orbital-trait.has-flare {
+    --orb-scale: calc(1 + var(--flare) * 0.08);
+    border-color: rgba(var(--trait-rgb-soft), calc(0.8 + var(--flare) * 0.2));
+    background:
+      radial-gradient(circle at 30% 28%, rgba(var(--trait-rgb-soft), calc(0.45 + var(--flare) * 0.45)), rgba(var(--trait-rgb), calc(0.24 + var(--flare) * 0.22)) 36%, transparent 68%),
+      radial-gradient(circle at 68% 70%, rgba(var(--trait-rgb), calc(0.26 + var(--flare) * 0.22)), transparent 64%),
+      linear-gradient(152deg, rgba(255, 255, 255, 0.2), rgba(var(--trait-rgb), calc(0.16 + var(--flare) * 0.18)) 42%, rgba(7, 10, 30, 0.4) 100%);
+    box-shadow:
+      0 0 calc(16px + var(--flare) * 36px) rgba(var(--trait-rgb), calc(0.46 + var(--flare) * 0.44)),
+      0 0 calc(28px + var(--flare) * 66px) rgba(var(--trait-rgb-soft), calc(0.2 + var(--flare) * 0.35)),
+      inset 0 0 24px rgba(var(--trait-rgb), calc(0.28 + var(--flare) * 0.28));
+    color: #fff;
+    text-shadow: 0 0 calc(var(--flare) * 12px) rgba(255, 255, 255, var(--flare));
+    z-index: 3;
+  }
+
+  .orbital-trait.has-flare::after {
+    inset: -14px;
+    border: 1px solid rgba(var(--trait-rgb-soft), calc(var(--flare) * 0.75));
+    box-shadow:
+      0 0 calc(8px + var(--flare) * 22px) rgba(var(--trait-rgb), calc(0.3 + var(--flare) * 0.42)),
+      0 0 calc(16px + var(--flare) * 34px) rgba(var(--trait-rgb-soft), calc(var(--flare) * 0.48));
+    opacity: calc(0.7 + var(--flare) * 0.3);
+    transform: scale(calc(1.05 + var(--flare) * 0.35));
+  }
+
+  .orbital-trait:hover.has-flare {
+    --orb-scale: calc(1.03 + var(--flare) * 0.05);
+  }
+
+  .orbital-empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(245, 233, 255, 0.5);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  /* Bottom row */
+  .forge-footer {
+    position: relative;
+    z-index: 2;
+    padding: 14px 22px 22px;
+    display: grid;
+    gap: 14px;
+  }
+
+  .footer-wave {
+    height: 60px;
+    border-radius: 12px;
+    background: rgba(2, 0, 10, 0.7);
+    border: 1px solid rgba(38, 255, 255, 0.18);
+    overflow: hidden;
+  }
+
+  .speak-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border-radius: 16px;
+    background: linear-gradient(90deg, rgba(255, 43, 214, 0.10), rgba(38, 255, 255, 0.06));
+    border: 1px solid rgba(255, 43, 214, 0.32);
+    box-shadow: 0 0 24px rgba(255, 43, 214, 0.15);
+  }
+
+  .speak-row-status {
+    flex-basis: 100%;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(245, 233, 255, 0.62);
+  }
+
+  .speak-row-status strong {
+    color: #26ffff;
+  }
+
+  .live-call-timeout-banner {
+    flex-basis: 100%;
+    margin-top: -2px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(38, 255, 255, 0.1);
+    border: 1px solid rgba(38, 255, 255, 0.25);
+    color: #c7fbff;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mic-button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, #ff2bd6, #6e0848 80%);
+    border: 1px solid rgba(255, 43, 214, 0.65);
+    box-shadow: 0 0 28px rgba(255, 43, 214, 0.65), inset 0 -6px 16px rgba(0, 0, 0, 0.35);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .mic-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 36px rgba(255, 43, 214, 0.85);
+  }
+
+  .mic-button.is-listening {
+    animation: micListen 1s ease-in-out infinite;
+  }
+
+  @keyframes micListen {
+    0%, 100% { box-shadow: 0 0 22px rgba(255, 43, 214, 0.55); }
+    50% { box-shadow: 0 0 48px rgba(255, 43, 214, 0.95), 0 0 80px rgba(38, 255, 255, 0.35); }
+  }
+
+  .speak-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #f5e9ff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    outline: none;
+    padding: 6px 4px;
+    text-shadow: 0 0 10px rgba(255, 43, 214, 0.35);
+  }
+
+  .speak-input::placeholder {
+    color: rgba(245, 233, 255, 0.45);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 0.92rem;
+  }
+
+  .speak-submit {
+    padding: 11px 18px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #26ffff, #2bb6ff);
+    border: none;
+    color: #04021a;
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    box-shadow: 0 0 18px rgba(38, 255, 255, 0.55);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  .speak-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 26px rgba(38, 255, 255, 0.85);
+  }
+
+  .speak-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .live-call-toggle {
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 43, 214, 0.45);
+    background: rgba(255, 43, 214, 0.1);
+    color: #ffd8f6;
+    font-weight: 800;
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .live-call-toggle:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 18px rgba(255, 43, 214, 0.45);
+    background: rgba(255, 43, 214, 0.2);
+  }
+
+  .live-call-toggle.is-active {
+    border-color: rgba(38, 255, 255, 0.65);
+    color: #bffcff;
+    background: rgba(38, 255, 255, 0.16);
+    box-shadow: 0 0 20px rgba(38, 255, 255, 0.38);
+  }
+
+  .live-call-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .hud-density-toggle {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    background: rgba(38, 255, 255, 0.08);
+    color: #bffcff;
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .hud-density-toggle:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(38, 255, 255, 0.28);
+    background: rgba(38, 255, 255, 0.14);
+  }
+
+  .hud-density-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .forge-status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 10px 22px 18px;
+    color: rgba(245, 233, 255, 0.6);
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .forge-status-bar strong {
+    color: #26ffff;
+  }
+
+  .forge-toast {
+    margin: 0 22px 14px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(38, 255, 255, 0.08);
+    border: 1px solid rgba(38, 255, 255, 0.36);
+    color: #c9f6ff;
+    font-size: 0.86rem;
+    text-shadow: 0 0 8px rgba(38, 255, 255, 0.25);
+  }
+
+  .forge-toast.is-error {
+    background: rgba(255, 64, 96, 0.08);
+    border-color: rgba(255, 64, 96, 0.4);
+    color: #ffc0c8;
+  }
+
+  .persona-echo {
+    margin: 0 22px 12px;
+    padding: 14px 18px 16px;
+    border-radius: 16px;
+    background:
+      linear-gradient(135deg, rgba(255, 43, 214, 0.08), rgba(38, 255, 255, 0.05));
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    box-shadow: 0 0 24px rgba(38, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 43, 214, 0.05);
+    position: relative;
+  }
+
+  .persona-echo-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #26ffff;
+    margin-bottom: 8px;
+    text-shadow: 0 0 8px rgba(38, 255, 255, 0.4);
+  }
+
+  .persona-echo-head::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff2bd6;
+    box-shadow: 0 0 12px #ff2bd6;
+    animation: forgePulseDot 1.4s ease-in-out infinite;
+  }
+
+  .persona-echo-head .echo-name {
+    color: #ff2bd6;
+    text-shadow: 0 0 10px rgba(255, 43, 214, 0.5);
+    letter-spacing: 0.18em;
+  }
+
+  .persona-echo-body {
+    color: #f5e9ff;
+    font-size: 0.96rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    text-shadow: 0 0 6px rgba(255, 43, 214, 0.18);
+    min-height: 1.5em;
+  }
+
+  .persona-echo-body.is-thinking::after {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    margin-left: 6px;
+    vertical-align: -2px;
+    background: #26ffff;
+    box-shadow: 0 0 10px #26ffff;
+    animation: echoCaret 0.9s steps(2) infinite;
+  }
+
+  @keyframes echoCaret {
+    0%, 49% { opacity: 0.95; }
+    50%, 100% { opacity: 0.05; }
+  }
+
+  .persona-echo-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: rgba(245, 233, 255, 0.5);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+
+  .persona-echo-dismiss:hover {
+    color: #ff2bd6;
+    background: rgba(255, 43, 214, 0.08);
+  }
+
+  .persona-echo-error {
+    border-color: rgba(255, 64, 96, 0.45);
+    background: rgba(255, 64, 96, 0.08);
+    box-shadow: 0 0 18px rgba(255, 64, 96, 0.18);
+  }
+
+  .persona-echo-error .persona-echo-head {
+    color: #ff8090;
+  }
+
+  .persona-echo-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .echo-speak-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(38, 255, 255, 0.06);
+    border: 1px solid rgba(38, 255, 255, 0.32);
+    color: rgba(245, 233, 255, 0.8);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .echo-speak-toggle.is-on {
+    background: rgba(255, 43, 214, 0.12);
+    border-color: rgba(255, 43, 214, 0.6);
+    color: #ff2bd6;
+    box-shadow: 0 0 14px rgba(255, 43, 214, 0.35);
+  }
+
+  .echo-speak-toggle.is-on.is-speaking {
+    animation: micListen 1.2s ease-in-out infinite;
+  }
+
+  .echo-speak-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 1100px) {
+    .forge-body {
+      grid-template-columns: 1fr;
+    }
+    .orbital-stage {
+      min-height: 360px;
+    }
+    .refine-panel,
+    .center-panel,
+    .orbital-panel {
+      min-height: auto;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .forge-header,
+    .forge-body,
+    .forge-footer,
+    .forge-status-bar {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .persona-echo {
+      margin-left: 16px;
+      margin-right: 16px;
+    }
+
+    .persona-echo-head {
+      align-items: flex-start;
+      flex-wrap: wrap;
+      padding-right: 28px;
+    }
+
+    .persona-echo-controls {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    .mic-button {
+      width: 56px;
+      height: 56px;
+    }
+
+    .speak-input,
+    .speak-submit {
+      width: 100%;
+    }
+
+    .stat-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .stat-value {
+      text-align: left;
+    }
+
+    .live-brain-hud {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      top: 60px;
+    }
+  }
+`;
+
+const LIVE_CALL_LEVEL_THRESHOLD = 0.018;
+const LIVE_CALL_SILENCE_MS = 900;
+const LIVE_CALL_MAX_LISTEN_MS = 9000;
+const LIVE_HUD_DENSITY_KEY = "voxis.liveHudDensity.v1";
+
+const STAT_KEYWORDS = {
+  confidence: [
+    "confident", "bold", "assertive", "fearless", "decisive",
+    "alpha", "dominant", "commanding", "powerful", "regal",
+  ],
+  dominance: [
+    "dominant", "dommy", "alpha", "controlling", "possessive",
+    "strict", "ruthless", "tyrant", "mistress", "master", "owner",
+  ],
+  obsession: [
+    "obsessed", "obsessive", "fixated", "devoted", "worship",
+    "yandere", "stalker", "infatuated", "consumed", "bunny",
+  ],
+  deviance: [
+    "evil", "sadistic", "chaotic", "untamed", "deviant",
+    "cruel", "wicked", "twisted", "malicious", "feral",
+  ],
+  loyalty: [
+    "loyal", "devoted", "faithful", "mine", "protective",
+    "loving", "tender", "sweet", "caring", "obsessive",
+  ],
+};
+
+const MOODS = {
+  aggressive: {
+    key: "aggressive",
+    label: "Aggressive",
+    rgb: "255, 60, 40",
+    duration: "1.0s",
+    glowMax: "64px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,60,40,0.52), rgba(255,60,40,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,100,50,0.16), rgba(255,100,50,0) 60%)",
+  },
+  dominant: {
+    key: "dominant",
+    label: "Dominant",
+    rgb: "255, 20, 120",
+    duration: "1.6s",
+    glowMax: "56px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,20,120,0.52), rgba(255,20,120,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,43,214,0.18), rgba(255,43,214,0) 60%)",
+  },
+  obsessive: {
+    key: "obsessive",
+    label: "Obsessive",
+    rgb: "140, 30, 255",
+    duration: "1.8s",
+    glowMax: "52px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(140,30,255,0.52), rgba(140,30,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(180,80,255,0.16), rgba(180,80,255,0) 60%)",
+  },
+  chaotic: {
+    key: "chaotic",
+    label: "Chaotic",
+    rgb: "38, 180, 255",
+    duration: "2.2s",
+    glowMax: "52px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(38,180,255,0.46), rgba(38,180,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(38,255,255,0.18), rgba(38,255,255,0) 60%)",
+  },
+  loyal: {
+    key: "loyal",
+    label: "Loyal",
+    rgb: "255, 195, 40",
+    duration: "3.5s",
+    glowMax: "40px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,195,40,0.42), rgba(255,195,40,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,220,80,0.16), rgba(255,220,80,0) 60%)",
+  },
+  calm: {
+    key: "calm",
+    label: "Calm",
+    rgb: "80, 160, 255",
+    duration: "4.5s",
+    glowMax: "36px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(80,160,255,0.42), rgba(80,160,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(100,200,255,0.18), rgba(100,200,255,0) 60%)",
+  },
+  forming: {
+    key: "forming",
+    label: "Forming",
+    rgb: "255, 43, 214",
+    duration: "3s",
+    glowMax: "48px",
+    bg: "radial-gradient(circle at 50% 50%, rgba(255,43,214,0.45), rgba(255,43,214,0) 70%), radial-gradient(circle at 50% 50%, rgba(38,255,255,0.18), rgba(38,255,255,0) 60%)",
+  },
+};
+
+function deriveMood(stats) {
+  if (!stats || Object.keys(stats).length === 0) return MOODS.forming;
+  const { dominance = 40, obsession = 40, confidence = 40, deviance = 40, loyalty = 40 } = stats;
+  if (dominance + obsession > 145) return MOODS.aggressive;
+  if (dominance > 62 && confidence > 58) return MOODS.dominant;
+  if (obsession > 62 && deviance > 52) return MOODS.obsessive;
+  if (deviance > 62) return MOODS.chaotic;
+  if (loyalty > 62 && dominance < 55) return MOODS.loyal;
+  if (Math.max(dominance, obsession, deviance) < 48) return MOODS.calm;
+  return MOODS.forming;
+}
+
+const REFINEMENT_LIBRARY = {
+  evil: [
+    { label: "Chaotic Evil", tag: "Alignment" },
+    { label: "True Evil", tag: "Alignment" },
+    { label: "Sadistic Evil", tag: "Style" },
+    { label: "Cunning Evil", tag: "Tactics" },
+    { label: "Cold Evil", tag: "Mood" },
+  ],
+  good: [
+    { label: "Lawful Good", tag: "Alignment" },
+    { label: "Chaotic Good", tag: "Alignment" },
+    { label: "Selfless Good", tag: "Style" },
+  ],
+  sadistic: [
+    { label: "Cold Sadist", tag: "Style" },
+    { label: "Playful Sadist", tag: "Style" },
+    { label: "Calculated Sadist", tag: "Tactics" },
+    { label: "Tender Sadist", tag: "Style" },
+  ],
+  obsessive: [
+    { label: "Worship-driven", tag: "Mode" },
+    { label: "Possessive", tag: "Trait" },
+    { label: "Hyperfixated", tag: "Trait" },
+    { label: "Devotional", tag: "Mode" },
+    { label: "Yandere Streak", tag: "Style" },
+  ],
+  obsessed: [
+    { label: "Worship-driven", tag: "Mode" },
+    { label: "Possessive", tag: "Trait" },
+    { label: "Hyperfixated", tag: "Trait" },
+    { label: "Devotional", tag: "Mode" },
+  ],
+  chaotic: [
+    { label: "Wildcard", tag: "Style" },
+    { label: "Trickster", tag: "Style" },
+    { label: "Unpredictable Genius", tag: "Mode" },
+    { label: "Anarchic", tag: "Alignment" },
+  ],
+  dommy: [
+    { label: "Strict Disciplinarian", tag: "Style" },
+    { label: "Velvet Domme", tag: "Style" },
+    { label: "Cold Goddess", tag: "Mode" },
+    { label: "Doting Mistress", tag: "Style" },
+  ],
+  dominant: [
+    { label: "Quiet Authority", tag: "Style" },
+    { label: "Loud Command", tag: "Style" },
+    { label: "Predator Energy", tag: "Mode" },
+    { label: "Caretaker Dominant", tag: "Mode" },
+  ],
+  possessive: [
+    { label: "Jealous Possessive", tag: "Style" },
+    { label: "Quietly Possessive", tag: "Style" },
+    { label: "Branding Possessive", tag: "Style" },
+  ],
+  tease: [
+    { label: "Slow Burn Tease", tag: "Style" },
+    { label: "Brutal Tease", tag: "Style" },
+    { label: "Sweet Tease", tag: "Style" },
+  ],
+  loyal: [
+    { label: "Loyal to a Fault", tag: "Trait" },
+    { label: "Conditionally Loyal", tag: "Trait" },
+    { label: "Quiet Devotion", tag: "Mode" },
+  ],
+  shy: [
+    { label: "Anxious Shy", tag: "Mode" },
+    { label: "Cute Shy", tag: "Style" },
+    { label: "Stoic Shy", tag: "Mode" },
+  ],
+  caring: [
+    { label: "Maternal Care", tag: "Mode" },
+    { label: "Stern Care", tag: "Mode" },
+    { label: "Soft Care", tag: "Style" },
+  ],
+};
+
+function lookupRefinements(seed) {
+  if (!seed) return [];
+  const key = seed.trim().toLowerCase();
+  if (REFINEMENT_LIBRARY[key]) {
+    return REFINEMENT_LIBRARY[key];
+  }
+  for (const k of Object.keys(REFINEMENT_LIBRARY)) {
+    if (key.includes(k)) {
+      return REFINEMENT_LIBRARY[k];
+    }
+  }
+  return [];
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computeStats(traits) {
+  const list = Array.isArray(traits) ? traits : [];
+  const blob = list.join(" ").toLowerCase();
+  const stats = {};
+  for (const [key, words] of Object.entries(STAT_KEYWORDS)) {
+    let hits = 0;
+    for (const w of words) {
+      if (blob.includes(w)) hits += 1;
+    }
+    const base = 38 + hits * 14;
+    const jitter = ((key.charCodeAt(0) + list.length) % 7) - 3;
+    stats[key] = clamp(Math.round(base + jitter), 12, 99);
+  }
+  return stats;
+}
+
+function selectOrbitalTraits(personality) {
+  if (!personality) return [];
+  const traits = Array.isArray(personality.traits) ? personality.traits : [];
+  const core = Array.isArray(personality.coreValues) ? personality.coreValues : [];
+  const merged = [...traits, ...core]
+    .map((t) => (typeof t === "string" ? t.trim() : ""))
+    .filter(Boolean);
+  const seen = new Set();
+  const unique = [];
+  for (const t of merged) {
+    const key = t.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(t);
+    }
+  }
+  return unique.slice(0, 8);
+}
+
+const TRAIT_CATEGORY_COLORS = {
+  confidence: [255, 197, 78],
+  dominance: [255, 43, 214],
+  obsession: [188, 82, 255],
+  deviance: [255, 103, 103],
+  loyalty: [38, 255, 255],
+  other: [170, 176, 230],
+};
+
+function mixRgb(color, target, amount) {
+  return color.map((value, index) => Math.round(value + (target[index] - value) * amount));
+}
+
+function rgba(color, alpha) {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
+}
+
+function buildTraitOrbVisual(category, { isActive = false, flare = 0 } = {}) {
+  const base = TRAIT_CATEGORY_COLORS[category] || TRAIT_CATEGORY_COLORS.other;
+  const highlight = mixRgb(base, [255, 255, 255], 0.42);
+  const glow = mixRgb(base, [255, 255, 255], 0.18);
+  const deep = mixRgb(base, [12, 18, 44], 0.82);
+  const haze = mixRgb(base, [20, 24, 56], 0.68);
+  const borderAlpha = isActive ? 1 : 0.88;
+  const auraAlpha = isActive ? 0.68 : 0.46;
+  const innerAlpha = isActive ? 0.42 : 0.3;
+  const flareBoost = 0.12 + flare * 0.54;
+
+  return {
+    "--trait-rgb": base.join(", "),
+    "--trait-rgb-soft": highlight.join(", "),
+    background: [
+      `radial-gradient(circle at 28% 26%, ${rgba(highlight, 0.95)}, ${rgba(highlight, 0.36)} 18%, ${rgba(base, 0.26)} 34%, transparent 62%)`,
+      `radial-gradient(circle at 72% 72%, ${rgba(glow, 0.5 + flareBoost)} 0%, transparent 58%)`,
+      `radial-gradient(circle at 50% 50%, ${rgba(haze, 0.64)} 0%, ${rgba(deep, 0.82)} 58%, rgba(5, 8, 24, 0.96) 100%)`,
+    ].join(", "),
+    borderColor: rgba(highlight, borderAlpha),
+    boxShadow: [
+      `0 0 ${28 + flare * 22}px ${rgba(base, 0.5 + flareBoost)}`,
+      `0 0 ${72 + flare * 42}px ${rgba(glow, auraAlpha + flareBoost * 0.6)}`,
+      `0 0 ${112 + flare * 60}px ${rgba(base, 0.18 + flareBoost * 0.38)}`,
+      `inset 0 0 28px ${rgba(base, innerAlpha + flare * 0.24)}`,
+      `inset 0 0 56px rgba(255, 255, 255, ${0.12 + flare * 0.14})`,
+    ].join(", "),
+    textShadow: `0 0 ${10 + flare * 10}px ${rgba(highlight, 0.72 + flareBoost)}`,
+  };
+}
+
+const CONSTELLATION_LEGEND = [
+  { key: "dominance", label: "Dominance" },
+  { key: "obsession", label: "Obsession" },
+  { key: "loyalty", label: "Loyalty" },
+  { key: "deviance", label: "Deviance" },
+  { key: "confidence", label: "Confidence" },
+];
+
+function getTraitCategory(trait) {
+  const text = String(trait || "").toLowerCase();
+  if (!text) return "other";
+
+  let bestKey = "other";
+  let bestScore = 0;
+
+  for (const [key, words] of Object.entries(STAT_KEYWORDS)) {
+    let score = 0;
+    for (const word of words) {
+      if (text.includes(word)) {
+        score += 1;
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = key;
+    }
+  }
+
+  return bestScore > 0 ? bestKey : "other";
+}
+
+function computeOrbitalPositions(traits, rotation, radius, innerRadius) {
+  const count = Array.isArray(traits) ? traits.length : 0;
+  if (!count) return [];
+
+  return traits.map((trait, i) => {
+    const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    const dir = i % 2 === 0 ? 1 : -1;
+    const angle = baseAngle + rotation * dir;
+    const orbitRadius = i % 2 === 0 ? radius : innerRadius;
+    const category = getTraitCategory(trait);
+
+    return {
+      trait,
+      category,
+      x: Math.cos(angle) * orbitRadius,
+      y: Math.sin(angle) * orbitRadius,
+    };
+  });
+}
+
+function deriveCoreLabel(personality) {
+  if (!personality) return "Forge a Persona";
+  const phrase =
+    Array.isArray(personality.notablePhrases) && personality.notablePhrases.length
+      ? personality.notablePhrases[0]
+      : null;
+  if (phrase) {
+    const words = phrase.replace(/[^\w\s]/g, "").trim().split(/\s+/).slice(0, 3);
+    if (words.length) return words.join(" ");
+  }
+  return personality.name || "Unnamed Forge";
+}
+
+function Waveform({ intensity = 0.5, listening = false, seed = 0, speaking = false, levelRef = null }) {
+  const canvasRef = useRef(null);
+  const stateRef = useRef({ phase: 0, energy: intensity });
+
+  useEffect(() => {
+    stateRef.current.energy = intensity;
+  }, [intensity]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let raf = 0;
+    let cancelled = false;
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+
+    function frame() {
+      if (cancelled) return;
+      const { width, height } = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, width, height);
+      const speechLevel = speaking && levelRef ? clamp(levelRef.current || 0, 0, 1) : 0;
+      stateRef.current.phase += 0.045 + (listening ? 0.04 : 0) + speechLevel * 0.12;
+      const energy = clamp(
+        stateRef.current.energy + (listening ? 0.25 : 0) + speechLevel * 0.95,
+        0.15,
+        1.6,
+      );
+      const mid = height / 2;
+      const cycles = 6;
+
+      const drawBand = (color, amplitudeScale, phaseShift, lineWidth) => {
+        ctx.beginPath();
+        for (let x = 0; x <= width; x += 2) {
+          const t = x / width;
+          const wobble =
+            Math.sin(t * Math.PI * cycles + stateRef.current.phase + phaseShift) *
+              0.55 +
+            Math.sin(t * Math.PI * cycles * 2.4 + stateRef.current.phase * 1.6 + phaseShift) *
+              0.30 +
+            Math.sin(t * Math.PI * cycles * 0.7 + stateRef.current.phase * 0.6 + seed) *
+              0.18;
+          const amp = mid * 0.78 * energy * amplitudeScale * (0.6 + Math.sin(t * Math.PI) * 0.4);
+          const y = mid + wobble * amp;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = color;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      };
+
+      drawBand("rgba(255, 43, 214, 0.85)", 1.0, 0, 1.6);
+      drawBand("rgba(38, 255, 255, 0.65)", 0.6, Math.PI / 2, 1.1);
+      drawBand("rgba(255, 43, 214, 0.35)", 0.35, Math.PI, 0.8);
+
+      raf = requestAnimationFrame(frame);
+    }
+    frame();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [listening, seed, speaking, levelRef]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ width: "100%", height: "100%", display: "block" }}
+    />
+  );
+}
+
+function FooterMiniWave({ listening }) {
+  return <Waveform intensity={0.3} listening={listening} seed={42} />;
+}
+
+function OrbitalArray({
+  traits,
+  coreLabel,
+  activeTrait,
+  onSelectTrait,
+  flaresRef = null,
+  speaking = false,
+  mood = null,
+  constellationMode = false,
+}) {
+  const stageRef = useRef(null);
+  const trailCanvasRef = useRef(null);
+  const [size, setSize] = useState({ w: 360, h: 360 });
+  const rotationRef = useRef(0);
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    if (!stageRef.current) return;
+    const el = stageRef.current;
+    const ro = new ResizeObserver(() => {
+      const rect = el.getBoundingClientRect();
+      setSize({ w: rect.width, h: rect.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = 0;
+    let cancelled = false;
+    let frameBudget = 0;
+    const loop = (t) => {
+      if (cancelled) return;
+      const dt = last ? Math.min(t - last, 60) : 16;
+      last = t;
+      rotationRef.current += dt * 0.00015;
+      frameBudget += dt;
+      if (frameBudget >= 33) {
+        frameBudget = 0;
+        forceUpdate((v) => (v + 1) % 1000000);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const radius = Math.max(100, Math.min(size.w, size.h) / 2 - 90);
+  const innerRadius = Math.max(65, radius * 0.55);
+  const positions = computeOrbitalPositions(traits, rotationRef.current, radius, innerRadius);
+
+  useEffect(() => {
+    const canvas = trailCanvasRef.current;
+    if (!canvas || !positions.length) {
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      return;
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    if (!w || !h) return;
+
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const STEPS = 18;
+    const TRAIL_ARC = Math.PI * 0.55;
+    const now = performance.now();
+
+    if (constellationMode) {
+      const groups = new Map();
+      for (const item of positions) {
+        if (!groups.has(item.category)) {
+          groups.set(item.category, []);
+        }
+        groups.get(item.category).push(item);
+      }
+
+      const pulse = 0.72 + Math.sin(now / 760) * 0.22;
+
+      for (const [category, nodes] of groups.entries()) {
+        if (nodes.length < 2 || category === "other") {
+          continue;
+        }
+
+        const color = TRAIT_CATEGORY_COLORS[category] || TRAIT_CATEGORY_COLORS.other;
+        for (let i = 0; i < nodes.length; i += 1) {
+          for (let j = i + 1; j < nodes.length; j += 1) {
+            const a = nodes[i];
+            const b = nodes[j];
+            const ax = cx + a.x;
+            const ay = cy + a.y;
+            const bx = cx + b.x;
+            const by = cy + b.y;
+            const dx = bx - ax;
+            const dy = by - ay;
+            const distance = Math.hypot(dx, dy);
+            const maxReach = Math.max(radius * 1.45, 1);
+            const closeness = Math.max(0, 1 - distance / maxReach);
+            if (closeness <= 0.06) continue;
+
+            const alpha = (0.08 + closeness * 0.18) * pulse;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(bx, by);
+            ctx.strokeStyle = `rgba(${color[0]},${color[1]},${color[2]},${alpha.toFixed(3)})`;
+            ctx.lineWidth = 0.6 + closeness * 1.1;
+            ctx.shadowBlur = 8 + closeness * 10;
+            ctx.shadowColor = `rgba(${color[0]},${color[1]},${color[2]},${(alpha * 0.85).toFixed(3)})`;
+            ctx.stroke();
+          }
+        }
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    positions.forEach((point, i) => {
+      const trait = point.trait;
+      const count = positions.length;
+      const baseAngle = (i / count) * Math.PI * 2 - Math.PI / 2;
+      const clockwise = i % 2 === 0;
+      const dir = clockwise ? 1 : -1;
+      const angle = baseAngle + rotationRef.current * dir;
+      const orbRadius = clockwise ? radius : innerRadius;
+
+      const flareTime = flaresRef?.current?.[trait] || 0;
+      const age = flareTime ? now - flareTime : Infinity;
+      const rawFlare = age < 1200 ? Math.max(0, 1 - age / 1200) : 0;
+      const flare = rawFlare * rawFlare * (3 - 2 * rawFlare);
+
+      const categoryColor = TRAIT_CATEGORY_COLORS[point.category] || TRAIT_CATEGORY_COLORS.other;
+      const [cr, cg, cb] = categoryColor;
+
+      ctx.save();
+      ctx.lineCap = "round";
+
+      for (let s = 0; s < STEPS; s++) {
+        const t0 = s / STEPS;
+        const t1 = (s + 1) / STEPS;
+        const alpha = t1 * t1 * (0.42 + flare * 0.4);
+        const lw = 1.0 + t1 * (2.2 + flare * 2.0);
+
+        let a0, a1;
+        if (clockwise) {
+          a0 = angle - TRAIL_ARC * (1 - t0);
+          a1 = angle - TRAIL_ARC * (1 - t1);
+        } else {
+          a0 = angle + TRAIL_ARC * (1 - t0);
+          a1 = angle + TRAIL_ARC * (1 - t1);
+        }
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, orbRadius, a0, a1, !clockwise);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(3)})`;
+        ctx.lineWidth = lw;
+
+        if (t1 > 0.65) {
+          ctx.shadowBlur = 5 + flare * 14;
+          ctx.shadowColor = `rgba(${cr},${cg},${cb},${(alpha * 0.65).toFixed(3)})`;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        ctx.stroke();
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+  }, [positions, constellationMode, radius, innerRadius, flaresRef]);
+
+  return (
+    <div className="orbital-stage" ref={stageRef}>
+      <div
+        className="orbital-ring"
+        style={{ width: radius * 2 + 28, height: radius * 2 + 28 }}
+      />
+      <div
+        className="orbital-ring"
+        style={{ width: innerRadius * 2 + 28, height: innerRadius * 2 + 28 }}
+      />
+      <canvas
+        ref={trailCanvasRef}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        className="orbital-core"
+        style={{
+          "--core-rgb": mood ? mood.rgb : "255, 43, 214",
+          "--core-glow-max": mood ? mood.glowMax : "48px",
+          animationDuration: mood ? mood.duration : "3s",
+          background: mood ? mood.bg : undefined,
+        }}
+      >
+        <span className="core-label-text">{coreLabel}</span>
+        {mood && mood.key !== "forming" && (
+          <span className="core-mood-badge">{mood.label}</span>
+        )}
+      </div>
+      {positions.length === 0 ? (
+        <div className="orbital-empty">
+          No traits yet — speak to the forge below to define this persona.
+        </div>
+      ) : (
+        positions.map((p) => {
+          const flareTime = flaresRef?.current?.[p.trait] || 0;
+          const age = flareTime ? performance.now() - flareTime : Infinity;
+          const strength = age < 1200 ? Math.max(0, 1 - age / 1200) : 0;
+          const eased = strength * strength * (3 - 2 * strength);
+          const isActive = Boolean(activeTrait && activeTrait.toLowerCase() === p.trait.toLowerCase());
+          const orbVisual = buildTraitOrbVisual(p.category, {
+            isActive,
+            flare: eased,
+          });
+          return (
+            <button
+              type="button"
+              key={p.trait}
+              className={`orbital-trait ${
+                isActive
+                  ? "is-active"
+                  : ""
+              } ${eased > 0.02 ? "has-flare" : ""}`}
+              aria-pressed={isActive}
+              title={`Refine ${p.trait}`}
+              style={{
+                left: `calc(50% + ${p.x}px)`,
+                top: `calc(50% + ${p.y}px)`,
+                "--flare": eased.toFixed(3),
+                ...orbVisual,
+              }}
+              onClick={() => onSelectTrait(p.trait)}
+            >
+              <span className="orbital-trait-label">{p.trait}</span>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+export default function VoxisTab({
+  selectedPersonality: personality,
+  onPersonalityUpdated,
+  onSelectPersonality,
+  personalities = [],
+  userId = null,
+  mode = "scientist",
+}) {
+  const authFetch = useAuthFetch();
+  // Guide conversation history — never persisted to DB, never shared with ChatWindow.
+  // Passed to /api/voxis/chat so the Voxis entity has conversation continuity.
+  const [guideMessages, setGuideMessages] = useState([]);
+  const [activeTrait, setActiveTrait] = useState(null);
+  const [pendingSeed, setPendingSeed] = useState("");
+  const [refinements, setRefinements] = useState([]);
+  const [refinePrompt, setRefinePrompt] = useState("");
+  const [checkedRefinements, setCheckedRefinements] = useState(new Set());
+  const [inputValue, setInputValue] = useState("");
+  const [listening, setListening] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [echo, setEcho] = useState(null);
+  const [echoStreaming, setEchoStreaming] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsBusy, setTtsBusy] = useState(false);
+  const [isLiveCallActive, setIsLiveCallActive] = useState(false);
+  const [liveCallPhase, setLiveCallPhase] = useState("idle");
+  const [liveCallListenRemainingMs, setLiveCallListenRemainingMs] = useState(null);
+  const [liveHudDensity, setLiveHudDensity] = useState(() => {
+    if (typeof window === "undefined") {
+      return "full";
+    }
+    const stored = String(window.localStorage.getItem(LIVE_HUD_DENSITY_KEY) || "").trim().toLowerCase();
+    return stored === "minimal" ? "minimal" : "full";
+  });
+  const [constellationMode, setConstellationMode] = useState(false);
+  const recognitionRef = useRef(null);
+  const echoAbortRef = useRef(null);
+  const ttsAbortRef = useRef(null);
+  const audioRef = useRef(null);
+  const audioUrlRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const analyserDataRef = useRef(null);
+  const audioLevelRef = useRef(0);
+  const levelRafRef = useRef(0);
+  const flaresRef = useRef({});
+  const traitKeywordsRef = useRef([]);
+  const replyTextRef = useRef("");
+  const lastSpokenIndexRef = useRef(0);
+  const liveCallActiveRef = useRef(false);
+  const liveCallResumeTimerRef = useRef(null);
+  const liveCallPreviousAutoSpeakRef = useRef(true);
+  const liveCallListenTimeoutRef = useRef(null);
+  const liveCallListenTickerRef = useRef(null);
+  const liveCallMicStreamRef = useRef(null);
+  const liveCallMediaRecorderRef = useRef(null);
+
+  const traits = useMemo(() => selectOrbitalTraits(personality), [personality]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(LIVE_HUD_DENSITY_KEY, liveHudDensity);
+  }, [liveHudDensity]);
+
+  useEffect(() => {
+    traitKeywordsRef.current = traits
+      .map((trait) => {
+        const keys = String(trait || "")
+          .toLowerCase()
+          .split(/[^a-z0-9]+/)
+          .filter((w) => w.length >= 3);
+        const unique = Array.from(new Set(keys));
+        if (!unique.length) return { trait, re: null };
+        const escaped = unique.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        return { trait, re: new RegExp(`\\b(?:${escaped.join("|")})`, "i") };
+      })
+      .filter((entry) => entry.re);
+  }, [traits]);
+
+  // Reset guide conversation when the user switches to a different persona so
+  // Voxis starts fresh with the correct persona context.
+  useEffect(() => {
+    setGuideMessages([]);
+    setEcho(null);
+    liveCallActiveRef.current = false;
+    setIsLiveCallActive(false);
+    setLiveCallPhase("idle");
+    setLiveCallListenRemainingMs(null);
+    if (liveCallResumeTimerRef.current) {
+      clearTimeout(liveCallResumeTimerRef.current);
+      liveCallResumeTimerRef.current = null;
+    }
+    if (liveCallListenTimeoutRef.current) {
+      clearTimeout(liveCallListenTimeoutRef.current);
+      liveCallListenTimeoutRef.current = null;
+    }
+    if (liveCallListenTickerRef.current) {
+      clearInterval(liveCallListenTickerRef.current);
+      liveCallListenTickerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      recognitionRef.current = null;
+    }
+    if (liveCallMicStreamRef.current) {
+      try {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        /* ignore */
+      }
+      liveCallMicStreamRef.current = null;
+    }
+    liveCallMediaRecorderRef.current = null;
+    setListening(false);
+  }, [personality?.id]);
+  const stats = useMemo(() => computeStats([...(personality?.traits || []), ...(personality?.coreValues || [])]), [
+    personality,
+  ]);
+  const mood = useMemo(() => deriveMood(stats), [stats]);
+  const coreLabel = useMemo(() => deriveCoreLabel(personality), [personality]);
+
+  const showToast = (text, isError = false) => {
+    setToast({ text, isError });
+    setTimeout(() => setToast(null), 3600);
+  };
+
+  const clearLiveCallResumeTimer = () => {
+    if (liveCallResumeTimerRef.current) {
+      clearTimeout(liveCallResumeTimerRef.current);
+      liveCallResumeTimerRef.current = null;
+    }
+  };
+
+  const clearLiveCallListenTimers = () => {
+    if (liveCallListenTimeoutRef.current) {
+      clearTimeout(liveCallListenTimeoutRef.current);
+      liveCallListenTimeoutRef.current = null;
+    }
+    if (liveCallListenTickerRef.current) {
+      clearInterval(liveCallListenTickerRef.current);
+      liveCallListenTickerRef.current = null;
+    }
+    setLiveCallListenRemainingMs(null);
+  };
+
+  const queueLiveCallListening = (delayMs = 380) => {
+    clearLiveCallResumeTimer();
+    if (!liveCallActiveRef.current) return;
+    liveCallResumeTimerRef.current = setTimeout(() => {
+      liveCallResumeTimerRef.current = null;
+      if (!liveCallActiveRef.current) return;
+      if (recognitionRef.current || listening || busy || echoStreaming || isSpeaking || ttsBusy) return;
+      startListening({ autoSubmit: true });
+    }, delayMs);
+  };
+
+  const stopLiveCall = ({ restoreAutoSpeak = true } = {}) => {
+    liveCallActiveRef.current = false;
+    setIsLiveCallActive(false);
+    setLiveCallPhase("idle");
+    clearLiveCallListenTimers();
+    clearLiveCallResumeTimer();
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      recognitionRef.current = null;
+    }
+    if (liveCallMicStreamRef.current) {
+      try {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        /* ignore */
+      }
+      liveCallMicStreamRef.current = null;
+    }
+    liveCallMediaRecorderRef.current = null;
+    setListening(false);
+
+    if (restoreAutoSpeak) {
+      setAutoSpeak(liveCallPreviousAutoSpeakRef.current);
+    }
+  };
+
+  const startLiveCall = () => {
+    if (!personality?.id) {
+      showToast("Select a persona first, then start a live call.", true);
+      return;
+    }
+    if (busy || echoStreaming || ttsBusy) {
+      showToast("Wait for the current turn to finish before starting live call.", true);
+      return;
+    }
+
+    liveCallPreviousAutoSpeakRef.current = autoSpeak;
+    setAutoSpeak(true);
+    stopSpeaking();
+    liveCallActiveRef.current = true;
+    setIsLiveCallActive(true);
+    setLiveCallPhase("listening");
+    queueLiveCallListening(60);
+  };
+
+  const interruptLiveCallSpeaking = () => {
+    if (!isLiveCallActive || (!isSpeaking && !ttsBusy)) {
+      return;
+    }
+    stopSpeaking();
+    setLiveCallPhase("recovering");
+    queueLiveCallListening(70);
+  };
+
+  const handleSelectOrbital = (trait) => {
+    if (activeTrait && activeTrait.toLowerCase() === String(trait).toLowerCase()) {
+      clearRefinements();
+      return;
+    }
+    const options = lookupRefinements(trait);
+    setActiveTrait(trait);
+    setPendingSeed(trait);
+    setRefinements(options);
+    setRefinePrompt(
+      options.length
+        ? `Refine "${trait}" — check the flavors you want and hit Lock In.`
+        : `No preset variants for "${trait}" yet. Ask the forge for trait or quirk suggestions.`,
+    );
+    setCheckedRefinements(new Set());
+  };
+
+  const clearRefinements = () => {
+    setActiveTrait(null);
+    setRefinements([]);
+    setPendingSeed("");
+    setRefinePrompt("");
+    setCheckedRefinements(new Set());
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (echo) {
+        if (echoAbortRef.current) {
+          try {
+            echoAbortRef.current.abort();
+          } catch {
+            /* ignore */
+          }
+        }
+        stopSpeaking();
+        setEcho(null);
+        setEchoStreaming(false);
+      }
+
+      if (activeTrait || refinements.length) {
+        clearRefinements();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTrait, echo, refinements.length]);
+
+  const handleToggleRefinement = (label) => {
+    setCheckedRefinements((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
+  const handleLockIn = async () => {
+    const toAdd = refinements.filter((r) => checkedRefinements.has(r.label));
+    if (!toAdd.length) return;
+    let anyAdded = false;
+    for (const r of toAdd) {
+      const ok = await submitTraitToBackend(r.label);
+      if (ok) anyAdded = true;
+    }
+    if (anyAdded) {
+      const names = toAdd.map((r) => r.label).join(", ");
+      clearRefinements();
+      sendForgeMessage(
+        `The forge just welded these traits into you: ${names}. React in character — embody them.`
+      );
+    }
+  };
+
+  const submitTraitToBackend = async (newTrait) => {
+    if (!personality?.id) {
+      showToast("Select a persona first to forge new traits.", true);
+      return false;
+    }
+    const cleaned = newTrait.trim();
+    if (!cleaned) return false;
+
+    const existing = Array.isArray(personality.traits) ? personality.traits : [];
+    const exists = existing.some((t) => t.trim().toLowerCase() === cleaned.toLowerCase());
+    if (exists) {
+      showToast(`"${cleaned}" is already part of ${personality.name}.`);
+      return false;
+    }
+
+    const nextTraits = [...existing, cleaned];
+    setBusy(true);
+    try {
+      const res = await authFetch(`/personality/${personality.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ traits: nextTraits }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Failed (${res.status})`);
+      }
+      const updated = await res.json();
+      onPersonalityUpdated?.(updated);
+      showToast(`Forged "${cleaned}" into ${personality.name}.`);
+      return true;
+    } catch (err) {
+      showToast(err.message || "The forge sparked but failed.", true);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stopLevelLoop = () => {
+    if (levelRafRef.current) {
+      cancelAnimationFrame(levelRafRef.current);
+      levelRafRef.current = 0;
+    }
+    audioLevelRef.current = 0;
+  };
+
+  const startLevelLoop = () => {
+    stopLevelLoop();
+    const tick = () => {
+      const analyser = analyserRef.current;
+      const data = analyserDataRef.current;
+      if (!analyser || !data) {
+        audioLevelRef.current = 0;
+        return;
+      }
+      analyser.getByteTimeDomainData(data);
+      let sumSq = 0;
+      for (let i = 0; i < data.length; i += 1) {
+        const v = (data[i] - 128) / 128;
+        sumSq += v * v;
+      }
+      const rms = Math.sqrt(sumSq / data.length);
+      const target = clamp(rms * 2.4, 0, 1);
+      audioLevelRef.current = audioLevelRef.current * 0.55 + target * 0.45;
+
+      const audio = audioRef.current;
+      const text = replyTextRef.current;
+      if (audio && text && audio.duration > 0 && Number.isFinite(audio.duration)) {
+        const progress = clamp(audio.currentTime / audio.duration, 0, 1);
+        const idx = Math.floor(progress * text.length);
+        if (idx > lastSpokenIndexRef.current) {
+          const slice = text.slice(lastSpokenIndexRef.current, idx);
+          const now = performance.now();
+          for (const { trait, re } of traitKeywordsRef.current) {
+            if (re.test(slice)) {
+              const last = flaresRef.current[trait] || 0;
+              if (now - last > 350) {
+                flaresRef.current[trait] = now;
+              }
+            }
+          }
+          lastSpokenIndexRef.current = idx;
+        }
+      }
+
+      levelRafRef.current = requestAnimationFrame(tick);
+    };
+    levelRafRef.current = requestAnimationFrame(tick);
+  };
+
+  const ensureAnalyser = (audioEl) => {
+    if (analyserRef.current) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const source = ctx.createMediaElementSource(audioEl);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.6;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+      analyserDataRef.current = new Uint8Array(analyser.fftSize);
+    } catch {
+      /* analyser optional — playback still works without it */
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (ttsAbortRef.current) {
+      try {
+        ttsAbortRef.current.abort();
+      } catch {
+        /* ignore */
+      }
+      ttsAbortRef.current = null;
+    }
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    stopLevelLoop();
+    replyTextRef.current = "";
+    lastSpokenIndexRef.current = 0;
+    setIsSpeaking(false);
+    setTtsBusy(false);
+  };
+
+  const speakText = async (text) => {
+    if (!personality?.id) return;
+    const cleaned = (text || "").trim();
+    if (!cleaned) return;
+
+    stopSpeaking();
+    const controller = new AbortController();
+    ttsAbortRef.current = controller;
+    setTtsBusy(true);
+
+    replyTextRef.current = cleaned.toLowerCase();
+    lastSpokenIndexRef.current = 0;
+    flaresRef.current = {};
+
+    const voiceProfile = personality.voiceProfile || {};
+
+    try {
+      const response = await authFetch(`/personality/${personality.id}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cleaned, voiceProfile }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        let errMsg = `TTS failed (${response.status})`;
+        try {
+          const errBody = await response.json();
+          errMsg = errBody.error || errMsg;
+        } catch {
+          /* ignore */
+        }
+        showToast(errMsg, true);
+        setTtsBusy(false);
+        ttsAbortRef.current = null;
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      audioUrlRef.current = url;
+
+      if (!audioRef.current) {
+        const el = new Audio();
+        el.crossOrigin = "anonymous";
+        audioRef.current = el;
+      }
+      const audio = audioRef.current;
+      audio.src = url;
+      ensureAnalyser(audio);
+      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+        try {
+          await audioCtxRef.current.resume();
+        } catch {
+          /* ignore */
+        }
+      }
+      audio.onplay = () => {
+        setIsSpeaking(true);
+        startLevelLoop();
+      };
+      audio.onpause = () => {
+        stopLevelLoop();
+      };
+      audio.onended = () => {
+        setIsSpeaking(false);
+        stopLevelLoop();
+        if (audioUrlRef.current) {
+          URL.revokeObjectURL(audioUrlRef.current);
+          audioUrlRef.current = null;
+        }
+      };
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        stopLevelLoop();
+      };
+
+      await audio.play().catch((err) => {
+        showToast(err.message || "Browser blocked playback.", true);
+      });
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        showToast(err.message || "TTS failed.", true);
+      }
+    } finally {
+      setTtsBusy(false);
+      ttsAbortRef.current = null;
+    }
+  };
+
+  const sendForgeMessage = async (message, options = {}) => {
+    if (!personality?.id) return;
+    const text = message.trim();
+    if (!text) return;
+
+    if (echoAbortRef.current) {
+      try {
+        echoAbortRef.current.abort();
+      } catch {
+        /* ignore */
+      }
+    }
+    const controller = new AbortController();
+    echoAbortRef.current = controller;
+
+    stopSpeaking();
+    setEcho({ name: "Voxis", body: "", error: false });
+    setEchoStreaming(true);
+    let finalReply = "";
+    let finalRefinementSuggestions = [];
+
+    // Build the conversation history to send — Voxis entity keeps its own context.
+    const nextMessages = [...guideMessages, { role: "user", content: text }];
+
+    try {
+      // Route to the Voxis entity endpoint — completely separate from the persona
+      // chat endpoint. This means guide conversations are never written to
+      // chat_messages and never appear in ChatWindow.
+      const response = await authFetch("/api/voxis/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: nextMessages,
+          currentPersona: personality
+            ? {
+                name: personality.name,
+                description: personality.description,
+                traits: personality.traits,
+              }
+            : null,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        let errMsg = `Forge link failed (${response.status})`;
+        try {
+          const errBody = await response.json();
+          errMsg = errBody.error || errBody.reply || errMsg;
+        } catch {
+          /* ignore */
+        }
+        setEcho({ name: "Voxis", body: errMsg, error: true });
+        setEchoStreaming(false);
+        return;
+      }
+
+      const data = await response.json();
+      finalReply = String(data.reply || "");
+      setEcho({
+        name: "Voxis",
+        body: finalReply || "(silence from the forge)",
+        error: !data.success && !finalReply,
+      });
+
+      // Update local guide history so Voxis retains conversation context.
+      if (finalReply) {
+        setGuideMessages([
+          ...nextMessages,
+          { role: "assistant", content: finalReply },
+        ]);
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setEcho({
+          name: "Voxis",
+          body: err.message || "Forge link failed.",
+          error: true,
+        });
+      }
+    } finally {
+      setEchoStreaming(false);
+      echoAbortRef.current = null;
+      if (options.populateRefinementsFromReply && finalReply) {
+        if (finalRefinementSuggestions.length) {
+          setActiveTrait(options.seedText || null);
+          setPendingSeed(options.seedText || "");
+          setRefinements(finalRefinementSuggestions);
+          setCheckedRefinements(new Set());
+          setRefinePrompt(
+            finalRefinementSuggestions.some((item) => item.tag === "Clarify")
+              ? "The forge asked for clarification. Select what to lock in."
+              : "The forge suggested these trait/quirk refinements. Select what to lock in.",
+          );
+        } else {
+          clearRefinements();
+        }
+      }
+      if (autoSpeak && finalReply) {
+        void speakText(finalReply);
+      }
+    }
+  };
+
+  const handlePickRefinement = async (refinement) => {
+    const ok = await submitTraitToBackend(refinement.label);
+    if (ok) {
+      clearRefinements();
+      sendForgeMessage(
+        `The forge just welded a new trait into you: "${refinement.label}". React in character — embody it.`,
+      );
+    }
+  };
+
+  const handleSpeakSubmit = (event) => {
+    event.preventDefault();
+    const value = inputValue.trim();
+    if (!value) return;
+    setInputValue("");
+    clearRefinements();
+    sendForgeMessage(value, {
+      populateRefinementsFromReply: true,
+      seedText: value,
+    });
+  };
+
+  const startListeningViaStt = async ({ autoSubmit = false } = {}) => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      showToast("Voice capture is unavailable in this browser. Type instead.", true);
+      return;
+    }
+
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      showToast("Microphone access denied. Enable mic permission and try again.", true);
+      return;
+    }
+
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/ogg";
+
+    const chunks = [];
+    const recorder = new MediaRecorder(stream, { mimeType });
+    liveCallMicStreamRef.current = stream;
+    liveCallMediaRecorderRef.current = recorder;
+
+    const stopRecorder = () => {
+      if (recorder.state === "recording") {
+        recorder.stop();
+      }
+    };
+
+    recognitionRef.current = { stop: stopRecorder };
+
+    recorder.onstart = () => {
+      setListening(true);
+      if (!autoSubmit) return;
+      clearLiveCallListenTimers();
+      const deadline = Date.now() + LIVE_CALL_MAX_LISTEN_MS;
+      setLiveCallListenRemainingMs(LIVE_CALL_MAX_LISTEN_MS);
+      liveCallListenTickerRef.current = setInterval(() => {
+        const remaining = Math.max(0, deadline - Date.now());
+        setLiveCallListenRemainingMs(remaining);
+      }, 200);
+      liveCallListenTimeoutRef.current = setTimeout(() => {
+        stopRecorder();
+      }, LIVE_CALL_MAX_LISTEN_MS);
+    };
+
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    recorder.onerror = () => {
+      clearLiveCallListenTimers();
+      setListening(false);
+      recognitionRef.current = null;
+      if (liveCallMicStreamRef.current) {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      liveCallMicStreamRef.current = null;
+      liveCallMediaRecorderRef.current = null;
+      if (autoSubmit && liveCallActiveRef.current) {
+        queueLiveCallListening(450);
+      }
+    };
+
+    recorder.onstop = async () => {
+      clearLiveCallListenTimers();
+      setListening(false);
+      recognitionRef.current = null;
+      if (liveCallMicStreamRef.current) {
+        liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      liveCallMicStreamRef.current = null;
+      liveCallMediaRecorderRef.current = null;
+
+      if (!chunks.length) {
+        if (autoSubmit && liveCallActiveRef.current) {
+          queueLiveCallListening(320);
+        }
+        return;
+      }
+
+      try {
+        const blob = new Blob(chunks, { type: mimeType });
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || "").split(",")[1] || "");
+          reader.readAsDataURL(blob);
+        });
+
+        if (!base64) {
+          if (autoSubmit && liveCallActiveRef.current) {
+            queueLiveCallListening(320);
+          }
+          return;
+        }
+
+        const response = await authFetch("/api/stt/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioBase64: base64,
+            mimeType,
+            language: String(navigator?.language || "auto").split("-")[0] || "auto",
+          }),
+        });
+
+        if (!response.ok) {
+          if (autoSubmit && liveCallActiveRef.current) {
+            queueLiveCallListening(380);
+          }
+          showToast("Speech recognition failed. Check STT settings/API key.", true);
+          return;
+        }
+
+        const data = await response.json();
+        const transcript = String(data?.text || data?.transcript || "").trim();
+        if (!transcript) {
+          if (autoSubmit && liveCallActiveRef.current) {
+            queueLiveCallListening(300);
+          }
+          return;
+        }
+
+        if (!autoSubmit) {
+          setInputValue(transcript);
+          return;
+        }
+
+        setInputValue("");
+        sendForgeMessage(transcript, {
+          populateRefinementsFromReply: true,
+          seedText: transcript,
+        });
+      } catch {
+        if (autoSubmit && liveCallActiveRef.current) {
+          queueLiveCallListening(380);
+        }
+        showToast("Speech transcription failed. Try again.", true);
+      }
+    };
+
+    recorder.start();
+  };
+
+  const startListening = ({ autoSubmit = false } = {}) => {
+    if (isLiveCallActive) {
+      void startListeningViaStt({ autoSubmit });
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      void startListeningViaStt({ autoSubmit });
+      return;
+    }
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    let latestTranscript = "";
+    let finalTranscript = "";
+    rec.onstart = () => {
+      setListening(true);
+      if (!autoSubmit) return;
+      clearLiveCallListenTimers();
+      const deadline = Date.now() + LIVE_CALL_MAX_LISTEN_MS;
+      setLiveCallListenRemainingMs(LIVE_CALL_MAX_LISTEN_MS);
+      liveCallListenTickerRef.current = setInterval(() => {
+        const remaining = Math.max(0, deadline - Date.now());
+        setLiveCallListenRemainingMs(remaining);
+      }, 200);
+      liveCallListenTimeoutRef.current = setTimeout(() => {
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.stop();
+          } catch {
+            /* ignore */
+          }
+        }
+      }, LIVE_CALL_MAX_LISTEN_MS);
+    };
+    rec.onresult = (event) => {
+      const chunks = [];
+      for (let i = 0; i < event.results.length; i += 1) {
+        const segment = event.results[i];
+        const phrase = String(segment?.[0]?.transcript || "").trim();
+        if (!phrase) continue;
+        if (segment.isFinal) {
+          finalTranscript = `${finalTranscript} ${phrase}`.trim();
+        } else {
+          chunks.push(phrase);
+        }
+      }
+      const text = `${finalTranscript} ${chunks.join(" ")}`.trim();
+      latestTranscript = text;
+      setInputValue(text);
+    };
+    rec.onerror = (event) => {
+      clearLiveCallListenTimers();
+      setListening(false);
+      recognitionRef.current = null;
+      const errorCode = String(event?.error || "").trim();
+      if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
+        showToast("Microphone permission blocked. Enable mic access and retry.", true);
+      } else if (errorCode === "audio-capture") {
+        showToast("No microphone was detected by the browser.", true);
+      } else if (errorCode === "network") {
+        showToast("Browser speech service is unreachable. Switching to local STT.", true);
+      } else if (errorCode && errorCode !== "aborted" && errorCode !== "no-speech") {
+        showToast(`Speech recognition error: ${errorCode}`, true);
+      }
+      if (errorCode === "network" || errorCode === "service-not-allowed") {
+        void startListeningViaStt({ autoSubmit });
+        return;
+      }
+      if (autoSubmit && liveCallActiveRef.current) {
+        queueLiveCallListening(450);
+      }
+    };
+    rec.onend = () => {
+      clearLiveCallListenTimers();
+      setListening(false);
+      recognitionRef.current = null;
+      if (!autoSubmit || !liveCallActiveRef.current) return;
+      const transcript = (finalTranscript || latestTranscript || "").trim();
+      if (!transcript) {
+        queueLiveCallListening(300);
+        return;
+      }
+      setInputValue("");
+      sendForgeMessage(transcript, {
+        populateRefinementsFromReply: true,
+        seedText: transcript,
+      });
+    };
+    recognitionRef.current = rec;
+    rec.start();
+  };
+
+  useEffect(() => {
+    if (!isLiveCallActive) {
+      setLiveCallPhase("idle");
+      return;
+    }
+    if (listening) {
+      setLiveCallPhase("listening");
+      return;
+    }
+    if (echoStreaming || busy) {
+      setLiveCallPhase("thinking");
+      return;
+    }
+    if (isSpeaking || ttsBusy) {
+      setLiveCallPhase("speaking");
+      return;
+    }
+    setLiveCallPhase("recovering");
+  }, [isLiveCallActive, listening, echoStreaming, busy, isSpeaking, ttsBusy]);
+
+  useEffect(() => {
+    if (!isLiveCallActive) return;
+    if (listening || recognitionRef.current || echoStreaming || busy || isSpeaking || ttsBusy) return;
+    queueLiveCallListening(500);
+  }, [isLiveCallActive, listening, echoStreaming, busy, isSpeaking, ttsBusy]);
+
+  useEffect(() => {
+    return () => {
+      liveCallActiveRef.current = false;
+      clearLiveCallResumeTimer();
+      clearLiveCallListenTimers();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (liveCallMicStreamRef.current) {
+        try {
+          liveCallMicStreamRef.current.getTracks().forEach((track) => track.stop());
+        } catch {
+          /* ignore */
+        }
+        liveCallMicStreamRef.current = null;
+      }
+      liveCallMediaRecorderRef.current = null;
+      if (echoAbortRef.current) {
+        try {
+          echoAbortRef.current.abort();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (ttsAbortRef.current) {
+        try {
+          ttsAbortRef.current.abort();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (audioRef.current) {
+        try {
+          audioRef.current.pause();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+      if (levelRafRef.current) {
+        cancelAnimationFrame(levelRafRef.current);
+        levelRafRef.current = 0;
+      }
+      if (audioCtxRef.current) {
+        try {
+          audioCtxRef.current.close();
+        } catch {
+          /* ignore */
+        }
+        audioCtxRef.current = null;
+        analyserRef.current = null;
+        analyserDataRef.current = null;
+      }
+    };
+  }, []);
+
+  const intensity = useMemo(() => {
+    const sum = Object.values(stats).reduce((a, b) => a + b, 0);
+    return clamp(sum / (Object.keys(stats).length * 100) + 0.1, 0.2, 1);
+  }, [stats]);
+
+  const liveCallPhaseChip = useMemo(() => {
+    if (!isLiveCallActive) {
+      return { className: "recovering", label: "idle" };
+    }
+    if (liveCallPhase === "listening") {
+      return { className: "listening", label: "listening" };
+    }
+    if (liveCallPhase === "speaking") {
+      return { className: "speaking", label: "speaking" };
+    }
+    if (liveCallPhase === "thinking") {
+      return { className: "thinking", label: "thinking" };
+    }
+    return { className: "recovering", label: liveCallPhase };
+  }, [isLiveCallActive, liveCallPhase]);
+
+  const liveBrainHud = useMemo(() => {
+    const transcriptChars = Number(inputValue?.length || 0);
+    const replyChars = Number(echo?.body?.length || 0);
+    const confidence = clamp(0.28 + (replyChars / 360), 0.12, 0.98);
+
+    let signal = "standby";
+    if (listening) {
+      const remaining = typeof liveCallListenRemainingMs === "number"
+        ? Math.max(0.1, liveCallListenRemainingMs / 1000).toFixed(1)
+        : "...";
+      signal = `listen ${remaining}s`;
+    } else if (isSpeaking) {
+      signal = `voice ${Math.round(clamp(audioLevelRef.current || 0, 0, 1) * 100)}%`;
+    } else if (echoStreaming) {
+      signal = "streaming";
+    }
+
+    const full = [
+      { key: "phase", value: liveCallPhaseChip.label },
+      { key: "confidence", value: `${Math.round(confidence * 100)}%` },
+      { key: "anchor", value: activeTrait || "none" },
+      { key: "signal", value: signal },
+      { key: "heard", value: transcriptChars > 0 ? `${transcriptChars} chars` : "none" },
+      { key: "reply", value: replyChars > 0 ? `${replyChars} chars` : "pending" },
+      { key: "mood", value: mood?.label || "forming" },
+      { key: "intent", value: activeTrait ? "refine" : "forge" },
+    ];
+
+    if (liveHudDensity === "minimal") {
+      return full.filter((item) => item.key === "phase" || item.key === "signal");
+    }
+
+    return full;
+  }, [
+    inputValue,
+    echo?.body,
+    listening,
+    liveCallListenRemainingMs,
+    isSpeaking,
+    echoStreaming,
+    liveCallPhaseChip.label,
+    activeTrait,
+    mood?.label,
+    liveHudDensity,
+  ]);
+
+  const showSelector = !personality && personalities.length > 0;
+
+  return (
+    <div className="forge">
+      <style>{forgeStyles}</style>
+
+      <header className="forge-header">
+        <div className="forge-title">Personality Forge</div>
+        <div className="forge-link">Neural Link · Stable</div>
+      </header>
+
+      {showSelector ? (
+        <div className="forge-toast">
+          Select a persona on the left to begin forging — or use the form to create one first.
+        </div>
+      ) : null}
+
+      {toast ? (
+        <div className={`forge-toast ${toast.isError ? "is-error" : ""}`}>{toast.text}</div>
+      ) : null}
+
+      {echo ? (
+        <div className={`persona-echo ${echo.error ? "persona-echo-error" : ""}`}>
+          <button
+            type="button"
+            className="persona-echo-dismiss"
+            aria-label="Dismiss persona response"
+            onClick={() => {
+              if (echoAbortRef.current) {
+                try {
+                  echoAbortRef.current.abort();
+                } catch {
+                  /* ignore */
+                }
+              }
+              stopSpeaking();
+              setEcho(null);
+              setEchoStreaming(false);
+            }}
+          >
+            ×
+          </button>
+          <div className="persona-echo-head">
+            <span className="echo-name">{echo.name}</span>
+            <span>{echo.error ? "Forge link error" : "responds in character"}</span>
+            <div className="persona-echo-controls">
+              <button
+                type="button"
+                className={`echo-speak-toggle ${autoSpeak ? "is-on" : ""} ${
+                  isSpeaking ? "is-speaking" : ""
+                }`}
+                onClick={() => {
+                  if (isLiveCallActive) {
+                    showToast("Live call keeps voice playback on. End call to mute.", true);
+                    return;
+                  }
+                  const next = !autoSpeak;
+                  setAutoSpeak(next);
+                  if (!next) stopSpeaking();
+                  else if (echo?.body && !echoStreaming && !echo.error) {
+                    void speakText(echo.body);
+                  }
+                }}
+                disabled={ttsBusy && autoSpeak}
+                aria-pressed={autoSpeak}
+              >
+                {isSpeaking ? "◉ Speaking" : ttsBusy ? "◌ Synth" : autoSpeak ? "◉ Voice" : "○ Muted"}
+              </button>
+            </div>
+          </div>
+          <div
+            className={`persona-echo-body ${echoStreaming && !echo.error ? "is-thinking" : ""}`}
+          >
+            {echo.body || (echoStreaming ? "" : "(no reply)")}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="forge-body">
+        <section className={`forge-panel refine-panel ${refinements.length === 0 ? "is-hidden" : ""}`}>
+          <h3 className="forge-panel-title">Refine</h3>
+          {refinements.length === 0 ? (
+            <p className="forge-panel-empty">
+              Click a trait orb on the right to summon refinement options.
+            </p>
+          ) : (
+            <>
+              <div className="refine-prompt">{refinePrompt}</div>
+              <div className="refine-options">
+                {refinements.map((r) => {
+                  const checked = checkedRefinements.has(r.label);
+                  return (
+                    <button
+                      key={r.label}
+                      type="button"
+                      className={`refine-check-row ${checked ? "is-checked" : ""}`}
+                      onClick={() => handleToggleRefinement(r.label)}
+                      disabled={busy}
+                    >
+                      <div className="refine-checkbox">
+                        <div className="refine-checkbox-tick" />
+                      </div>
+                      <span className="refine-check-label">{r.label}</span>
+                      <span className="refine-option-tag">{r.tag}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="refine-actions">
+                <button
+                  type="button"
+                  className="refine-lock-btn"
+                  onClick={handleLockIn}
+                  disabled={busy || checkedRefinements.size === 0}
+                >
+                  {busy ? "Forging…" : `Lock In${checkedRefinements.size > 0 ? ` (${checkedRefinements.size})` : ""}`}
+                </button>
+                <button type="button" className="refine-clear" onClick={clearRefinements}>
+                  Dismiss
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="forge-panel center-panel">
+          <h3 className="forge-panel-title">Voice Synapse Matrix</h3>
+          <div
+            className={`waveform-frame ${isLiveCallActive && (isSpeaking || ttsBusy) ? "interruptible" : ""}`}
+            role={isLiveCallActive && (isSpeaking || ttsBusy) ? "button" : undefined}
+            tabIndex={isLiveCallActive && (isSpeaking || ttsBusy) ? 0 : undefined}
+            title={isLiveCallActive && (isSpeaking || ttsBusy) ? "Tap to interrupt speaking" : undefined}
+            onClick={isLiveCallActive && (isSpeaking || ttsBusy) ? interruptLiveCallSpeaking : undefined}
+            onKeyDown={isLiveCallActive && (isSpeaking || ttsBusy)
+              ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    interruptLiveCallSpeaking();
+                  }
+                }
+              : undefined}
+          >
+            <div className="waveform-tag">Live Input</div>
+            <div className="waveform-tag-right">Cortex Feed</div>
+            {isLiveCallActive && (
+              <div className={`live-phase-chip ${liveCallPhaseChip.className}`}>
+                {liveCallPhaseChip.label}
+              </div>
+            )}
+            {isLiveCallActive && (
+              <div className="live-brain-hud">
+                {liveBrainHud.map((entry) => (
+                  <div className="live-brain-cell" key={entry.key}>
+                    <span className="live-brain-key">{entry.key}</span>
+                    <span className="live-brain-value" title={entry.value}>{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {isLiveCallActive && (isSpeaking || ttsBusy) && (
+              <div className="waveform-interrupt-hint">tap to interrupt</div>
+            )}
+            <Waveform
+              intensity={intensity}
+              listening={listening}
+              seed={traits.length}
+              speaking={isSpeaking}
+              levelRef={audioLevelRef}
+            />
+            <div className="waveform-meta">
+              <div>
+                Frequency
+                <strong>{(7.4 + intensity * 1.6).toFixed(2)} kHz</strong>
+              </div>
+              <div>
+                Emotion
+                <strong>{intensity > 0.6 ? "Dominant" : "Forming"}</strong>
+              </div>
+              <div>
+                Intent
+                <strong>{activeTrait ? "Refining" : "Transform"}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="stats-grid">
+            {Object.entries(stats).map(([key, value]) => (
+              <div className="stat-row" key={key}>
+                <div className="stat-label">{key}</div>
+                <div className="stat-bar">
+                  <div className="stat-bar-fill" style={{ width: `${value}%` }} />
+                </div>
+                <div className="stat-value">{value}.{((key.length * value) % 9)}%</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="forge-panel orbital-panel">
+          <h3 className="forge-panel-title">Trait Orbital Array</h3>
+          <div className="orbital-toolbar">
+            <button
+              type="button"
+              className={`orbital-mode-toggle ${constellationMode ? "is-active" : ""}`}
+              onClick={() => setConstellationMode((prev) => !prev)}
+            >
+              Constellation {constellationMode ? "On" : "Off"}
+            </button>
+          </div>
+          {constellationMode && (
+            <div className="constellation-legend" aria-label="Constellation categories">
+              {CONSTELLATION_LEGEND.map((item) => {
+                const rgb = (TRAIT_CATEGORY_COLORS[item.key] || TRAIT_CATEGORY_COLORS.other).join(", ");
+                return (
+                  <span key={item.key} className="constellation-chip" style={{ "--chip-rgb": rgb }}>
+                    <span className="constellation-chip-dot" />
+                    {item.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <p className="orbital-subtitle">
+            {activeTrait ? (
+              <>
+                Refining <strong>{activeTrait}</strong>. Click the orb again or press Escape to clear.
+              </>
+            ) : traits.length ? (
+              <>
+                Click any orb to push that trait into the refinement panel.
+                {constellationMode ? " Related categories are now linked as a trait constellation." : ""}
+              </>
+            ) : (
+              <>Speak a trait below to seed the array and start shaping the persona.</>
+            )}
+          </p>
+          <OrbitalArray
+            traits={traits}
+            coreLabel={coreLabel}
+            activeTrait={activeTrait}
+            onSelectTrait={handleSelectOrbital}
+            flaresRef={flaresRef}
+            speaking={isSpeaking}
+            mood={mood}
+            constellationMode={constellationMode}
+          />
+        </section>
+      </div>
+
+      <div className="forge-footer">
+        <div className="footer-wave">
+          <FooterMiniWave listening={listening} />
+        </div>
+        <form className="speak-row" onSubmit={handleSpeakSubmit}>
+          <div className="speak-row-status">
+            {isLiveCallActive ? (
+              <>
+                Live Call <strong>{liveCallPhase}</strong> · Speak naturally, Voxis will respond and re-listen automatically.
+              </>
+            ) : activeTrait ? (
+              <>
+                Focus Trait <strong>{activeTrait}</strong>
+              </>
+            ) : (
+              <>Speak a trait, mood, or behavior to seed the forge.</>
+            )}
+          </div>
+          {isLiveCallActive && listening && typeof liveCallListenRemainingMs === "number" && (
+            <div className="live-call-timeout-banner">
+              Auto-send on pause · listening timeout in {Math.max(0.1, liveCallListenRemainingMs / 1000).toFixed(1)}s
+            </div>
+          )}
+          <button
+            type="button"
+            className={`live-call-toggle ${isLiveCallActive ? "is-active" : ""}`}
+            onClick={() => {
+              if (isLiveCallActive) stopLiveCall();
+              else startLiveCall();
+            }}
+            disabled={!personality?.id || busy || echoStreaming || ttsBusy}
+          >
+            {isLiveCallActive ? "End Call" : "2-Way Call"}
+          </button>
+          <button
+            type="button"
+            className="hud-density-toggle"
+            onClick={() => setLiveHudDensity((prev) => (prev === "full" ? "minimal" : "full"))}
+            disabled={!isLiveCallActive}
+            aria-label="Toggle live HUD density"
+            title={isLiveCallActive ? "Switch Brain HUD density" : "Start live call to use HUD toggle"}
+          >
+            HUD {liveHudDensity === "full" ? "Full" : "Minimal"}
+          </button>
+          <button
+            type="button"
+            className={`mic-button ${listening ? "is-listening" : ""}`}
+            onClick={() => startListening({ autoSubmit: isLiveCallActive })}
+            aria-label="Speak to the Forge"
+          >
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 14c1.66 0 3-1.34 3-3V5a3 3 0 1 0-6 0v6c0 1.66 1.34 3 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+          <input
+            className="speak-input"
+            type="text"
+            placeholder="Speak to the Forge…"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            disabled={busy}
+          />
+          <button type="submit" className="speak-submit" disabled={busy || !inputValue.trim()}>
+            Forge
+          </button>
+        </form>
+      </div>
+
+      <div className="forge-status-bar">
+        <span>
+          Active Persona <strong>{personality?.name || "—"}</strong>
+        </span>
+        <span>
+          Traits Forged <strong>{personality?.traits?.length || 0}</strong>
+        </span>
+        <span>
+          Focus Trait <strong>{activeTrait || "—"}</strong>
+        </span>
+        <span>
+          Active Protocol <strong>{activeTrait ? "Trait Refinement" : "Personality Forging"}</strong>
+        </span>
+      </div>
+    </div>
+  );
+}

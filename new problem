@@ -1,0 +1,355 @@
+============================================================
+VOXIS REBOOT HANDOFF (saved Apr 17, 2026)
+============================================================
+
+Context:
+- You asked whether external repos/tools could make Voxis voices more realistic.
+- We reviewed viability and chose pragmatic improvements over adding complex new dependencies.
+- We also implemented UI/telemetry fixes so Cartesia behavior is easier to verify.
+
+What was discussed (decision summary):
+1) Prompting-techniques repo:
+  - Good inspiration, low direct code value.
+  - Use as prompt ideas only, not as dependency.
+
+2) pydub:
+  - Useful, but not first move for Voxis right now.
+  - Better to use existing ffmpeg path in Node first to avoid Python service complexity.
+
+3) web-voice-changer vite config:
+  - Low impact for realism itself.
+  - Optional frontend/dev quality-of-life only.
+
+4) VoiceIt / So-VITS style conversion:
+  - Potentially high realism gain.
+  - Watch GPL/licensing and ops complexity.
+  - If attempted, run as optional sidecar with strict boundary.
+
+Best near-term strategy for realism:
+- Improve engine-capability alignment and observability (already started).
+- Add post-TTS realism filters in backend pipeline (ffmpeg-based), not a new stack.
+- Add A/B voice realism harness for measurable tuning.
+- Add Voice Lab realism presets (Cinematic, Conversational, Intimate, Energetic).
+
+------------------------------------------------------------
+Implemented in this session
+------------------------------------------------------------
+
+A) Cartesia preview + telemetry clarity (backend + frontend)
+
+Changed files:
+- backend/services/ttsService.js
+- backend/controllers/ttsController.js
+- frontend/src/components/VoiceLab.jsx
+
+What changed:
+1) Backend now returns synthesis text header (real engine input after shaping):
+  - X-Voxis-Synthesis-Text
+
+2) ttsService telemetry now exposes:
+  - synthesisText
+  - synthesisTextChanged
+  - engineControls (when available)
+
+3) Cartesia path now derives rateDelta from effective rate when not explicitly set,
+  then maps into Cartesia experimental controls.
+
+4) Voice Lab now displays:
+  - Engine input text (post-prosody shaping)
+  - Cartesia controls JSON when present
+
+5) Voice Lab now explicitly warns:
+  - Cartesia voice dropdown ▶ plays provider demo sample (not full Voxis modulation path)
+  - Cartesia pitch limitation is shown under Pitch slider
+  - Cartesia pitch limitation is also shown under Engine selector
+
+------------------------------------------------------------
+Why this matters
+------------------------------------------------------------
+- You can now verify if prosody/text-shaping actually changed what the engine received.
+- You can now see when Cartesia speed controls are being applied.
+- UI now explains why some “preview” actions may sound unchanged.
+
+------------------------------------------------------------
+Exact next implementation candidates (recommended order)
+------------------------------------------------------------
+
+1) Add post-TTS realism filter stage (high ROI, low risk)
+  - In backend/services/ttsService.js after synthesis:
+    - loudness normalization
+    - gentle compression
+    - subtle de-esser/high-frequency taming
+    - optional tiny room ambience
+
+2) Add realism presets in Voice Lab (Cinematic/Conversational/Intimate/Energetic)
+  - Map presets to concrete filter/prosody params.
+
+3) Add A/B compare in Voice Lab
+  - Generate A (raw) and B (processed) from same text for quick listening tests.
+
+4) Optional advanced track
+  - Sidecar voice-conversion service (only if needed), with licensing review first.
+
+------------------------------------------------------------
+Quick reminder for testing after reboot
+------------------------------------------------------------
+
+Use GENERATE SAMPLE (not provider demo ▶ button) to validate real path:
+- Confirm Engine shown in telemetry
+- Confirm Rate/Pitch values in adjusted voice
+- Confirm Phrasing/Intensity/Confidence/Emphasis
+- Confirm Engine input text changes when prosody is active
+- Confirm Cartesia controls appear when Cartesia is selected
+
+============================================================
+END HANDOFF
+============================================================
+
+Alright—this is the point where Voxis stops being “a system” and starts acting like a **creature you can watch think**.
+
+We’ll connect everything into a live loop:
+
+* 🧠 Emotion Graph (you already have)
+* 🎤 Audio/Cartesia layer (speech + tone)
+* 🎧 Voice morphing behavior
+* 🖥️ Live Debug Overlay (real-time brain scan)
+
+---
+
+# 🔥 VOXIS NEXT UPGRADE: LIVE LIVING ENGINE LOOP
+
+## 🧠 1) CORE RUNTIME LOOP (THE HEARTBEAT)
+
+Drop this into something like `engineLoop.ts`
+
+```ts id="vx_loop_1"
+import { triggerEmotion } from "./vpk_engine_1";
+import { updateGraph } from "./vpk_engine_3";
+import { checkSingingTrigger } from "./vpk_sing_1";
+import { resolveAudioState } from "./vpk_audio_1";
+
+export class VoxisBrain {
+  graph: any;
+  listeners: ((state: any) => void)[] = [];
+
+  constructor(graph: any) {
+    this.graph = graph;
+  }
+
+  tick(deltaTime: number) {
+    updateGraph(this.graph, deltaTime);
+
+    const audioState = resolveAudioState(this.graph);
+    const singing = checkSingingTrigger(this.graph);
+
+    const snapshot = {
+      emotions: this.graph.nodes,
+      audioState,
+      singing,
+      timestamp: Date.now(),
+    };
+
+    this.emit(snapshot);
+  }
+
+  onUpdate(fn: (state: any) => void) {
+    this.listeners.push(fn);
+  }
+
+  emit(state: any) {
+    for (const fn of this.listeners) fn(state);
+  }
+
+  trigger(emotion: string, intensity: number) {
+    triggerEmotion(this.graph, emotion as any, intensity);
+  }
+}
+```
+
+---
+
+# 🎤 2) CARTESIA / VOICE MAPPING LAYER
+
+This is where emotion graph becomes **voice behavior**.
+
+```ts id="vx_voice_1"
+export function mapEmotionToVoice(audioState: any) {
+  const { intensity, speechStyle, musicPresence } = audioState;
+
+  return {
+    rate: 1.0 + intensity * 0.2,
+    pitch: 1.0 - intensity * 0.1,
+    energy: intensity,
+    style: speechStyle,
+    backgroundMix: musicPresence,
+  };
+}
+```
+
+👉 This is where you stop “describing music” and start **driving voice physics**
+
+---
+
+# 🎧 3) VOICE MORPH RULES (IMPORTANT)
+
+This replaces the “DAW composer drift” problem you had.
+
+```ts id="vx_voice_2"
+export function enforceVoiceConstraints(voice: any) {
+  return {
+    ...voice,
+
+    // HARD LIMITS
+    allowMusicComposition: false,
+    allowInstrumentBreakdowns: false,
+
+    // allowed sonic behavior ONLY
+    allowedAudioTypes: [
+      "ambient",
+      "glitch",
+      "bass hum",
+      "tone shift",
+      "rhythmic speech"
+    ],
+
+    maxAudioDescriptionLength: 1 // keeps system from rambling
+  };
+}
+```
+
+---
+
+# 🧪 4) REAL-TIME DEBUG OVERLAY (THIS IS YOUR “BRAIN VIEW”)
+
+This is what makes Voxis feel insane in a good way.
+
+## React component (drop into `DebugOverlay.tsx`)
+
+```tsx id="vx_ui_1"
+import React, { useEffect, useState } from "react";
+
+export default function DebugOverlay({ brain }: any) {
+  const [state, setState] = useState<any>(null);
+
+  useEffect(() => {
+    brain.onUpdate(setState);
+  }, []);
+
+  if (!state) return null;
+
+  return (
+    <div style={{
+      position: "absolute",
+      top: 0,
+      right: 0,
+      width: "320px",
+      background: "rgba(0,0,0,0.7)",
+      color: "#0ff",
+      padding: "10px",
+      fontSize: "12px",
+      fontFamily: "monospace"
+    }}>
+      <h3>VOXIS EMOTION GRAPH</h3>
+
+      {Object.entries(state.emotions).map(([id, node]: any) => (
+        <div key={id}>
+          {id}: {node.current.toFixed(2)} | drift {node.drift.toFixed(2)}
+        </div>
+      ))}
+
+      <hr />
+
+      <div>
+        <b>SINGING:</b> {state.singing ? "YES 🔥" : "no"}
+      </div>
+
+      <div>
+        <b>AUDIO INTENSITY:</b> {state.audioState.intensity.toFixed(2)}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+# 🧬 5) CONNECT EVERYTHING (MAIN ENTRY)
+
+```ts id="vx_main_1"
+import { createPersonaGraph } from "./graphInit";
+import { VoxisBrain } from "./engineLoop";
+
+const graph = createPersonaGraph();
+const brain = new VoxisBrain(graph);
+
+// simulate runtime loop
+setInterval(() => {
+  brain.tick(0.1);
+}, 100);
+
+// example trigger
+brain.trigger("dominant", 1.2);
+
+export default brain;
+```
+
+---
+
+# 💥 WHAT YOU NOW HAVE
+
+You just built a system that:
+
+### 🧠 THINKS
+
+* emotion nodes evolve over time
+* memory changes behavior
+
+### 🎤 SPEAKS
+
+* voice is dynamically shaped by emotion graph
+
+### 🎧 “BLEEDS AUDIO”
+
+* ambient + glitch + tone shifts emerge naturally
+
+### 🎲 SINGS (but only when earned)
+
+* no randomness spam
+* pressure builds until it breaks through
+
+### 🖥️ IS OBSERVABLE
+
+* you can literally watch its “mind” move in real time
+
+---
+
+# ⚡ NEXT EVOLUTION OPTIONS (THIS GETS WILD)
+
+Pick your next move:
+
+## 🧠 1. Memory Crystallization System
+
+* emotions permanently reshape graph structure over time
+* personas “become themselves more strongly”
+
+## 🎭 2. Persona Mutation Events
+
+* rare events where graph rewires itself mid-conversation
+
+## 🎤 3. Voice Identity Lock
+
+* each persona develops a unique “audio fingerprint”
+
+## 🔥 4. Singing Evolution Tree
+
+* songs aren’t random—they evolve like a learned behavior pattern
+
+---
+
+If you want, next step I can help you:
+👉 hook this directly into Cartesia live streaming
+👉 or turn the graph into a **3D neural visualization (floating Voxis brain)**
+👉 or build a “personality save file system” so characters persist forever
+
+Just say the word and we go deeper.
+

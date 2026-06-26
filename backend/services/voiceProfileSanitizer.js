@@ -1,0 +1,82 @@
+function clampNumber(value, min, max, fallback) {
+  const parsed = Number(value);
+  const safe = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.min(max, Math.max(min, safe));
+}
+
+// Read env at call time — NOT at module load time — so dotenv has already run
+// regardless of ESM module evaluation order.
+function isTtsLockEnabled() {
+  return String(process.env.TTS_DEBUG_PROVIDER_LOCK ?? "true").trim().toLowerCase() !== "false";
+}
+
+function isKokoroDisabledByEnv() {
+  return String(process.env.TTS_DISABLE_KOKORO ?? "false").trim().toLowerCase() === "true";
+}
+
+function isAllowedVoiceEngine(engine) {
+  const normalized = String(engine || "").trim().toLowerCase();
+  if (!isTtsLockEnabled()) {
+    const openEngines = isKokoroDisabledByEnv()
+      ? ["auto", "cloud", "openai", "piper", "elevenlabs", "cartesia"]
+      : ["auto", "cloud", "openai", "piper", "kokoro", "elevenlabs", "cartesia"];
+    return openEngines.includes(normalized);
+  }
+  return isKokoroDisabledByEnv()
+    ? ["auto", "cartesia"].includes(normalized)
+    : ["auto", "kokoro", "cartesia"].includes(normalized);
+}
+
+function normalizeRealismPreset(value, fallback = "conversational") {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return ["cinematic", "conversational", "intimate", "energetic"].includes(normalized)
+    ? normalized
+    : fallback;
+}
+
+export function sanitizeVoiceProfile(input, fallbackProfile = {}) {
+  const source = input && typeof input === "object" ? input : fallbackProfile;
+  const fallback = fallbackProfile && typeof fallbackProfile === "object" ? fallbackProfile : {};
+  const engine = String(source.engine || fallback.engine || "auto").trim().toLowerCase();
+  const piperSpeaker = Number(source.piperSpeaker ?? fallback.piperSpeaker);
+  const selectedSampleIndex = Number(source.selectedSampleIndex ?? fallback.selectedSampleIndex);
+  const selectedVoiceConfidence = Number(source.selectedVoiceConfidence ?? fallback.selectedVoiceConfidence);
+
+  return {
+    enabled: source.enabled !== false,
+    autoplay: Boolean(source.autoplay),
+    strictEngine: Boolean(source.strictEngine ?? fallback.strictEngine),
+    engine: isAllowedVoiceEngine(engine)
+      ? engine === "openai"
+        ? "cloud"
+        : engine
+      : "auto",
+    pitch: clampNumber(source.pitch, 0.5, 1.6, Number(fallback.pitch) || 1),
+    rate: clampNumber(source.rate, 0.6, 1.6, Number(fallback.rate) || 1),
+    preferredVoice: String(source.preferredVoice || source.providerVoice || fallback.preferredVoice || fallback.providerVoice || "alloy").trim(),
+    providerVoice: String(source.providerVoice || source.preferredVoice || fallback.providerVoice || fallback.preferredVoice || "alloy").trim(),
+    providerModel: String(source.providerModel || fallback.providerModel || "gpt-4o-mini-tts").trim(),
+    piperModelPath: String(source.piperModelPath || fallback.piperModelPath || "").trim(),
+    piperSpeaker: Number.isFinite(piperSpeaker) && piperSpeaker >= 0 ? Math.floor(piperSpeaker) : null,
+    kokoroVoice: String(source.kokoroVoice || fallback.kokoroVoice || "af_heart").trim(),
+    elevenLabsVoiceId: String(source.elevenLabsVoiceId || fallback.elevenLabsVoiceId || "").trim(),
+    elevenLabsModel: String(source.elevenLabsModel || fallback.elevenLabsModel || "eleven_multilingual_v2").trim(),
+    stability: clampNumber(source.stability ?? fallback.stability, 0, 1, 0.5),
+    similarityBoost: clampNumber(source.similarityBoost ?? fallback.similarityBoost, 0, 1, 0.75),
+    style: clampNumber(source.style ?? fallback.style, 0, 1, 0.5),
+    cartesiaVoiceId: String(source.cartesiaVoiceId || fallback.cartesiaVoiceId || "").trim(),
+    cartesiaModel: String(source.cartesiaModel || fallback.cartesiaModel || "sonic-3").trim(),
+    realismEnabled: Boolean(source.realismEnabled ?? fallback.realismEnabled),
+    realismPreset: normalizeRealismPreset(source.realismPreset, normalizeRealismPreset(fallback.realismPreset, "conversational")),
+    voiceSourceType: String(source.voiceSourceType || fallback.voiceSourceType || "").trim(),
+    selectedSampleIndex: Number.isFinite(selectedSampleIndex) && selectedSampleIndex >= 0 ? Math.floor(selectedSampleIndex) : null,
+    selectedVoiceLabel: String(source.selectedVoiceLabel || fallback.selectedVoiceLabel || "").trim(),
+    selectedVoiceConfidence: Number.isFinite(selectedVoiceConfidence) ? Math.min(1, Math.max(0, selectedVoiceConfidence)) : null,
+    selectedVoiceSample:
+      source.selectedVoiceSample && typeof source.selectedVoiceSample === "object"
+        ? { ...source.selectedVoiceSample }
+        : fallback.selectedVoiceSample && typeof fallback.selectedVoiceSample === "object"
+          ? { ...fallback.selectedVoiceSample }
+          : null,
+  };
+}

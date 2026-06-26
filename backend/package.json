@@ -1,0 +1,39 @@
+{
+  "name": "voxis-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "backfill-memory-embeddings": "node scripts/backfillMemoryEmbeddings.js",
+    "backfill-chat-embeddings": "node scripts/backfillChatEmbeddings.js",
+    "backfill-user-memory-embeddings": "node scripts/backfillUserMemoryEmbeddings.js",
+    "seed-ara-personas": "node scripts/seedAraPersonas.js",
+    "adversarial-harness": "node scripts/adversarialTranscriptHarness.js",
+    "tts-diagnostics": "node scripts/testTtsDiagnostics.js",
+    "kokoro:preload": "node scripts/preloadKokoroModel.js"
+  },
+  "dependencies": {
+    "@clerk/express": "^2.0.8",
+    "@mozilla/readability": "^0.5.0",
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "form-data": "^4.0.0",
+    "groq-sdk": "^1.1.2",
+    "jsdom": "^26.1.0",
+    "kokoro-js": "^1.2.1",
+    "multer": "^2.1.1",
+    "portfinder": "^1.0.38",
+    "youtube-transcript": "^1.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "vitest": "^4.1.2"
+  }
+}
