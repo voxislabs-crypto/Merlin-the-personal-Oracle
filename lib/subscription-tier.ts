@@ -26,8 +26,24 @@ function tierFromStatus(status: string | null): SubscriptionTier | null {
   return null;
 }
 
+function isInactiveSubscription(meta: MetadataLike): boolean {
+  const status = normalizeStatus(meta?.subscriptionStatus);
+  if (!status) return false;
+  return ['canceled', 'cancelled', 'incomplete_expired'].includes(status);
+}
+
 function inferFromMetadata(meta: MetadataLike): SubscriptionTier | null {
   if (!meta) return null;
+
+  if (isInactiveSubscription(meta)) {
+    const lifetimeTier =
+      asTier(meta.tier) === 'lifetime' ||
+      normalizeStatus(meta.subscriptionStatus) === 'lifetime';
+    return lifetimeTier ? 'lifetime' : 'free';
+  }
+
+  const fromStatus = tierFromStatus(normalizeStatus(meta.subscriptionStatus));
+  if (fromStatus) return fromStatus;
 
   const directTier =
     asTier(meta.tier) ||
@@ -35,9 +51,6 @@ function inferFromMetadata(meta: MetadataLike): SubscriptionTier | null {
     asTier(meta.plan) ||
     asTier(meta.subscriptionPlan);
   if (directTier) return directTier;
-
-  const fromStatus = tierFromStatus(normalizeStatus(meta.subscriptionStatus));
-  if (fromStatus) return fromStatus;
 
   const isPremium =
     meta.isPremium === true ||

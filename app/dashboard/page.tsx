@@ -70,6 +70,7 @@ import {
 } from '@/lib/atmosphere';
 import { useAtmosphereJournal } from '@/hooks/useAtmosphereJournal';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
+import { clearSubscriptionTierClientCache } from '@/lib/subscription-tier-client';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
 import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import { GeocodingService } from '@/lib/astrology/geocoding';
@@ -213,8 +214,45 @@ export default function UnifiedDashboard() {
   const [activeContextSection, setActiveContextSection] = useState<ContextNavSection>('story');
   const { tier, featureFlags, premiumLocked, refreshTier, loading: tierLoading, error: tierError } = useSubscriptionTier(user, isLoaded);
   const premiumHydrationKeyRef = useRef<string | null>(null);
+  const checkoutHandledRef = useRef(false);
   const atmosphereTelemetryKeyRef = useRef<string | null>(null);
   const [atmosphereHeroSeen, setAtmosphereHeroSeen] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded || !userId || typeof window === 'undefined') return;
+    if (checkoutHandledRef.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') !== 'true') return;
+
+    checkoutHandledRef.current = true;
+    clearSubscriptionTierClientCache(userId);
+    premiumHydrationKeyRef.current = null;
+
+    void refreshTier().then(() => {
+      const isTrial = params.get('trial') === 'true';
+      const isLifetime = params.get('lifetime') === 'true';
+
+      toast({
+        title: isLifetime
+          ? 'Lifetime access unlocked'
+          : isTrial
+            ? 'Trial started'
+            : 'Premium unlocked',
+        description: isLifetime
+          ? 'Welcome to Merlin Premium — forever.'
+          : isTrial
+            ? 'Your 7-day premium trial is active.'
+            : 'Your subscription is active.',
+      });
+
+      const cleanUrl = new URL(window.location.href);
+      ['success', 'trial', 'lifetime', 'date', 'time', 'city', 'canceled'].forEach((key) =>
+        cleanUrl.searchParams.delete(key)
+      );
+      router.replace(cleanUrl.pathname + (cleanUrl.search || ''), { scroll: false });
+    });
+  }, [isLoaded, refreshTier, router, toast, userId]);
 
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
@@ -2289,6 +2327,8 @@ export default function UnifiedDashboard() {
                     journalText={journalText}
                     onJournalOptInChange={setJournalOptIn}
                     onJournalTextChange={setJournalText}
+                    premiumLocked={premiumLocked}
+                    tier={tier}
                   />
                 ) : null}
 

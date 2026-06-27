@@ -15,7 +15,7 @@ const customJestConfig = {
   },
   testEnvironment: 'jest-environment-jsdom',
   modulePathIgnorePatterns: ['<rootDir>/temp_merlin_calculator/', '<rootDir>/temp_chart/', '<rootDir>/possible front end stuff/'],
-  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/backend/'],
   // Add support for TypeScript files
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {

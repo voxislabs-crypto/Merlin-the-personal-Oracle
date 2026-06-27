@@ -1,6 +1,6 @@
 # 🌟 Merlin - Your Personal Oracle
 
-## Professional Astrology Birth Chart Calculator with Lifetime Access
+## Professional Astrology Birth Chart Calculator with Premium Subscription
 
 Merlin combines Swiss Ephemeris precision with MBTI personality insights to deliver professional-grade astrological analysis. Built with Next.js 15, TypeScript, and modern web technologies.
 
@@ -28,7 +28,8 @@ Merlin combines Swiss Ephemeris precision with MBTI personality insights to deli
 - ✅ **Interactive Wheel Visualization** - D3.js rendering
 
 ### Business Features:
-- ✅ **One-Time Payment** - Lifetime access model ($50)
+- ✅ **Monthly Subscription** - $9.99/mo with 7-day free trial
+- ✅ **Lifetime Access** - One-time $50 founder pricing
 - ✅ **Stripe Integration** - Secure payment processing
 - ✅ **Clerk Authentication** - User management
 - ✅ **Email Capture** - Lead generation
@@ -194,18 +195,18 @@ Full configuration options in [`.env.example`](.env.example)
 
 ## 💰 **Monetization**
 
-### Current Model: **Lifetime Access**
-- **Price**: $50 one-time payment
-- **Value**: Professional tools typically $299+
-- **No subscriptions** - Buy once, use forever
+### Current Model: **Subscription + Lifetime**
+- **Monthly**: $9.99/mo with a **7-day free trial** (card required; cancel anytime)
+- **Lifetime**: $50 one-time founder pricing (limited while in beta)
+- **Free tier**: Basic chart + limited features to explore
 
 ### Revenue Potential:
 ```
-Month 1: 10-30 sales = $500-1,500
-Month 2: 30-100 sales = $1,500-5,000
-Month 3: 100-300 sales = $5,000-15,000
+Month 1: 20-50 subscribers + 5-15 lifetime = $700-2,000 MRR baseline
+Month 2: 50-150 subscribers = $500-1,500 MRR + lifetime upsells
+Month 3: 150-400 subscribers = $1,500-4,000 MRR
 
-At scale: $5k-10k+ monthly
+At scale: recurring MRR + lifetime cash boosts
 ```
 
 See [MONETIZATION_GUIDE.md](MONETIZATION_GUIDE.md) for complete strategy.

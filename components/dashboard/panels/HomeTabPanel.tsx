@@ -8,6 +8,7 @@ import { CosmicStoryCard } from '@/components/dashboard/CosmicStoryCard';
 import { ForecastDetailsSection } from '@/components/dashboard/ForecastDetailsSection';
 import { LunarReturnWeatherCard } from '@/components/dashboard/LunarReturnWeatherCard';
 import { RealityCheckJournal } from '@/components/dashboard/RealityCheckJournal';
+import { PremiumUpgradeBanner } from '@/components/dashboard/PremiumUpgradeBanner';
 import type { LunarReturnWeather, SolarReturnBriefing } from '@/lib/astrology/returns-types';
 
 interface PredictiveSnapshot {
@@ -92,6 +93,8 @@ interface HomeTabPanelProps {
   journalText?: string;
   onJournalOptInChange?: (enabled: boolean) => void;
   onJournalTextChange?: (text: string) => void;
+  premiumLocked?: boolean;
+  tier?: string;
 }
 
 export function HomeTabPanel({
@@ -150,9 +153,13 @@ export function HomeTabPanel({
   journalText = '',
   onJournalOptInChange,
   onJournalTextChange,
+  premiumLocked = false,
+  tier,
 }: HomeTabPanelProps) {
   return (
     <div className="space-y-6">
+      {premiumLocked ? <PremiumUpgradeBanner tier={tier} /> : null}
+
       <div ref={storyRef}>
         <CosmicStoryCard
           intensity={intensity}

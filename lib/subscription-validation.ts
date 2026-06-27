@@ -43,6 +43,14 @@ function setCachedTier(userId: string, tier: SubscriptionTier): void {
   tierCache.set(userId, { tier, expiresAt: Date.now() + TIER_CACHE_TTL_MS });
 }
 
+export function clearTierCache(userId?: string): void {
+  if (userId) {
+    tierCache.delete(userId);
+    return;
+  }
+  tierCache.clear();
+}
+
 function getPrimaryEmail(user: {
   emailAddresses?: Array<{ id: string; emailAddress: string }>;
   primaryEmailAddressId?: string | null;
