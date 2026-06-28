@@ -1,7 +1,7 @@
 import 'server-only';
 
-import { prisma } from '@/lib/prisma';
-import { isPrismaMissingTableError } from '@/lib/prisma-errors';
+import { hasAtmospherePatternStore, prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 import {
   buildPlanetPatternKey,
   buildTransitPatternKey,
@@ -84,6 +84,13 @@ function upsertBucket(
 }
 
 export async function getAtmospherePatternProfile(userId: string): Promise<AtmospherePatternProfile> {
+  if (!hasAtmospherePatternStore()) {
+    console.warn(
+      '[AtmospherePattern] Store unavailable — run `npx prisma generate && npx prisma db push` to enable pattern personalization.'
+    );
+    return EMPTY_PROFILE(userId);
+  }
+
   try {
     const rows = await prisma.atmospherePatternRecord.findMany({
       where: { userId },
@@ -135,7 +142,7 @@ export async function getAtmospherePatternProfile(userId: string): Promise<Atmos
       },
     };
   } catch (error) {
-    if (isPrismaMissingTableError(error)) {
+    if (isPrismaStoreUnavailableError(error)) {
       return EMPTY_PROFILE(userId);
     }
     throw error;
@@ -162,6 +169,20 @@ export async function recomputeAtmospherePatterns(params: {
   const buckets = new Map<string, MutablePatternBucket>();
   let feedbackSamples = 0;
   let checkinSamples = 0;
+
+  if (!hasAtmospherePatternStore()) {
+    console.warn(
+      '[AtmospherePattern] Store unavailable — skipping recompute until Prisma client and DB are synced.'
+    );
+    return {
+      userId: params.userId,
+      windowDays: days,
+      feedbackSamples: 0,
+      checkinSamples: 0,
+      patternCount: 0,
+      patterns: [],
+    };
+  }
 
   try {
     const [feedbackLogs, checkins] = await Promise.all([
@@ -311,7 +332,7 @@ export async function recomputeAtmospherePatterns(params: {
       patterns,
     };
   } catch (error) {
-    if (isPrismaMissingTableError(error)) {
+    if (isPrismaStoreUnavailableError(error)) {
       return {
         userId: params.userId,
         windowDays: days,
