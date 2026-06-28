@@ -1,8 +1,8 @@
 'use client';
 
-import { CalendarDays, Compass, Heart, Home } from 'lucide-react';
+import { CalendarDays, Compass, Hash, Heart, Home } from 'lucide-react';
 
-export type DashboardExperienceTab = 'home' | 'chart' | 'relationships' | 'forecast';
+export type DashboardExperienceTab = 'home' | 'chart' | 'relationships' | 'forecast' | 'numerology';
 
 interface DashboardExperienceTabsProps {
   activeTab: DashboardExperienceTab;
@@ -19,6 +19,7 @@ const TABS: Array<{
   { key: 'chart', label: 'My Chart', shortLabel: 'Self', icon: Compass },
   { key: 'relationships', label: 'Relationships', shortLabel: 'Bond', icon: Heart },
   { key: 'forecast', label: 'Forecast & Radar', shortLabel: 'Future', icon: CalendarDays },
+  { key: 'numerology', label: 'Numerology', shortLabel: 'Numbers', icon: Hash },
 ];
 
 export function DashboardExperienceTabs({ activeTab, onTabChange }: DashboardExperienceTabsProps) {
@@ -27,7 +28,7 @@ export function DashboardExperienceTabs({ activeTab, onTabChange }: DashboardExp
       aria-label="Dashboard sections"
       className="sticky top-0 z-40 -mx-1 mb-6 rounded-2xl border border-slate-700/50 bg-slate-950/85 p-1.5 backdrop-blur-md"
     >
-      <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;

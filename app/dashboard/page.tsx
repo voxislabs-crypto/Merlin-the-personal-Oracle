@@ -26,6 +26,7 @@ import { DashboardStatusBar } from '@/components/dashboard/DashboardStatusBar';
 import { ChartIdentityBrief } from '@/components/dashboard/ChartIdentityBrief';
 import { ForecastDetailsSection } from '@/components/dashboard/ForecastDetailsSection';
 import { HomeTabPanel } from '@/components/dashboard/panels/HomeTabPanel';
+import { NumerologyTabPanel } from '@/components/dashboard/panels/NumerologyTabPanel';
 import {
   WheelDetailTabs,
   type WheelDetailTab,
@@ -153,6 +154,9 @@ export default function UnifiedDashboard() {
   const oracleSectionRef = useRef<HTMLDivElement | null>(null);
   const detailsSectionRef = useRef<HTMLDivElement | null>(null);
   const ritualSectionRef = useRef<HTMLDivElement | null>(null);
+  const numerologyBlueprintRef = useRef<HTMLDivElement | null>(null);
+  const numerologyCyclesRef = useRef<HTMLDivElement | null>(null);
+  const numerologyBlendRef = useRef<HTMLDivElement | null>(null);
   const stormSectionRef = useRef<HTMLDivElement | null>(null);
   const relationshipsSectionRef = useRef<HTMLDivElement | null>(null);
   const prophecySectionRef = useRef<HTMLDivElement | null>(null);
@@ -1892,6 +1896,9 @@ export default function UnifiedDashboard() {
         storm: stormSectionRef,
         analysis: focusPanelRef,
         prophecy: prophecySectionRef,
+        'numerology-core': numerologyBlueprintRef,
+        'numerology-cycles': numerologyCyclesRef,
+        'numerology-blend': numerologyBlendRef,
       };
 
       const ref = refMap[section];
@@ -1908,6 +1915,8 @@ export default function UnifiedDashboard() {
         ? 'story'
         : dashboardTab === 'forecast'
           ? 'story'
+          : dashboardTab === 'numerology'
+            ? 'numerology-core'
           : dashboardTab === 'chart'
             ? 'overview'
             : 'overview';
@@ -2329,6 +2338,20 @@ export default function UnifiedDashboard() {
                     onJournalTextChange={setJournalText}
                     premiumLocked={premiumLocked}
                     tier={tier}
+                  />
+                ) : null}
+
+                {dashboardTab === 'numerology' ? (
+                  <NumerologyTabPanel
+                    birthDate={birthData?.date}
+                    sunSign={sunSign}
+                    moonSign={moonSign || forecast?.moonSign}
+                    premiumLocked={premiumLocked}
+                    tier={tier}
+                    onAskMerlin={queueAskContext}
+                    blueprintRef={numerologyBlueprintRef}
+                    cyclesRef={numerologyCyclesRef}
+                    blendRef={numerologyBlendRef}
                   />
                 ) : null}
 

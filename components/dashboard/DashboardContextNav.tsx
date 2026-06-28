@@ -26,7 +26,10 @@ export type ContextNavSection =
   | 'prophecy'
   | 'patterns'
   | 'synastry'
-  | 'overview';
+  | 'overview'
+  | 'numerology-core'
+  | 'numerology-cycles'
+  | 'numerology-blend';
 
 interface ContextLink {
   key: ContextNavSection;
@@ -79,6 +82,11 @@ const TAB_LINKS: Record<DashboardExperienceTab, ContextLink[]> = {
     { key: 'oracle', label: 'Oracle', title: 'Live relationship signal' },
     { key: 'patterns', label: 'Patterns', title: 'Pattern mirror panel' },
     { key: 'synastry', label: 'Synastry', title: 'Compare charts' },
+  ],
+  numerology: [
+    { key: 'numerology-core', label: 'Core', title: 'Life path and name numbers' },
+    { key: 'numerology-cycles', label: 'Cycles', title: 'Personal year, month, and day' },
+    { key: 'numerology-blend', label: 'Blend', title: 'Astrology + numerology synthesis' },
   ],
 };
 
