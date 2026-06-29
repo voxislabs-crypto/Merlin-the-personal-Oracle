@@ -4,6 +4,7 @@ import { PlanetPosition } from '@/types/astrology';
 import { getTransitsForDate, TransitMatch } from '@/lib/astrology/transits';
 import { resonanceDB } from '@/lib/resonance-database';
 import { PersistentUserContextSnapshot } from '@/lib/user-context';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 export interface LifeStageTag {
   id: string;
@@ -103,6 +104,10 @@ export interface PredictiveTransitBundle {
 }
 
 function isMissingResonanceTableError(error: unknown): boolean {
+  if (isPrismaStoreUnavailableError(error)) {
+    return true;
+  }
+
   const code = (error as { code?: string } | null)?.code;
   const message = (error as { message?: string } | null)?.message || '';
 

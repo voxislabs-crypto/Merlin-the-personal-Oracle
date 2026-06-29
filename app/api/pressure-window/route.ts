@@ -101,7 +101,16 @@ export async function POST(request: Request) {
     };
 
     const [resonance, patternProfile] = userId
-      ? await Promise.all([getResonanceWeightsProfile(userId), getAtmospherePatternProfile(userId)])
+      ? await Promise.all([
+          getResonanceWeightsProfile(userId).catch((profileError) => {
+            console.warn('[PressureWindow] Resonance profile fallback:', profileError);
+            return emptyResonanceProfile;
+          }),
+          getAtmospherePatternProfile(userId).catch((profileError) => {
+            console.warn('[PressureWindow] Pattern profile fallback:', profileError);
+            return null;
+          }),
+        ])
       : [emptyResonanceProfile, null];
 
     const weightedEvents = applyPlanetResonanceWeights(predictive.events, resonance.multipliers);

@@ -12,15 +12,27 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-type PrismaWithOptionalDelegates = PrismaClient & {
-  atmospherePatternRecord?: {
-    findMany: (...args: unknown[]) => Promise<unknown[]>;
-    deleteMany: (...args: unknown[]) => Promise<unknown>;
-    createMany: (...args: unknown[]) => Promise<unknown>;
-  };
+type PrismaDelegate = {
+  findMany?: (...args: unknown[]) => Promise<unknown>;
+  findUnique?: (...args: unknown[]) => Promise<unknown>;
+  create?: (...args: unknown[]) => Promise<unknown>;
+  deleteMany?: (...args: unknown[]) => Promise<unknown>;
+  createMany?: (...args: unknown[]) => Promise<unknown>;
 };
 
+export function hasPrismaDelegate(delegateName: string): boolean {
+  const delegate = (prisma as unknown as Record<string, PrismaDelegate | undefined>)[delegateName];
+  return (
+    typeof delegate?.findMany === 'function' ||
+    typeof delegate?.findUnique === 'function' ||
+    typeof delegate?.create === 'function'
+  );
+}
+
 export function hasAtmospherePatternStore(): boolean {
-  const delegate = (prisma as PrismaWithOptionalDelegates).atmospherePatternRecord;
-  return typeof delegate?.findMany === 'function';
+  return hasPrismaDelegate('atmospherePatternRecord');
+}
+
+export function hasResonanceStore(): boolean {
+  return hasPrismaDelegate('resonanceFeedbackRecord');
 }

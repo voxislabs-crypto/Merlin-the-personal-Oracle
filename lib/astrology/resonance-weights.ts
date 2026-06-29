@@ -2,6 +2,8 @@ import 'server-only';
 
 import { resonanceDB } from '@/lib/resonance-database';
 import type { PredictiveTransitEvent } from '@/lib/astrology/predictive-transits';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
+import { hasResonanceStore } from '@/lib/prisma';
 
 const KNOWN_PLANETS = [
   'Sun',
@@ -62,6 +64,10 @@ const EMPTY_RESONANCE_PROFILE: ResonanceWeightsProfile = {
 };
 
 function isMissingResonanceTableError(error: unknown): boolean {
+  if (isPrismaStoreUnavailableError(error)) {
+    return true;
+  }
+
   const code = (error as { code?: string } | null)?.code;
   const message = (error as { message?: string } | null)?.message || '';
 
@@ -102,6 +108,10 @@ function humanizeAspectId(aspectId: string): string {
 }
 
 export async function getResonanceWeightsProfile(userId: string): Promise<ResonanceWeightsProfile> {
+  if (!hasResonanceStore()) {
+    return EMPTY_RESONANCE_PROFILE;
+  }
+
   let logs;
   try {
     logs = await resonanceDB.getFeedbackHistory(userId, 80);

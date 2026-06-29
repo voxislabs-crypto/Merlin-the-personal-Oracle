@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { hasAtmospherePatternStore, prisma } from '@/lib/prisma';
+import { hasAtmospherePatternStore, hasPrismaDelegate, prisma } from '@/lib/prisma';
 import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 import {
   buildPlanetPatternKey,
@@ -170,7 +170,11 @@ export async function recomputeAtmospherePatterns(params: {
   let feedbackSamples = 0;
   let checkinSamples = 0;
 
-  if (!hasAtmospherePatternStore()) {
+  if (
+    !hasAtmospherePatternStore() ||
+    !hasPrismaDelegate('resonanceFeedbackRecord') ||
+    !hasPrismaDelegate('userInteractionEvent')
+  ) {
     console.warn(
       '[AtmospherePattern] Store unavailable — skipping recompute until Prisma client and DB are synced.'
     );

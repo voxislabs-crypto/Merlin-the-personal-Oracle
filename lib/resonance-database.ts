@@ -9,7 +9,8 @@ import type {
   ResonanceStats,
   FeedbackData,
 } from './resonance-types';
-import { prisma } from '@/lib/prisma';
+import { hasPrismaDelegate, hasResonanceStore, prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -29,6 +30,10 @@ function deserializeBig5(big5Json?: string | null): User['big5'] | undefined {
 }
 
 class ResonanceDatabase {
+  private isStoreReady(): boolean {
+    return hasResonanceStore();
+  }
+
   async createUser(user: User): Promise<void> {
     await prisma.resonanceUser.create({
       data: {
@@ -42,6 +47,8 @@ class ResonanceDatabase {
   }
 
   async getUser(userId: string): Promise<User | null> {
+    if (!hasPrismaDelegate('resonanceUser')) return null;
+
     const user = await prisma.resonanceUser.findUnique({ where: { userId } });
     if (!user) return null;
 
@@ -84,6 +91,8 @@ class ResonanceDatabase {
   }
 
   async getPersonalResonance(userId: string, aspectId: string, theme: string): Promise<PersonalResonance | null> {
+    if (!hasPrismaDelegate('personalResonanceRecord')) return null;
+
     const record = await prisma.personalResonanceRecord.findUnique({
       where: { userId_aspectId_theme: { userId, aspectId, theme } },
     });
@@ -130,6 +139,8 @@ class ResonanceDatabase {
   }
 
   async getGlobalResonance(aspectId: string, theme: string): Promise<GlobalResonance | null> {
+    if (!hasPrismaDelegate('globalResonanceRecord')) return null;
+
     const record = await prisma.globalResonanceRecord.findUnique({
       where: { aspectId_theme: { aspectId, theme } },
     });
@@ -174,6 +185,8 @@ class ResonanceDatabase {
   }
 
   async getClusterResonance(clusterId: string, aspectId: string, theme: string): Promise<ClusterResonance | null> {
+    if (!hasPrismaDelegate('clusterResonanceRecord')) return null;
+
     const record = await prisma.clusterResonanceRecord.findUnique({
       where: { clusterId_aspectId_theme: { clusterId, aspectId, theme } },
     });
@@ -240,24 +253,35 @@ class ResonanceDatabase {
   }
 
   async getFeedbackHistory(userId: string, limit: number = 50): Promise<FeedbackLog[]> {
-    const rows = await prisma.resonanceFeedbackRecord.findMany({
-      where: { userId },
-      orderBy: { date: 'desc' },
-      take: limit,
-    });
+    if (!this.isStoreReady()) {
+      return [];
+    }
 
-    return rows.map((row) => ({
-      feedbackId: row.feedbackId,
-      userId: row.userId,
-      aspectId: row.aspectId,
-      theme: row.theme,
-      date: row.date.toISOString(),
-      orb: row.orb,
-      confidenceScore: row.confidenceScore,
-      resonated: row.resonated,
-      accuracyScore: row.accuracyScore,
-      notes: row.notes || undefined,
-    }));
+    try {
+      const rows = await prisma.resonanceFeedbackRecord.findMany({
+        where: { userId },
+        orderBy: { date: 'desc' },
+        take: limit,
+      });
+
+      return rows.map((row) => ({
+        feedbackId: row.feedbackId,
+        userId: row.userId,
+        aspectId: row.aspectId,
+        theme: row.theme,
+        date: row.date.toISOString(),
+        orb: row.orb,
+        confidenceScore: row.confidenceScore,
+        resonated: row.resonated,
+        accuracyScore: row.accuracyScore,
+        notes: row.notes || undefined,
+      }));
+    } catch (error) {
+      if (isPrismaStoreUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async getResonanceStats(userId: string, aspectId: string, theme: string): Promise<ResonanceStats> {
