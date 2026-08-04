@@ -35,6 +35,11 @@ interface OracleChatRequest {
   includeLikelihood?: boolean; // Include percentages in structured responses
   ancientLayer?: boolean; // Toggle ancient source weaving
   atmospherePacket?: AtmospherePacket | null;
+  dualPersonality?: {
+    core?: string;
+    mask?: string;
+    final?: string;
+  } | null;
 }
 
 type LlmProvider = 'xai' | 'groq';
@@ -81,6 +86,7 @@ export async function POST(request: NextRequest) {
       includeLikelihood = true,
       ancientLayer = false,
       atmospherePacket,
+      dualPersonality,
     } = body;
 
     if (!question || question.trim().length === 0) {
@@ -323,7 +329,11 @@ export async function POST(request: NextRequest) {
       userId,
       currentDate: new Date(),
       plainEnglish,
-      mbtiType: derivedMbtiType,
+      mbtiType:
+        dualPersonality?.final ||
+        dualPersonality?.core ||
+        derivedMbtiType,
+      dualPersonality: dualPersonality || null,
       tonePreset,
       patternMirror,
     };

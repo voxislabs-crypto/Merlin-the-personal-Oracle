@@ -54,6 +54,11 @@ interface CollapsibleChatPanelProps {
   draftLabel?: string;
   showExpandToggle?: boolean;
   atmospherePacket?: AtmospherePacket | null;
+  dualPersonality?: {
+    core?: string;
+    mask?: string;
+    final?: string;
+  } | null;
 }
 
 export function CollapsibleChatPanel({
@@ -71,6 +76,7 @@ export function CollapsibleChatPanel({
   draftLabel,
   showExpandToggle = true,
   atmospherePacket,
+  dualPersonality,
 }: CollapsibleChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -560,12 +566,14 @@ export function CollapsibleChatPanel({
           progressedChart,
           userId,
           plainEnglish,
-          mbtiType,
+          mbtiType:
+            dualPersonality?.final || dualPersonality?.core || mbtiType,
           tonePreset,
           oracleMode,
           includeLikelihood,
           ancientLayer,
           atmospherePacket: atmospherePacket || undefined,
+          dualPersonality: dualPersonality || undefined,
         },
         (fullContent) => {
           setStreamingContent(fullContent);
@@ -643,13 +651,53 @@ export function CollapsibleChatPanel({
     }
   };
 
+  const coreType = dualPersonality?.core;
+  const maskType = dualPersonality?.mask;
+  const weatherTone = atmospherePacket?.tone?.label;
+  const weatherIntensity = atmospherePacket?.intensity;
+
   return (
-    <div className="h-full flex flex-col bg-slate-900/80 border-l border-purple-500/20 rounded-r-lg overflow-hidden shadow-2xl">
+    <div className="flex h-full flex-col overflow-hidden rounded-r-lg border-l border-sky-500/25 bg-slate-950/90 shadow-2xl backdrop-blur-md">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-purple-500/20 bg-slate-900/50 flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-sky-500/20 bg-slate-950/70 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-purple-200">🔮 Oracle Chat</h3>
-          <p className="text-xs text-purple-400">Ask about your chart</p>
+          <h3 className="text-sm font-semibold text-sky-100">Oracle Chat</h3>
+          <p className="text-xs text-sky-300/70">Reads your core + today&apos;s life weather</p>
+          {/* Live context strip — always show what the Oracle is using */}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {coreType ? (
+              <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
+                Core {coreType}
+              </span>
+            ) : mbtiType ? (
+              <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
+                Type {mbtiType}
+              </span>
+            ) : null}
+            {maskType && maskType !== coreType ? (
+              <span className="rounded-full border border-orange-400/35 bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-100">
+                Mask {maskType}
+              </span>
+            ) : null}
+            {weatherTone ? (
+              <span className="rounded-full border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-100">
+                {weatherTone}
+                {typeof weatherIntensity === 'number' ? ` · ${weatherIntensity}%` : ''}
+              </span>
+            ) : (
+              <span className="rounded-full border border-slate-600/50 bg-slate-800/60 px-2 py-0.5 text-[10px] text-slate-400">
+                Weather loading…
+              </span>
+            )}
+            {atmospherePacket?.dominantDriver?.label ? (
+              <span
+                className="max-w-[160px] truncate rounded-full border border-slate-600/40 bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-300"
+                title={atmospherePacket.dominantDriver.label}
+              >
+                {atmospherePacket.dominantDriver.label}
+              </span>
+            ) : null}
+          </div>
           {identityPack && (
             <div className="mt-2 max-w-sm">
               <IdentityPatternCard
@@ -672,7 +720,7 @@ export function CollapsibleChatPanel({
             </div>
           )}
           {ttsError && (
-            <p className="text-xs text-orange-400 mt-1">⚠️ {ttsError}</p>
+            <p className="mt-1 text-xs text-orange-400">⚠️ {ttsError}</p>
           )}
         </div>
         <div className="flex gap-1 flex-shrink-0">

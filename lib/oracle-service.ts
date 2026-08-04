@@ -60,7 +60,13 @@ export interface OracleContext {
   userId?: string;
   currentDate?: Date;
   plainEnglish?: boolean; // "Clarity Mode" - strip astro jargon
-  mbtiType?: string; // MBTI personality type for storm cross-reference
+  mbtiType?: string; // MBTI personality type for storm cross-reference (prefer core / final)
+  /** Dual chart personality — Core (inner) + Mask (outer) */
+  dualPersonality?: {
+    core?: string;
+    mask?: string;
+    final?: string;
+  } | null;
   tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
   patternMirror?: {
     dominant?: {
@@ -374,9 +380,9 @@ function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
       : '- Learned patterns: none matched today';
 
   return `
-ATMOSPHERE ENGINE (authoritative sky tone for today):
+LIFE WEATHER / ATMOSPHERE (authoritative tone for today — ground truth for how today feels):
 - Date: ${packet.date}
-- Sky tone: ${packet.tone.label} (${packet.intensity}% intensity)
+- Life weather tone: ${packet.tone.label} (${packet.intensity}% intensity)
 - Felt intensity: ${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})
 - Day rating: ${packet.dayRating}
 - Dominant driver: ${packet.dominantDriver.label}
@@ -592,8 +598,21 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const tonePreset = context.tonePreset || 'warm';
   const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
   const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
-  const effectiveMbti = context.mbtiType || chartMbti;
-  const mbtiLine = effectiveMbti ? `\nUSER MBTI ARCHETYPE: ${effectiveMbti}` : '';
+  const dual = context.dualPersonality;
+  const effectiveMbti =
+    dual?.final || dual?.core || context.mbtiType || chartMbti;
+  const dualLine =
+    dual?.core || dual?.mask
+      ? `
+DUAL PERSONALITY (from birth chart — use this to personalize tone and advice):
+- Core (who they are inside): ${dual.core || 'unknown'}
+- Mask (how they often present): ${dual.mask || 'unknown'}
+- Integrated type for weather/tone: ${dual.final || effectiveMbti || 'unknown'}
+- Rule: Prefer Core for inner motivation and emotional truth. Use Mask to explain social face and misreads. When Core ≠ Mask, name the tension gently and advise both layers.`
+      : '';
+  const mbtiLine = effectiveMbti
+    ? `\nUSER MBTI ARCHETYPE (primary for personalization): ${effectiveMbti}${dualLine}`
+    : dualLine;
 
   const languageRule = plainEnglish
     ? `LANGUAGE RULE (Clarity Mode ON): 

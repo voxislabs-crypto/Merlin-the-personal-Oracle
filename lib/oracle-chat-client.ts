@@ -15,6 +15,11 @@ export interface OracleChatRequestPayload {
   includeLikelihood?: boolean;
   ancientLayer?: boolean;
   atmospherePacket?: AtmospherePacket | null;
+  dualPersonality?: {
+    core?: string;
+    mask?: string;
+    final?: string;
+  } | null;
 }
 
 export interface OracleChatStreamResult {

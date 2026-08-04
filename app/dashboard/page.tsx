@@ -3657,13 +3657,27 @@ export default function UnifiedDashboard() {
                 birthChart={chartData}
                 userId={userId}
                 onUserMessageSent={handleChatUserMessageSent}
-                mbtiType={mbtiType || undefined}
+                mbtiType={
+                  dualOverlay?.finalType ||
+                  dualOverlay?.firmware?.mbtiType ||
+                  mbtiType ||
+                  undefined
+                }
                 clarityMode={clarityMode}
                 onClarityChange={toggleClarityMode}
                 draftPrompt={askDraftPrompt}
                 draftPromptKey={askDraftKey}
                 draftLabel={askDraftLabel}
                 atmospherePacket={activeAtmospherePacket}
+                dualPersonality={
+                  dualOverlay
+                    ? {
+                        core: dualOverlay.firmware?.mbtiType,
+                        mask: dualOverlay.hardware?.mbtiType,
+                        final: dualOverlay.finalType,
+                      }
+                    : null
+                }
               />
             ) : null}
 
