@@ -100,7 +100,7 @@ export function getDayRatingPresentation(dayRating: string): DayRatingPresentati
       label: 'Very Challenging',
       badgeClass: 'border-rose-400/50 bg-rose-500/15 text-rose-200',
       tooltip:
-        'High-intensity sky weather. Minimize commitments, prioritize recovery, and defer non-essential battles.',
+        'High-intensity life weather. Minimize commitments, prioritize recovery, and defer non-essential battles.',
     };
   }
 

@@ -9,6 +9,7 @@ import {
   getDimensionMeta,
   type BlendSynthesis,
 } from '@/lib/personality/mbti-blend-synthesis';
+import { getMBTITypeDescription, type MBTIType } from '@/lib/mbti-overlay';
 
 type DimensionKey = 'e_i' | 's_n' | 't_f' | 'j_p';
 
@@ -70,18 +71,28 @@ function LayerColumn({
   const subtextClass = accent === 'orange' ? 'text-orange-300/70' : 'text-violet-300/70';
   const Icon = accent === 'orange' ? Theater : Eye;
 
+  const typeLabel =
+    layer.mbtiType?.length === 4
+      ? getMBTITypeDescription(layer.mbtiType.toUpperCase() as MBTIType)
+      : null;
+
   return (
     <div className={`rounded-xl border ${borderClass} bg-slate-900/50 p-4`}>
       <div className="flex items-center gap-2 mb-3">
         <Icon className={`h-4 w-4 ${textClass}`} />
         <div>
           <p className={`text-xs uppercase tracking-widest font-semibold ${subtextClass}`}>
-            {layer.sublabel}
+            {layer.label} · {layer.sublabel}
           </p>
           <p className={`text-lg font-bold ${textClass}`}>{layer.mbtiType}</p>
+          {typeLabel ? <p className={`text-xs mt-0.5 ${subtextClass}`}>{typeLabel}</p> : null}
         </div>
         <span className="ml-auto text-xs text-slate-500">{layer.confidence}%</span>
       </div>
+
+      {layer.description ? (
+        <p className="mb-3 text-sm leading-relaxed text-slate-300">{layer.description}</p>
+      ) : null}
 
       <div className="space-y-3">
         {DIMENSION_KEYS.map((key) => {
@@ -160,13 +171,21 @@ function BlendCard({ blend, dualOverlay }: { blend: BlendSynthesis; dualOverlay:
     <div className="rounded-xl border border-amber-400/25 bg-gradient-to-br from-amber-500/10 to-slate-900/60 p-4">
       <div className="flex items-center gap-2 mb-2">
         <Layers className="h-4 w-4 text-amber-300" />
-        <p className="text-xs uppercase tracking-widest font-semibold text-amber-300/80">The Blend</p>
+        <p className="text-xs uppercase tracking-widest font-semibold text-amber-300/80">
+          {blend.sameType ? 'Aligned type' : 'Combined interpretation'}
+        </p>
       </div>
       <p className="text-base font-semibold text-amber-100">{blend.headline}</p>
       <p className="mt-2 text-sm leading-relaxed text-slate-300">{blend.summary}</p>
+      {!blend.sameType ? (
+        <p className="mt-3 text-sm leading-relaxed text-slate-200 border-t border-amber-400/15 pt-3">
+          {blend.combinedInterpretation}
+        </p>
+      ) : null}
 
       {!blend.sameType && blend.splitDimensions.length > 0 && (
         <div className="mt-3 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">Where the layers split</p>
           {blend.splitDimensions.map((split) => {
             const meta = getDimensionMeta(split.key);
             return (
@@ -175,7 +194,7 @@ function BlendCard({ blend, dualOverlay }: { blend: BlendSynthesis; dualOverlay:
                 className="rounded-lg border border-slate-700/40 bg-slate-900/40 px-3 py-2"
               >
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                  {meta.label}: {split.mask} mask · {split.core} core
+                  {meta.label}: {split.core} core · {split.mask} mask
                 </p>
                 <p className="mt-1 text-xs text-slate-400 leading-relaxed">{split.note}</p>
               </div>
@@ -185,7 +204,9 @@ function BlendCard({ blend, dualOverlay }: { blend: BlendSynthesis; dualOverlay:
       )}
 
       <p className="mt-3 text-xs text-amber-200/60">
-        Integrated type: <span className="font-semibold text-amber-200">{dualOverlay.finalType}</span>
+        Integrated type (weather tone):{' '}
+        <span className="font-semibold text-amber-200">{dualOverlay.finalType}</span>
+        {blend.finalBlurb ? ` — ${blend.finalBlurb}` : ''}
         {' · '}
         {dualOverlay.finalConfidence}% confidence
       </p>
@@ -214,18 +235,19 @@ export function MBTIDualBreakdown({ dualOverlay }: MBTIDualBreakdownProps) {
         </p>
       </div>
 
+      {/* Core first, then mask — matches Self product order */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <LayerColumn
-          layer={dualOverlay.hardware}
-          accent="orange"
-          expandedReasoning={maskReasoningOpen}
-          onToggleReasoning={() => setMaskReasoningOpen((v) => !v)}
-        />
         <LayerColumn
           layer={dualOverlay.firmware}
           accent="violet"
           expandedReasoning={coreReasoningOpen}
           onToggleReasoning={() => setCoreReasoningOpen((v) => !v)}
+        />
+        <LayerColumn
+          layer={dualOverlay.hardware}
+          accent="orange"
+          expandedReasoning={maskReasoningOpen}
+          onToggleReasoning={() => setMaskReasoningOpen((v) => !v)}
         />
       </div>
 

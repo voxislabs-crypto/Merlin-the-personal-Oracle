@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { MBTIType } from '@/lib/mbti-overlay';
+import { getMBTITypeDescription, MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/hooks/usePersonality';
 import { Theater, Eye, AlertTriangle, Shuffle } from 'lucide-react';
+import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
 import { useUser } from '@clerk/nextjs';
 import flavorsRaw from '@/data/mbti-flavors.json';
 import shadowsRaw from '@/data/mbti-shadows.json';
@@ -270,61 +271,12 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
         </motion.p>
       )}
 
-      {/* Two Cards Side-by-Side */}
+      {/* Core first, then mask */}
       <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6"
         variants={containerVariants}
       >
-        {/* LEFT: MASK (What the world sees) */}
-        <motion.div
-          className={`bg-gradient-to-br ${getMaskColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-orange-500/20 relative overflow-hidden ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === dualOverlay.hardware.label ? 'ring-1 ring-cyan-300/40' : ''}`}
-          variants={cardVariants}
-          whileHover={{ scale: 1.02, y: -5 }}
-          onClick={onAskContext ? () => onAskContext(dualOverlay.hardware.label, `Explain my ${dualOverlay.hardware.label.toLowerCase()} and how it shapes what people see first.`) : undefined}
-        >
-          {/* Glow effect */}
-          <div className="absolute inset-0 bg-gradient-to-t from-orange-500/0 to-orange-500/5 pointer-events-none" />
-          
-          {/* Content */}
-          <div className="relative space-y-4 z-10">
-            {/* Icon + Label */}
-            <div className="flex items-center gap-3">
-              <Theater className={`w-6 h-6 ${getMaskTextColor()}`} />
-              <span className="text-xs uppercase tracking-widest font-bold text-orange-200/70">
-                {dualOverlay.hardware.label}
-              </span>
-            </div>
-
-            {/* MBTI Type */}
-            <div>
-              <p className="text-xs uppercase tracking-wide text-orange-300/80 mb-1">{dualOverlay.hardware.sublabel}</p>
-              <p className={`text-3xl font-bold ${getMaskTextColor()}`}>
-                {dualOverlay.hardware.mbtiType}
-              </p>
-              <p className="text-xs text-orange-200/60 mt-1">Confidence: {dualOverlay.hardware.confidence}%</p>
-            </div>
-
-            {/* Archetype */}
-            <div>
-              <p className="text-sm font-semibold text-white/90">
-                {dualOverlay.hardware.archetype}
-              </p>
-              <p className="text-xs text-slate-300 italic mt-1">
-                {dualOverlay.hardware.description}
-              </p>
-            </div>
-
-            {/* Poetic line */}
-            <div className="pt-4 border-t border-orange-400/30">
-              <p className="text-sm italic text-orange-100">
-                {getOuterMaskPoetry(dualOverlay.hardware.mbtiType)}
-              </p>
-              {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === dualOverlay.hardware.label ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === dualOverlay.hardware.label ? 'Selected for Merlin' : 'Click card to ask Merlin about this layer'}</p> : null}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* RIGHT: CORE (What's real) */}
+        {/* LEFT: CORE (What's real) */}
         <motion.div
           className={`bg-gradient-to-br ${getCoreColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-purple-500/20 relative overflow-hidden ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === dualOverlay.firmware.label ? 'ring-1 ring-cyan-300/40' : ''}`}
           variants={cardVariants}
@@ -365,6 +317,9 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
 
             {/* Poetic line */}
             <div className="pt-4 border-t border-purple-400/30">
+              <p className="text-sm text-purple-100/90 mb-1">
+                {getMBTITypeDescription(dualOverlay.firmware.mbtiType as MBTIType)}
+              </p>
               <p className="text-sm italic text-purple-100">
                 {getInnerCorePoetry(dualOverlay.firmware.mbtiType)}
               </p>
@@ -372,7 +327,82 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
             </div>
           </div>
         </motion.div>
+
+        {/* RIGHT: MASK (What the world sees) */}
+        <motion.div
+          className={`bg-gradient-to-br ${getMaskColor()} rounded-lg p-8 backdrop-blur-sm border-2 transition-all hover:shadow-lg hover:shadow-orange-500/20 relative overflow-hidden ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === dualOverlay.hardware.label ? 'ring-1 ring-cyan-300/40' : ''}`}
+          variants={cardVariants}
+          whileHover={{ scale: 1.02, y: -5 }}
+          onClick={onAskContext ? () => onAskContext(dualOverlay.hardware.label, `Explain my ${dualOverlay.hardware.label.toLowerCase()} and how it shapes what people see first.`) : undefined}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-orange-500/0 to-orange-500/5 pointer-events-none" />
+          <div className="relative space-y-4 z-10">
+            <div className="flex items-center gap-3">
+              <Theater className={`w-6 h-6 ${getMaskTextColor()}`} />
+              <span className="text-xs uppercase tracking-widest font-bold text-orange-200/70">
+                {dualOverlay.hardware.label}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-orange-300/80 mb-1">{dualOverlay.hardware.sublabel}</p>
+              <p className={`text-3xl font-bold ${getMaskTextColor()}`}>
+                {dualOverlay.hardware.mbtiType}
+              </p>
+              <p className="text-xs text-orange-200/60 mt-1">Confidence: {dualOverlay.hardware.confidence}%</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white/90">
+                {dualOverlay.hardware.archetype}
+              </p>
+              <p className="text-xs text-slate-300 italic mt-1">
+                {dualOverlay.hardware.description}
+              </p>
+            </div>
+            <div className="pt-4 border-t border-orange-400/30">
+              <p className="text-sm text-orange-100/90 mb-1">
+                {getMBTITypeDescription(dualOverlay.hardware.mbtiType as MBTIType)}
+              </p>
+              <p className="text-sm italic text-orange-100">
+                {getOuterMaskPoetry(dualOverlay.hardware.mbtiType)}
+              </p>
+              {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === dualOverlay.hardware.label ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === dualOverlay.hardware.label ? 'Selected for Merlin' : 'Click card to ask Merlin about this layer'}</p> : null}
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
+
+      {/* Dual combined interpretation when mask ≠ core */}
+      {(() => {
+        const blend = buildBlendSynthesis(dualOverlay);
+        if (blend.sameType) return null;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-5"
+          >
+            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300/80 font-semibold">
+              Combined interpretation
+            </p>
+            <p className="mt-1 text-base font-semibold text-amber-50">{blend.headline}</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-200">{blend.combinedInterpretation}</p>
+            {onAskContext ? (
+              <button
+                type="button"
+                className="mt-3 text-xs font-semibold text-cyan-200 hover:text-cyan-100"
+                onClick={() =>
+                  onAskContext(
+                    'Dual MBTI blend',
+                    `My core is ${dualOverlay.firmware.mbtiType} and mask is ${dualOverlay.hardware.mbtiType}. Explain how they combine and how I should work with both.`,
+                  )
+                }
+              >
+                Ask Merlin about this blend →
+              </button>
+            ) : null}
+          </motion.div>
+        );
+      })()}
 
       {/* What is the shadow? (collapsed by default) */}
       <motion.div

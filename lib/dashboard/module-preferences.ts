@@ -46,11 +46,11 @@ export function parseDashboardModulePreferences(raw: string | null): DashboardMo
 }
 
 export const MODULE_LABELS: Record<DashboardModuleKey, string> = {
-  relationshipSpace: 'Relationship Space',
-  returnLoop: 'Daily Ritual',
-  deepDive: 'Deep Dive',
-  weeklyForecast: 'Weekly Forecast',
-  personalityCards: 'Dual MBTI Cards',
-  focusViews: 'Focus Views',
-  history: 'History & Calibration',
+  relationshipSpace: 'Self · Bonds',
+  returnLoop: 'Weather · Daily Ritual',
+  deepDive: 'Self · Deep Dive',
+  weeklyForecast: 'Weather · Weekly Forecast',
+  personalityCards: 'Self · Dual MBTI',
+  focusViews: 'Self · Focus Views',
+  history: 'Weather · History & Calibration',
 };

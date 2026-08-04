@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { BirthChart } from '@/components/astrology/BirthChart';
@@ -27,6 +27,10 @@ import { ChartIdentityBrief } from '@/components/dashboard/ChartIdentityBrief';
 import { ForecastDetailsSection } from '@/components/dashboard/ForecastDetailsSection';
 import { HomeTabPanel } from '@/components/dashboard/panels/HomeTabPanel';
 import { NumerologyTabPanel } from '@/components/dashboard/panels/NumerologyTabPanel';
+import { WeatherShell } from '@/components/dashboard/shells/WeatherShell';
+import { SelfShell } from '@/components/dashboard/shells/SelfShell';
+import { TodayWeatherBrief } from '@/components/dashboard/TodayWeatherBrief';
+import { ActiveStorylinePanel } from '@/components/dashboard/ActiveStorylinePanel';
 import {
   WheelDetailTabs,
   type WheelDetailTab,
@@ -64,6 +68,7 @@ import { useAtmosphere } from '@/hooks/useAtmosphere';
 import {
   computeAtmosphereFromDashboardSources,
   buildAtmosphereRenderedDetail,
+  buildLifeWeatherBrief,
   getTodayCheckinEntry,
   isAtmosphereEngineV1Enabled,
   resolveAtmosphereSourceEvent,
@@ -103,6 +108,8 @@ import {
 } from '@/lib/dashboard/module-preferences';
 import { getMBTITypeDescription, applyMBTIOverlay, type MBTIType } from '@/lib/mbti-overlay';
 import { globalAudioManager } from '@/lib/global-audio-manager';
+import { buildIdentityPacket } from '@/lib/self';
+import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
 
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -167,6 +174,13 @@ export default function UnifiedDashboard() {
   const [selectedWheelPlanet, setSelectedWheelPlanet] = useState<string | null>(null);
   const [selectedWheelSign, setSelectedWheelSign] = useState<ZodiacSignName | null>(null);
   const [showDeepDive, setShowDeepDive] = useState(false);
+  /** Self · You: chart detail & more modules start collapsed so identity stays the hero */
+  const [selfChartDepthOpen, setSelfChartDepthOpen] = useState(false);
+  const [selfMoreOpen, setSelfMoreOpen] = useState(false);
+  /** Weather · Forecast: depth collapsed so horizon brief stays primary */
+  const [forecastDepthOpen, setForecastDepthOpen] = useState(false);
+  const [forecastRadarOpen, setForecastRadarOpen] = useState(false);
+  const [forecastAnalysisOpen, setForecastAnalysisOpen] = useState(false);
   const [showWeeklyForecastPanel, setShowWeeklyForecastPanel] = useState(false);
   const [showPersonalityCardsPanel, setShowPersonalityCardsPanel] = useState(false);
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
@@ -1603,23 +1617,23 @@ export default function UnifiedDashboard() {
       const { tone, intensity, feltIntensity, dayRating, dominantDriver, confluence, realityCheck } =
         activeAtmospherePacket;
       const confluenceLine = confluence.aligned
-        ? ` Multiple sky signals are aligned (${confluence.themes.slice(0, 2).join(', ') || 'converging layers'}).`
+        ? ` Multiple life-weather signals are aligned (${confluence.themes.slice(0, 2).join(', ') || 'converging layers'}).`
         : '';
       const feltLine =
         realityCheck.source !== 'none'
-          ? ` Felt intensity: ${feltIntensity}% (sky ${intensity}%, mood signal ${realityCheck.sentimentScore ?? 'n/a'}%).`
+          ? ` Felt intensity: ${feltIntensity}% (chart weather ${intensity}%, mood signal ${realityCheck.sentimentScore ?? 'n/a'}%).`
           : '';
       queueAskContext(
-        "Today's sky",
-        `Today's atmosphere for my chart: ${tone.label} at ${intensity}% (${dayRating} day).${feltLine} Dominant driver: ${dominantDriver.label} — ${dominantDriver.rationale}.${confluenceLine} Explain what this means for me today and what I should watch for.`
+        "Today's life weather",
+        `Today's life weather for my chart: ${tone.label} at ${intensity}% (${dayRating} day).${feltLine} Dominant driver: ${dominantDriver.label} — ${dominantDriver.rationale}.${confluenceLine} Explain what this means for me today and what I should watch for.`
       );
       return;
     }
 
     const ratingLabel = forecast?.day_rating || 'today';
     queueAskContext(
-      "Today's sky",
-      `Why is today rated ${ratingLabel} for my chart? Explain what's driving the tone and what I should watch for.`
+      "Today's life weather",
+      `Why is today rated ${ratingLabel} for my chart? Explain what's driving the life weather and what I should watch for.`
     );
   }, [activeAtmospherePacket, forecast?.day_rating, queueAskContext]);
 
@@ -1674,31 +1688,6 @@ export default function UnifiedDashboard() {
     dashboardTab,
   ]);
 
-  const cosmicStoryText = React.useMemo(() => {
-    if (forecast?.summary_mbti_adjusted) return forecast.summary_mbti_adjusted;
-    if (forecast?.summary) return forecast.summary;
-    if (forecastLoading) return 'Reading today\'s sky for your chart...';
-    if (forecastError?.message) return forecastError.message;
-    if (!featureFlags.premiumInsights) {
-      return 'Daily forecast is currently unavailable for your plan.';
-    }
-    return 'The cosmic story is quiet right now. Please try again in a moment.';
-  }, [featureFlags.premiumInsights, forecast?.summary, forecast?.summary_mbti_adjusted, forecastError?.message, forecastLoading]);
-
-  const cosmicStoryMbtiGuidance = React.useMemo(() => {
-    if (!mbtiType || !forecast) return undefined;
-    const overlay = forecast.mbti_overlay as Record<string, unknown> | undefined;
-    if (overlay?.reasoning && typeof overlay.reasoning === 'string') {
-      return overlay.reasoning;
-    }
-    const typedOverlay = overlay?.[mbtiType] as { translation?: string } | undefined;
-    if (typedOverlay?.translation) return typedOverlay.translation;
-    if (forecast.primaryTheme) {
-      return applyMBTIOverlay(forecast.primaryTheme, mbtiType as MBTIType);
-    }
-    return undefined;
-  }, [forecast, mbtiType]);
-
   const predictiveActionHint = predictiveTopEvent
     ? (() => {
         const hardAspect =
@@ -1724,15 +1713,50 @@ export default function UnifiedDashboard() {
       })()
     : null;
 
-  const cosmicStoryMove = React.useMemo(() => {
+  /** P1 + P3: sharp three-beat life weather brief for Today */
+  const lifeWeatherBrief = React.useMemo(() => {
     const transitDo = forecast?.transitLookup?.[0]?.do?.[0];
-    if (transitDo) return transitDo;
-    if (forecast?.advice) return forecast.advice;
-    if (predictiveActionHint) {
-      return `${predictiveActionHint.label} — ${predictiveActionHint.reason}`;
+    const summary =
+      (typeof forecast?.summary_mbti_adjusted === 'string' && forecast.summary_mbti_adjusted) ||
+      (typeof forecast?.summary === 'string' && forecast.summary) ||
+      null;
+    return buildLifeWeatherBrief({
+      packet: activeAtmospherePacket,
+      forecastSummary: summary,
+      forecastAdvice: typeof forecast?.advice === 'string' ? forecast.advice : null,
+      transitDo: typeof transitDo === 'string' ? transitDo : null,
+      predictiveMove: predictiveActionHint
+        ? `${predictiveActionHint.label} — ${predictiveActionHint.reason}`
+        : null,
+      loading: forecastLoading && !forecast && !activeAtmospherePacket,
+      premiumLocked: !featureFlags.premiumInsights,
+      errorMessage: forecastError?.message || null,
+    });
+  }, [
+    activeAtmospherePacket,
+    featureFlags.premiumInsights,
+    forecast,
+    forecastError?.message,
+    forecastLoading,
+    predictiveActionHint,
+  ]);
+
+  const cosmicStoryText = lifeWeatherBrief.story;
+  const cosmicWeatherHeadlineForUi = lifeWeatherBrief.why || cosmicWeatherHeadline;
+  const cosmicStoryMove = lifeWeatherBrief.move;
+  const cosmicStoryMbtiGuidance = React.useMemo(() => {
+    if (!mbtiType || !forecast) return undefined;
+    const overlay = forecast.mbti_overlay as Record<string, unknown> | undefined;
+    if (overlay?.reasoning && typeof overlay.reasoning === 'string') {
+      return overlay.reasoning;
+    }
+    const typedOverlay = overlay?.[mbtiType] as { translation?: string } | undefined;
+    if (typedOverlay?.translation) return typedOverlay.translation;
+    if (forecast.primaryTheme) {
+      return applyMBTIOverlay(forecast.primaryTheme, mbtiType as MBTIType);
     }
     return undefined;
-  }, [forecast?.advice, forecast?.transitLookup, predictiveActionHint]);
+  }, [forecast, mbtiType]);
 
   const predictiveSnapshot = React.useMemo(
     () =>
@@ -1751,12 +1775,81 @@ export default function UnifiedDashboard() {
     [predictiveActionHint, predictiveTopEvent, transits?.predictive],
   );
 
-  const chartIdentityHeadline = interpretations?.chartSummary
-    ? interpretations.chartSummary.split('. ').slice(0, 2).join('. ') + (interpretations.chartSummary.includes('.') ? '.' : '')
-    : undefined;
+  /** Transit confluence blurb from /api/interpret — "now" storyline, not natal identity */
+  const activeTransitStoryline = React.useMemo(() => {
+    const summary = interpretations?.chartSummary;
+    if (!summary || typeof summary !== 'string') return undefined;
+    const lower = summary.toLowerCase();
+    if (lower.includes('strongest storyline') || lower.includes('clearest timing')) {
+      // First two sentences are theme + timing (see buildUnifiedReading)
+      const parts = summary.split(/(?<=[.!?])\s+/).filter(Boolean);
+      return parts.slice(0, 2).join(' ');
+    }
+    return undefined;
+  }, [interpretations?.chartSummary]);
+
+  const chartIdentityHeadline = React.useMemo(() => {
+    const summary = interpretations?.chartSummary;
+    if (!summary || typeof summary !== 'string') return undefined;
+    // Don't use transit storyline as natal "who you are" prose
+    if (activeTransitStoryline) return undefined;
+    return (
+      summary.split('. ').slice(0, 2).join('. ') + (summary.includes('.') ? '.' : '')
+    );
+  }, [activeTransitStoryline, interpretations?.chartSummary]);
 
   const sunSign = chartData?.planets?.find((p) => p.name === 'Sun')?.sign;
   const risingSign = chartData?.planets?.find((p) => p.name === 'Ascendant')?.sign;
+
+  /** Self pillar contract — who is in this life weather. @see docs/TWO_PILLARS.md */
+  const identityPacket = useMemo(
+    () =>
+      buildIdentityPacket({
+        sunSign,
+        moonSign,
+        risingSign,
+        // Core (firmware) is primary for Self — mask is secondary presentation layer
+        mbtiType: dualOverlay?.firmware?.mbtiType || dualOverlay?.finalType || mbtiType || undefined,
+        mbtiPrimary: dualOverlay?.firmware
+          ? {
+              type: dualOverlay.firmware.mbtiType,
+              role: 'primary',
+              label: 'Core · who you are inside',
+              confidence: dualOverlay.firmware.confidence,
+            }
+          : undefined,
+        mbtiSecondary: dualOverlay?.hardware
+          ? {
+              type: dualOverlay.hardware.mbtiType,
+              role: 'secondary',
+              label: 'Mask · how you present',
+              confidence: dualOverlay.hardware.confidence,
+            }
+          : undefined,
+        mbtiBlendSummary: dualOverlay
+          ? dualOverlay.firmware?.mbtiType === dualOverlay.hardware?.mbtiType
+            ? `Aligned ${dualOverlay.firmware?.mbtiType || dualOverlay.finalType} inside and out`
+            : `Core ${dualOverlay.firmware?.mbtiType || '—'} · Mask ${dualOverlay.hardware?.mbtiType || '—'} → ${dualOverlay.finalType}`
+          : undefined,
+        archetypeName: identityPack?.archetypeName,
+        patternSignature: identityPack?.patternSignature,
+        coreContradiction: identityPack?.coreContradiction,
+        calcSource: chartData ? 'chart' : undefined,
+        chartHasHouses: Boolean(
+          chartData?.houses?.length ||
+            (chartData as { houseSystem?: { cusps?: number[] } } | null)?.houseSystem?.cusps?.length,
+        ),
+        confidenceSource: dualOverlay ? 'dual_overlay' : mbtiType ? 'mbti_fusion' : 'chart_only',
+      }),
+    [sunSign, moonSign, risingSign, mbtiType, dualOverlay, identityPack, chartData],
+  );
+
+  const selfIdentityHeadline = chartIdentityHeadline || identityPacket.headline;
+
+  const personalityBlend = useMemo(
+    () => (dualOverlay ? buildBlendSynthesis(dualOverlay) : null),
+    [dualOverlay],
+  );
 
   type WhisperMode = 'plain' | 'warm' | 'bullshit' | 'oracle';
 
@@ -1830,6 +1923,7 @@ export default function UnifiedDashboard() {
   };
 
   const openSection = (section: 'interpretation' | 'transits' | 'lifearc' | 'personality' | 'stormradar') => {
+    setForecastAnalysisOpen(true);
     setActiveSection((prev) => (prev === section ? 'wheel' : section));
     setTimeout(() => {
       focusPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1845,6 +1939,7 @@ export default function UnifiedDashboard() {
     if (name) {
       setSelectedWheelSign(null);
       setWheelDetailTab('astrology');
+      setSelfChartDepthOpen(true);
     }
   }, []);
 
@@ -1853,6 +1948,7 @@ export default function UnifiedDashboard() {
     if (name) {
       setSelectedWheelPlanet(null);
       setWheelDetailTab('astrology');
+      setSelfChartDepthOpen(true);
     }
   }, []);
 
@@ -1872,12 +1968,23 @@ export default function UnifiedDashboard() {
 
       if (section === 'personality') {
         setWheelDetailTab('personality');
-      } else if (section === 'placements') {
+        setSelfChartDepthOpen(true);
+      } else if (section === 'placements' || section === 'wheel') {
         setWheelDetailTab('astrology');
+        if (dashboardTab === 'chart') setSelfChartDepthOpen(true);
       } else if (section === 'analysis') {
-        if (dashboardTab === 'forecast' && activeSection === 'wheel') {
-          setActiveSection('transits');
+        if (dashboardTab === 'forecast') {
+          setForecastAnalysisOpen(true);
+          if (activeSection === 'wheel') setActiveSection('transits');
         }
+      } else if (section === 'oracle' || section === 'details') {
+        if (dashboardTab === 'forecast' || dashboardTab === 'home') {
+          setForecastDepthOpen(true);
+        }
+      } else if (section === 'timeline' || section === 'storm') {
+        if (dashboardTab === 'forecast') setForecastRadarOpen(true);
+      } else if (section === 'prophecy' || section === 'focus') {
+        if (dashboardTab === 'forecast') setForecastAnalysisOpen(true);
       }
 
       const refMap: Partial<Record<ContextNavSection, React.RefObject<HTMLDivElement | null>>> = {
@@ -1901,10 +2008,13 @@ export default function UnifiedDashboard() {
         'numerology-blend': numerologyBlendRef,
       };
 
-      const ref = refMap[section];
-      if (ref?.current) {
-        ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      // Allow collapsed panels to mount before scroll
+      window.setTimeout(() => {
+        const ref = refMap[section];
+        if (ref?.current) {
+          ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 50);
     },
     [activeSection, dashboardTab],
   );
@@ -2003,6 +2113,7 @@ export default function UnifiedDashboard() {
                 />
                 <div className="min-w-0 flex-1">
             {dashboardTab === 'relationships' && modulePreferences.relationshipSpace ? (
+            <SelfShell>
             <motion.section
               ref={relationshipsSectionRef}
               className="mb-10"
@@ -2268,12 +2379,14 @@ export default function UnifiedDashboard() {
                 </div>
               </div>
             </motion.section>
+            </SelfShell>
             ) : null}
 
             {/* Main Dashboard Content */}
             {chartData && dashboardTab !== 'relationships' && (
               <div className="space-y-6">
                 {dashboardTab === 'home' ? (
+                  <WeatherShell>
                   <HomeTabPanel
                     storyRef={storySectionRef}
                     oracleRef={oracleSectionRef}
@@ -2285,7 +2398,7 @@ export default function UnifiedDashboard() {
                     dayRating={cosmicDayRating}
                     date={forecast?.date}
                     story={cosmicStoryText}
-                    whyLine={cosmicWeatherHeadline}
+                    whyLine={cosmicWeatherHeadlineForUi}
                     todayMove={cosmicStoryMove}
                     mbtiType={mbtiType || undefined}
                     mbtiGuidance={cosmicStoryMbtiGuidance}
@@ -2303,6 +2416,23 @@ export default function UnifiedDashboard() {
                     onAskSolarYear={handleAskSolarYear}
                     userId={userId || undefined}
                     onAskMerlin={handleAskAboutToday}
+                    onExploreSelf={() => setDashboardTab('chart')}
+                    askLabel={lifeWeatherBrief.askLabel}
+                    storyEyebrow={lifeWeatherBrief.eyebrow}
+                    selfChips={[
+                      dualOverlay?.firmware?.mbtiType
+                        ? `Core ${dualOverlay.firmware.mbtiType}`
+                        : identityPacket.mbti.primary?.type
+                          ? `Core ${identityPacket.mbti.primary.type}`
+                          : undefined,
+                      dualOverlay?.hardware?.mbtiType &&
+                      dualOverlay.hardware.mbtiType !== dualOverlay.firmware?.mbtiType
+                        ? `Mask ${dualOverlay.hardware.mbtiType}`
+                        : undefined,
+                      identityPacket.placements.sunSign
+                        ? `Sun ${identityPacket.placements.sunSign}`
+                        : undefined,
+                    ].filter(Boolean) as string[]}
                     dailyOracleMessage={dailyOracle?.message}
                     dailyOracleRating={dailyOracle?.dayRating}
                     dailyOracleLoading={dailyOracleLoading}
@@ -2339,9 +2469,11 @@ export default function UnifiedDashboard() {
                     premiumLocked={premiumLocked}
                     tier={tier}
                   />
+                  </WeatherShell>
                 ) : null}
 
                 {dashboardTab === 'numerology' ? (
+                  <SelfShell>
                   <NumerologyTabPanel
                     birthDate={birthData?.date}
                     sunSign={sunSign}
@@ -2353,6 +2485,7 @@ export default function UnifiedDashboard() {
                     cyclesRef={numerologyCyclesRef}
                     blendRef={numerologyBlendRef}
                   />
+                  </SelfShell>
                 ) : null}
 
               <motion.div
@@ -2362,938 +2495,1136 @@ export default function UnifiedDashboard() {
                 className="min-w-0 space-y-8"
               >
                 {dashboardTab === 'chart' ? (
+                <SelfShell>
                 <div ref={chartOverviewRef} className="mb-6">
                   <ChartIdentityBrief
-                    sunSign={sunSign}
-                    moonSign={moonSign}
-                    risingSign={risingSign}
-                    mbtiType={mbtiType || undefined}
-                    dayRating={forecast?.day_rating}
-                    headline={chartIdentityHeadline}
+                    sunSign={identityPacket.placements.sunSign || sunSign}
+                    moonSign={identityPacket.placements.moonSign || moonSign}
+                    risingSign={identityPacket.placements.risingSign || risingSign}
+                    mbtiType={identityPacket.mbti.primary?.type || dualOverlay?.firmware?.mbtiType || mbtiType || undefined}
+                    mbtiCore={dualOverlay?.firmware?.mbtiType || identityPacket.mbti.primary?.type}
+                    mbtiMask={dualOverlay?.hardware?.mbtiType || identityPacket.mbti.secondary?.type}
+                    mbtiFinal={dualOverlay?.finalType || mbtiType || undefined}
+                    blendHeadline={personalityBlend?.headline}
+                    blendSummary={
+                      personalityBlend
+                        ? personalityBlend.sameType
+                          ? personalityBlend.summary
+                          : personalityBlend.combinedInterpretation
+                        : identityPacket.mbti.blendSummary
+                    }
+                    activeStoryline={activeTransitStoryline}
+                    storylineThemes={interpretations?.confluence || null}
+                    storylineWindows={interpretations?.transitWindows || null}
+                    headline={selfIdentityHeadline}
                     onAskMerlin={() =>
                       queueAskContext(
-                        'Chart overview',
-                        'Explain my Sun, Moon, and Rising in plain language and how they shape how I show up day to day.',
+                        'Self identity',
+                        'Explain my Sun, Moon, and Rising in plain language and how they shape how I show up in today\'s life weather.',
+                      )
+                    }
+                    onAskPersonality={() =>
+                      queueAskContext(
+                        'Personality type',
+                        dualOverlay
+                          ? `I want to talk through my dual personality from the chart. Core (inner): ${dualOverlay.firmware?.mbtiType}. Mask (outer): ${dualOverlay.hardware?.mbtiType}. Integrated type: ${dualOverlay.finalType}. Explain what each type means, how they work together when they differ, how people might misread me, and how this should shape my life-weather guidance. Ask me if anything doesn't fit.`
+                          : `Discuss my chart personality type (${mbtiType || 'unknown'}) — what it means, strengths, blind spots, and how it colors today's life weather. Ask me what feels true or off.`,
+                      )
+                    }
+                    onAskStoryline={() =>
+                      queueAskContext(
+                        'Active storyline',
+                        activeTransitStoryline
+                          ? `Explain this active life-weather storyline in plain language and what I should do with it: ${activeTransitStoryline}`
+                          : 'What is my strongest transit theme right now, and what should I prioritize this week?',
+                      )
+                    }
+                    onAskStorylineTheme={(title) =>
+                      queueAskContext(
+                        title,
+                        `Why is "${title}" a strong storyline for me right now? How many signals are aligned, what should I watch for, and what's one practical move this week?`,
+                      )
+                    }
+                    onAskStorylineWindow={(title) =>
+                      queueAskContext(
+                        title,
+                        `What should I know about this timing window: ${title}? What peaks, what to do before/during/after, and what to avoid?`,
                       )
                     }
                   />
                 </div>
-                ) : null}
 
-                {dashboardTab === 'chart' ? (
+                {/* 2. Chart as instrument — compact, not a second homepage */}
                 <motion.div
                   ref={chartSectionRef}
-                  className="bg-slate-900/40 rounded-lg p-8 border border-amber-500/10 backdrop-blur-sm z-10 relative"
-                  initial={{ opacity: 0, y: 20 }}
+                  className="rounded-2xl border border-amber-500/15 bg-slate-950/50 p-4 md:p-5 backdrop-blur-sm"
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
+                  transition={{ delay: 0.15 }}
                 >
-                  <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-3xl font-bold text-amber-300 flex items-center gap-2">
-                      Your Birth Chart
-                      <ContextualHelp label="Your natal chart maps planetary positions at birth — the foundation for all Merlin readings." />
-                    </h2>
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300/70">
+                        Your chart
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold text-amber-50">The instrument</h2>
+                      <p className="mt-0.5 text-xs text-slate-400 max-w-md">
+                        Tap a planet for a quick read. Detail stays closed until you want it.
+                      </p>
+                    </div>
                     <button
+                      type="button"
                       onClick={() => {
+                        if (
+                          typeof window !== 'undefined' &&
+                          !window.confirm('Recalculate with new birth data? Your current chart session will clear.')
+                        ) {
+                          return;
+                        }
                         setChartData(null);
                         setWheelData(null);
                         setBirthData(null);
                         localStorage.removeItem(STORAGE_KEY);
                         localStorage.removeItem(STORAGE_BIRTH_KEY);
                       }}
-                      className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 transition-colors"
+                      className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
                     >
-                      Calculate New Chart
+                      Recalculate chart
                     </button>
                   </div>
 
                   {!wheelData ? (
-                    <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-amber-500/20 bg-slate-950/40 px-6 py-10 text-center">
-                      <p className="text-sm text-slate-300">Preparing your chart wheel...</p>
+                    <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-amber-500/15 bg-slate-950/40 px-6 py-8 text-center">
+                      <p className="text-sm text-slate-300">Preparing your chart wheel…</p>
                     </div>
                   ) : (
-                  <>
-                  {/* Wheel — stays visible; detail tabs switch the panel below */}
-                  <div className="flex items-center justify-center overflow-hidden">
-                    <div className="w-full max-w-[520px] h-[520px] flex items-center justify-center">
-                      <WheelVisualization
-                        chartData={wheelData}
-                        selectedPlanet={selectedWheelPlanet}
-                        selectedSign={selectedWheelSign}
-                        onPlanetSelect={handleWheelPlanetSelect}
-                        onSignSelect={handleWheelSignSelect}
-                      />
-                    </div>
-                  </div>
-
-                  <WheelDetailTabs
-                    activeTab={wheelDetailTab}
-                    onTabChange={setWheelDetailTab}
-                    astrologyPanel={
-                      <div className="space-y-4">
-                        <WheelSelectionPanel
-                          selectedPlanet={selectedWheelPlanet}
-                          selectedSign={selectedWheelSign}
-                          planets={chartData?.planets || []}
-                          planetInterpretations={interpretations?.planetInterpretations}
-                          onClear={clearWheelSelection}
-                          onPlanetSelect={handleWheelPlanetSelect}
-                          onAskContext={queueAskContext}
-                        />
-                        <PlacementsSidebar
-                          planets={chartData?.planets || []}
-                          onAskContext={queueAskContext}
-                          selectedContextLabel={askDraftLabel}
-                          selectedPlanet={selectedWheelPlanet}
-                          onPlanetSelect={handleWheelPlanetSelect}
-                        />
-                      </div>
-                    }
-                    personalityPanel={
-                      premiumLocked ? (
-                        <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
-                          <p className="font-semibold mb-2">Personality insights are locked on your current plan.</p>
-                          <Link href="/checkout-subscription" className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300/50 bg-amber-500/20 hover:bg-amber-500/30 text-amber-50">
-                            Upgrade Plan
-                          </Link>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {selectedWheelPlanet ? (
-                            <PlanetPersonalityHint
-                              planetName={selectedWheelPlanet}
-                              dualOverlay={dualOverlay}
-                            />
-                          ) : null}
-                          <p className="text-sm text-slate-400">
-                            Two MBTI layers from your chart — the <span className="text-orange-300 font-semibold">Mask</span> the world sees and the <span className="text-purple-300 font-semibold">Core</span> beneath.
-                          </p>
-                          {dualOverlay ? <MBTIDualBreakdown dualOverlay={dualOverlay} /> : null}
-                          <DualPersonalityCards
-                            mbtiType={mbtiType}
-                            dualOverlay={dualOverlay}
-                            transits={transits}
-                            loading={personalityLoading}
-                            onAskContext={queueAskContext}
-                            selectedContextLabel={askDraftLabel}
+                    <>
+                      <div className="flex items-center justify-center overflow-hidden">
+                        <div className="flex h-[min(380px,70vw)] w-full max-w-[380px] items-center justify-center">
+                          <WheelVisualization
+                            chartData={wheelData}
+                            selectedPlanet={selectedWheelPlanet}
+                            selectedSign={selectedWheelSign}
+                            onPlanetSelect={handleWheelPlanetSelect}
+                            onSignSelect={handleWheelSignSelect}
                           />
                         </div>
-                      )
-                    }
-                    forecastPanel={
-                      <WheelTransitPanel
-                        intensity={cosmicWeatherIntensity}
-                        dayRating={cosmicDayRating}
-                        driverLabel={activeAtmospherePacket?.dominantDriver.label}
-                        moonPhase={forecast?.moonPhase}
-                        moonSign={forecast?.moonSign}
-                        significant={transits?.significant || []}
-                        approaching={transits?.approaching || []}
-                        loading={forecastLoading && !forecast}
-                        transitsLoading={transitsLoading && !transits}
-                        onAskContext={queueAskContext}
-                        onOpenHomeForecast={() => setDashboardTab('home')}
-                      />
-                    }
-                  />
+                      </div>
 
-                  {/* Action Buttons Under Wheel */}
-                  <div className="mt-8 space-y-3">
-                    <div className="flex gap-3 justify-center flex-wrap items-center">
-                      <button
-                        onClick={handlePrimaryAskMerlin}
-                        title="Open the chat rail and prefill a prompt for Merlin"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-400/15 hover:bg-cyan-400/25 border border-cyan-300/35 rounded-lg text-cyan-50 font-semibold transition-all"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Ask Merlin
-                      </button>
-                      <MerlinAudioPlayer
-                        text={readAloudText}
-                        label="Read My Chart"
-                      />
-                      <Link
-                        href="/profile"
-                        title="Adjust Oracle reading preferences in your profile"
-                        className="inline-flex items-center gap-2 px-4 py-3 border border-slate-600/40 rounded-lg text-slate-200 bg-slate-800/60 hover:bg-slate-700/70 transition-all"
-                      >
-                        Oracle Preferences
-                      </Link>
-                    </div>
-
-                    {askDraftLabel ? (
-                      <div className="text-center flex items-center justify-center gap-3">
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                         <button
                           type="button"
                           onClick={handlePrimaryAskMerlin}
-                          className="text-xs text-cyan-200/80 hover:text-cyan-100 transition"
+                          className="inline-flex items-center gap-2 rounded-full border border-cyan-300/35 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/20"
                         >
-                          Selected context: {askDraftLabel}
+                          <MessageCircle className="h-4 w-4" />
+                          Ask Merlin
                         </button>
+                        <MerlinAudioPlayer text={readAloudText} label="Read chart" />
+                      </div>
+
+                      {askDraftLabel ? (
+                        <div className="mt-2 flex items-center justify-center gap-3 text-center">
+                          <button
+                            type="button"
+                            onClick={handlePrimaryAskMerlin}
+                            className="text-xs text-cyan-200/80 hover:text-cyan-100"
+                          >
+                            Selected: {askDraftLabel}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearAskContext}
+                            className="text-xs text-slate-500 hover:text-slate-300"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      ) : null}
+
+                      {/* 3. Chart depth — collapsed by default */}
+                      <div className="mt-5 overflow-hidden rounded-xl border border-slate-700/50 bg-slate-950/40">
                         <button
                           type="button"
-                          onClick={clearAskContext}
-                          className="text-xs text-slate-400 hover:text-slate-200 transition"
+                          onClick={() => setSelfChartDepthOpen((o) => !o)}
+                          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-900/50"
+                          aria-expanded={selfChartDepthOpen}
                         >
-                          Clear selection
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                              Optional
+                            </p>
+                            <p className="text-sm font-semibold text-slate-200">
+                              Explore chart details
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Placements, deeper personality map, transit snapshot
+                            </p>
+                          </div>
+                          <span className="text-xs font-medium text-slate-400">
+                            {selfChartDepthOpen ? 'Hide' : 'Show'}
+                          </span>
                         </button>
-                      </div>
-                    ) : null}
 
-                  </div>
-                  </>
+                        {selfChartDepthOpen ? (
+                          <div className="border-t border-white/5 px-3 pb-4 pt-2">
+                            <WheelDetailTabs
+                              activeTab={wheelDetailTab}
+                              onTabChange={setWheelDetailTab}
+                              astrologyPanel={
+                                <div className="space-y-4">
+                                  <WheelSelectionPanel
+                                    selectedPlanet={selectedWheelPlanet}
+                                    selectedSign={selectedWheelSign}
+                                    planets={chartData?.planets || []}
+                                    planetInterpretations={interpretations?.planetInterpretations}
+                                    onClear={clearWheelSelection}
+                                    onPlanetSelect={handleWheelPlanetSelect}
+                                    onAskContext={queueAskContext}
+                                  />
+                                  <PlacementsSidebar
+                                    planets={chartData?.planets || []}
+                                    onAskContext={queueAskContext}
+                                    selectedContextLabel={askDraftLabel}
+                                    selectedPlanet={selectedWheelPlanet}
+                                    onPlanetSelect={handleWheelPlanetSelect}
+                                  />
+                                </div>
+                              }
+                              personalityPanel={
+                                premiumLocked ? (
+                                  <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
+                                    <p className="mb-2 font-semibold">
+                                      Personality depth is locked on your current plan.
+                                    </p>
+                                    <Link
+                                      href="/checkout-subscription"
+                                      className="inline-flex items-center gap-2 rounded border border-amber-300/50 bg-amber-500/20 px-3 py-1.5 text-amber-50 hover:bg-amber-500/30"
+                                    >
+                                      Upgrade Plan
+                                    </Link>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    <p className="text-xs text-slate-400">
+                                      Dimension map and shadow — your Core / Mask summary is already
+                                      above.
+                                    </p>
+                                    {selectedWheelPlanet ? (
+                                      <PlanetPersonalityHint
+                                        planetName={selectedWheelPlanet}
+                                        dualOverlay={dualOverlay}
+                                      />
+                                    ) : null}
+                                    {dualOverlay ? (
+                                      <MBTIDualBreakdown dualOverlay={dualOverlay} />
+                                    ) : null}
+                                  </div>
+                                )
+                              }
+                              forecastPanel={
+                                <WheelTransitPanel
+                                  intensity={cosmicWeatherIntensity}
+                                  dayRating={cosmicDayRating}
+                                  driverLabel={activeAtmospherePacket?.dominantDriver.label}
+                                  moonPhase={forecast?.moonPhase}
+                                  moonSign={forecast?.moonSign}
+                                  significant={transits?.significant || []}
+                                  approaching={transits?.approaching || []}
+                                  loading={forecastLoading && !forecast}
+                                  transitsLoading={transitsLoading && !transits}
+                                  onAskContext={queueAskContext}
+                                  onOpenHomeForecast={() => setDashboardTab('home')}
+                                />
+                              }
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
                   )}
                 </motion.div>
-                ) : null}
 
-                {dashboardTab === 'chart' && modulePreferences.focusViews ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.42 }}
-                  className="bg-slate-900/40 rounded-lg p-6 border border-amber-500/20 backdrop-blur-sm"
-                >
-                  <h3 className="text-xl font-bold text-amber-300 mb-4">Focus Views</h3>
-                  <p className="text-sm text-slate-300 mb-4">Open a dedicated view for each module.</p>
-                  {premiumLocked ? (
-                    <p className="text-xs text-amber-200 mb-3">These modules require a paid plan.</p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-3">
-                    <Link href="/dashboard/chart-reading" className="px-4 py-2 rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition">
-                      Chart Reading{premiumLocked ? ' • Locked' : ''}
-                    </Link>
-                    <Link href="/dashboard/active-transits" className="px-4 py-2 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 transition">
-                      Active Transits{premiumLocked ? ' • Locked' : ''}
-                    </Link>
-                    <Link href="/dashboard/life-timeline" className="px-4 py-2 rounded-lg border border-green-500/40 bg-green-500/10 text-green-200 hover:bg-green-500/20 transition">
-                      Life Timeline{premiumLocked ? ' • Locked' : ''}
-                    </Link>
-                    <Link href="/dashboard/dual-mbti" className="px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20 transition">
-                      Dual MBTI {mbtiType ? `(${mbtiType})` : ''}{premiumLocked ? ' • Locked' : ''}
-                    </Link>
-                    <Link href="/dashboard/storm-radar" className="px-4 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition">
-                      Storm Radar{premiumLocked ? ' • Locked' : ''}
-                    </Link>
-                  </div>
-                </motion.div>
-                ) : null}
-
-                {dashboardTab === 'chart' && !compactMode && modulePreferences.deepDive ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 }}
-                    className="bg-slate-900/35 border border-slate-700/50 rounded-lg"
+                {/* 4. More modules — collapsed; not competing with “about you” */}
+                <div className="overflow-hidden rounded-2xl border border-slate-700/40 bg-slate-950/30">
+                  <button
+                    type="button"
+                    onClick={() => setSelfMoreOpen((o) => !o)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/40"
+                    aria-expanded={selfMoreOpen}
                   >
-                    <button
-                      onClick={() => setShowDeepDive((prev) => !prev)}
-                      className="w-full flex items-center justify-between px-5 py-3 text-left"
-                      title="Expand or collapse deep interpretation panel"
-                    >
-                      <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                        Deep Dive Panel
-                        <ContextualHelp label="Extended chart interpretation with layered insights beyond the daily snapshot." />
-                      </span>
-                      <span className="text-xs text-slate-400">{showDeepDive ? 'Hide' : 'Show'}</span>
-                    </button>
-                    {showDeepDive && <DeepDivePanel birthData={chartData} />}
-                  </motion.div>
-                ) : null}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                        Optional depth
+                      </p>
+                      <p className="text-sm font-semibold text-slate-200">
+                        More about you
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Focus views, deep dive, archetype path
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-slate-400">
+                      {selfMoreOpen ? 'Hide' : 'Show'}
+                    </span>
+                  </button>
 
-                {dashboardTab === 'chart' && identityPack && (identityPack.archetypeName || identityPack.patternSignature) ? (
-                  <div ref={identitySectionRef} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <IdentityPatternCard
-                      archetypeName={identityPack.archetypeName}
-                      patternSignature={identityPack.patternSignature}
-                      coreContradiction={identityPack.coreContradiction}
-                    />
-                    {progression && (progression.arcPath || progression.arcLevel) ? (
-                      <ProgressPathCard
-                        arcPath={progression.arcPath}
-                        arcLevel={progression.arcLevel}
-                        arcXp={progression.arcXp}
-                        interactionCount={progression.interactionCount}
-                      />
-                    ) : null}
-                  </div>
+                  {selfMoreOpen ? (
+                    <div className="space-y-4 border-t border-white/5 px-4 pb-5 pt-4">
+                      {modulePreferences.focusViews ? (
+                        <div className="rounded-xl border border-amber-500/15 bg-slate-900/40 p-4">
+                          <h3 className="text-sm font-semibold text-amber-200">Focus views</h3>
+                          <p className="mt-1 text-xs text-slate-400 mb-3">
+                            Dedicated rooms when you want a full-screen module.
+                          </p>
+                          {premiumLocked ? (
+                            <p className="mb-2 text-xs text-amber-200">Some require a paid plan.</p>
+                          ) : null}
+                          <div className="flex flex-wrap gap-2">
+                            <Link
+                              href="/dashboard/chart-reading"
+                              className="rounded-lg border border-blue-500/35 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-200 hover:bg-blue-500/20"
+                            >
+                              Chart Reading{premiumLocked ? ' · Locked' : ''}
+                            </Link>
+                            <Link
+                              href="/dashboard/active-transits"
+                              className="rounded-lg border border-orange-500/35 bg-orange-500/10 px-3 py-1.5 text-xs text-orange-200 hover:bg-orange-500/20"
+                            >
+                              Active Transits{premiumLocked ? ' · Locked' : ''}
+                            </Link>
+                            <Link
+                              href="/dashboard/life-timeline"
+                              className="rounded-lg border border-green-500/35 bg-green-500/10 px-3 py-1.5 text-xs text-green-200 hover:bg-green-500/20"
+                            >
+                              Life Timeline{premiumLocked ? ' · Locked' : ''}
+                            </Link>
+                            <Link
+                              href="/dashboard/dual-mbti"
+                              className="rounded-lg border border-violet-500/35 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-200 hover:bg-violet-500/20"
+                            >
+                              Dual MBTI{mbtiType ? ` (${mbtiType})` : ''}
+                              {premiumLocked ? ' · Locked' : ''}
+                            </Link>
+                            <Link
+                              href="/dashboard/storm-radar"
+                              className="rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-1.5 text-xs text-red-200 hover:bg-red-500/20"
+                            >
+                              Storm Radar{premiumLocked ? ' · Locked' : ''}
+                            </Link>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {modulePreferences.deepDive ? (
+                        <div className="rounded-xl border border-slate-700/50 bg-slate-900/35">
+                          <button
+                            type="button"
+                            onClick={() => setShowDeepDive((prev) => !prev)}
+                            className="flex w-full items-center justify-between px-4 py-3 text-left"
+                          >
+                            <span className="text-sm font-semibold text-slate-200">Deep dive</span>
+                            <span className="text-xs text-slate-400">
+                              {showDeepDive ? 'Hide' : 'Show'}
+                            </span>
+                          </button>
+                          {showDeepDive ? (
+                            <div className="border-t border-white/5 px-2 pb-3">
+                              <DeepDivePanel birthData={chartData} />
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {identityPack &&
+                      (identityPack.archetypeName || identityPack.patternSignature) ? (
+                        <div
+                          ref={identitySectionRef}
+                          className="grid grid-cols-1 gap-3 md:grid-cols-2"
+                        >
+                          <IdentityPatternCard
+                            archetypeName={identityPack.archetypeName}
+                            patternSignature={identityPack.patternSignature}
+                            coreContradiction={identityPack.coreContradiction}
+                          />
+                          {progression &&
+                          (progression.arcPath || progression.arcLevel) ? (
+                            <ProgressPathCard
+                              arcPath={progression.arcPath}
+                              arcLevel={progression.arcLevel}
+                              arcXp={progression.arcXp}
+                              interactionCount={progression.interactionCount}
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      <Link
+                        href="/profile"
+                        className="inline-block text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                      >
+                        Oracle preferences in Profile
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+                </SelfShell>
                 ) : null}
 
                 {dashboardTab === 'forecast' ? (
-                  <div className="space-y-8">
+                  <WeatherShell className="space-y-5">
+                    {/* 1. Horizon hero — same light brief pattern as Today / Self */}
                     <div ref={storySectionRef}>
-                      <CosmicStoryCard
+                      <TodayWeatherBrief
                         intensity={cosmicWeatherIntensity}
+                        feltIntensity={activeAtmospherePacket?.feltIntensity}
+                        sentimentScore={activeAtmospherePacket?.realityCheck.sentimentScore}
                         dayRating={cosmicDayRating}
                         date={forecast?.date}
                         story={cosmicStoryText}
-                        whyLine={cosmicWeatherHeadline}
+                        whyLine={cosmicWeatherHeadlineForUi}
                         todayMove={cosmicStoryMove}
-                        mbtiType={mbtiType || undefined}
-                        mbtiGuidance={cosmicStoryMbtiGuidance}
                         moonPhase={forecast?.moonPhase}
                         moonSign={forecast?.moonSign}
                         streak={dailyCheckinStreak}
-                        loading={forecastLoading && !forecast}
+                        loading={forecastLoading && !forecast && !activeAtmospherePacket}
                         userId={userId || undefined}
                         onAskMerlin={handleAskAboutToday}
+                        onExploreSelf={() => setDashboardTab('chart')}
+                        askLabel={lifeWeatherBrief.askLabel}
+                        eyebrow="Horizon · life weather"
+                        selfChips={[
+                          dualOverlay?.firmware?.mbtiType
+                            ? `Core ${dualOverlay.firmware.mbtiType}`
+                            : mbtiType
+                              ? `Core ${mbtiType}`
+                              : undefined,
+                          forecast?.date ? 'Looking ahead' : undefined,
+                        ].filter(Boolean) as string[]}
                         confluenceAligned={activeAtmospherePacket?.confluence.aligned}
                         confluenceThemes={activeAtmospherePacket?.confluence.themes}
-                        eyebrow="Horizon brief"
-                        askLabel="Why is today rated this way?"
                       />
                     </div>
 
-                    <div ref={oracleSectionRef} className="space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-violet-200/70">Merlin adds</p>
-                        <button
-                          type="button"
-                          onClick={() => void fetchDailyOracle(true)}
-                          className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
-                        >
-                          Refresh oracle
-                        </button>
-                      </div>
-                      <DailyOraclePulse
-                        message={dailyOracle?.message}
-                        dayRating={dailyOracle?.dayRating}
-                        loading={dailyOracleLoading}
-                        onTruthBomb={() => fetchDailyOracle(true)}
-                        onFeedback={sendDailyOracleFeedback}
+                    {/* Storyline / peaks when available — still “primary” horizon info */}
+                    {(interpretations?.confluence?.length ||
+                      interpretations?.transitWindows?.length ||
+                      activeTransitStoryline) ? (
+                      <ActiveStorylinePanel
+                        themes={interpretations?.confluence || null}
+                        windows={interpretations?.transitWindows || null}
+                        fallbackText={activeTransitStoryline}
+                        onAskStoryline={() =>
+                          queueAskContext(
+                            'Active storyline',
+                            activeTransitStoryline
+                              ? `Explain this horizon storyline and what I should do: ${activeTransitStoryline}`
+                              : 'What is my strongest transit theme this week, and what should I prioritize?',
+                          )
+                        }
+                        onAskTheme={(title) =>
+                          queueAskContext(
+                            title,
+                            `Why is "${title}" strong on my horizon right now, and what's one practical move?`,
+                          )
+                        }
+                        onAskWindow={(title) =>
+                          queueAskContext(
+                            title,
+                            `What should I know about this timing window: ${title}? Before, during, after?`,
+                          )
+                        }
                       />
-                    </div>
-
-                    <div ref={detailsSectionRef}>
-                      <ForecastDetailsSection
-                        expanded={forecastDetailsExpanded}
-                        onExpandedChange={setForecastDetailsExpanded}
-                        date={forecast?.date || new Date().toISOString()}
-                        summary={cosmicStoryText}
-                        planetaryHighlights={forecast?.planetaryHighlights || []}
-                        moonPhase={forecast?.moonPhase || 'Unknown'}
-                        moonSign={forecast?.moonSign}
-                        sunSign={forecast?.sunSign}
-                        transits={forecast?.transits || []}
-                        day_rating={forecast?.day_rating}
-                        focusAreas={forecast?.focusAreas}
-                        timingWindows={forecast?.timingWindows}
-                        futureSignals={forecast?.futureSignals}
-                        conversationalPrompts={forecast?.conversationalPrompts}
-                        advice={forecast?.advice || ''}
-                        loading={forecastLoading}
-                        userId={userId || undefined}
-                        onAskContext={queueAskContext}
-                        selectedContextLabel={askDraftLabel}
-                        explainability={pressureWindow?.explainability}
-                        domainScores={domainForecast?.domains}
-                        insightLoading={pressureWindowLoading || domainForecastLoading}
-                        insightError={pressureWindowError?.message || domainForecastError?.message}
-                        predictiveSnapshot={predictiveSnapshot}
-                        helpText="Full forecast depth: overview, life areas, timing windows, and sky mechanics — open when you want more than the brief."
-                      />
-                    </div>
-
-                    {modulePreferences.weeklyForecast ? (
-                      <motion.div
-                        ref={weeklySectionRef}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-slate-900/40 rounded-lg p-6 border border-amber-500/20"
-                      >
-                        <h2 className="text-2xl font-bold text-amber-300 mb-4">7-Day Timeline + Quests</h2>
-                        <WeeklyCalendar week={weeklyForecast?.week || []} loading={weeklyLoading} />
-                        <div className="mt-4">
-                          <QuestLog
-                            enabled={questLogEnabled}
-                            chartData={chartData}
-                            transits={transits}
-                            forecast={forecast}
-                            mbtiType={mbtiType || undefined}
-                            userId={userId || undefined}
-                          />
-                        </div>
-                      </motion.div>
                     ) : null}
 
-                    <div ref={stormSectionRef} className="rounded-xl border border-rose-400/25 bg-rose-950/20 p-5">
-                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-xl font-bold text-rose-200 mb-2">Storm Radar</h3>
-                          <p className="text-sm text-slate-300">
-                            Upcoming pressure windows and preparation guidance tied to your chart.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            queueAskContext(
-                              'Storm Radar',
-                              'What pressure windows should I prepare for in the next two weeks, and how should I respond?',
-                            )
-                          }
-                          className="rounded-full border border-rose-300/35 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20"
-                        >
-                          Ask Merlin about storms
-                        </button>
-                      </div>
-                      <StormsAndNavigations
-                        report={stormsReport}
-                        loading={stormsLoading}
-                        mbtiType={mbtiType ?? undefined}
-                      />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDashboardTab('home')}
+                        className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"
+                      >
+                        ← Back to Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAskAboutToday}
+                        className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                      >
+                        Ask Merlin about the horizon
+                      </button>
                     </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { key: 'transits' as const, label: 'Active Transits' },
-                      { key: 'lifearc' as const, label: 'Life Timeline' },
-                      { key: 'interpretation' as const, label: 'Chart Reading' },
-                      { key: 'stormradar' as const, label: 'Storm Detail' },
-                    ].map((item) => (
+                    {/* 2. Forecast depth — details + oracle */}
+                    <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-950/40">
                       <button
-                        key={item.key}
                         type="button"
-                        onClick={() => openSection(item.key)}
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                          activeSection === item.key
-                            ? 'border-amber-400/50 bg-amber-500/20 text-amber-100'
-                            : 'border-slate-600/50 bg-slate-800/60 text-slate-200 hover:bg-slate-700/70'
-                        }`}
+                        onClick={() => setForecastDepthOpen((o) => !o)}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/50"
+                        aria-expanded={forecastDepthOpen}
                       >
-                        {item.label}
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Optional</p>
+                          <p className="text-sm font-semibold text-slate-200">Forecast detail &amp; oracle</p>
+                          <p className="text-xs text-slate-500">
+                            Full breakdown, domains, timing tabs, Merlin commentary
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium text-slate-400">
+                          {forecastDepthOpen ? 'Hide' : 'Show'}
+                        </span>
                       </button>
-                    ))}
-                  </div>
-
-                  {/* Analysis Tabs */}
-                  <motion.div
-                    id="focus-panel"
-                    ref={focusPanelRef}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
-                    className="space-y-4"
-                  >
-                    {/* Content Panel - Drops Down Below Buttons */}
-                    {['interpretation', 'transits', 'lifearc', 'personality', 'stormradar'].includes(activeSection) && (
-                      <motion.div
-                        className="bg-slate-900/50 rounded-lg border border-slate-700/50 backdrop-blur-sm p-8"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        {premiumLocked ? (
-                          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
-                            <p className="font-semibold mb-2">This module is locked on your current plan.</p>
-                            <p className="text-amber-200/90 mb-3">Upgrade to unlock chart interpretations, transits, life timeline, personality insights, and storm radar.</p>
-                            <Link href="/checkout-subscription" className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-amber-300/50 bg-amber-500/20 hover:bg-amber-500/30 text-amber-50">
-                              Upgrade Plan
-                            </Link>
-                          </div>
-                        ) : null}
-
-                        {/* Chart Interpretation */}
-                        {!premiumLocked && activeSection === 'interpretation' && (
-                          <div className="space-y-6">
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-2 mb-6">
-                                {cacheHit && (
-                                  <span className="text-xs text-amber-400 flex items-center gap-1">
-                                    ⚡ cached
-                                  </span>
-                                )}
-                                <Link href="/profile" className="text-xs text-slate-400 hover:text-slate-200 transition">
-                                  Interpretation engine lives in Oracle Preferences
-                                </Link>
-                              </div>
-                              <ChartInterpretation
-                                summary={interpretations?.chartSummary || ''}
-                                synthesis={interpretations?.synthesis}
-                                planetInterpretations={interpretations?.planetInterpretations || []}
-                                aspectInterpretations={interpretations?.aspectInterpretations || []}
-                                interpreter={interpretations?.interpreter}
-                                loading={interpretLoading}
-                                userId={userId || undefined}
-                                explainability={pressureWindow?.explainability}
-                                domainScores={domainForecast?.domains}
-                                insightLoading={pressureWindowLoading || domainForecastLoading}
-                                insightError={pressureWindowError?.message || domainForecastError?.message}
-                              />
-                            </div>
-                            
-                            {/* Grok Narrative below Chart Interpretation */}
-                            <div className="border-t border-slate-700 pt-6">
-                              <GrokNarrative
-                                mode={interpretMode === 'grok' ? 'grok' : 'traditional'}
-                                birthData={birthData}
-                                chartData={chartData}
-                                lifeArc={lifeArc}
-                                transits={transits}
-                                tone={noBullshit ? 'direct' : 'warm'}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Active Transits */}
-                        {!premiumLocked && activeSection === 'transits' && (
-                          <ActiveTransits
-                            significant={transits?.significant || []}
-                            approaching={transits?.approaching || []}
-                            summary={transits?.summary || { total: 0, exact: 0, approaching: 0 }}
-                            predictive={transits?.predictive}
-                            confluence={transits?.confluence}
-                            transitWindows={transits?.transitWindows}
-                            resonance={transits?.resonance}
-                            loading={transitsLoading}
-                            userId={userId || undefined}
-                            mbtiType={mbtiType || undefined}
-                            onContextSaved={refreshTransitsWithContext}
-                            onAskContext={queueAskContext}
-                            selectedContextLabel={askDraftLabel}
-                            explainability={pressureWindow?.explainability}
-                            domainScores={domainForecast?.domains}
-                            insightLoading={pressureWindowLoading || domainForecastLoading}
-                            insightError={pressureWindowError?.message || domainForecastError?.message}
-                            calibrationProvenance={transits?.calibrationProvenance}
-                          />
-                        )}
-
-                        {/* Life Arc */}
-                        {!premiumLocked && activeSection === 'lifearc' && (
-
-                          <div className="space-y-4">
-                            <div className="flex gap-2">
+                      {forecastDepthOpen ? (
+                        <div className="space-y-5 border-t border-white/5 px-4 pb-5 pt-4">
+                          <div ref={oracleSectionRef} className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <p className="text-[11px] uppercase tracking-[0.24em] text-violet-200/70">
+                                Merlin adds
+                              </p>
                               <button
-                                onClick={() => setLifeArcView('timeline')}
-                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'timeline' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
+                                type="button"
+                                onClick={() => void fetchDailyOracle(true)}
+                                className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
                               >
-                                Timeline
-                              </button>
-                              <button
-                                onClick={() => setLifeArcView('prose')}
-                                className={`px-3 py-1 rounded text-xs border transition-all ${lifeArcView === 'prose' ? 'border-green-500/50 text-green-200 bg-green-500/10' : 'border-slate-700 text-slate-300'}`}
-                              >
-                                Prose
+                                Refresh oracle
                               </button>
                             </div>
-
-                            {lifeArcView === 'timeline' ? (
-                              <LifeTimelineView
-                                timeline={lifeArc}
-                                loading={lifeArcLoading}
-                                userName={user?.firstName || undefined}
-                                defaultTimeFilter="current"
-                                onAskContext={queueAskContext}
-                                selectedContextLabel={askDraftLabel}
-                              />
-                            ) : (
-                              <div className="text-sm text-slate-100 leading-relaxed">
-                                {lifeArcNarrative}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Dual MBTI Personality Cards */}
-                        {!premiumLocked && activeSection === 'personality' && (
-                          <div className="space-y-4">
-                            <p className="text-slate-400 text-sm">
-                              Your natal chart encodes two layers of personality — the <span className="text-orange-300 font-semibold">Mask</span> the world sees (Sun/Ascendant) and the <span className="text-purple-300 font-semibold">Core</span> that drives you beneath (Moon/Mercury).
-                            </p>
-                            {dualOverlay ? <MBTIDualBreakdown dualOverlay={dualOverlay} /> : null}
-                            <DualPersonalityCards
-                              mbtiType={mbtiType}
-                              dualOverlay={dualOverlay}
-                              transits={transits}
-                              loading={personalityLoading}
-                              onAskContext={queueAskContext}
-                              selectedContextLabel={askDraftLabel}
+                            <DailyOraclePulse
+                              message={dailyOracle?.message}
+                              dayRating={dailyOracle?.dayRating}
+                              loading={dailyOracleLoading}
+                              onTruthBomb={() => fetchDailyOracle(true)}
+                              onFeedback={sendDailyOracleFeedback}
                             />
                           </div>
-                        )}
 
-                        {!premiumLocked && activeSection === 'stormradar' && (
-                          <div className="space-y-4">
-                            <p className="text-slate-400 text-sm">
-                              Forward-looking transit warnings with MBTI-personalized reaction and recovery guidance.
-                            </p>
+                          <div ref={detailsSectionRef}>
+                            <ForecastDetailsSection
+                              expanded={forecastDetailsExpanded}
+                              onExpandedChange={setForecastDetailsExpanded}
+                              date={forecast?.date || new Date().toISOString()}
+                              summary={cosmicStoryText}
+                              planetaryHighlights={forecast?.planetaryHighlights || []}
+                              moonPhase={forecast?.moonPhase || 'Unknown'}
+                              moonSign={forecast?.moonSign}
+                              sunSign={forecast?.sunSign}
+                              transits={forecast?.transits || []}
+                              day_rating={forecast?.day_rating}
+                              focusAreas={forecast?.focusAreas}
+                              timingWindows={forecast?.timingWindows}
+                              futureSignals={forecast?.futureSignals}
+                              conversationalPrompts={forecast?.conversationalPrompts}
+                              advice={forecast?.advice || ''}
+                              loading={forecastLoading}
+                              userId={userId || undefined}
+                              onAskContext={queueAskContext}
+                              selectedContextLabel={askDraftLabel}
+                              explainability={pressureWindow?.explainability}
+                              domainScores={domainForecast?.domains}
+                              insightLoading={pressureWindowLoading || domainForecastLoading}
+                              insightError={
+                                pressureWindowError?.message || domainForecastError?.message
+                              }
+                              predictiveSnapshot={predictiveSnapshot}
+                              helpText="Full forecast depth — open sections when you want more than the horizon brief."
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* 3. Radar — week + storms */}
+                    <div className="overflow-hidden rounded-2xl border border-rose-500/20 bg-slate-950/40">
+                      <button
+                        type="button"
+                        onClick={() => setForecastRadarOpen((o) => !o)}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/50"
+                        aria-expanded={forecastRadarOpen}
+                      >
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-rose-300/70">
+                            Optional
+                          </p>
+                          <p className="text-sm font-semibold text-slate-200">Week radar &amp; storms</p>
+                          <p className="text-xs text-slate-500">
+                            7-day timeline, quests, pressure windows
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium text-slate-400">
+                          {forecastRadarOpen ? 'Hide' : 'Show'}
+                        </span>
+                      </button>
+                      {forecastRadarOpen ? (
+                        <div className="space-y-5 border-t border-white/5 px-4 pb-5 pt-4">
+                          {modulePreferences.weeklyForecast ? (
+                            <div
+                              ref={weeklySectionRef}
+                              className="rounded-xl border border-amber-500/15 bg-slate-900/40 p-4"
+                            >
+                              <h3 className="text-sm font-semibold text-amber-200 mb-3">
+                                7-day timeline
+                              </h3>
+                              <WeeklyCalendar
+                                week={weeklyForecast?.week || []}
+                                loading={weeklyLoading}
+                              />
+                              <div className="mt-4">
+                                <QuestLog
+                                  enabled={questLogEnabled}
+                                  chartData={chartData}
+                                  transits={transits}
+                                  forecast={forecast}
+                                  mbtiType={mbtiType || undefined}
+                                  userId={userId || undefined}
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div
+                            ref={stormSectionRef}
+                            className="rounded-xl border border-rose-400/25 bg-rose-950/20 p-4"
+                          >
+                            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <h3 className="text-sm font-semibold text-rose-200">Storm radar</h3>
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                  Pressure windows and prep tied to your chart.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  queueAskContext(
+                                    'Storm Radar',
+                                    'What pressure windows should I prepare for in the next two weeks, and how should I respond?',
+                                  )
+                                }
+                                className="rounded-full border border-rose-300/35 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20"
+                              >
+                                Ask about storms
+                              </button>
+                            </div>
                             <StormsAndNavigations
                               report={stormsReport}
                               loading={stormsLoading}
                               mbtiType={mbtiType ?? undefined}
                             />
                           </div>
-                        )}
-                      </motion.div>
-                    )}
-                  </motion.div>
-
-                {modulePreferences.history ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.82 }}
-                    className="bg-slate-900/35 border border-slate-700/50 rounded-lg"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setShowHistoryPanel((prev) => !prev)}
-                      className="w-full flex items-center justify-between px-5 py-3 text-left"
-                    >
-                      <span className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                        History & Calibration
-                        <ContextualHelp label="Recent check-ins and calibration runs that tune how Merlin weights planetary signals for you." />
-                      </span>
-                      <span className="text-xs text-slate-400">{showHistoryPanel ? 'Hide' : 'Show'}</span>
-                    </button>
-                    {showHistoryPanel ? (
-                      <div className="px-5 pb-5 space-y-4">
-                        <div className="rounded-xl border border-cyan-300/20 bg-slate-900/45 p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/75">Recent Check-ins</p>
-                            <span className="text-[11px] text-slate-300/80">Past 14 days</span>
-                          </div>
-                          {checkinHistoryLoading ? (
-                            <p className="mt-2 text-xs text-slate-300">Loading check-in history...</p>
-                          ) : checkinEntries.length ? (
-                            <div className="mt-2 space-y-2">
-                              {checkinEntries.slice(0, 5).map((entry) => (
-                                <div key={entry.id} className="rounded-lg border border-white/10 bg-slate-950/45 px-2.5 py-2">
-                                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
-                                    <span>{new Date(entry.createdAt).toLocaleDateString()}</span>
-                                    <span>
-                                      Mood {entry.mood ?? '-'} · Stress {entry.stress ?? '-'} · Energy {entry.energy ?? '-'}
-                                    </span>
-                                  </div>
-                                  {entry.notes ? <p className="mt-1 text-xs text-slate-200/90">{entry.notes}</p> : null}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-xs text-slate-300">No persisted check-ins yet.</p>
-                          )}
                         </div>
+                      ) : null}
+                    </div>
 
-                        {(calibrationStatus || transits?.calibrationProvenance || pressureWindow?.calibrationProvenance) ? (
-                          <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-100">
-                            {calibrationStatus ? <p>{calibrationStatus}</p> : null}
-                            {transits?.calibrationProvenance ? (
-                              <p className="mt-1 text-emerald-100/90">
-                                Transit calibration: {transits.calibrationProvenance.feedbackCount} feedback samples
-                                {transits.calibrationProvenance.strongestPlanet &&
-                                typeof transits.calibrationProvenance.strongestMultiplier === 'number'
-                                  ? ` · strongest ${transits.calibrationProvenance.strongestPlanet} ${transits.calibrationProvenance.strongestMultiplier.toFixed(2)}x`
-                                  : ''}
-                              </p>
-                            ) : null}
-                            {pressureWindow?.calibrationProvenance ? (
-                              <p className="mt-1 text-emerald-100/90">
-                                Pressure calibration: {pressureWindow.calibrationProvenance.feedbackCount} feedback samples
-                                {pressureWindow.calibrationProvenance.strongestPlanet &&
-                                typeof pressureWindow.calibrationProvenance.strongestMultiplier === 'number'
-                                  ? ` · strongest ${pressureWindow.calibrationProvenance.strongestPlanet} ${pressureWindow.calibrationProvenance.strongestMultiplier.toFixed(2)}x`
-                                  : ''}
-                              </p>
-                            ) : null}
+                    {/* 4. Analysis lab — collapsed */}
+                    <div className="overflow-hidden rounded-2xl border border-slate-700/40 bg-slate-950/30">
+                      <button
+                        type="button"
+                        onClick={() => setForecastAnalysisOpen((o) => !o)}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/40"
+                        aria-expanded={forecastAnalysisOpen}
+                      >
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">
+                            Optional depth
+                          </p>
+                          <p className="text-sm font-semibold text-slate-200">
+                            Analysis &amp; prophecy
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Transits, life timeline, chart reading, history
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium text-slate-400">
+                          {forecastAnalysisOpen ? 'Hide' : 'Show'}
+                        </span>
+                      </button>
+
+                      {forecastAnalysisOpen ? (
+                        <div className="space-y-4 border-t border-white/5 px-4 pb-5 pt-4">
+                          <div className="flex flex-wrap gap-2">
+                            {(
+                              [
+                                { key: 'transits' as const, label: 'Active Transits' },
+                                { key: 'lifearc' as const, label: 'Life Timeline' },
+                                { key: 'interpretation' as const, label: 'Chart Reading' },
+                                { key: 'stormradar' as const, label: 'Storm Detail' },
+                              ] as const
+                            ).map((item) => (
+                              <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => openSection(item.key)}
+                                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                                  activeSection === item.key
+                                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-100'
+                                    : 'border-slate-600/50 bg-slate-800/60 text-slate-200 hover:bg-slate-700/70'
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
                           </div>
-                        ) : null}
 
-                        <div className="rounded-lg border border-emerald-300/20 bg-slate-950/45 px-2.5 py-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Calibration Log</p>
-                            <div className="flex items-center gap-1.5">
-                              <div className="flex items-center gap-1">
-                                {[7, 30, 90].map((days) => {
-                                  const selected = calibrationHistoryDays === days;
-                                  return (
-                                    <button
-                                      key={days}
-                                      type="button"
-                                      onClick={() => setCalibrationHistoryDays(days as 7 | 30 | 90)}
-                                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                        selected
-                                          ? 'bg-emerald-400/30 text-emerald-100 border border-emerald-200/40'
-                                          : 'bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10'
-                                      }`}
+                          <div id="focus-panel" ref={focusPanelRef} className="space-y-4">
+                            {[
+                              'interpretation',
+                              'transits',
+                              'lifearc',
+                              'personality',
+                              'stormradar',
+                            ].includes(activeSection) && (
+                              <div className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-5 md:p-6 backdrop-blur-sm">
+                                {premiumLocked ? (
+                                  <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
+                                    <p className="font-semibold mb-2">
+                                      This module is locked on your current plan.
+                                    </p>
+                                    <p className="text-amber-200/90 mb-3">
+                                      Upgrade to unlock chart interpretations, transits, life
+                                      timeline, and storm radar.
+                                    </p>
+                                    <Link
+                                      href="/checkout-subscription"
+                                      className="inline-flex items-center gap-2 rounded border border-amber-300/50 bg-amber-500/20 px-3 py-1.5 text-amber-50 hover:bg-amber-500/30"
                                     >
-                                      {days}d
-                                    </button>
-                                  );
-                                })}
+                                      Upgrade Plan
+                                    </Link>
+                                  </div>
+                                ) : null}
+
+                                {!premiumLocked && activeSection === 'interpretation' && (
+                                  <div className="space-y-6">
+                                    <div className="space-y-4">
+                                      <div className="mb-4 flex items-center gap-2">
+                                        {cacheHit && (
+                                          <span className="flex items-center gap-1 text-xs text-amber-400">
+                                            ⚡ cached
+                                          </span>
+                                        )}
+                                        <Link
+                                          href="/profile"
+                                          className="text-xs text-slate-400 transition hover:text-slate-200"
+                                        >
+                                          Interpretation engine in Oracle Preferences
+                                        </Link>
+                                      </div>
+                                      <ChartInterpretation
+                                        summary={interpretations?.chartSummary || ''}
+                                        synthesis={interpretations?.synthesis}
+                                        planetInterpretations={
+                                          interpretations?.planetInterpretations || []
+                                        }
+                                        aspectInterpretations={
+                                          interpretations?.aspectInterpretations || []
+                                        }
+                                        interpreter={interpretations?.interpreter}
+                                        loading={interpretLoading}
+                                        userId={userId || undefined}
+                                        explainability={pressureWindow?.explainability}
+                                        domainScores={domainForecast?.domains}
+                                        insightLoading={
+                                          pressureWindowLoading || domainForecastLoading
+                                        }
+                                        insightError={
+                                          pressureWindowError?.message ||
+                                          domainForecastError?.message
+                                        }
+                                      />
+                                    </div>
+                                    <div className="border-t border-slate-700 pt-6">
+                                      <GrokNarrative
+                                        mode={interpretMode === 'grok' ? 'grok' : 'traditional'}
+                                        birthData={birthData}
+                                        chartData={chartData}
+                                        lifeArc={lifeArc}
+                                        transits={transits}
+                                        tone={noBullshit ? 'direct' : 'warm'}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {!premiumLocked && activeSection === 'transits' && (
+                                  <ActiveTransits
+                                    significant={transits?.significant || []}
+                                    approaching={transits?.approaching || []}
+                                    summary={
+                                      transits?.summary || {
+                                        total: 0,
+                                        exact: 0,
+                                        approaching: 0,
+                                      }
+                                    }
+                                    predictive={transits?.predictive}
+                                    confluence={transits?.confluence}
+                                    transitWindows={transits?.transitWindows}
+                                    resonance={transits?.resonance}
+                                    loading={transitsLoading}
+                                    userId={userId || undefined}
+                                    mbtiType={mbtiType || undefined}
+                                    onContextSaved={refreshTransitsWithContext}
+                                    onAskContext={queueAskContext}
+                                    selectedContextLabel={askDraftLabel}
+                                    explainability={pressureWindow?.explainability}
+                                    domainScores={domainForecast?.domains}
+                                    insightLoading={
+                                      pressureWindowLoading || domainForecastLoading
+                                    }
+                                    insightError={
+                                      pressureWindowError?.message ||
+                                      domainForecastError?.message
+                                    }
+                                    calibrationProvenance={transits?.calibrationProvenance}
+                                  />
+                                )}
+
+                                {!premiumLocked && activeSection === 'lifearc' && (
+                                  <div className="space-y-4">
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setLifeArcView('timeline')}
+                                        className={`rounded border px-3 py-1 text-xs transition-all ${
+                                          lifeArcView === 'timeline'
+                                            ? 'border-green-500/50 bg-green-500/10 text-green-200'
+                                            : 'border-slate-700 text-slate-300'
+                                        }`}
+                                      >
+                                        Timeline
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setLifeArcView('prose')}
+                                        className={`rounded border px-3 py-1 text-xs transition-all ${
+                                          lifeArcView === 'prose'
+                                            ? 'border-green-500/50 bg-green-500/10 text-green-200'
+                                            : 'border-slate-700 text-slate-300'
+                                        }`}
+                                      >
+                                        Prose
+                                      </button>
+                                    </div>
+                                    {lifeArcView === 'timeline' ? (
+                                      <LifeTimelineView
+                                        timeline={lifeArc}
+                                        loading={lifeArcLoading}
+                                        userName={user?.firstName || undefined}
+                                        defaultTimeFilter="current"
+                                        onAskContext={queueAskContext}
+                                        selectedContextLabel={askDraftLabel}
+                                      />
+                                    ) : (
+                                      <div className="text-sm leading-relaxed text-slate-100">
+                                        {lifeArcNarrative}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {!premiumLocked && activeSection === 'personality' && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm text-slate-400">
+                                      Full dual personality lives on{' '}
+                                      <button
+                                        type="button"
+                                        className="font-semibold text-amber-200 underline-offset-2 hover:underline"
+                                        onClick={() => setDashboardTab('chart')}
+                                      >
+                                        Self · You
+                                      </button>
+                                      . Dimension map below if you need it here.
+                                    </p>
+                                    {dualOverlay ? (
+                                      <MBTIDualBreakdown dualOverlay={dualOverlay} />
+                                    ) : null}
+                                  </div>
+                                )}
+
+                                {!premiumLocked && activeSection === 'stormradar' && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm text-slate-400">
+                                      Forward-looking transit warnings with chart-personalized
+                                      guidance.
+                                    </p>
+                                    <StormsAndNavigations
+                                      report={stormsReport}
+                                      loading={stormsLoading}
+                                      mbtiType={mbtiType ?? undefined}
+                                    />
+                                  </div>
+                                )}
                               </div>
-                              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setCalibrationSortMode('recent')}
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                    calibrationSortMode === 'recent'
-                                      ? 'bg-white/20 text-white'
-                                      : 'text-slate-300 hover:text-white'
-                                  }`}
-                                >
-                                  Recent
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setCalibrationSortMode('impact')}
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                    calibrationSortMode === 'impact'
-                                      ? 'bg-white/20 text-white'
-                                      : 'text-slate-300 hover:text-white'
-                                  }`}
-                                >
-                                  Impact
-                                </button>
-                              </div>
-                            </div>
+                            )}
                           </div>
 
-                          {calibrationImpactSeries.length ? (
-                            <div className="mt-2 rounded border border-white/10 bg-slate-900/50 px-2 py-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5">
-                                  <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300/90">Impact Trend</p>
-                                  <span
-                                    title={impactStabilityHelp}
-                                    aria-label={impactStabilityHelp}
-                                    className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${
-                                      impactStability.label === 'Stable'
-                                        ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100'
-                                        : impactStability.label === 'Volatile'
-                                          ? 'border-rose-300/40 bg-rose-500/15 text-rose-100'
-                                          : 'border-amber-300/40 bg-amber-500/15 text-amber-100'
-                                    }`}
-                                  >
-                                    {impactStability.label}
-                                  </span>
+                          {modulePreferences.history ? (
+                            <div className="rounded-xl border border-slate-700/50 bg-slate-900/35">
+                              <button
+                                type="button"
+                                onClick={() => setShowHistoryPanel((prev) => !prev)}
+                                className="flex w-full items-center justify-between px-4 py-3 text-left"
+                              >
+                                <span className="text-sm font-semibold text-slate-200">
+                                  History &amp; calibration
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                  {showHistoryPanel ? 'Hide' : 'Show'}
+                                </span>
+                              </button>
+                              {showHistoryPanel ? (
+                                <div className="space-y-4 px-4 pb-4">
+                                  <div className="rounded-xl border border-cyan-300/20 bg-slate-900/45 p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/75">
+                                        Recent check-ins
+                                      </p>
+                                      <span className="text-[11px] text-slate-300/80">
+                                        Past 14 days
+                                      </span>
+                                    </div>
+                                    {checkinHistoryLoading ? (
+                                      <p className="mt-2 text-xs text-slate-300">
+                                        Loading check-in history...
+                                      </p>
+                                    ) : checkinEntries.length ? (
+                                      <div className="mt-2 space-y-2">
+                                        {checkinEntries.slice(0, 5).map((entry) => (
+                                          <div
+                                            key={entry.id}
+                                            className="rounded-lg border border-white/10 bg-slate-950/45 px-2.5 py-2"
+                                          >
+                                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
+                                              <span>
+                                                {new Date(entry.createdAt).toLocaleDateString()}
+                                              </span>
+                                              <span>
+                                                Mood {entry.mood ?? '-'} · Stress{' '}
+                                                {entry.stress ?? '-'} · Energy {entry.energy ?? '-'}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="mt-2 text-xs text-slate-400">
+                                        No check-ins yet.
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
-                                <p className="text-[10px] text-slate-300">
-                                  Latest {latestImpact.toFixed(2)}
-                                  {impactTrendDelta !== null ? (
-                                    <span className={impactTrendDelta >= 0 ? 'text-rose-200' : 'text-emerald-200'}>
-                                      {' '}
-                                      ({impactTrendDelta >= 0 ? '+' : ''}
-                                      {impactTrendDelta.toFixed(2)})
-                                    </span>
-                                  ) : null}
-                                </p>
-                              </div>
-                              <svg viewBox="0 0 110 24" className="mt-1 h-6 w-full" role="img" aria-label="Calibration impact trend">
-                                <polyline
-                                  fill="none"
-                                  stroke="rgba(167, 243, 208, 0.95)"
-                                  strokeWidth="1.5"
-                                  strokeLinejoin="round"
-                                  strokeLinecap="round"
-                                  points={calibrationImpactSparkline}
-                                />
-                              </svg>
+                              ) : null}
                             </div>
                           ) : null}
 
-                          {calibrationHistoryLoading ? (
-                            <p className="mt-2 text-xs text-slate-300">Loading calibration history...</p>
-                          ) : calibrationHistorySorted.length ? (
-                            <div className="mt-2 space-y-2">
-                              {calibrationHistorySorted.slice(0, 4).map((entry) => {
-                                const topMover = getTopMover(entry);
-                                return (
-                                  <div key={entry.id} className="rounded border border-white/10 bg-slate-900/55 px-2 py-1.5">
-                                    <p className="text-[11px] text-slate-200">
-                                      {new Date(entry.createdAt).toLocaleDateString()} · {entry.sampleSize ?? 0} samples
-                                    </p>
-                                    <p className="text-[11px] text-slate-300 mt-0.5">
-                                      Impact score: {getCalibrationImpact(entry).toFixed(2)}
-                                      {topMover ? ` · Top mover: ${topMover.planet}` : ''}
-                                    </p>
-                                  </div>
-                                );
-                              })}
+                          <motion.div
+                            ref={prophecySectionRef}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5"
+                          >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                              <div>
+                                <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">
+                                  Personal prophecy
+                                </p>
+                                <h4 className="mt-1 text-base font-semibold text-violet-50 md:text-lg">
+                                  {prophecy?.title || 'Chart-anchored omen'}
+                                </h4>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    appendDashboardEvent('dashboard_prophecy_style_selected', {
+                                      style: 'omen',
+                                    });
+                                    setProphecyStyle('omen');
+                                  }}
+                                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                                    prophecyStyle === 'omen'
+                                      ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
+                                      : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
+                                  }`}
+                                >
+                                  Omen
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    appendDashboardEvent('dashboard_prophecy_style_selected', {
+                                      style: 'sonnet',
+                                    });
+                                    setProphecyStyle('sonnet');
+                                  }}
+                                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                                    prophecyStyle === 'sonnet'
+                                      ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
+                                      : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
+                                  }`}
+                                >
+                                  Sonnet
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!chartData) return;
+                                    appendDashboardEvent('dashboard_prophecy_regenerated', {
+                                      style: prophecyStyle,
+                                      era: prophecyEra,
+                                      strictMeter,
+                                    });
+                                    generateProphecy({
+                                      birthChart: chartData,
+                                      style: prophecyStyle,
+                                      era: prophecyEra,
+                                      strictMeter,
+                                      saveToHistory: true,
+                                      polishMode: prophecyPolishMode,
+                                    }).then(() => {
+                                      loadHistory();
+                                    });
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
+                                >
+                                  <RefreshCcw className="h-3.5 w-3.5" />
+                                  Regenerate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handlePrintProphecy}
+                                  className="inline-flex items-center gap-1 rounded-full border border-slate-300/35 bg-slate-500/15 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-500/25"
+                                >
+                                  Print
+                                </button>
+                              </div>
                             </div>
-                          ) : (
-                            <p className="mt-2 text-xs text-slate-300">No calibration runs logged yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    ) : null}
-                  </motion.div>
-                ) : null}
 
-                <motion.div
-                  ref={prophecySectionRef}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.85 }}
-                  className="rounded-xl border border-violet-300/20 bg-violet-500/10 p-3.5"
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Personal Prophecy</p>
-                      <h4 className="mt-1 text-base md:text-lg font-semibold text-violet-50">{prophecy?.title || 'Chart-anchored omen'}</h4>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'omen' });
-                          setProphecyStyle('omen');
-                        }}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                          prophecyStyle === 'omen'
-                            ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
-                            : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
-                        }`}
-                      >
-                        Omen
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          appendDashboardEvent('dashboard_prophecy_style_selected', { style: 'sonnet' });
-                          setProphecyStyle('sonnet');
-                        }}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                          prophecyStyle === 'sonnet'
-                            ? 'border-violet-300/55 bg-violet-500/30 text-violet-50'
-                            : 'border-violet-300/30 bg-violet-500/10 text-violet-100'
-                        }`}
-                      >
-                        Sonnet
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!chartData) return;
-                          appendDashboardEvent('dashboard_prophecy_regenerated', {
-                            style: prophecyStyle,
-                            era: prophecyEra,
-                            strictMeter,
-                          });
-                          generateProphecy({
-                            birthChart: chartData,
-                            style: prophecyStyle,
-                            era: prophecyEra,
-                            strictMeter,
-                            saveToHistory: true,
-                            polishMode: prophecyPolishMode,
-                          }).then(() => {
-                            loadHistory();
-                          });
-                        }}
-                        className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"
-                      >
-                        <RefreshCcw className="h-3.5 w-3.5" />
-                        Regenerate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handlePrintProphecy}
-                        className="inline-flex items-center gap-1 rounded-full border border-slate-300/35 bg-slate-500/15 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-500/25"
-                      >
-                        Print
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <label className="text-xs text-violet-200/85">Era</label>
-                    <select
-                      value={prophecyEra}
-                      onChange={(event) => {
-                        const nextEra = event.target.value as ProphecyEra;
-                        appendDashboardEvent('dashboard_prophecy_era_selected', { era: nextEra });
-                        setProphecyEra(nextEra);
-                      }}
-                      className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
-                    >
-                      <option value="babylonian">Babylonian</option>
-                      <option value="hermetic">Hermetic</option>
-                      <option value="psalmic">Psalmic</option>
-                      <option value="stoic">Stoic</option>
-                    </select>
-
-                    <label className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100">
-                      <input
-                        type="checkbox"
-                        checked={strictMeter}
-                        onChange={(event) => {
-                          appendDashboardEvent('dashboard_prophecy_meter_toggled', { strictMeter: event.target.checked });
-                          setStrictMeter(event.target.checked);
-                        }}
-                      />
-                      Strict sonnet meter
-                    </label>
-                  </div>
-
-                  <div className="mt-3 rounded-lg border border-violet-200/15 bg-slate-950/45 p-3">
-                    {prophecyLoading ? (
-                      <p className="text-sm text-violet-100/80">Reading the tablets...</p>
-                    ) : prophecy?.prophecy ? (
-                      <pre className="whitespace-pre-wrap text-sm leading-relaxed text-violet-50/95 font-sans">{prophecy.prophecy}</pre>
-                    ) : (
-                      <p className="text-sm text-violet-100/75">No prophecy available yet. Generate one from your chart.</p>
-                    )}
-                  </div>
-
-                  {prophecy?.signals ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-100">
-                        Blessing: {prophecy.signals.blessingPlanet} in {prophecy.signals.blessingSign}
-                      </span>
-                      <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-amber-100">
-                        Test: {prophecy.signals.challengePlanet} in {prophecy.signals.challengeSign}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          appendDashboardEvent('dashboard_prophecy_ask_context');
-                          queueAskContext('Prophecy follow-up', 'Turn this prophecy into a concrete 7-day plan with one non-negotiable action per day.');
-                        }}
-                        className="inline-flex items-center gap-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-cyan-100 hover:bg-cyan-500/20"
-                      >
-                        <ScrollText className="h-3.5 w-3.5" />
-                        Turn into plan
-                      </button>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
-                    <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">Prophecy Timeline</p>
-                    {prophecyHistoryLoading ? (
-                      <p className="mt-2 text-xs text-violet-100/75">Loading timeline...</p>
-                    ) : prophecyHistory.length ? (
-                      <div className="mt-2 max-h-44 space-y-2 overflow-y-auto pr-1">
-                        {prophecyHistory.slice(0, 12).map((entry) => (
-                          <div key={entry.id} className="rounded-md border border-white/10 bg-white/5 px-2.5 py-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-xs text-violet-50 font-medium">{entry.title}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const next = !entry.fulfilled;
-                                  appendDashboardEvent('dashboard_prophecy_fulfillment_toggled', { fulfilled: next });
-                                  markHistoryFulfilled(entry.id, next);
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <label className="text-xs text-violet-200/85">Era</label>
+                              <select
+                                value={prophecyEra}
+                                onChange={(event) => {
+                                  const nextEra = event.target.value as ProphecyEra;
+                                  appendDashboardEvent('dashboard_prophecy_era_selected', {
+                                    era: nextEra,
+                                  });
+                                  setProphecyEra(nextEra);
                                 }}
-                                className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                                  entry.fulfilled
-                                    ? 'border-emerald-300/45 bg-emerald-500/20 text-emerald-100'
-                                    : 'border-amber-300/45 bg-amber-500/20 text-amber-100'
-                                }`}
+                                className="rounded-md border border-violet-300/35 bg-slate-900/70 px-2 py-1 text-xs text-violet-100"
                               >
-                                {entry.fulfilled ? 'Fulfilled' : 'Mark Fulfilled'}
-                              </button>
+                                <option value="babylonian">Babylonian</option>
+                                <option value="hermetic">Hermetic</option>
+                                <option value="psalmic">Psalmic</option>
+                                <option value="stoic">Stoic</option>
+                              </select>
+                              <label className="inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100">
+                                <input
+                                  type="checkbox"
+                                  checked={strictMeter}
+                                  onChange={(event) => {
+                                    appendDashboardEvent('dashboard_prophecy_meter_toggled', {
+                                      strictMeter: event.target.checked,
+                                    });
+                                    setStrictMeter(event.target.checked);
+                                  }}
+                                />
+                                Strict sonnet meter
+                              </label>
                             </div>
-                            <p className="mt-1 text-[11px] text-slate-300">{new Date(entry.createdAt).toLocaleString()}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-violet-100/75">No saved prophecies yet. Regenerate to save one.</p>
-                    )}
-                  </div>
-                </motion.div>
-                  </div>
+
+                            <div className="mt-3 rounded-lg border border-violet-200/15 bg-slate-950/45 p-3">
+                              {prophecyLoading ? (
+                                <p className="text-sm text-violet-100/80">Reading the tablets...</p>
+                              ) : prophecy?.prophecy ? (
+                                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-violet-50/95">
+                                  {prophecy.prophecy}
+                                </pre>
+                              ) : (
+                                <p className="text-sm text-violet-100/75">
+                                  No prophecy available yet. Generate one from your chart.
+                                </p>
+                              )}
+                            </div>
+
+                            {prophecy?.signals ? (
+                              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                                <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-100">
+                                  Blessing: {prophecy.signals.blessingPlanet} in{' '}
+                                  {prophecy.signals.blessingSign}
+                                </span>
+                                <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-amber-100">
+                                  Test: {prophecy.signals.challengePlanet} in{' '}
+                                  {prophecy.signals.challengeSign}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    appendDashboardEvent('dashboard_prophecy_ask_context');
+                                    queueAskContext(
+                                      'Prophecy follow-up',
+                                      'Turn this prophecy into a concrete 7-day plan with one non-negotiable action per day.',
+                                    );
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-full border border-cyan-300/35 bg-cyan-500/10 px-2.5 py-1 text-cyan-100 hover:bg-cyan-500/20"
+                                >
+                                  <ScrollText className="h-3.5 w-3.5" />
+                                  Turn into plan
+                                </button>
+                              </div>
+                            ) : null}
+
+                            <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-violet-200/80">
+                                Prophecy timeline
+                              </p>
+                              {prophecyHistoryLoading ? (
+                                <p className="mt-2 text-xs text-violet-100/75">Loading timeline...</p>
+                              ) : prophecyHistory.length ? (
+                                <div className="mt-2 max-h-44 space-y-2 overflow-y-auto pr-1">
+                                  {prophecyHistory.slice(0, 12).map((entry) => (
+                                    <div
+                                      key={entry.id}
+                                      className="rounded-md border border-white/10 bg-white/5 px-2.5 py-2"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="text-xs font-medium text-violet-50">
+                                          {entry.title}
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const next = !entry.fulfilled;
+                                            appendDashboardEvent(
+                                              'dashboard_prophecy_fulfillment_toggled',
+                                              { fulfilled: next },
+                                            );
+                                            markHistoryFulfilled(entry.id, next);
+                                          }}
+                                          className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                                            entry.fulfilled
+                                              ? 'border-emerald-300/45 bg-emerald-500/20 text-emerald-100'
+                                              : 'border-amber-300/45 bg-amber-500/20 text-amber-100'
+                                          }`}
+                                        >
+                                          {entry.fulfilled ? 'Fulfilled' : 'Mark Fulfilled'}
+                                        </button>
+                                      </div>
+                                      <p className="mt-1 text-[11px] text-slate-300">
+                                        {new Date(entry.createdAt).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="mt-2 text-xs text-violet-100/75">
+                                  No saved prophecies yet. Regenerate to save one.
+                                </p>
+                              )}
+                            </div>
+                          </motion.div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </WeatherShell>
                 ) : null}
               </motion.div>
               </div>

@@ -39,7 +39,7 @@ export function resolveTone(intensity: number): AtmosphereTone {
   }
 
   if (resolved >= 40) {
-    return tonePreset('Mixed Skies', 'mixed', {
+    return tonePreset('Mixed Weather', 'mixed', {
       bar: 'from-cyan-500 via-blue-500 to-indigo-500',
       shellBg: 'from-cyan-950/35 via-slate-900/80 to-indigo-950/35',
       border: 'border-cyan-400/40',
@@ -48,7 +48,7 @@ export function resolveTone(intensity: number): AtmosphereTone {
     });
   }
 
-  return tonePreset('Smooth Flow', 'clear', {
+  return tonePreset('Clear Flow', 'clear', {
     bar: 'from-emerald-500 via-teal-500 to-cyan-500',
     shellBg: 'from-emerald-950/35 via-slate-900/80 to-cyan-950/30',
     border: 'border-emerald-400/40',

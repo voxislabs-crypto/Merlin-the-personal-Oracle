@@ -70,10 +70,10 @@ export function resolveDominantDriver(input: ComputeAtmosphereInput, intensity: 
 
   if (!chosen) {
     return {
-      label: 'Steady cosmic backdrop',
+      label: 'Even pressure',
       source: 'fallback',
       rationale: sanitizeCopyText(
-        'You might notice even pressure today — supportive and challenging signals are roughly balanced. Pace yourself and move deliberately.'
+        'Life weather is balanced today — support and friction are roughly even. Pace yourself and move deliberately.'
       ),
     };
   }
@@ -92,31 +92,31 @@ function buildRationale(candidate: DriverCandidate, intensity: number): string {
 
   const pressurePhrase =
     intensity >= 75
-      ? 'Potential pressure is elevated'
+      ? 'Pressure is elevated'
       : intensity >= 55
-        ? 'Mixed cosmic signals are active'
-        : 'Supportive sky tone is present';
+        ? 'Mixed life-weather signals are active'
+        : 'Supportive life weather is present';
 
   switch (candidate.source) {
     case 'pressure':
       return sanitizeCopyText(
-        `${pressurePhrase} around ${candidate.label}. Consider pausing before major conclusions.`
+        `${pressurePhrase} around ${candidate.label}. Pause before major conclusions.`
       );
     case 'storm':
       return sanitizeCopyText(
-        `${pressurePhrase} as ${candidate.label} moves through your chart. Simplify your plate and protect your energy.`
+        `${pressurePhrase} as ${candidate.label} moves through your chart. Simplify your plate and protect energy.`
       );
     case 'transit':
       return sanitizeCopyText(
-        `You might notice ${candidate.label} coloring your timing today. Stay flexible and choose reversible steps.`
+        `${candidate.label} is coloring your timing today. Stay flexible — prefer reversible steps.`
       );
     case 'forecast':
       return sanitizeCopyText(
-        `${pressurePhrase}: ${candidate.label}. Observe how it lands before forcing a big move.`
+        `${pressurePhrase}: ${candidate.label}. Watch how it lands before forcing a big move.`
       );
     default:
       return sanitizeCopyText(
-        'The sky is steady today. This period may increase clarity if you move at an intentional pace.'
+        'Life weather is steady. Clarity rises if you move at an intentional pace.'
       );
   }
 }

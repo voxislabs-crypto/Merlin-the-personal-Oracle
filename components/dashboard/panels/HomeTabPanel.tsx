@@ -1,10 +1,12 @@
 'use client';
 
 import type { Ref } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import { AnnualBriefingCard } from '@/components/dashboard/AnnualBriefingCard';
-import { CosmicStoryCard } from '@/components/dashboard/CosmicStoryCard';
+import { TodayWeatherBrief } from '@/components/dashboard/TodayWeatherBrief';
 import { ForecastDetailsSection } from '@/components/dashboard/ForecastDetailsSection';
 import { LunarReturnWeatherCard } from '@/components/dashboard/LunarReturnWeatherCard';
 import { RealityCheckJournal } from '@/components/dashboard/RealityCheckJournal';
@@ -45,6 +47,11 @@ interface HomeTabPanelProps {
   forecastLoading: boolean;
   userId?: string;
   onAskMerlin: () => void;
+  /** Jump to Self · You */
+  onExploreSelf?: () => void;
+  askLabel?: string;
+  storyEyebrow?: string;
+  selfChips?: string[];
   dailyOracleMessage?: string;
   dailyOracleRating?: string;
   dailyOracleLoading: boolean;
@@ -97,6 +104,9 @@ interface HomeTabPanelProps {
   tier?: string;
 }
 
+/**
+ * Weather · Today shell: one clear brief first, depth on demand.
+ */
 export function HomeTabPanel({
   storyRef,
   oracleRef,
@@ -111,13 +121,16 @@ export function HomeTabPanel({
   whyLine,
   todayMove,
   mbtiType,
-  mbtiGuidance,
   moonPhase,
   moonSign,
   streak,
   forecastLoading,
   userId,
   onAskMerlin,
+  onExploreSelf,
+  askLabel,
+  storyEyebrow,
+  selfChips = [],
   dailyOracleMessage,
   dailyOracleRating,
   dailyOracleLoading,
@@ -156,12 +169,19 @@ export function HomeTabPanel({
   premiumLocked = false,
   tier,
 }: HomeTabPanelProps) {
+  const [depthOpen, setDepthOpen] = useState(false);
+  const chips =
+    selfChips.length > 0
+      ? selfChips
+      : [mbtiType, moonSign ? `Moon ${moonSign}` : null].filter(Boolean) as string[];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {premiumLocked ? <PremiumUpgradeBanner tier={tier} /> : null}
 
+      {/* P1: single clear Today card */}
       <div ref={storyRef}>
-        <CosmicStoryCard
+        <TodayWeatherBrief
           intensity={intensity}
           feltIntensity={feltIntensity}
           sentimentScore={sentimentScore}
@@ -170,100 +190,123 @@ export function HomeTabPanel({
           story={story}
           whyLine={whyLine}
           todayMove={todayMove}
-          mbtiType={mbtiType}
-          mbtiGuidance={mbtiGuidance}
           moonPhase={moonPhase}
           moonSign={moonSign}
           streak={streak}
-          loading={forecastLoading && !forecast}
+          loading={forecastLoading && !forecast && !story}
           userId={userId}
           onAskMerlin={onAskMerlin}
+          onExploreSelf={onExploreSelf}
+          askLabel={askLabel}
+          eyebrow={storyEyebrow}
+          selfChips={chips}
           confluenceAligned={confluenceAligned}
           confluenceThemes={confluenceThemes}
         />
       </div>
 
-      {showAnnualBriefing ? (
-        <AnnualBriefingCard
-          briefing={solarReturnBriefing}
-          loading={returnsLoading}
-          onAskMerlin={onAskSolarYear}
-        />
-      ) : null}
-
-      <LunarReturnWeatherCard weather={lunarReturnWeather} loading={returnsLoading} />
-
-      {onJournalOptInChange && onJournalTextChange ? (
-        <RealityCheckJournal
-          optIn={journalOptIn}
-          text={journalText}
-          onOptInChange={onJournalOptInChange}
-          onTextChange={onJournalTextChange}
-        />
-      ) : null}
-
-      <div ref={oracleRef} className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-violet-200/70">Merlin adds</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onRefreshOracle}
-              className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
-            >
-              Refresh oracle
-            </button>
+      {/* Depth on demand — keeps first session light */}
+      <div className="rounded-2xl border border-slate-700/50 bg-slate-950/40 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setDepthOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/50 transition-colors"
+          aria-expanded={depthOpen}
+        >
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Optional depth</p>
+            <p className="text-sm font-semibold text-slate-200">
+              Oracle, lunar weather, journal &amp; forecast detail
+            </p>
           </div>
-        </div>
-        <DailyOraclePulse
-          message={dailyOracleMessage}
-          dayRating={dailyOracleRating}
-          loading={dailyOracleLoading}
-          onTruthBomb={onRefreshOracle}
-          onFeedback={onOracleFeedback}
-        />
-      </div>
+          <ChevronDown
+            className={`h-5 w-5 text-slate-400 shrink-0 transition-transform ${depthOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
 
-      <motion.div
-        ref={detailsRef}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-      >
-        <ForecastDetailsSection
-          expanded={homeForecastExpanded}
-          onExpandedChange={onHomeForecastExpandedChange}
-          date={forecast?.date || new Date().toISOString()}
-          summary={story}
-          planetaryHighlights={forecast?.planetaryHighlights || []}
-          moonPhase={forecast?.moonPhase || 'Unknown'}
-          moonSign={forecast?.moonSign}
-          sunSign={forecast?.sunSign}
-          transits={forecast?.transits || []}
-          day_rating={forecast?.day_rating}
-          focusAreas={forecast?.focusAreas}
-          timingWindows={forecast?.timingWindows}
-          futureSignals={forecast?.futureSignals}
-          conversationalPrompts={forecast?.conversationalPrompts}
-          advice={forecast?.advice || ''}
-          loading={forecastLoading}
-          userId={userId}
-          onAskContext={onAskContext}
-          selectedContextLabel={askDraftLabel}
-          explainability={explainability}
-          domainScores={domainScores}
-          insightLoading={insightLoading}
-          insightError={insightError}
-          predictiveSnapshot={predictiveSnapshot}
-        />
-      </motion.div>
+        {depthOpen ? (
+          <div className="space-y-5 border-t border-white/5 px-4 pb-5 pt-4">
+            {showAnnualBriefing ? (
+              <AnnualBriefingCard
+                briefing={solarReturnBriefing}
+                loading={returnsLoading}
+                onAskMerlin={onAskSolarYear}
+              />
+            ) : null}
+
+            <LunarReturnWeatherCard weather={lunarReturnWeather} loading={returnsLoading} />
+
+            {onJournalOptInChange && onJournalTextChange ? (
+              <RealityCheckJournal
+                optIn={journalOptIn}
+                text={journalText}
+                onOptInChange={onJournalOptInChange}
+                onTextChange={onJournalTextChange}
+              />
+            ) : null}
+
+            <div ref={oracleRef} className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-violet-200/70">Merlin adds</p>
+                <button
+                  type="button"
+                  onClick={onRefreshOracle}
+                  className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
+                >
+                  Refresh oracle
+                </button>
+              </div>
+              <DailyOraclePulse
+                message={dailyOracleMessage}
+                dayRating={dailyOracleRating}
+                loading={dailyOracleLoading}
+                onTruthBomb={onRefreshOracle}
+                onFeedback={onOracleFeedback}
+              />
+            </div>
+
+            <motion.div
+              ref={detailsRef}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <ForecastDetailsSection
+                expanded={homeForecastExpanded}
+                onExpandedChange={onHomeForecastExpandedChange}
+                date={forecast?.date || new Date().toISOString()}
+                summary={story}
+                planetaryHighlights={forecast?.planetaryHighlights || []}
+                moonPhase={forecast?.moonPhase || 'Unknown'}
+                moonSign={forecast?.moonSign}
+                sunSign={forecast?.sunSign}
+                transits={forecast?.transits || []}
+                day_rating={forecast?.day_rating}
+                focusAreas={forecast?.focusAreas}
+                timingWindows={forecast?.timingWindows}
+                futureSignals={forecast?.futureSignals}
+                conversationalPrompts={forecast?.conversationalPrompts}
+                advice={forecast?.advice || ''}
+                loading={forecastLoading}
+                userId={userId}
+                onAskContext={onAskContext}
+                selectedContextLabel={askDraftLabel}
+                explainability={explainability}
+                domainScores={domainScores}
+                insightLoading={insightLoading}
+                insightError={insightError}
+                predictiveSnapshot={predictiveSnapshot}
+              />
+            </motion.div>
+          </div>
+        ) : null}
+      </div>
 
       {showDailyRitual ? (
         <motion.div
           ref={ritualRef}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.85 }}
+          transition={{ delay: 0.2 }}
           className="rounded-xl border border-cyan-400/15 bg-gradient-to-r from-slate-950/80 via-cyan-950/20 to-slate-950/80 p-4 md:p-5"
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -271,7 +314,7 @@ export function HomeTabPanel({
               <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-200/70">Before you go</p>
               <h3 className="mt-1 text-lg font-semibold text-cyan-50">Come back tomorrow sharper.</h3>
               <p className="mt-1 text-sm text-slate-300/90">
-                Day {streak} on your streak. A quick oracle refresh tonight makes tomorrow&apos;s read land cleaner.
+                Day {streak} on your streak. A quick check-in makes tomorrow&apos;s life weather land cleaner.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -326,8 +369,12 @@ export function HomeTabPanel({
                   )}
                   {atmosphereProvenance?.length ? (
                     <div className="mt-2 rounded border border-cyan-400/20 bg-cyan-500/5 p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-cyan-200/80">Atmosphere provenance</p>
-                      <p className="mt-1 text-[11px] text-slate-300">{atmosphereProvenance.join(' · ')}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-cyan-200/80">
+                        Atmosphere provenance
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-300">
+                        {atmosphereProvenance.join(' · ')}
+                      </p>
                     </div>
                   ) : null}
                 </div>

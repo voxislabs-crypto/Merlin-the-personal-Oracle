@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import type { ChartData } from '@/lib/astrology/newWheelTypes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlanetInfo } from './PlanetInfo';
 import { GeocodingService, type GeocodingResult } from '@/lib/astrology/geocoding';
+import { LifeWeatherStationLoader } from '@/components/dashboard/LifeWeatherStationLoader';
 
 // Dynamically import the WheelVisualization component with SSR disabled
 const WheelVisualization = dynamic(
@@ -75,6 +76,10 @@ export function BirthChart({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  /** Weather-station narrative: visible while calc runs + brief complete beat */
+  const [stationActive, setStationActive] = useState(false);
+  const [stationComplete, setStationComplete] = useState(false);
+  const pendingChartRef = useRef<BirthChartData | null>(null);
   
   // Location search state
   const [locationQuery, setLocationQuery] = useState<string>('');
@@ -84,9 +89,24 @@ export function BirthChart({
   const [searchingLocation, setSearchingLocation] = useState(false);
   const locationInputRef = useRef<HTMLInputElement>(null);
 
+  const handleStationFinished = useCallback(() => {
+    const pending = pendingChartRef.current;
+    pendingChartRef.current = null;
+    setStationActive(false);
+    setStationComplete(false);
+    setLoading(false);
+    if (pending) {
+      setChartData(pending);
+      onChartCalculated?.(pending);
+    }
+  }, [onChartCalculated]);
+
   const calculateChart = async (data: BirthData) => {
     setLoading(true);
     setError(null);
+    setStationActive(true);
+    setStationComplete(false);
+    pendingChartRef.current = null;
     const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
     
     try {
@@ -115,16 +135,19 @@ export function BirthChart({
       }
 
       const chartResult = result.data as BirthChartData;
-      setChartData(chartResult);
-      onChartCalculated?.(chartResult);
+      // Hold result until weather-station complete beat finishes (keeps narrative intentional)
+      pendingChartRef.current = chartResult;
+      setStationComplete(true);
       return chartResult;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error occurred');
       setError(error.message);
       console.error('Error calculating chart:', error);
-      throw error;
-    } finally {
+      pendingChartRef.current = null;
+      setStationActive(false);
+      setStationComplete(false);
       setLoading(false);
+      throw error;
     }
   };
 
@@ -241,11 +264,14 @@ export function BirthChart({
   return (
     <div className={`space-y-6 ${className}`}>
       {showControls && (
-        <Card>
+        <Card className="border-sky-500/20 bg-slate-950/60">
           <CardHeader>
-            <CardTitle>Birth Chart Calculator</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Enter birth details to generate your astrological chart
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-sky-300/80 mb-1">
+              Life weather · station intake
+            </p>
+            <CardTitle className="text-sky-50">Birth details</CardTitle>
+            <p className="text-sm text-slate-400">
+              Enter date, time, and place — Merlin locks the signal and builds your personalized life weather.
             </p>
           </CardHeader>
           <CardContent>
@@ -333,14 +359,18 @@ export function BirthChart({
               </div>
               
               <div className="flex justify-end">
-                <Button type="submit" disabled={loading || (!selectedLocation && !birthData.latitude)}>
-                  {loading ? (
+                <Button
+                  type="submit"
+                  disabled={loading || stationActive || (!selectedLocation && !birthData.latitude)}
+                  className="bg-sky-600 hover:bg-sky-500 text-white"
+                >
+                  {loading || stationActive ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Calculating...
+                      Station scanning…
                     </>
                   ) : (
-                    'Calculate Chart'
+                    'Build my life weather'
                   )}
                 </Button>
               </div>
@@ -351,20 +381,20 @@ export function BirthChart({
 
       {error && (
         <div className="p-4 bg-red-900/20 border border-red-800 text-red-200 rounded-lg">
-          <h3 className="font-semibold mb-1">Error</h3>
+          <h3 className="font-semibold mb-1">Station error</h3>
           <p>{error}</p>
         </div>
       )}
 
-      {loading && !chartData && (
-        <div className="h-[600px] flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <span className="text-lg">Calculating your birth chart...</span>
-          <p className="text-sm text-muted-foreground">This may take a moment</p>
-        </div>
-      )}
+      {stationActive ? (
+        <LifeWeatherStationLoader
+          active={stationActive}
+          complete={stationComplete}
+          onFinished={handleStationFinished}
+        />
+      ) : null}
 
-      {chartData && (
+      {chartData && !stationActive && (
         <Tabs defaultValue="chart" className="space-y-4">
           <TabsList>
             <TabsTrigger value="chart">Chart</TabsTrigger>

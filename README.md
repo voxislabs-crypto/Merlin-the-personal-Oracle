@@ -1,8 +1,10 @@
 # 🌟 Merlin - Your Personal Oracle
 
-## Professional Astrology Birth Chart Calculator with Premium Subscription
+## Personalized life weather — with a real chart underneath
 
-Merlin combines Swiss Ephemeris precision with MBTI personality insights to deliver professional-grade astrological analysis. Built with Next.js 15, TypeScript, and modern web technologies.
+Merlin leads with **how life feels for you today** (forecast, pressure, storms, mood reality-check), then lets people discover **Self** — birth chart, wheel, and MBTI — so every weather read is personal. Swiss Ephemeris precision, dual-pillar product model. Built with Next.js 15, TypeScript, and modern web technologies.
+
+**Architecture:** [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md) — **Life weather** (sell) + **Self** (discover) + Shared foundation.
 
 ---
 

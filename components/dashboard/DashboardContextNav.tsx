@@ -52,13 +52,16 @@ interface DashboardContextNavProps {
   onModulePreferencesChange: (prefs: DashboardModulePreferences) => void;
 }
 
+/** Context links by tab — Life weather first, Self (identity) second. @see docs/TWO_PILLARS.md */
 const TAB_LINKS: Record<DashboardExperienceTab, ContextLink[]> = {
+  // Life weather → Today
   home: [
-    { key: 'story', label: 'Story', title: 'Today\'s cosmic story' },
+    { key: 'story', label: 'Weather', title: "Today's personalized life weather" },
     { key: 'oracle', label: 'Oracle', title: 'Merlin adds commentary' },
     { key: 'details', label: 'Details', title: 'Tabbed forecast breakdown' },
     { key: 'ritual', label: 'Ritual', title: 'Daily return loop', visible: true },
   ],
+  // Life weather → Forecast
   forecast: [
     { key: 'story', label: 'Brief', title: 'Horizon brief for today' },
     { key: 'oracle', label: 'Oracle', title: 'Merlin commentary' },
@@ -68,8 +71,9 @@ const TAB_LINKS: Record<DashboardExperienceTab, ContextLink[]> = {
     { key: 'analysis', label: 'Analysis', title: 'Transits, life arc, reading' },
     { key: 'prophecy', label: 'Prophecy', title: 'Personal prophecy' },
   ],
+  // Self → You
   chart: [
-    { key: 'overview', label: 'Overview', title: 'Chart identity brief' },
+    { key: 'overview', label: 'Overview', title: 'Who you are — identity brief' },
     { key: 'wheel', label: 'Wheel', title: 'Birth chart wheel' },
     { key: 'placements', label: 'Placements', title: 'Planet and sign details' },
     { key: 'personality', label: 'Personality', title: 'Dual MBTI layers' },
@@ -77,17 +81,27 @@ const TAB_LINKS: Record<DashboardExperienceTab, ContextLink[]> = {
     { key: 'deep-dive', label: 'Deep Dive', title: 'Extended chart analysis' },
     { key: 'identity', label: 'Identity', title: 'Archetype and pattern card' },
   ],
+  // Self → Bonds
   relationships: [
     { key: 'overview', label: 'Overview', title: 'Relationship space intro' },
     { key: 'oracle', label: 'Oracle', title: 'Live relationship signal' },
     { key: 'patterns', label: 'Patterns', title: 'Pattern mirror panel' },
     { key: 'synastry', label: 'Synastry', title: 'Compare charts' },
   ],
+  // Self → Numbers
   numerology: [
     { key: 'numerology-core', label: 'Core', title: 'Life path and name numbers' },
     { key: 'numerology-cycles', label: 'Cycles', title: 'Personal year, month, and day' },
     { key: 'numerology-blend', label: 'Blend', title: 'Astrology + numerology synthesis' },
   ],
+};
+
+const PILLAR_BY_TAB: Record<DashboardExperienceTab, { id: 'sky' | 'self'; label: string }> = {
+  home: { id: 'sky', label: 'Weather · Today' },
+  forecast: { id: 'sky', label: 'Weather · Forecast' },
+  chart: { id: 'self', label: 'Self · You' },
+  relationships: { id: 'self', label: 'Self · Bonds' },
+  numerology: { id: 'self', label: 'Self · Numbers' },
 };
 
 function navButtonClass(isActive: boolean) {
@@ -127,14 +141,9 @@ export function DashboardContextNav({
     return link.visible !== false;
   });
 
-  const tabLabel =
-    activeTab === 'home'
-      ? 'Home'
-      : activeTab === 'forecast'
-        ? 'Forecast'
-        : activeTab === 'chart'
-          ? 'Chart'
-          : 'Relationships';
+  const pillarMeta = PILLAR_BY_TAB[activeTab] || { id: 'sky' as const, label: 'Sky' };
+  const tabLabel = pillarMeta.label;
+  const isSkyPillar = pillarMeta.id === 'sky';
 
   return (
     <aside
@@ -142,12 +151,24 @@ export function DashboardContextNav({
         collapsed ? 'w-14' : 'w-52'
       }`}
     >
-      <div className="rounded-xl border border-slate-700/70 bg-slate-950/90 backdrop-blur shadow-lg p-2.5">
+      <div
+        className={`rounded-xl border bg-slate-950/90 backdrop-blur shadow-lg p-2.5 ${
+          isSkyPillar ? 'border-sky-700/50' : 'border-amber-700/40'
+        }`}
+      >
         <div className="flex items-center justify-between px-1 mb-2">
           {!collapsed ? (
-            <p className="text-[10px] uppercase tracking-wider text-slate-400">{tabLabel} nav</p>
+            <p
+              className={`text-[10px] uppercase tracking-wider ${
+                isSkyPillar ? 'text-sky-300/80' : 'text-amber-300/80'
+              }`}
+            >
+              {tabLabel}
+            </p>
           ) : (
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">Nav</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-500">
+              {isSkyPillar ? 'Weather' : 'Self'}
+            </span>
           )}
           <button
             type="button"
@@ -162,7 +183,9 @@ export function DashboardContextNav({
         {!collapsed ? (
           <div className="space-y-3">
             <div className="space-y-1">
-              <p className="px-1 text-[10px] uppercase tracking-wider text-slate-500">In this tab</p>
+              <p className="px-1 text-[10px] uppercase tracking-wider text-slate-500">
+                {isSkyPillar ? 'In this weather view' : 'In this self view'}
+              </p>
               {links.map((link) => (
                 <button
                   key={link.key}

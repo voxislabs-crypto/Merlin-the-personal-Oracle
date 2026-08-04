@@ -75,7 +75,7 @@ export function DashboardOnboardingChecklist({
       },
       {
         id: 'sky-tone',
-        label: 'Your sky tone updates daily',
+        label: 'Your life weather updates daily',
         hint: 'Home shows intensity, day rating, and what is driving today from your chart.',
         complete: hasSeenAtmosphere || visitedHomeTab,
         onNavigate: onNavigateToForecast,

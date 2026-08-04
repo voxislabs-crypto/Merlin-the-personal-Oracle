@@ -49,7 +49,7 @@ export function CosmicStoryCard({
   loading = false,
   userId,
   onAskMerlin,
-  eyebrow = "Today's cosmic story",
+  eyebrow = "Today's life weather",
   askLabel = 'Ask Merlin about today',
   confluenceAligned,
   confluenceThemes,

@@ -1,6 +1,16 @@
 import type { DualOverlay } from '@/lib/personality/dual-overlay';
+import { getMBTITypeDescription, type MBTIType } from '@/lib/mbti-overlay';
 
 type DimensionKey = 'e_i' | 's_n' | 't_f' | 'j_p';
+
+function safeTypeBlurb(type: string): string {
+  if (!type || type.length !== 4) return type || '';
+  try {
+    return getMBTITypeDescription(type.toUpperCase() as MBTIType);
+  } catch {
+    return type;
+  }
+}
 
 const DIMENSION_META: Record<
   DimensionKey,
@@ -46,6 +56,11 @@ export function getDimensionMeta(key: DimensionKey) {
 export interface BlendSynthesis {
   headline: string;
   summary: string;
+  /** Longer combined interpretation when mask ≠ core */
+  combinedInterpretation: string;
+  coreBlurb: string;
+  maskBlurb: string;
+  finalBlurb: string;
   alignedDimensions: DimensionKey[];
   splitDimensions: Array<{ key: DimensionKey; mask: string; core: string; note: string }>;
   sameType: boolean;
@@ -56,6 +71,9 @@ export function buildBlendSynthesis(dualOverlay: DualOverlay): BlendSynthesis {
   const coreType = dualOverlay.firmware.mbtiType;
   const finalType = dualOverlay.finalType;
   const sameType = maskType === coreType;
+  const coreBlurb = safeTypeBlurb(coreType);
+  const maskBlurb = safeTypeBlurb(maskType);
+  const finalBlurb = safeTypeBlurb(finalType);
 
   const alignedDimensions: DimensionKey[] = [];
   const splitDimensions: BlendSynthesis['splitDimensions'] = [];
@@ -78,27 +96,61 @@ export function buildBlendSynthesis(dualOverlay: DualOverlay): BlendSynthesis {
 
   let headline: string;
   let summary: string;
+  let combinedInterpretation: string;
+
+  const coreLayerNote =
+    dualOverlay.firmware.description?.trim() ||
+    `Inside, you run as ${coreType} (${coreBlurb}).`;
+  const maskLayerNote =
+    dualOverlay.hardware.description?.trim() ||
+    `Outwardly, the chart projects ${maskType} (${maskBlurb}).`;
 
   if (sameType) {
-    headline = `${maskType} — aligned inside and out`;
+    headline = `${coreType} — aligned inside and out`;
     summary = `Your Mask and Core share the same four-letter type. What people see matches what drives you — with ${dualOverlay.firmware.confidence}% inner confidence and ${dualOverlay.hardware.confidence}% outer projection.`;
+    combinedInterpretation = `${coreBlurb}. ${coreLayerNote} Because mask and core agree, people usually read you accurately; the weather engine personalizes as ${finalType}.`;
   } else if (splitDimensions.length === 4) {
-    headline = `${maskType} meets ${coreType}`;
-    summary = `Every dimension splits between layers — you are a full dual architecture. Merlin reads your lived type as ${finalType}, blending outer performance with inner truth.`;
+    headline = `Core ${coreType} · Mask ${maskType}`;
+    summary = `Every dimension splits between layers — a full dual architecture. Merlin privileges your inner core for who you are, while the mask explains how you show up under pressure. Integrated read: ${finalType}.`;
+    combinedInterpretation = [
+      `Who you are inside: ${coreType} — ${coreBlurb}.`,
+      coreLayerNote,
+      `What they often see: ${maskType} — ${maskBlurb}.`,
+      maskLayerNote,
+      `Together: you are not “half wrong” — you are dual-coded. Life weather and Oracle tone lean on ${finalType} (${finalBlurb}) so guidance tracks your lived center, not only your social face.`,
+    ].join(' ');
   } else if (splitDimensions.length >= 2) {
-    headline = `${maskType} mask · ${coreType} core`;
+    headline = `Core ${coreType} · Mask ${maskType}`;
     const splitLabels = splitDimensions.map((d) => DIMENSION_META[d.key].label.toLowerCase()).join(', ');
-    summary = `You diverge on ${splitLabels}. Shared dimensions anchor your identity; the splits explain why people sometimes misread you. Final blend: ${finalType}.`;
+    summary = `You diverge on ${splitLabels}. Shared dimensions anchor identity; the splits explain misreads. Merlin’s integrated type: ${finalType}.`;
+    const splitNotes = splitDimensions.map((d) => d.note).join(' ');
+    combinedInterpretation = [
+      `Core ${coreType} (${coreBlurb}) is the self you feel.`,
+      `Mask ${maskType} (${maskBlurb}) is the face the room often gets.`,
+      splitNotes,
+      `When layers disagree, trust the core for meaning and the mask for social strategy. Integrated weather personalization: ${finalType}.`,
+    ].join(' ');
   } else {
-    headline = `${maskType} → ${coreType}`;
+    headline = `Core ${coreType} · Mask ${maskType}`;
     const split = splitDimensions[0];
     const dimLabel = split ? DIMENSION_META[split.key].label.toLowerCase() : 'one dimension';
-    summary = `Nearly aligned — only ${dimLabel} shifts between what they see and what you feel. ${split?.note ?? ''} Merlin's integrated read: ${finalType}.`;
+    summary = `Nearly aligned — only ${dimLabel} shifts between what they see and what you feel. ${split?.note ?? ''} Integrated read: ${finalType}.`;
+    combinedInterpretation = [
+      `Mostly aligned ${coreType} energy, with a mask tint of ${maskType}.`,
+      split?.note || '',
+      `Core (${coreBlurb}) still defines the inner weather; mask (${maskBlurb}) is a thin social filter. Merlin blends to ${finalType}.`,
+    ]
+      .filter(Boolean)
+      .join(' ');
   }
 
   return {
     headline,
     summary,
+    combinedInterpretation,
+    coreBlurb,
+    maskBlurb,
+    finalBlurb,
     alignedDimensions,
     splitDimensions,
     sameType,

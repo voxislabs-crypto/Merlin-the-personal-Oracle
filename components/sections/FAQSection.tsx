@@ -6,36 +6,44 @@ import { useState } from 'react';
 
 const faqs = [
   {
-    question: 'How accurate are the birth chart calculations?',
-    answer: 'Merlin uses the Swiss Ephemeris, the gold standard in professional astrology. The same precision used by NASA for astronomical calculations. Your chart is accurate to the second.',
+    question: 'What is Merlin, in one sentence?',
+    answer:
+      'Merlin is personalized life weather for your chart — how today feels, what’s building, and a clear move — with a full birth chart and dual MBTI underneath so every forecast is yours.',
+  },
+  {
+    question: 'How is this different from a free horoscope app?',
+    answer:
+      'Generic apps lead with sun-sign blurbs. Merlin leads with life weather: intensity, storms, pressure windows, and reality-check against how you actually feel. Self (wheel, placements, MBTI) is depth you can explore, not the only product.',
+  },
+  {
+    question: 'Do I need a birth chart to get life weather?',
+    answer:
+      'Yes — birth data is how the weather gets personal. Enter date, time, and place once. Merlin builds your Self map, then uses it for every life-weather forecast. Without a chart, you’re back to generic horoscope noise.',
+  },
+  {
+    question: 'How accurate are the calculations?',
+    answer:
+      'Chart positions use Swiss Ephemeris — professional-grade astronomy, not party-app shortcuts. Forecasts compose transits, pressure, and storms into one Atmosphere packet. Still interpretive; we don’t claim medical or financial certainty.',
   },
   {
     question: 'What pricing options do you offer?',
-    answer: 'You can start with a 7-day free trial at $9.99/month or choose $50 one-time lifetime access. Pick the path that fits your style. No hidden fees.',
-  },
-  {
-    question: 'What makes Merlin different from free astrology apps?',
-    answer: 'Most free apps use simplified calculations and generic interpretations. Merlin combines Swiss Ephemeris precision, AI-powered personalized insights, MBTI integration, real-time transits, and professional-grade features typically found in $300+ software.',
+    answer:
+      '7-day free trial then $9.99/month, or $50 one-time lifetime (founder pricing while in beta). Full Sky + Self on paid plans. Free peek is limited.',
   },
   {
     question: 'Do I need my exact birth time?',
-    answer: 'For the most accurate chart, yes. But if you don\'t know it, we can still calculate your chart with an estimated or noon time. The planetary positions will be accurate, though house placements may vary.',
+    answer:
+      'Best results need an exact time (houses and rising depend on it). No time? We can still work from noon or an estimate — planets stay solid; house-based nuance is softer.',
   },
   {
-    question: 'Can I calculate charts for other people?',
-    answer: 'Absolutely! Calculate unlimited charts for family, friends, or clients. No restrictions on how many charts you can generate.',
-  },
-  {
-    question: 'What if I\'m not satisfied?',
-    answer: '30-day money-back guarantee. If Merlin doesn\'t exceed your expectations, email us for a full refund. No questions asked.',
-  },
-  {
-    question: 'Is my personal data secure?',
-    answer: 'Yes. Your birth data is encrypted and never shared. We use industry-standard security practices and comply with all data protection regulations.',
+    question: 'Is my data secure?',
+    answer:
+      'Birth data is treated as sensitive personal context. We use industry-standard auth and practices and don’t sell your chart. See Privacy Policy for details.',
   },
   {
     question: 'Does this work on mobile?',
-    answer: 'Yes! Merlin is a Progressive Web App (PWA) that works beautifully on desktop, tablet, and mobile. Install it to your home screen for a native app experience.',
+    answer:
+      'Yes. Merlin is a Progressive Web App — desktop, tablet, and phone. Install to home screen for a native-like daily weather check.',
   },
 ];
 
@@ -48,22 +56,23 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.05 }}
-      className="bg-gray-900/40 backdrop-blur-sm border border-amber-500/20 rounded-xl overflow-hidden hover:border-amber-500/40 transition-all duration-300"
+      className="bg-slate-950/50 backdrop-blur-sm border border-sky-500/15 rounded-xl overflow-hidden hover:border-sky-400/35 transition-all duration-300"
     >
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-6 py-4 flex items-center justify-between text-left gap-4 group"
       >
-        <span className="text-amber-300 font-semibold group-hover:text-amber-200 transition-colors">
+        <span className="text-sky-100/95 font-semibold group-hover:text-sky-50 transition-colors">
           {question}
         </span>
         <ChevronDown
-          className={`w-5 h-5 text-amber-400 flex-shrink-0 transition-transform duration-300 ${
+          className={`w-5 h-5 text-sky-400 flex-shrink-0 transition-transform duration-300 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
       </button>
-      
+
       <motion.div
         initial={false}
         animate={{
@@ -73,9 +82,7 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
         transition={{ duration: 0.3 }}
         className="overflow-hidden"
       >
-        <div className="px-6 pb-4 text-gray-400 leading-relaxed">
-          {answer}
-        </div>
+        <div className="px-6 pb-4 text-slate-400 leading-relaxed">{answer}</div>
       </motion.div>
     </motion.div>
   );
@@ -83,7 +90,7 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
 
 export function FAQSection() {
   return (
-    <section className="py-20 px-4 relative">
+    <section id="faq" className="py-20 px-4 relative">
       <div className="max-w-4xl mx-auto relative z-10">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -92,17 +99,15 @@ export function FAQSection() {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent mb-4">
-            Frequently Asked Questions
+          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-300 bg-clip-text text-transparent mb-4">
+            Questions
           </h2>
-          <p className="text-gray-400 text-lg">
-            Everything you need to know about Merlin
-          </p>
+          <p className="text-slate-400 text-lg">Life weather, Self chart, pricing — straight answers.</p>
         </motion.div>
 
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <FAQItem key={index} {...faq} index={index} />
+            <FAQItem key={faq.question} {...faq} index={index} />
           ))}
         </div>
       </div>

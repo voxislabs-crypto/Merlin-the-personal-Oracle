@@ -2,6 +2,8 @@
 
 Cognitive Atmosphere Forecasting — unified daily sky tone, layered predictive depth, and Brief → Depth UX.
 
+> **Product pillar:** this engine is **life weather** (forecast / mood / pressure). Identity (wheel, chart, MBTI) lives under **Self**. See [`docs/TWO_PILLARS.md`](../TWO_PILLARS.md).
+
 ## Documents
 
 | File | Purpose |

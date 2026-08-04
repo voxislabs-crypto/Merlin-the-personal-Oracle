@@ -36,10 +36,13 @@ export function DashboardStatusBar({
     <div className="mb-6 space-y-3">
       {showHeroTitle ? (
         <div className="text-center">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 bg-clip-text text-transparent">
-            Your Cosmic Dashboard
+          <p className="text-[11px] uppercase tracking-[0.32em] text-sky-300/80 mb-2">Personalized life weather</p>
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-sky-300 via-cyan-300 to-amber-300 bg-clip-text text-transparent">
+            Your personal forecast
           </h1>
-          <p className="mt-2 text-slate-400 text-sm md:text-base">One place. Your whole story.</p>
+          <p className="mt-2 text-slate-400 text-sm md:text-base max-w-xl mx-auto">
+            How life feels for you today — and the Self chart that makes the read yours.
+          </p>
         </div>
       ) : null}
 

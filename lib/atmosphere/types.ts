@@ -3,7 +3,7 @@ import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 
 export type { DayRating };
 
-export type AtmosphereToneLabel = 'Storm Watch' | 'Caution' | 'Mixed Skies' | 'Smooth Flow';
+export type AtmosphereToneLabel = 'Storm Watch' | 'Caution' | 'Mixed Weather' | 'Clear Flow';
 
 export type AtmosphereToneIcon = 'storm' | 'rain' | 'mixed' | 'clear';
 

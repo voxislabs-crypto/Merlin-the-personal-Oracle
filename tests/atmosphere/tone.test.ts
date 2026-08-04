@@ -7,20 +7,20 @@ describe('atmosphere tone', () => {
     expect(clampIntensity(61.6)).toBe(62);
   });
 
-  it('maps low intensity to Smooth Flow', () => {
+  it('maps low intensity to Clear Flow', () => {
     const tone = resolveTone(28);
-    expect(tone.label).toBe('Smooth Flow');
+    expect(tone.label).toBe('Clear Flow');
     expect(tone.icon).toBe('clear');
   });
 
-  it('maps mid intensity to Mixed Skies at 40', () => {
-    expect(resolveTone(40).label).toBe('Mixed Skies');
-    expect(resolveTone(39).label).toBe('Smooth Flow');
+  it('maps mid intensity to Mixed Weather at 40', () => {
+    expect(resolveTone(40).label).toBe('Mixed Weather');
+    expect(resolveTone(39).label).toBe('Clear Flow');
   });
 
   it('maps elevated intensity to Caution at 60', () => {
     expect(resolveTone(60).label).toBe('Caution');
-    expect(resolveTone(59).label).toBe('Mixed Skies');
+    expect(resolveTone(59).label).toBe('Mixed Weather');
   });
 
   it('maps high intensity to Storm Watch at 80', () => {

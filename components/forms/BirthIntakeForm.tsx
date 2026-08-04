@@ -133,12 +133,12 @@ export function BirthIntakeForm({
     <Card className={`border-amber-500/20 bg-gray-900/40 backdrop-blur-sm ${className}`}>
       <CardHeader className="space-y-2">
         <CardTitle className="text-2xl font-bold text-amber-300">
-          {showPayment ? 'Unlock Your Cosmic Blueprint' : 'Enter Your Birth Details'}
+          {showPayment ? 'Unlock lifetime life weather + self' : 'Enter your birth details'}
         </CardTitle>
         <CardDescription className="text-gray-400">
           {showPayment
-            ? 'Get your lifetime access to personalized astrological insights'
-            : 'Calculate your birth chart and discover your cosmic profile'}
+            ? 'One payment: personalized life weather every day, full chart and dual MBTI underneath'
+            : 'Birth data powers your life weather — and unlocks the Self map'}
         </CardDescription>
       </CardHeader>
       <CardContent>

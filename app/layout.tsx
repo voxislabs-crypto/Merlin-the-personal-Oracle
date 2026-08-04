@@ -19,22 +19,23 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Merlin - Professional Astrology Birth Chart Calculator',
-    template: '%s | Merlin Oracle'
+    default: 'Merlin — Personalized Life Weather',
+    template: '%s | Merlin'
   },
-  description: 'Professional-grade astrology birth charts with Swiss Ephemeris precision. Calculate your natal chart, daily forecasts, transit tracking, and MBTI personality insights with monthly or lifetime access.',
+  description: 'Personalized life weather: how today feels for your birth chart, storm radar, and a clear move — with full natal chart and dual MBTI underneath. Swiss Ephemeris precision. Monthly or lifetime.',
   keywords: [
+    'personalized life weather',
+    'life weather forecast',
+    'astrology forecast',
+    'daily transit forecast',
+    'storm radar astrology',
     'birth chart calculator',
-    'astrology chart',
     'natal chart',
     'Swiss Ephemeris',
     'astrology app',
-    'daily horoscope',
-    'transit tracking',
+    'personalized horoscope',
     'MBTI astrology',
-    'personality astrology',
-    'professional astrology',
-    'accurate birth chart',
+    'pressure windows',
     'life forecast'
   ],
   authors: [{ name: 'Merlin Oracle' }],
@@ -60,21 +61,21 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: siteUrl,
     siteName: 'Merlin Oracle',
-    title: 'Merlin - Professional Astrology That Doesn\'t Lie',
-    description: 'Swiss Ephemeris precision meets MBTI insights. Calculate your birth chart, track daily transits, and unlock your cosmic blueprint with monthly or lifetime access.',
+    title: 'Merlin — Know how today feels for you',
+    description: 'Personalized life weather for your chart: intensity, storms, weekly radar, and a clear move. Birth chart + dual MBTI underneath so every forecast is yours.',
     images: [
       {
         url: '/og-image.svg',
         width: 1200,
         height: 630,
-        alt: 'Merlin - Your Personal Oracle',
+        alt: 'Merlin — personalized life weather',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Merlin - Professional Astrology Birth Chart Calculator',
-    description: 'Swiss Ephemeris precision. Daily forecasts. Transit tracking. MBTI integration. Monthly or lifetime access.',
+    title: 'Merlin — Personalized Life Weather',
+    description: 'How today feels for you — not a generic horoscope. Life weather, storm radar, real chart underneath.',
     images: ['/og-image.svg'],
     creator: '@merlinoracle',
   },
@@ -129,7 +130,7 @@ export default function RootLayout({
                   ratingValue: '4.9',
                   ratingCount: '247',
                 },
-                description: 'Professional astrology birth chart calculator with Swiss Ephemeris precision, daily forecasts, and MBTI personality integration.',
+                description: 'Personalized life weather for your birth chart — daily forecast, storm radar, and identity depth with Swiss Ephemeris precision.',
               }),
             }}
           />

@@ -5,193 +5,240 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { BirthIntakeForm } from '@/components/forms/BirthIntakeForm';
 import { FeaturesSection } from '@/components/sections/FeaturesSection';
-import { TestimonialsSection } from '@/components/sections/TestimonialsSection';
-import { TrustBadges } from '@/components/sections/TrustBadges';
-import { StatsSection } from '@/components/sections/StatsSection';
 import { PricingSection } from '@/components/sections/PricingSection';
 import { FAQSection } from '@/components/sections/FAQSection';
-import { ArrowRight, Star, Shield } from 'lucide-react';
+import { CloudSun, Compass, ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
-      {/* Cosmic swirl background effect */}
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-white relative overflow-hidden">
+      {/* Sky atmosphere background — matches dashboard language */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/40 via-transparent to-transparent"></div>
-        <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1000 1000">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(56,189,248,0.14),_transparent_50%),radial-gradient(ellipse_at_bottom_right,_rgba(251,191,36,0.08),_transparent_45%)]" />
+        <svg className="absolute inset-0 w-full h-full opacity-25" viewBox="0 0 1000 1000" aria-hidden>
           <defs>
             <filter id="glow">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-          </defs>
-          <circle cx="500" cy="500" r="400" fill="none" stroke="url(#grad1)" strokeWidth="2" opacity="0.3" filter="url(#glow)">
-            <animate attributeName="r" values="400;450;400" dur="8s" repeatCount="indefinite"/>
-          </circle>
-          <circle cx="500" cy="500" r="300" fill="none" stroke="url(#grad2)" strokeWidth="1.5" opacity="0.2" filter="url(#glow)">
-            <animate attributeName="r" values="300;350;300" dur="10s" repeatCount="indefinite"/>
-          </circle>
-          <defs>
             <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style={{stopColor: '#ec4899', stopOpacity: 1}} />
-              <stop offset="100%" style={{stopColor: '#8b5cf6', stopOpacity: 1}} />
+              <stop offset="0%" style={{ stopColor: '#38bdf8', stopOpacity: 1 }} />
+              <stop offset="100%" style={{ stopColor: '#fbbf24', stopOpacity: 1 }} />
             </linearGradient>
             <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style={{stopColor: '#a855f7', stopOpacity: 1}} />
-              <stop offset="100%" style={{stopColor: '#6d28d9', stopOpacity: 1}} />
+              <stop offset="0%" style={{ stopColor: '#22d3ee', stopOpacity: 1 }} />
+              <stop offset="100%" style={{ stopColor: '#a78bfa', stopOpacity: 1 }} />
             </linearGradient>
           </defs>
+          <circle
+            cx="500"
+            cy="420"
+            r="400"
+            fill="none"
+            stroke="url(#grad1)"
+            strokeWidth="2"
+            opacity="0.35"
+            filter="url(#glow)"
+          >
+            <animate attributeName="r" values="400;440;400" dur="10s" repeatCount="indefinite" />
+          </circle>
+          <circle
+            cx="500"
+            cy="420"
+            r="280"
+            fill="none"
+            stroke="url(#grad2)"
+            strokeWidth="1.5"
+            opacity="0.25"
+            filter="url(#glow)"
+          >
+            <animate attributeName="r" values="280;320;280" dur="12s" repeatCount="indefinite" />
+          </circle>
         </svg>
-        
-        {/* Twinkling stars */}
-        <div className="absolute top-20 left-20 w-1 h-1 bg-purple-300 rounded-full animate-pulse"></div>
-        <div className="absolute top-32 right-32 w-1.5 h-1.5 bg-pink-300 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-32 left-1/3 w-1 h-1 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 right-1/4 w-1 h-1 bg-pink-300 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-24 left-16 h-1 w-1 rounded-full bg-sky-300/80 animate-pulse" />
+        <div className="absolute top-40 right-28 h-1.5 w-1.5 rounded-full bg-amber-200/70 animate-pulse" />
+        <div
+          className="absolute bottom-40 left-1/3 h-1 w-1 rounded-full bg-cyan-300/60 animate-pulse"
+          style={{ animationDelay: '1s' }}
+        />
+        <div
+          className="absolute bottom-28 right-1/4 h-1 w-1 rounded-full bg-violet-300/50 animate-pulse"
+          style={{ animationDelay: '0.5s' }}
+        />
       </div>
 
-      {/* Hero Section */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 pt-32">
+      {/* Hero */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 pt-28 pb-16">
         <div className="text-center max-w-4xl mx-auto">
-          {/* Merlin Logo */}
           <motion.div
-            initial={{ opacity: 0, y: -30 }}
+            initial={{ opacity: 0, y: -24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="mb-8 flex justify-center"
+            transition={{ duration: 0.7 }}
+            className="mb-6 flex justify-center"
           >
             <Image
               src="/merlin-logo.png"
-              alt="Merlin Oracle"
-              width={200}
-              height={200}
-              className="w-48 h-48 object-contain"
+              alt="Merlin"
+              width={160}
+              height={160}
+              className="w-36 h-36 md:w-40 md:h-40 object-contain"
               priority
             />
           </motion.div>
 
-          {/* Main title */}
-          <motion.h1 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1 }}
-            className="text-7xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-2xl"
-            style={{
-              textShadow: '0 0 30px rgba(236, 72, 153, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)',
-              fontWeight: '900',
-              letterSpacing: '0.1em'
-            }}
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="mb-4 text-[11px] md:text-xs font-semibold uppercase tracking-[0.32em] text-sky-300/85"
           >
-            MERLIN
+            Personalized life weather
+          </motion.p>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="text-5xl sm:text-6xl md:text-7xl font-bold mb-5 bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-300 bg-clip-text text-transparent tracking-tight"
+          >
+            Know how today feels — for you
           </motion.h1>
 
-          {/* Subtitle */}
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="text-3xl md:text-4xl font-light mb-6 text-purple-200"
+            transition={{ duration: 0.7, delay: 0.25 }}
+            className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed mb-3"
           >
-            Your Personal Oracle
+            Merlin is personalized life weather: pressure, storms, and a clear move for the day —
+            grounded in a real birth chart, not a generic horoscope.
           </motion.p>
 
-          {/* Description */}
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.4 }}
-            className="text-lg md:text-xl mb-4 text-gray-300 max-w-2xl mx-auto leading-relaxed"
+            transition={{ duration: 0.7, delay: 0.32 }}
+            className="text-sm md:text-base text-slate-400 max-w-xl mx-auto mb-8"
           >
-            I built Merlin because astrology shouldn't lie. Input your birth, get the real map. No fluff. No ads.
+            Built because astrology shouldn&apos;t lie. Still in beta — the weather math is the point.
           </motion.p>
 
-          {/* Beta notice */}
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.5 }}
-            className="text-sm md:text-base mb-8 text-purple-300 italic max-w-2xl mx-auto"
-          >
-            Still in beta. Bugs happen. But the stars? They don't.
-          </motion.p>
-
-          {/* Pricing */}
+          {/* Two-pillar preview */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.6 }}
-            className="mb-8 text-xl font-semibold text-purple-200"
+            transition={{ duration: 0.7, delay: 0.38 }}
+            className="mb-10 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto text-left"
           >
-            <p className="mb-2">$10/month or $50 forever</p>
-            <p className="text-sm text-gray-400">7 days free—card required, cancel anytime</p>
+            <div className="rounded-2xl border border-sky-500/35 bg-sky-950/40 p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <CloudSun className="h-4 w-4 text-sky-300" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-sky-300/90">
+                  Life weather · primary
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-sky-50">Today&apos;s weather for your life</p>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                Intensity, storms, weekly radar, and a single high-leverage move.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-950/25 p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Compass className="h-4 w-4 text-amber-300" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300/90">
+                  Self · depth
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-amber-50">Who you are in that weather</p>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                Birth chart, wheel, and dual MBTI — how Merlin personalizes every forecast.
+              </p>
+            </div>
           </motion.div>
 
-          {/* CTA Buttons */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.7 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            transition={{ duration: 0.7, delay: 0.45 }}
+            className="mb-6 text-base md:text-lg text-slate-300"
+          >
+            <p className="font-semibold text-sky-100/90">$10/month or $50 forever</p>
+            <p className="text-sm text-slate-500 mt-1">7 days free · card required · cancel anytime</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.5 }}
+            className="flex flex-col sm:flex-row gap-3 justify-center items-center"
           >
             <Link href="/checkout-subscription">
-              <button className="relative group px-8 py-4 font-bold text-lg rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 text-white hover:from-pink-500 hover:to-purple-500 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-pink-500/50">
-                Start Free Trial
-                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-20 blur transition-opacity"></div>
+              <button
+                type="button"
+                className="group inline-flex items-center gap-2 px-8 py-4 font-bold text-lg rounded-xl bg-gradient-to-r from-sky-600 to-cyan-600 text-white hover:from-sky-500 hover:to-cyan-500 transition-all duration-300 shadow-lg shadow-sky-900/40 hover:shadow-sky-500/30 hover:scale-[1.02]"
+              >
+                Start free trial
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
             </Link>
-            
+            <Link href="/dashboard">
+              <button
+                type="button"
+                className="px-8 py-4 font-semibold text-lg rounded-xl border border-slate-600/80 text-slate-200 hover:border-sky-400/50 hover:text-sky-100 hover:bg-sky-950/30 transition-all duration-300"
+              >
+                See my weather
+              </button>
+            </Link>
             <Link href="#faq">
-              <button className="px-8 py-4 font-bold text-lg rounded-lg border-2 border-purple-400/50 text-purple-200 hover:border-purple-300 hover:text-purple-100 transition-all duration-300 hover:bg-purple-900/20">
+              <button
+                type="button"
+                className="px-6 py-4 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+              >
                 Questions?
               </button>
             </Link>
           </motion.div>
-
-          {/* Bottom glow element */}
-          <motion.div
-            animate={{ y: [0, 20, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-            className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-4xl opacity-30"
-          >
-            🔮
-          </motion.div>
         </div>
       </div>
 
-      {/* Features Section */}
       <FeaturesSection />
-
-      {/* Pricing Section */}
       <PricingSection />
 
-      {/* Lifetime Checkout Form */}
       <section id="intake-form" className="relative z-10 px-4 py-16">
+        <div className="mx-auto max-w-3xl text-center mb-8">
+          <p className="text-[11px] uppercase tracking-[0.28em] text-amber-300/80 mb-2">Self · birth data</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-100">
+            Your chart is how life weather gets personal
+          </h2>
+          <p className="mt-2 text-slate-400 text-sm md:text-base max-w-xl mx-auto">
+            Enter birth details once. Merlin uses them to read <span className="text-sky-300">your</span> life weather —
+            then you can explore the full Self map anytime.
+          </p>
+        </div>
         <div className="mx-auto max-w-3xl">
           <BirthIntakeForm showPayment className="w-full" />
         </div>
       </section>
 
-      {/* FAQ Section */}
       <FAQSection />
 
-      {/* Footer Disclaimer */}
-      <footer className="relative z-10 border-t border-white/10 bg-slate-950/40 px-4 py-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 text-center text-sm text-gray-300">
+      <footer className="relative z-10 border-t border-white/10 bg-slate-950/60 px-4 py-10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 text-center text-sm text-slate-400">
           <p>
-            Merlin provides astrological insights for entertainment and self-reflection only and is not
-            a substitute for professional, medical, legal, or financial advice.
+            Merlin provides astrological insights for entertainment and self-reflection only and is not a
+            substitute for professional, medical, legal, or financial advice.
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-amber-300">
-            <Link href="/terms" className="hover:text-amber-200 transition-colors">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sky-300/90">
+            <Link href="/terms" className="hover:text-sky-200 transition-colors">
               Terms of Service
             </Link>
-            <span className="text-gray-500">•</span>
-            <Link href="/privacy" className="hover:text-amber-200 transition-colors">
+            <span className="text-slate-600">•</span>
+            <Link href="/privacy" className="hover:text-sky-200 transition-colors">
               Privacy Policy
             </Link>
           </div>

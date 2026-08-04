@@ -80,7 +80,7 @@ export function AtmosphereHeader({
   feltIntensity,
   sentimentScore = null,
   dayRating,
-  eyebrow = "Today's cosmic story",
+  eyebrow = "Today's life weather",
   date,
   moonPhase,
   moonSign,
@@ -90,7 +90,7 @@ export function AtmosphereHeader({
   confluenceThemes = [],
   variant = 'hero',
   loading = false,
-  barLabel = 'Sky tone',
+  barLabel = 'Life weather',
 }: AtmosphereHeaderProps) {
   if (loading) {
     return <AtmosphereHeaderSkeleton variant={variant} />;
@@ -108,7 +108,7 @@ export function AtmosphereHeader({
   const formattedDate = formatStoryDate(date);
   const feltLine = showFeltLine ? (
     <p className="mt-1 text-xs text-slate-300/90">
-      Felt intensity {resolvedFeltIntensity}% · sky {resolvedIntensity}%
+      Felt intensity {resolvedFeltIntensity}% · chart weather {resolvedIntensity}%
       {typeof sentimentScore === 'number' ? ` · mood signal ${sentimentScore}%` : ''}
     </p>
   ) : null;
@@ -119,7 +119,7 @@ export function AtmosphereHeader({
         title={
           confluenceThemes.length
             ? `Aligned signals: ${confluenceThemes.join(', ')}`
-            : 'Multiple sky signals are converging today'
+            : 'Multiple life-weather signals are converging today'
         }
       >
         Signals aligned
@@ -135,7 +135,7 @@ export function AtmosphereHeader({
               <Icon className={`h-4 w-4 ${tone.text}`} />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400">Sky tone</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400">Life weather</p>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`text-sm font-bold ${tone.text}`}>{tone.label}</p>
                 <span className={`text-xs font-semibold ${tone.text}`}>{resolvedIntensity}%</span>

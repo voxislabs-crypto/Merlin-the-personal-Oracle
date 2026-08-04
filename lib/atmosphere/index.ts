@@ -45,6 +45,11 @@ export {
 export { buildAtmosphereConfluenceSignals, computeAtmosphereConfluence } from '@/lib/atmosphere/confluence';
 export { resolveDominantDriver } from '@/lib/atmosphere/headline';
 export {
+  buildLifeWeatherBrief,
+  type BuildLifeWeatherBriefInput,
+  type LifeWeatherBriefCopy,
+} from '@/lib/atmosphere/life-weather-copy';
+export {
   applyBaselineModifier,
   applyCalibrationModifier,
   applyTripleHitAmplification,
