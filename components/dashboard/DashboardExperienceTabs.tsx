@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { CalendarDays, CloudSun, Compass, Hash, Heart, ChevronDown } from 'lucide-react';
+import { arcaneChromeClass } from '@/components/dashboard/ArcanePane';
 
 /**
  * Stable tab keys (avoid big-bang route renames).
@@ -67,7 +68,7 @@ export function DashboardExperienceTabs({ activeTab, onTabChange }: DashboardExp
   return (
     <nav
       aria-label="Merlin pillars — life weather and Self identity"
-      className="sticky top-0 z-40 -mx-1 mb-6 rounded-2xl border border-slate-700/50 bg-slate-950/85 p-2 backdrop-blur-md"
+      className={`sticky top-0 z-40 -mx-1 mb-6 rounded-2xl p-2 ${arcaneChromeClass('neutral')}`}
     >
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {/* Life weather — primary sell */}

@@ -102,6 +102,8 @@ interface HomeTabPanelProps {
   onJournalTextChange?: (text: string) => void;
   premiumLocked?: boolean;
   tier?: string;
+  forecastError?: boolean;
+  onRetryForecast?: () => void;
 }
 
 /**
@@ -168,6 +170,8 @@ export function HomeTabPanel({
   onJournalTextChange,
   premiumLocked = false,
   tier,
+  forecastError = false,
+  onRetryForecast,
 }: HomeTabPanelProps) {
   const [depthOpen, setDepthOpen] = useState(false);
   const chips =
@@ -193,7 +197,7 @@ export function HomeTabPanel({
           moonPhase={moonPhase}
           moonSign={moonSign}
           streak={streak}
-          loading={forecastLoading && !forecast && !story}
+          loading={forecastLoading && !forecast && !story && !forecastError}
           userId={userId}
           onAskMerlin={onAskMerlin}
           onExploreSelf={onExploreSelf}
@@ -202,15 +206,17 @@ export function HomeTabPanel({
           selfChips={chips}
           confluenceAligned={confluenceAligned}
           confluenceThemes={confluenceThemes}
+          isError={forecastError}
+          onRetry={onRetryForecast}
         />
       </div>
 
       {/* Depth on demand — keeps first session light */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-950/40 overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/55 shadow-lg shadow-slate-950/30 backdrop-blur-md">
         <button
           type="button"
           onClick={() => setDepthOpen((o) => !o)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/50 transition-colors"
+          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-900/50"
           aria-expanded={depthOpen}
         >
           <div>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { MessageCircle, Radio, ChevronDown, Sparkles, Clock } from 'lucide-react';
+import { MessageCircle, Radio, Sparkles, Clock } from 'lucide-react';
 import { explainTransitTitle } from '@/lib/astrology/transit-plain-language';
+import { ArcanePane } from '@/components/dashboard/ArcanePane';
 
 export interface StorylineTheme {
   theme?: string;
@@ -39,21 +40,93 @@ interface ActiveStorylinePanelProps {
   className?: string;
 }
 
-const THEME_ACCENT: Record<string, string> = {
-  transformation: 'from-violet-500/30 to-fuchsia-500/10 border-violet-400/40 text-violet-100',
-  love: 'from-rose-500/25 to-pink-500/10 border-rose-400/40 text-rose-100',
-  career: 'from-amber-500/25 to-orange-500/10 border-amber-400/40 text-amber-100',
-  'inner work': 'from-indigo-500/25 to-blue-500/10 border-indigo-400/40 text-indigo-100',
-  communication: 'from-cyan-500/25 to-sky-500/10 border-cyan-400/40 text-cyan-100',
-  abundance: 'from-emerald-500/25 to-teal-500/10 border-emerald-400/40 text-emerald-100',
+/** Stroke colors for circular progress rings */
+const THEME_RING: Record<string, { stroke: string; glow: string; text: string }> = {
+  transformation: { stroke: '#a78bfa', glow: 'rgba(167,139,250,0.35)', text: 'text-violet-200' },
+  love: { stroke: '#fb7185', glow: 'rgba(251,113,133,0.35)', text: 'text-rose-200' },
+  career: { stroke: '#fbbf24', glow: 'rgba(251,191,36,0.35)', text: 'text-amber-200' },
+  'inner work': { stroke: '#818cf8', glow: 'rgba(129,140,248,0.35)', text: 'text-indigo-200' },
+  communication: { stroke: '#22d3ee', glow: 'rgba(34,211,238,0.35)', text: 'text-cyan-200' },
+  abundance: { stroke: '#34d399', glow: 'rgba(52,211,153,0.35)', text: 'text-emerald-200' },
 };
 
-function themeAccent(theme?: string, title?: string): string {
+function themeRing(theme?: string, title?: string) {
   const key = (theme || title || '').toLowerCase();
-  for (const [k, v] of Object.entries(THEME_ACCENT)) {
+  for (const [k, v] of Object.entries(THEME_RING)) {
     if (key.includes(k)) return v;
   }
-  return 'from-sky-500/20 to-slate-900/40 border-sky-400/30 text-sky-100';
+  return { stroke: '#38bdf8', glow: 'rgba(56,189,248,0.35)', text: 'text-sky-200' };
+}
+
+const RING_SIZE = 72;
+const RING_STROKE = 5;
+const RING_R = (RING_SIZE - RING_STROKE) / 2;
+const RING_C = 2 * Math.PI * RING_R;
+
+function ThemeSignalRing({
+  count,
+  maxSignals,
+  selected,
+  stroke,
+  glow,
+}: {
+  count: number;
+  maxSignals: number;
+  selected: boolean;
+  stroke: string;
+  glow: string;
+}) {
+  const pct = Math.min(1, Math.max(0.08, (count || 0) / Math.max(maxSignals, 1)));
+  const dash = RING_C * pct;
+  const gap = RING_C - dash;
+
+  return (
+    <div
+      className={`relative flex h-[72px] w-[72px] items-center justify-center rounded-full transition-transform ${
+        selected ? 'scale-105' : ''
+      }`}
+      style={selected ? { filter: `drop-shadow(0 0 10px ${glow})` } : undefined}
+    >
+      <svg
+        width={RING_SIZE}
+        height={RING_SIZE}
+        className="absolute inset-0 -rotate-90"
+        aria-hidden
+      >
+        {/* Track */}
+        <circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_R}
+          fill="none"
+          stroke="rgba(148,163,184,0.2)"
+          strokeWidth={RING_STROKE}
+        />
+        {/* Progress arc */}
+        <circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_R}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={RING_STROKE}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${gap}`}
+          className="transition-[stroke-dasharray] duration-500 ease-out"
+        />
+      </svg>
+      <div
+        className={`relative z-[1] flex h-14 w-14 flex-col items-center justify-center rounded-full border ${
+          selected
+            ? 'border-white/25 bg-slate-900/90'
+            : 'border-white/10 bg-slate-950/80'
+        }`}
+      >
+        <span className="text-xl font-bold tabular-nums leading-none text-white">{count}</span>
+        <span className="mt-0.5 text-[9px] uppercase tracking-wide text-slate-400">sig</span>
+      </div>
+    </div>
+  );
 }
 
 function phaseBadge(phase?: string): string {
@@ -178,8 +251,6 @@ export function ActiveStorylinePanel({
   onAskWindow,
   className = '',
 }: ActiveStorylinePanelProps) {
-  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
-
   const { themes, windows } = useMemo(() => {
     const hasStructured =
       (themesIn && themesIn.length > 0) || (windowsIn && windowsIn.length > 0);
@@ -198,6 +269,18 @@ export function ActiveStorylinePanel({
     };
   }, [themesIn, windowsIn, fallbackText]);
 
+  const themeSlice = themes.slice(0, 4);
+  const defaultKey = themeSlice[0] ? themeSlice[0].theme || themeSlice[0].title : null;
+  const [selectedThemeKey, setSelectedThemeKey] = useState<string | null>(defaultKey);
+
+  // Keep selection valid when themes load/change
+  const selectedKey =
+    selectedThemeKey && themeSlice.some((t) => (t.theme || t.title) === selectedThemeKey)
+      ? selectedThemeKey
+      : defaultKey;
+
+  const selectedTheme = themeSlice.find((t) => (t.theme || t.title) === selectedKey) || null;
+
   if (!themes.length && !windows.length && !fallbackText?.trim()) {
     return null;
   }
@@ -206,11 +289,15 @@ export function ActiveStorylinePanel({
   const showProseFallback = !themes.length && !windows.length && Boolean(fallbackText?.trim());
 
   return (
-    <div
-      className={`rounded-xl border border-sky-500/25 bg-sky-950/30 px-4 py-3.5 ${className}`}
-      data-panel="active-storyline"
+    <ArcanePane
+      tone="sky"
+      as="div"
+      static
+      shellClassName={`border-sky-500/30 bg-sky-950/35 ${className}`}
+      padding="px-4 py-3.5"
+      orbs
     >
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0">
           <Radio className="h-4 w-4 text-sky-300 mt-0.5 shrink-0" />
           <div>
@@ -218,7 +305,7 @@ export function ActiveStorylinePanel({
               Now · active storyline
             </p>
             <p className="mt-0.5 text-[11px] text-slate-400">
-              Overlapping transit themes right now — not your birth personality.
+              Overlapping transit themes right now — not your birth personality. Tap a ring for detail.
             </p>
           </div>
         </div>
@@ -238,95 +325,109 @@ export function ActiveStorylinePanel({
         <p className="text-sm leading-relaxed text-slate-200">{fallbackText}</p>
       ) : null}
 
-      {themes.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5">
+      {themeSlice.length > 0 ? (
+        <div className="space-y-3">
+          <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-slate-500">
             <Sparkles className="h-3 w-3" />
             Themes by signal strength
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {themes.slice(0, 4).map((theme, index) => {
+
+          {/* Compact circular rings */}
+          <div
+            className="flex flex-wrap items-start justify-center gap-4 sm:gap-6"
+            role="listbox"
+            aria-label="Active storyline themes"
+          >
+            {themeSlice.map((theme, index) => {
               const key = theme.theme || theme.title;
-              const isOpen = expandedTheme === key;
-              const hasText = Boolean(theme.headline || theme.summary);
-              const pct = Math.round(((theme.signalCount || 0) / maxSignals) * 100);
-              const rank = index === 0 ? 'Primary' : index === 1 ? 'Secondary' : 'Also active';
+              const selected = key === selectedKey;
+              const ring = themeRing(theme.theme, theme.title);
+              const rank = index === 0 ? 'Primary' : index === 1 ? 'Secondary' : 'Active';
 
               return (
-                <div
+                <button
                   key={key}
-                  className={`rounded-xl border bg-gradient-to-br p-3 ${themeAccent(theme.theme, theme.title)}`}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => setSelectedThemeKey(key)}
+                  className="group flex w-[88px] flex-col items-center gap-1.5 rounded-xl p-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider opacity-70">{rank}</p>
-                      <p className="text-sm font-bold truncate">{theme.title}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-bold tabular-nums leading-none">{theme.signalCount}</p>
-                      <p className="text-[10px] opacity-70">signals</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 h-1.5 rounded-full bg-black/30 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-white/50"
-                      style={{ width: `${Math.max(pct, 12)}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {theme.dominantPhase ? (
-                      <span
-                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${phaseBadge(
-                          theme.dominantPhase,
-                        )}`}
-                      >
-                        {theme.dominantPhase}
-                      </span>
-                    ) : null}
-                    {typeof theme.score === 'number' ? (
-                      <span className="text-[10px] opacity-70">{theme.score}/100</span>
-                    ) : null}
-                  </div>
-
-                  {hasText ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedTheme(isOpen ? null : key)}
-                        className="mt-2 flex w-full items-center justify-between text-[11px] font-medium opacity-90 hover:opacity-100"
-                      >
-                        <span>{isOpen ? 'Hide detail' : 'What this means'}</span>
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                        />
-                      </button>
-                      {isOpen ? (
-                        <div className="mt-2 space-y-1.5 border-t border-white/10 pt-2">
-                          {theme.headline ? (
-                            <p className="text-xs leading-relaxed opacity-95">{theme.headline}</p>
-                          ) : null}
-                          {theme.summary ? (
-                            <p className="text-xs leading-relaxed opacity-80">{theme.summary}</p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </>
-                  ) : null}
-
-                  {onAskTheme ? (
-                    <button
-                      type="button"
-                      onClick={() => onAskTheme(theme.title)}
-                      className="mt-2 text-[11px] font-semibold underline-offset-2 hover:underline opacity-90"
-                    >
-                      Ask Merlin about {theme.title.toLowerCase()}
-                    </button>
-                  ) : null}
-                </div>
+                  <ThemeSignalRing
+                    count={theme.signalCount}
+                    maxSignals={maxSignals}
+                    selected={selected}
+                    stroke={ring.stroke}
+                    glow={ring.glow}
+                  />
+                  <span
+                    className={`text-center text-[11px] font-semibold leading-tight ${
+                      selected ? ring.text : 'text-slate-400 group-hover:text-slate-200'
+                    }`}
+                  >
+                    {theme.title}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-slate-500">{rank}</span>
+                </button>
               );
             })}
+          </div>
+
+          {/* Shared detail area — swaps with selection */}
+          <div
+            className="min-h-[5.5rem] rounded-xl border border-sky-400/20 bg-slate-950/50 px-4 py-3"
+            aria-live="polite"
+          >
+            {selectedTheme ? (
+              <div key={selectedKey} className="animate-in fade-in duration-200">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-sky-300/80">Selected theme</p>
+                    <p className="text-base font-semibold text-sky-50">{selectedTheme.title}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-sky-100">
+                      {selectedTheme.signalCount} signals
+                    </span>
+                    {selectedTheme.dominantPhase ? (
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${phaseBadge(
+                          selectedTheme.dominantPhase,
+                        )}`}
+                      >
+                        {selectedTheme.dominantPhase}
+                      </span>
+                    ) : null}
+                    {typeof selectedTheme.score === 'number' ? (
+                      <span className="text-[10px] text-slate-500">{selectedTheme.score}/100</span>
+                    ) : null}
+                  </div>
+                </div>
+                {selectedTheme.headline ? (
+                  <p className="mt-2 text-sm leading-relaxed text-slate-200">{selectedTheme.headline}</p>
+                ) : (
+                  <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                    {selectedTheme.signalCount} aligned signals point at{' '}
+                    <span className="text-slate-200">{selectedTheme.title.toLowerCase()}</span> right
+                    now.
+                  </p>
+                )}
+                {selectedTheme.summary ? (
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-400">{selectedTheme.summary}</p>
+                ) : null}
+                {onAskTheme ? (
+                  <button
+                    type="button"
+                    onClick={() => onAskTheme(selectedTheme.title)}
+                    className="mt-2 text-[11px] font-semibold text-cyan-200 hover:text-cyan-100"
+                  >
+                    Ask Merlin about {selectedTheme.title.toLowerCase()} →
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Select a theme ring above.</p>
+            )}
           </div>
         </div>
       ) : null}
@@ -348,6 +449,6 @@ export function ActiveStorylinePanel({
           </div>
         </div>
       ) : null}
-    </div>
+    </ArcanePane>
   );
 }

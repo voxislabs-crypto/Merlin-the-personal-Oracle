@@ -170,14 +170,18 @@ export function AtmosphereHeader({
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
       <div className="flex items-start gap-3">
-        <div className={`rounded-xl border ${tone.border} bg-black/20 p-3`}>
-          <Icon className={`h-6 w-6 ${tone.text}`} />
+        <div
+          className={`rounded-xl border ${tone.border} bg-black/30 p-3 shadow-[0_0_24px_rgba(0,0,0,0.35)] backdrop-blur-sm`}
+        >
+          <Icon className={`h-6 w-6 ${tone.text} drop-shadow-[0_0_8px_currentColor]`} />
         </div>
         <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-slate-300/80">{eyebrow}</p>
+          <p className="text-[11px] uppercase tracking-[0.32em] text-slate-300/85">{eyebrow}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className={`text-2xl font-bold ${tone.text}`}>{tone.label}</h2>
-            <span className={`text-sm font-semibold ${tone.text}`}>{resolvedIntensity}%</span>
+            <h2 className={`text-2xl font-bold tracking-tight ${tone.text} drop-shadow-[0_0_20px_rgba(255,255,255,0.08)]`}>
+              {tone.label}
+            </h2>
+            <span className={`text-sm font-semibold tabular-nums ${tone.text}`}>{resolvedIntensity}%</span>
             {dayRating ? <DayRatingBadge dayRating={dayRating} /> : null}
             {confluenceChip}
           </div>
@@ -196,16 +200,16 @@ export function AtmosphereHeader({
         <div className="flex items-end justify-between gap-2">
           <span className="text-xs uppercase tracking-widest text-slate-400">{barLabel}</span>
         </div>
-        <div className="mt-2 h-3 rounded-full bg-slate-800/80 overflow-hidden">
+        <div className="mt-2 h-3 overflow-hidden rounded-full border border-white/10 bg-slate-900/80 shadow-inner">
           <motion.div
-            className={`h-full rounded-full bg-gradient-to-r ${tone.gradient}`}
+            className={`h-full rounded-full bg-gradient-to-r ${tone.gradient} shadow-[0_0_12px_rgba(255,255,255,0.25)]`}
             initial={{ width: 0 }}
             animate={{ width: `${resolvedIntensity}%` }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
+            transition={{ duration: 0.85, ease: 'easeOut' }}
           />
         </div>
         {typeof streak === 'number' && streak > 0 ? (
-          <p className="mt-2 text-xs text-slate-400 text-right">{streak}-day return streak</p>
+          <p className="mt-2 text-right text-xs text-slate-400">{streak}-day return streak</p>
         ) : null}
       </div>
     </div>
@@ -214,5 +218,6 @@ export function AtmosphereHeader({
 
 export function getAtmosphereShellClassName(intensity?: number, dayRating?: DayRating | string): string {
   const tone = resolveTone(resolveAtmosphereIntensity(intensity, dayRating));
+  // rounded-2xl kept for CosmicStoryCard and other direct consumers
   return `rounded-2xl border ${tone.border} bg-gradient-to-br ${tone.shellBg} shadow-xl ${tone.glow}`;
 }

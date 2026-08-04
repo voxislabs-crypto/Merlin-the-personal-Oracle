@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Compass, Eye, MessageCircle, Theater } from 'lucide-react';
 import { getMBTITypeDescription, type MBTIType } from '@/lib/mbti-overlay';
 import {
@@ -8,6 +7,7 @@ import {
   type StorylineTheme,
   type StorylineWindow,
 } from '@/components/dashboard/ActiveStorylinePanel';
+import { ArcanePane } from '@/components/dashboard/ArcanePane';
 
 interface ChartIdentityBriefProps {
   sunSign?: string;
@@ -99,10 +99,10 @@ export function ChartIdentityBrief({
       : undefined;
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-950/30 via-slate-900/80 to-violet-950/25 p-5 md:p-6"
+    <ArcanePane
+      tone="amber"
+      shellClassName="border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-slate-950/70 to-violet-950/30"
+      padding="p-5 md:p-6"
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-3">
@@ -267,6 +267,6 @@ export function ChartIdentityBrief({
           {natalHeadline}
         </p>
       ) : null}
-    </motion.section>
+    </ArcanePane>
   );
 }

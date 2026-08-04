@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Crown, Sparkles } from 'lucide-react';
+import { ArcanePane } from '@/components/dashboard/ArcanePane';
 
 interface PremiumUpgradeBannerProps {
   tier?: string;
@@ -10,30 +10,33 @@ interface PremiumUpgradeBannerProps {
 }
 
 const PREMIUM_FEATURES = [
-  'Daily forecasts & transit intelligence',
-  'Chart readings & life timeline',
-  'Oracle chat & atmosphere engine',
-  'Storm radar & weekly whispers',
+  'Daily life weather & intensity reads',
+  'Storm radar, pressure windows & weekly horizon',
+  'Oracle chat with chart + weather context',
+  'Full Self chart depth, dual MBTI & timeline',
 ];
 
 export function PremiumUpgradeBanner({ tier, compact = false }: PremiumUpgradeBannerProps) {
   if (tier === 'lifetime') return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/15 via-slate-900/90 to-violet-950/50 p-4 md:p-5 shadow-lg shadow-amber-950/20"
+    <ArcanePane
+      tone="amber"
+      shellClassName="border-amber-400/35 bg-gradient-to-br from-amber-500/15 via-slate-950/80 to-violet-950/40"
+      padding="p-4 md:p-5"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(251,191,36,0.18),_transparent_45%)]" />
-      <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-amber-200">
             <Crown className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">Unlock Merlin Premium</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+              Unlock Merlin Premium
+            </span>
           </div>
           <h3 className="text-lg font-semibold text-slate-50">
-            {compact ? 'Premium insights are locked' : 'Your chart is ready — unlock the full Oracle'}
+            {compact
+              ? 'Full life weather is locked on free'
+              : 'Your chart is ready — unlock full life weather'}
           </h3>
           {!compact ? (
             <ul className="grid gap-1.5 sm:grid-cols-2">
@@ -54,7 +57,7 @@ export function PremiumUpgradeBanner({ tier, compact = false }: PremiumUpgradeBa
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
           <Link
             href="/checkout-subscription"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/50 bg-amber-500/25 px-4 py-2.5 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/35"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/50 bg-amber-500/25 px-4 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_0_20px_rgba(251,191,36,0.12)] transition hover:bg-amber-500/35"
           >
             Start 7-day free trial
           </Link>
@@ -66,6 +69,6 @@ export function PremiumUpgradeBanner({ tier, compact = false }: PremiumUpgradeBa
           </Link>
         </div>
       </div>
-    </motion.div>
+    </ArcanePane>
   );
 }

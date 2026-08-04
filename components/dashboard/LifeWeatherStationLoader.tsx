@@ -147,30 +147,38 @@ export function LifeWeatherStationLoader({
       role="status"
       aria-live="polite"
       aria-busy={!showComplete}
-      className={`relative overflow-hidden rounded-2xl border border-sky-500/30 bg-gradient-to-br from-slate-950 via-slate-900 to-sky-950/40 ${shellPad} shadow-2xl shadow-sky-950/40 ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-sky-400/40 bg-gradient-to-br from-slate-950 via-indigo-950/40 to-sky-950/50 ${shellPad} shadow-2xl shadow-sky-500/20 backdrop-blur-md ${className}`}
     >
+      {/* Nebula orbs */}
+      <div className="pointer-events-none absolute -left-16 top-0 h-48 w-48 rounded-full bg-sky-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute -right-12 bottom-0 h-52 w-52 rounded-full bg-violet-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.1]">
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(56,189,248,0.45) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,0.3) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+          }}
+        />
+      </div>
+      {/* Ley-line edge — static, no scan sweep */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.12]"
+        className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
-          backgroundImage:
-            'linear-gradient(rgba(56,189,248,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.25) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
+          background:
+            'linear-gradient(135deg, rgba(56,189,248,0.2) 0%, transparent 35%, transparent 65%, rgba(251,191,36,0.12) 100%)',
         }}
-      />
-      <motion.div
-        className="pointer-events-none absolute inset-x-0 h-16 bg-gradient-to-b from-sky-400/10 to-transparent"
-        animate={{ top: ['0%', '100%', '0%'] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: 'linear' }}
       />
 
       <div className={`relative z-10 ${compact ? 'space-y-5' : 'space-y-8'}`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-sky-400/40 bg-sky-500/10">
+            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-sky-300/50 bg-sky-500/15 shadow-[0_0_24px_rgba(56,189,248,0.25)]">
               {showComplete ? (
-                <CloudSun className="h-6 w-6 text-amber-300" />
+                <CloudSun className="h-6 w-6 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]" />
               ) : (
-                <Radio className="h-6 w-6 text-sky-300 animate-pulse" />
+                <Radio className="h-6 w-6 animate-pulse text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
               )}
               {!showComplete ? (
                 <span className="absolute -right-1 -top-1 flex h-3 w-3">
@@ -180,20 +188,22 @@ export function LifeWeatherStationLoader({
               ) : null}
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-sky-300/85">
+              <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-sky-300/90">
                 Life weather station
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-50 md:text-xl">
+              <h3 className="mt-1 text-lg font-semibold tracking-tight text-slate-50 md:text-xl">
                 {showComplete ? 'Station online' : 'Building your forecast'}
               </h3>
-              <p className="mt-0.5 font-mono text-[11px] text-slate-500">
+              <p className="mt-0.5 font-mono text-[11px] text-sky-200/50">
                 MERLIN · LW-01 · {current.code}
               </p>
             </div>
           </div>
-          <div className="font-mono text-xs text-sky-200/70 sm:text-right">
-            <div>{showComplete ? 'STATUS · CLEAR' : 'STATUS · SCAN'}</div>
-            <div className="text-slate-500">{progress.toString().padStart(3, '0')}% COMPOSITE</div>
+          <div className="font-mono text-xs text-sky-200/80 sm:text-right">
+            <div className="tracking-wider">{showComplete ? 'STATUS · CLEAR' : 'STATUS · SCAN'}</div>
+            <div className="text-slate-500">
+              {progress.toString().padStart(3, '0')}% COMPOSITE
+            </div>
           </div>
         </div>
 
@@ -237,7 +247,8 @@ export function LifeWeatherStationLoader({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-sky-500/20 bg-black/30 px-4 py-3">
+        <div className="relative overflow-hidden rounded-xl border border-sky-400/30 bg-black/40 px-4 py-3 shadow-inner backdrop-blur-sm">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/50 to-transparent" />
           <AnimatePresence mode="wait">
             <motion.div
               key={current.id}
@@ -246,7 +257,7 @@ export function LifeWeatherStationLoader({
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.28 }}
             >
-              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-sky-400/80">
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-sky-300/90">
                 {current.code}
               </p>
               <p className="mt-1 text-base font-medium text-sky-50 md:text-lg">{current.line}</p>
@@ -254,9 +265,9 @@ export function LifeWeatherStationLoader({
             </motion.div>
           </AnimatePresence>
 
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-800">
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full border border-white/10 bg-slate-900/90">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-amber-300"
+              className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-amber-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]"
               initial={false}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.4, ease: 'easeOut' }}

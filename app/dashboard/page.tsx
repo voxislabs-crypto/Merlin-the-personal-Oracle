@@ -2468,6 +2468,14 @@ export default function UnifiedDashboard() {
                     onJournalTextChange={setJournalText}
                     premiumLocked={premiumLocked}
                     tier={tier}
+                    forecastError={Boolean(forecastError) && !forecast && !activeAtmospherePacket}
+                    onRetryForecast={() => {
+                      if (!birthData) return;
+                      void calculateForecast(birthData, {
+                        mbtiType: mbtiType || undefined,
+                        userId: userId || undefined,
+                      });
+                    }}
                   />
                   </WeatherShell>
                 ) : null}
@@ -2557,7 +2565,7 @@ export default function UnifiedDashboard() {
                 {/* 2. Chart as instrument — compact, not a second homepage */}
                 <motion.div
                   ref={chartSectionRef}
-                  className="rounded-2xl border border-amber-500/15 bg-slate-950/50 p-4 md:p-5 backdrop-blur-sm"
+                  className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-950/25 via-slate-950/60 to-violet-950/25 p-4 shadow-xl shadow-amber-950/15 backdrop-blur-md md:p-5"
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
@@ -2746,7 +2754,7 @@ export default function UnifiedDashboard() {
                 </motion.div>
 
                 {/* 4. More modules — collapsed; not competing with “about you” */}
-                <div className="overflow-hidden rounded-2xl border border-slate-700/40 bg-slate-950/30">
+                <div className="overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/55 shadow-lg backdrop-blur-md">
                   <button
                     type="button"
                     onClick={() => setSelfMoreOpen((o) => !o)}
@@ -2903,6 +2911,14 @@ export default function UnifiedDashboard() {
                         ].filter(Boolean) as string[]}
                         confluenceAligned={activeAtmospherePacket?.confluence.aligned}
                         confluenceThemes={activeAtmospherePacket?.confluence.themes}
+                        isError={Boolean(forecastError) && !forecast && !activeAtmospherePacket}
+                        onRetry={() => {
+                          if (!birthData) return;
+                          void calculateForecast(birthData, {
+                            mbtiType: mbtiType || undefined,
+                            userId: userId || undefined,
+                          });
+                        }}
                       />
                     </div>
 
@@ -2955,7 +2971,7 @@ export default function UnifiedDashboard() {
                     </div>
 
                     {/* 2. Forecast depth — details + oracle */}
-                    <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-950/40">
+                    <div className="overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/55 shadow-lg backdrop-blur-md">
                       <button
                         type="button"
                         onClick={() => setForecastDepthOpen((o) => !o)}
@@ -3033,7 +3049,7 @@ export default function UnifiedDashboard() {
                     </div>
 
                     {/* 3. Radar — week + storms */}
-                    <div className="overflow-hidden rounded-2xl border border-rose-500/20 bg-slate-950/40">
+                    <div className="overflow-hidden rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-950/30 via-slate-950/55 to-slate-950/60 shadow-lg shadow-rose-950/20 backdrop-blur-md">
                       <button
                         type="button"
                         onClick={() => setForecastRadarOpen((o) => !o)}
@@ -3115,7 +3131,7 @@ export default function UnifiedDashboard() {
                     </div>
 
                     {/* 4. Analysis lab — collapsed */}
-                    <div className="overflow-hidden rounded-2xl border border-slate-700/40 bg-slate-950/30">
+                    <div className="overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/55 shadow-lg backdrop-blur-md">
                       <button
                         type="button"
                         onClick={() => setForecastAnalysisOpen((o) => !o)}

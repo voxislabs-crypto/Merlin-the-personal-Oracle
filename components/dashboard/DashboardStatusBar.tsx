@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Flame, Sparkles, VolumeX } from 'lucide-react';
+import { arcaneChromeClass } from '@/components/dashboard/ArcanePane';
 
 interface DashboardStatusBarProps {
   showHeroTitle: boolean;
@@ -46,7 +47,9 @@ export function DashboardStatusBar({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 rounded-2xl border border-slate-700/60 bg-slate-950/70 px-4 py-3 backdrop-blur md:flex-row md:items-center md:justify-between">
+      <div
+        className={`flex flex-col gap-2 rounded-2xl px-4 py-3 md:flex-row md:items-center md:justify-between ${arcaneChromeClass('sky')}`}
+      >
         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 font-medium text-amber-100">
             <Sparkles className="h-3.5 w-3.5" />

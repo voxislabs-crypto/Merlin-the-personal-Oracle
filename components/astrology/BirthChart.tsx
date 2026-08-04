@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlanetInfo } from './PlanetInfo';
 import { GeocodingService, type GeocodingResult } from '@/lib/astrology/geocoding';
 import { LifeWeatherStationLoader } from '@/components/dashboard/LifeWeatherStationLoader';
+import { StatusPanel, LocationEmptyHint } from '@/components/ui/status-panel';
 
 // Dynamically import the WheelVisualization component with SSR disabled
 const WheelVisualization = dynamic(
@@ -264,9 +265,9 @@ export function BirthChart({
   return (
     <div className={`space-y-6 ${className}`}>
       {showControls && (
-        <Card className="border-sky-500/20 bg-slate-950/60">
+        <Card className="border-sky-400/30 bg-gradient-to-br from-slate-950/80 via-sky-950/30 to-slate-950/70 shadow-xl shadow-sky-950/30 backdrop-blur-md">
           <CardHeader>
-            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-sky-300/80 mb-1">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.28em] text-sky-300/80">
               Life weather · station intake
             </p>
             <CardTitle className="text-sky-50">Birth details</CardTitle>
@@ -343,6 +344,13 @@ export function BirthChart({
                     ))}
                   </div>
                 )}
+
+                {!searchingLocation &&
+                locationQuery.length >= 2 &&
+                locationResults.length === 0 &&
+                !selectedLocation ? (
+                  <LocationEmptyHint query={locationQuery} />
+                ) : null}
                 
                 {searchingLocation && (
                   <div className="absolute right-3 top-9">
@@ -379,12 +387,19 @@ export function BirthChart({
         </Card>
       )}
 
-      {error && (
-        <div className="p-4 bg-red-900/20 border border-red-800 text-red-200 rounded-lg">
-          <h3 className="font-semibold mb-1">Station error</h3>
-          <p>{error}</p>
-        </div>
-      )}
+      {error ? (
+        <StatusPanel
+          tone="error"
+          compact
+          title="Couldn’t build your life weather"
+          message={error}
+          hint="Check birth date, time, and city — then try again. If it keeps failing, the station may be busy."
+          onRetry={() => {
+            void calculateChart(birthData);
+          }}
+          retryLabel="Retry station"
+        />
+      ) : null}
 
       {stationActive ? (
         <LifeWeatherStationLoader

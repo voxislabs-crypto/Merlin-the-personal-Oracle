@@ -10,7 +10,7 @@ interface LoadingStateProps {
 }
 
 export function LoadingState({
-  message = 'Loading your cosmic data...',
+  message = 'Loading your life weather...',
   variant = 'default',
   size = 'md',
 }: LoadingStateProps) {

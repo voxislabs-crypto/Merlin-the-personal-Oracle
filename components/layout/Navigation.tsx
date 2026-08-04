@@ -43,7 +43,7 @@ export function Navigation() {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
         scrolled
-          ? 'bg-gray-900/95 backdrop-blur-md border-b border-amber-500/20 shadow-lg shadow-amber-500/10'
+          ? 'border-b border-sky-500/20 bg-slate-950/90 shadow-lg shadow-sky-950/40 backdrop-blur-md'
           : 'bg-transparent'
       )}
     >
