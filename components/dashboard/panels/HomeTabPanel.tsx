@@ -12,6 +12,7 @@ import { LunarReturnWeatherCard } from '@/components/dashboard/LunarReturnWeathe
 import { RealityCheckJournal } from '@/components/dashboard/RealityCheckJournal';
 import { PremiumUpgradeBanner } from '@/components/dashboard/PremiumUpgradeBanner';
 import type { LunarReturnWeather, SolarReturnBriefing } from '@/lib/astrology/returns-types';
+import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 
 interface PredictiveSnapshot {
   lunarPhase?: string;
@@ -104,6 +105,7 @@ interface HomeTabPanelProps {
   tier?: string;
   forecastError?: boolean;
   onRetryForecast?: () => void;
+  risk?: LifeRiskPacket | null;
 }
 
 /**
@@ -172,6 +174,7 @@ export function HomeTabPanel({
   tier,
   forecastError = false,
   onRetryForecast,
+  risk = null,
 }: HomeTabPanelProps) {
   const [depthOpen, setDepthOpen] = useState(false);
   const chips =
@@ -208,6 +211,7 @@ export function HomeTabPanel({
           confluenceThemes={confluenceThemes}
           isError={forecastError}
           onRetry={onRetryForecast}
+          risk={risk}
         />
       </div>
 

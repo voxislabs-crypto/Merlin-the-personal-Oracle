@@ -93,6 +93,8 @@ export interface AtmospherePacket {
   dayRating: DayRating;
   tone: AtmosphereTone;
   dominantDriver: AtmosphereDriver;
+  /** Score-first transit impact forecast (friction windows, domains, bullshit flag) */
+  risk: LifeRiskPacket;
   temporal: AtmosphereTemporalContext;
   confluence: AtmosphereConfluence;
   calibration?: AtmosphereCalibration;
@@ -111,6 +113,9 @@ export interface AtmosphereStormInput {
   natalPlanet?: string;
   aspect?: string;
   description?: string;
+  date?: string;
+  lifeArea?: string;
+  phase?: 'brewing' | 'peak';
 }
 
 export interface AtmosphereStormsInput {
@@ -118,19 +123,109 @@ export interface AtmosphereStormsInput {
   weekSummary?: string;
 }
 
+export type LifeRiskDomain = 'love' | 'career' | 'money' | 'family' | 'health' | 'self';
+
+export type LifeRiskLevel = 'calm' | 'watch' | 'friction' | 'storm';
+
+export type LifeRiskWindowKind = 'friction' | 'support' | 'mixed';
+
+export interface LifeRiskDriver {
+  label: string;
+  friction: number;
+  kind: LifeRiskWindowKind;
+  phase?: 'building' | 'peaking' | 'releasing';
+  peakAt?: string;
+  domains: LifeRiskDomain[];
+  source: 'transit' | 'storm' | 'rating' | 'pressure';
+}
+
+export interface LifeRiskWindow {
+  id: string;
+  kind: LifeRiskWindowKind;
+  label: string;
+  phase?: 'building' | 'peaking' | 'releasing';
+  startsAt?: string;
+  peakAt?: string;
+  endsAt?: string;
+  daysToPeak?: number;
+  friction: number;
+  confidence: number;
+  domains: LifeRiskDomain[];
+  source: 'transit' | 'storm';
+}
+
+export interface LifeRiskDomainScore {
+  name: LifeRiskDomain;
+  label: string;
+  friction: number;
+  support: number;
+  hitCount: number;
+}
+
+/**
+ * Score-first transit impact forecast: is life-friction elevated, when, where?
+ * Narrative/story is optional and lives elsewhere.
+ */
+export interface LifeRiskPacket {
+  date: string;
+  windowDays: number;
+  /** 0–100: how loud is hard-transit / life-friction pressure */
+  overallFriction: number;
+  level: LifeRiskLevel;
+  /** True when challenging windows are elevated enough that "life bullshit" is plausible */
+  bullshitPossible: boolean;
+  confidence: number;
+  headline: string;
+  move: string;
+  topDrivers: LifeRiskDriver[];
+  frictionWindows: LifeRiskWindow[];
+  supportWindows: LifeRiskWindow[];
+  nextFrictionPeak: {
+    label: string;
+    peakAt?: string;
+    daysToPeak?: number;
+    friction: number;
+  } | null;
+  nextSupportPeak: {
+    label: string;
+    peakAt?: string;
+    daysToPeak?: number;
+    friction: number;
+  } | null;
+  domains: LifeRiskDomainScore[];
+  provenance: string[];
+  generatedAt: string;
+}
+
 export interface AtmospherePredictiveEventInput {
   eventId?: string;
   scores?: {
     intensity?: number;
     confidence?: number;
+    volatility?: number;
   };
   transit?: {
     transitingPlanet?: string;
     aspect?: string;
     natalPlanet?: string;
   };
+  timing?: {
+    phase?: 'building' | 'peaking' | 'releasing';
+    startsAt?: string;
+    peakAt?: string;
+    endsAt?: string;
+    daysToPeak?: number;
+    hoursToPeak?: number;
+  };
+  domains?: Array<{
+    name?: LifeRiskDomain;
+    impact?: number;
+    valence?: number;
+  }>;
   narrative?: {
     whisper?: string;
+    risk?: string;
+    opportunity?: string;
   };
 }
 

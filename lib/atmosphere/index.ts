@@ -25,6 +25,12 @@ export {
 export type * from '@/lib/atmosphere/pattern-types';
 export { computeAtmosphere } from '@/lib/atmosphere/compute';
 export {
+  computeLifeRisk,
+  lifeRiskLevelPresentation,
+  DEFAULT_RISK_WINDOW_DAYS,
+  type ComputeLifeRiskInput,
+} from '@/lib/atmosphere/life-risk';
+export {
   getJournalEntry,
   isJournalOptInEnabled,
   setJournalEntry,

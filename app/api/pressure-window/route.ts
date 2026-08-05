@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, windowDays = 7 } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, windowDays = 30 } = body;
 
     if (!birthDate || !birthTime) {
       return NextResponse.json({ success: false, error: 'Missing birth date or time' }, { status: 400 });

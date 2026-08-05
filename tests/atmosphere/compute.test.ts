@@ -74,10 +74,16 @@ describe('computeAtmosphere', () => {
     expect(packet.temporal.progressedMoonSign).toBe('Scorpio');
     expect(packet.provenance).toContain('pressure-engine');
     expect(packet.provenance).toContain('progressed-moon');
+    expect(packet.provenance).toContain('life-risk-v1');
     expect(packet.confidence).toBe(78);
     expect(packet.feltIntensity).toBe(packet.intensity);
     expect(packet.realityCheck.source).toBe('none');
     expect(packet.patterns.modifier).toBe(1);
+    expect(packet.risk).toBeDefined();
+    expect(packet.risk.overallFriction).toBeGreaterThan(0);
+    expect(['calm', 'watch', 'friction', 'storm']).toContain(packet.risk.level);
+    expect(typeof packet.risk.bullshitPossible).toBe('boolean');
+    expect(packet.risk.headline.length).toBeGreaterThan(5);
     expect(packet.patterns.active).toEqual([]);
   });
 

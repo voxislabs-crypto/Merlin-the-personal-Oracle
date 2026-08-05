@@ -1,8 +1,18 @@
 import { useState, useCallback } from "react";
 import { BirthData } from "@/components/astrology/BirthChartCalculator";
 import { MBTIType } from "@/shared/schema";
+import {
+  enrichStorms,
+  groupStormsByCategory,
+  STORM_CATEGORY_META,
+  type StormLifeCategory,
+  type StormPlaybookFields,
+  type StormWhenInfo,
+} from "@/lib/astrology/storm-playbook";
 
-export interface AstroStorm {
+export type { StormLifeCategory, StormWhenInfo };
+
+export interface AstroStorm extends StormPlaybookFields {
   id: string;
   date: string;
   dayName: string;
@@ -23,11 +33,62 @@ export interface AstroStorm {
   keywords: string[];
 }
 
+export interface StormCategorySummary {
+  category: StormLifeCategory;
+  label: string;
+  count: number;
+  maxConfidence: number;
+  nextWhen?: string;
+}
+
 export interface StormsReport {
   storms: AstroStorm[];
+  byCategory?: Record<StormLifeCategory, AstroStorm[]>;
+  categorySummary?: StormCategorySummary[];
   clearDays: string[];
   weekSummary: string;
   mbtiType?: string;
+  horizonDays?: number;
+}
+
+/** Ensure older cached payloads still get playbook fields client-side */
+function ensurePlaybook(report: StormsReport): StormsReport {
+  const needsEnrich =
+    !report.storms?.length ||
+    report.storms.some((s) => !s.category || !s.when || !s.actionableSteps?.length);
+
+  const storms = needsEnrich
+    ? (enrichStorms(report.storms || []) as AstroStorm[])
+    : report.storms;
+
+  const byCategory =
+    report.byCategory && !needsEnrich
+      ? report.byCategory
+      : groupStormsByCategory(storms);
+
+  const categorySummary =
+    report.categorySummary && !needsEnrich
+      ? report.categorySummary
+      : (['social', 'work', 'financial', 'health'] as StormLifeCategory[])
+          .map((category) => {
+            const list = byCategory[category] || [];
+            return {
+              category,
+              label: STORM_CATEGORY_META[category].shortLabel,
+              count: list.length,
+              maxConfidence: list.reduce((max, s) => Math.max(max, s.confidence || 0), 0),
+              nextWhen: list[0]?.when?.summary,
+            };
+          })
+          .filter((row) => row.count > 0);
+
+  return {
+    ...report,
+    storms,
+    byCategory,
+    categorySummary,
+    horizonDays: report.horizonDays ?? 30,
+  };
 }
 
 export function useStorms() {
@@ -35,12 +96,12 @@ export function useStorms() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const buildCacheKey = (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 7) => {
-    return `merlin_storms_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}`;
+  const buildCacheKey = (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 30) => {
+    return `merlin_storms_v2_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}`;
   };
 
   const calculateStorms = useCallback(
-    async (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 7): Promise<StormsReport | null> => {
+    async (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 30): Promise<StormsReport | null> => {
       setLoading(true);
       setError(null);
       const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
@@ -54,8 +115,9 @@ export function useStorms() {
               const cached = JSON.parse(cachedRaw) as { data: StormsReport; timestamp: number };
               // 24 hour cache window for storms radar
               if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
-                setStormsReport(cached.data);
-                return cached.data;
+                const ensured = ensurePlaybook(cached.data);
+                setStormsReport(ensured);
+                return ensured;
               }
             } catch {
               // ignore malformed cache
@@ -86,16 +148,25 @@ export function useStorms() {
           throw new Error(result.error ?? "Failed to calculate storms");
         }
 
-        setStormsReport(result.data);
+        const ensured = ensurePlaybook(result.data as StormsReport);
+        setStormsReport(ensured);
+
         if (typeof window !== 'undefined') {
-          const cacheKey = buildCacheKey(birthData, mbtiType, daysAhead);
-          localStorage.setItem(cacheKey, JSON.stringify({ data: result.data, timestamp: Date.now() }));
+          try {
+            localStorage.setItem(
+              cacheKey,
+              JSON.stringify({ data: ensured, timestamp: Date.now() })
+            );
+          } catch {
+            // storage full — ignore
+          }
         }
-        return result.data;
+
+        return ensured;
       } catch (err) {
-        const e = err instanceof Error ? err : new Error("Unknown error");
-        setError(e);
-        console.error("[useStorms] Error:", e);
+        const wrapped = err instanceof Error ? err : new Error("Unknown storms error");
+        setError(wrapped);
+        console.error("Storms error:", wrapped);
         return null;
       } finally {
         setLoading(false);
@@ -109,5 +180,11 @@ export function useStorms() {
     setError(null);
   }, []);
 
-  return { stormsReport, loading, error, calculateStorms, reset };
+  return {
+    stormsReport,
+    loading,
+    error,
+    calculateStorms,
+    reset,
+  };
 }

@@ -1,14 +1,25 @@
 // Storms Detection Engine
-// Scans 7 days of transits to identify challenging astrological weather ahead
+// Scans upcoming transits to identify challenging life-weather windows
 import "server-only";
 import { BirthChartData, PlanetPosition } from "@/types/astrology";
 import { MBTIType } from "@/shared/schema";
 import mbtiStormResponses from "@/data/mbti-storm-responses.json";
 import { getSweph } from '@/lib/sweph-runtime';
+import {
+  enrichStorms,
+  groupStormsByCategory,
+  STORM_CATEGORY_META,
+  type StormLifeCategory,
+  type StormPlaybookFields,
+  type StormWhenInfo,
+} from '@/lib/astrology/storm-playbook';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface AstroStorm {
+export type { StormLifeCategory, StormWhenInfo };
+
+/** Engine-detected storm before playbook packaging */
+export interface RawAstroStorm {
   id: string;
   date: string;        // YYYY-MM-DD
   dayName: string;     // "Monday" etc.
@@ -29,11 +40,26 @@ export interface AstroStorm {
   keywords: string[];
 }
 
+/** User-facing storm: transit hit + category / confidence / when / steps */
+export type AstroStorm = RawAstroStorm & StormPlaybookFields;
+
+export interface StormCategorySummary {
+  category: StormLifeCategory;
+  label: string;
+  count: number;
+  maxConfidence: number;
+  nextWhen?: string;
+}
+
 export interface StormsReport {
   storms: AstroStorm[];
+  /** Storms grouped by Social / Work / Financial / Health */
+  byCategory: Record<StormLifeCategory, AstroStorm[]>;
+  categorySummary: StormCategorySummary[];
   clearDays: string[];   // Day names with no storms
   weekSummary: string;
   mbtiType?: string;
+  horizonDays?: number;
 }
 
 // ─── Planet weight tables ─────────────────────────────────────────────────────
@@ -662,8 +688,8 @@ function findStormsForDay(
   transitPositions: PlanetPosition[],
   mbtiType: MBTIType | undefined,
   options?: { maxOrb?: number; minOrb?: number }
-): AstroStorm[] {
-  const storms: AstroStorm[] = [];
+): RawAstroStorm[] {
+  const storms: RawAstroStorm[] = [];
   const seenPairs = new Set<string>();
   const maxOrb = options?.maxOrb ?? 2; // "storm brewing" window default
   const minOrb = options?.minOrb ?? 0;
@@ -754,7 +780,7 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 export function detectWeeklyStorms(
   birthChart: BirthChartData,
   mbtiType?: MBTIType,
-  daysAhead = 7
+  daysAhead = 30
 ): StormsReport {
   return predictStorms(birthChart, daysAhead, mbtiType);
 }
@@ -768,10 +794,18 @@ export function predictStorms(
 
   if (!natalPositions || natalPositions.length === 0) {
     console.warn("[storms] No natal positions available");
-    return { storms: [], clearDays: [], weekSummary: "No storm data available.", mbtiType };
+    return {
+      storms: [],
+      byCategory: { social: [], work: [], financial: [], health: [] },
+      categorySummary: [],
+      clearDays: [],
+      weekSummary: "No storm data available.",
+      mbtiType,
+      horizonDays: daysAhead,
+    };
   }
 
-  const allStorms: AstroStorm[] = [];
+  const allStorms: RawAstroStorm[] = [];
   const dayNames: string[] = [];
   const stormyDayNames = new Set<string>();
 
@@ -809,8 +843,8 @@ export function predictStorms(
 
   const clearDays = dayNames.filter((d) => !stormyDayNames.has(d));
 
-  // Keep only the top storms (max 2 per day, max 8 total — avoid overwhelming the UI)
-  const deduped: AstroStorm[] = [];
+  // Keep strongest storms (max 2 per day) across the horizon
+  const deduped: RawAstroStorm[] = [];
   const countPerDay: Record<string, number> = {};
   for (const storm of allStorms) {
     countPerDay[storm.date] = (countPerDay[storm.date] ?? 0);
@@ -819,22 +853,55 @@ export function predictStorms(
       countPerDay[storm.date]++;
     }
   }
-  const maxStorms = Math.max(8, daysAhead + 1);
-  const finalStorms = deduped.slice(0, maxStorms);
+  const maxStorms = Math.max(12, Math.min(24, daysAhead + 4));
+  const trimmed = deduped.slice(0, maxStorms);
+
+  // Package for humans: category · confidence · when · steps
+  const finalStorms = enrichStorms(trimmed) as AstroStorm[];
+  const byCategory = groupStormsByCategory(finalStorms);
+
+  const categorySummary: StormCategorySummary[] = (
+    ['social', 'work', 'financial', 'health'] as StormLifeCategory[]
+  )
+    .map((category) => {
+      const list = byCategory[category];
+      const meta = STORM_CATEGORY_META[category];
+      return {
+        category,
+        label: meta.shortLabel,
+        count: list.length,
+        maxConfidence: list.reduce((max, s) => Math.max(max, s.confidence || 0), 0),
+        nextWhen: list[0]?.when?.summary,
+      };
+    })
+    .filter((row) => row.count > 0);
 
   const severeCount = finalStorms.filter((s) => s.intensity === "severe").length;
   const moderateCount = finalStorms.filter((s) => s.intensity === "moderate").length;
+  const hotCats = categorySummary
+    .slice()
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 2)
+    .map((c) => c.label.toLowerCase());
 
   let weekSummary = "";
   if (finalStorms.length === 0) {
-    weekSummary = "This week's skies are relatively clear. No major storm patterns detected in your personal chart.";
+    weekSummary = `Clear horizon for the next ${daysAhead} days — no major storm patterns scored in your personal chart.`;
   } else if (severeCount >= 2) {
-    weekSummary = `A turbulent week ahead. ${severeCount} severe and ${moderateCount} moderate storm patterns cross your chart. Navigate with patience—the intensity carries purpose.`;
+    weekSummary = `Elevated life friction ahead (${severeCount} severe, ${moderateCount} moderate). Loudest categories: ${hotCats.join(' + ') || 'mixed'}. Use the playbook steps — don't power through blind.`;
   } else if (severeCount === 1) {
-    weekSummary = `One significant storm this week demands your full attention. The remaining friction is manageable. Focus your resources on the critical transit.`;
+    weekSummary = `One high-priority storm needs your attention; the rest is manageable. Focus on ${hotCats[0] || 'the top category'} first.`;
   } else {
-    weekSummary = `Moderate cosmic friction this week. ${finalStorms.length} challenging transit${finalStorms.length > 1 ? "s" : ""} cross your chart. Awareness converts pressure into growth.`;
+    weekSummary = `${finalStorms.length} storm window${finalStorms.length > 1 ? 's' : ''} on the horizon. Main pressure: ${hotCats.join(' + ') || 'mixed domains'}. Confidence scores tell you how solid each read is.`;
   }
 
-  return { storms: finalStorms, clearDays, weekSummary, mbtiType: mbtiType || undefined };
+  return {
+    storms: finalStorms,
+    byCategory,
+    categorySummary,
+    clearDays,
+    weekSummary,
+    mbtiType: mbtiType || undefined,
+    horizonDays: daysAhead,
+  };
 }

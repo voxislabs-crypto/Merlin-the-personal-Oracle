@@ -22,6 +22,7 @@ import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/
 import { detectQueryMode, generateCasualResponse, shouldSkipStructure } from '@/lib/chat-adapter';
 import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
+import { getLlmConfig } from '@/lib/llm-config';
 
 interface OracleChatRequest {
   question: string;
@@ -42,29 +43,8 @@ interface OracleChatRequest {
   } | null;
 }
 
-type LlmProvider = 'xai' | 'groq';
-
 function getOracleLlmConfig() {
-  const rawProvider = (process.env.LLM_PROVIDER || 'xai').toLowerCase();
-  const provider: LlmProvider = rawProvider === 'groq' ? 'groq' : 'xai';
-
-  if (provider === 'groq') {
-    return {
-      provider,
-      apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
-      apiKey: process.env.GROQ_API_KEY,
-      model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-      envKeyName: 'GROQ_API_KEY',
-    };
-  }
-
-  return {
-    provider,
-    apiUrl: process.env.XAI_API_URL || 'https://api.x.ai/v1/chat/completions',
-    apiKey: process.env.XAI_API_KEY,
-    model: process.env.XAI_MODEL || 'grok-3-fast',
-    envKeyName: 'XAI_API_KEY',
-  };
+  return getLlmConfig();
 }
 
 /**
@@ -96,64 +76,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ========== ADAPTIVE MODE DETECTION ==========
-    // Determine if this is an astro-specific question or casual conversation
-    let activeMode = oracleMode === 'auto' ? detectQueryMode(question) : oracleMode === 'casual' ? 'casual' : 'astro';
+    // ========== ADAPTIVE MODE ==========
+    // Small talk only uses casual path when there is no chart/atmosphere to ground answers.
+    // With app data present, always use full Merlin (interactive + sight).
+    let activeMode =
+      oracleMode === 'auto'
+        ? detectQueryMode(question)
+        : oracleMode === 'casual'
+          ? 'casual'
+          : 'astro';
+    const hasAppData = Boolean(
+      birthChart ||
+        atmospherePacket ||
+        (birthChart?.planets || birthChart?.positions || []).length
+    );
+    if (activeMode === 'casual' && hasAppData) {
+      activeMode = 'astro';
+    }
     const shouldSkipPercentages = shouldSkipStructure(question) && !includeLikelihood;
-    
-    console.log(`[Oracle Chat] Mode detection: question="${question.substring(0, 40)}..." → ${activeMode} mode (skip_structure=${shouldSkipPercentages})`);
 
-    // ========== CASUAL MODE FAST PATH ==========
-    // If casual mode and not a chart-specific question, return immediate raspy response
-    if (activeMode === 'casual') {
-      console.log('[Oracle Chat] ✨ Casual mode activated - generating empathetic response');
-      
+    console.log(
+      `[Oracle Chat] Mode: question="${question.substring(0, 40)}..." → ${activeMode} (appData=${hasAppData}, skip_structure=${shouldSkipPercentages})`
+    );
+
+    // ========== CASUAL FAST PATH (no chart / no weather) ==========
+    if (activeMode === 'casual' && !hasAppData) {
+      console.log('[Oracle Chat] Casual small-talk path (no chart loaded)');
       try {
-        // Get user context for tone if available
-        let casualContext = undefined;
-        if (userId && userId !== 'anonymous') {
-          try {
-            const userCtx = await getUserContextSnapshot(userId);
-            casualContext = {
-              birthChart,
-              transits: birthChart ? { significant: [] } : undefined,
-              stormsReport: userCtx ? { storms: [] } : undefined,
-            };
-          } catch {
-            // Continue without context
-          }
-        }
+        const casualResponse = await generateCasualResponse(question, userId, {
+          birthChart,
+          atmospherePacket,
+        });
 
-        const casualResponse = await generateCasualResponse(question, userId, casualContext);
-        
-        // Add to conversation memory
         const userMessage: OracleMessage = {
           role: 'user',
           content: question,
           timestamp: new Date(),
         };
         oracleMemory.addMessage(userId, userMessage);
-
-        const assistantMessage: OracleMessage = {
+        oracleMemory.addMessage(userId, {
           role: 'assistant',
           content: casualResponse,
           timestamp: new Date(),
-        };
-        oracleMemory.addMessage(userId, assistantMessage);
+        });
 
-        // Return as streaming response to keep a single wire format for all chat modes.
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
           start(controller) {
             controller.enqueue(
-              encoder.encode(
-                JSON.stringify({
-                  type: 'chunk',
-                  content: casualResponse,
-                }) + '\n'
-              )
+              encoder.encode(JSON.stringify({ type: 'chunk', content: casualResponse }) + '\n')
             );
-
             controller.enqueue(
               encoder.encode(
                 JSON.stringify({
@@ -165,7 +137,6 @@ export async function POST(request: NextRequest) {
                 }) + '\n'
               )
             );
-
             controller.close();
           },
         });
@@ -178,14 +149,13 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (error) {
-        console.warn('[Oracle Chat] Casual mode generation failed:', error);
-        // Fall through to full oracle mode as fallback
+        console.warn('[Oracle Chat] Casual path failed, falling through to full oracle:', error);
         activeMode = 'astro';
       }
     }
 
-    // ========== FULL ORACLE MODE (ASTRO QUESTIONS) ==========
-    console.log('[Oracle Chat] 🔮 Full oracle mode - structured response with chart context');
+    // ========== FULL MERLIN (app sight + conversation) ==========
+    console.log('[Oracle Chat] Full Merlin path — chart / weather / interactive');
 
     // Get conversation history
     const history = oracleMemory.getHistory(userId);
@@ -230,8 +200,10 @@ export async function POST(request: NextRequest) {
         const mbtiFromChart = (birthChart as any)?.personalitySnapshot?.finalType;
         const mbtiDual = mbtiFromChart ? null : getMBTIDual(chartForForecast as BirthChartData);
         const mbtiForStorms = mbtiType || mbtiFromChart || mbtiDual?.type;
-        stormsReport = detectWeeklyStorms(chartForForecast as BirthChartData, mbtiForStorms as any);
-        console.log(`[Oracle Chat] Weekly storms context: ${stormsReport.storms.length} storm(s), MBTI=${mbtiForStorms || 'n/a'}`);
+        stormsReport = detectWeeklyStorms(chartForForecast as BirthChartData, mbtiForStorms as any, 30);
+        console.log(
+          `[Oracle Chat] Storm playbook: ${stormsReport.storms.length} storm(s), MBTI=${mbtiForStorms || 'n/a'}, riskFromClient=${Boolean(atmospherePacket?.risk)}`
+        );
       } catch (error) {
         console.warn('[Oracle Chat] Could not calculate transits/forecast:', error);
         // Continue without transit data - oracle will still work with natal chart only
@@ -346,13 +318,20 @@ export async function POST(request: NextRequest) {
     };
     oracleMemory.addMessage(userId, userMessage);
 
-    // Build system prompt with chart context
+    // Build system prompt with live app sight
     const baseSystemPrompt = buildOracleSystemPrompt(context);
+    const conversationalAddon = shouldSkipStructure(question)
+      ? `\n\nEMOTIONAL CARE MODE: The user may be raw. Stay steady and intelligent. Lead with recognition of their state, then one grounding observation from live data if available, then one small reversible step. No percentages dump. No lectures.`
+      : '';
     const ancientEnabled = wantsAncientLayer(question, { ancientLayer });
     const ancientPromptAddon = ancientEnabled
-      ? `\n\nANCIENT LAYER: ENABLED\n- Keep Merlin's raspy oracle voice.\n- Start with a fluent direct read (no strict word cap).\n- If the user asks deeper/expand/ancient layer/old story/go on/say more/keep going, expand into richer multi-paragraph depth.\n- Weave one ancient-source line (Babylonian omen, Ptolemy, Surya Siddhanta, or Hermetic framing) into modern transit language.\n- Add personal chart relevance when available.\n- End with one practical nudge.`
+      ? `\n\nANCIENT LAYER: ENABLED\n- Keep Merlin's composed intellectual voice.\n- Start with a fluent direct read.\n- If they ask deeper/expand/ancient/old story, add one classical or Hermetic framing line tied to their actual transit data.\n- End with one practical nudge.`
       : '';
-    const systemPrompt = `${baseSystemPrompt}${ancientPromptAddon}`;
+    const systemPrompt = `${baseSystemPrompt}${conversationalAddon}${ancientPromptAddon}`;
+
+    console.log(
+      `[Oracle Chat] Context sight: chart=${Boolean(birthChart)} risk=${Boolean(atmospherePacket?.risk)} storms=${stormsReport?.storms?.length ?? 0} transits=${transits?.summary?.total ?? 0} dual=${Boolean(dualPersonality?.core)}`
+    );
 
     // Convert conversation history to OpenAI-compatible chat format
     const messages = [
@@ -409,8 +388,8 @@ export async function POST(request: NextRequest) {
                   content: m.content,
                 })),
               ],
-              temperature: 0.8,
-              max_tokens: 2000,
+              temperature: 0.72,
+              max_tokens: 1800,
               stream: true,
             }),
           });

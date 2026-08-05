@@ -1,13 +1,14 @@
-// lib/grok-service.ts - Grok AI Integration for Birth Chart Interpretations
+// lib/grok-service.ts - LLM-backed birth chart interpretations (Groq by default)
 import "server-only";
 import { PlanetPosition, Aspect } from '@/types/astrology';
+import { chatCompletion, getLlmConfig, isLlmConfigured } from '@/lib/llm-config';
 import { serverCache, generateChartHash } from './cache-service';
 
-const XAI_API_BASE = 'https://api.x.ai/v1';
-const XAI_API_KEY = process.env.XAI_API_KEY;
-
-if (!XAI_API_KEY) {
-  console.warn('[Grok] XAI_API_KEY not configured - interpretations will use fallback');
+const llm = getLlmConfig();
+if (!isLlmConfigured(llm)) {
+  console.warn(
+    `[LLM] ${llm.envKeyName} not configured — interpretations will use fallback (${llm.provider})`
+  );
 }
 
 // Performance monitoring
@@ -51,8 +52,8 @@ export interface GrokInterpretationResponse {
 export async function generateGrokInterpretation(
   request: GrokInterpretationRequest
 ): Promise<GrokInterpretationResponse> {
-  if (!XAI_API_KEY) {
-    throw new Error('XAI_API_KEY not configured');
+  if (!isLlmConfigured()) {
+    throw new Error(`${getLlmConfig().envKeyName} not configured`);
   }
 
   const { planets, aspects, houses, ascendant, birthData } = request;
@@ -73,7 +74,7 @@ export async function generateGrokInterpretation(
     const cached = serverCache.get<GrokInterpretationResponse>(cacheKey);
     if (cached) {
       grokMetrics.cacheHits++;
-      console.log('[Grok] Cache hit! Retrieved interpretation instantly');
+      console.log('[LLM] Cache hit! Retrieved interpretation instantly');
       return cached;
     }
   }
@@ -81,71 +82,51 @@ export async function generateGrokInterpretation(
   const startTime = Date.now();
   grokMetrics.totalCalls++;
 
-  // Prepare the chart data as a readable summary for Grok
+  // Prepare the chart data as a readable summary for the model
   const chartSummary = formatChartForGrok(planets, aspects, houses, ascendant, birthData);
 
-  // Create the prompt for Grok - optimized for faster responses
+  // Create the prompt - optimized for faster responses
   const prompt = buildInterpretationPrompt(chartSummary, planets, aspects);
 
   try {
-    const response = await fetch(`${XAI_API_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'grok-3-fast',
-        messages: [
-          {
-            role: 'system',
-            content: `You are Merlin, a wise astrologer. Interpret birth charts with deep insight and poetic language. Be personal and profound. Speak directly as "you". Response must be valid JSON matching the requested format.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.8,
-        max_tokens: 1800, // Reduced for faster responses
-        stream: false
-      })
+    const content = await chatCompletion({
+      temperature: 0.8,
+      maxTokens: 1800,
+      messages: [
+        {
+          role: 'system',
+          content: `You are Merlin, a wise astrologer. Interpret birth charts with deep insight and poetic language. Be personal and profound. Speak directly as "you". Response must be valid JSON matching the requested format.`,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Grok] API error:', response.status, errorText);
-      throw new Error(`Grok API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const grokResponse = data.choices?.[0]?.message?.content;
-
-    if (!grokResponse) {
-      throw new Error('No response from Grok');
-    }
-
-    // Parse the structured response from Grok
-    const result = parseGrokResponse(grokResponse, planets, aspects);
+    // Parse the structured response
+    const result = parseGrokResponse(content, planets, aspects);
 
     // Cache the result
     if (cacheKey) {
       serverCache.set(cacheKey, result);
-      console.log('[Grok] Interpretation cached for future use');
+      console.log('[LLM] Interpretation cached for future use');
     }
 
     // Update metrics
     const duration = Date.now() - startTime;
     grokMetrics.lastCallDuration = duration;
-    grokMetrics.avgLatency = 
+    grokMetrics.avgLatency =
       (grokMetrics.avgLatency * (grokMetrics.totalCalls - 1) + duration) / grokMetrics.totalCalls;
-    
-    console.log(`[Grok] Generated interpretation in ${duration}ms (avg: ${grokMetrics.avgLatency.toFixed(0)}ms, cache hit rate: ${((grokMetrics.cacheHits / grokMetrics.totalCalls) * 100).toFixed(1)}%)`);
+
+    const cfg = getLlmConfig();
+    console.log(
+      `[LLM:${cfg.provider}] Generated interpretation in ${duration}ms (avg: ${grokMetrics.avgLatency.toFixed(0)}ms, cache hit rate: ${((grokMetrics.cacheHits / Math.max(1, grokMetrics.totalCalls)) * 100).toFixed(1)}%)`
+    );
 
     return result;
-
   } catch (error) {
-    console.error('[Grok] Failed to generate interpretation:', error);
+    console.error('[LLM] Failed to generate interpretation:', error);
     throw error;
   }
 }
@@ -157,14 +138,15 @@ export async function generateGrokInterpretationStream(
   request: GrokInterpretationRequest,
   onChunk: (chunk: string) => void
 ): Promise<GrokInterpretationResponse> {
-  if (!XAI_API_KEY) {
-    throw new Error('XAI_API_KEY not configured');
+  const cfg = getLlmConfig();
+  if (!isLlmConfigured(cfg)) {
+    throw new Error(`${cfg.envKeyName} not configured`);
   }
 
   const { planets, aspects, houses, ascendant, birthData } = request;
-  
+
   // Check cache first
-  const cacheKey = birthData 
+  const cacheKey = birthData
     ? generateChartHash(birthData.date, birthData.time, 0, 0, { useGrok: true })
     : null;
 
@@ -175,7 +157,7 @@ export async function generateGrokInterpretationStream(
       const text = JSON.stringify(cached, null, 2);
       const chunks = text.match(/.{1,50}/g) || [text];
       for (const chunk of chunks) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         onChunk(chunk);
       }
       return cached;
@@ -186,32 +168,32 @@ export async function generateGrokInterpretationStream(
   const prompt = buildInterpretationPrompt(chartSummary, planets, aspects);
 
   try {
-    const response = await fetch(`${XAI_API_BASE}/chat/completions`, {
+    const response = await fetch(cfg.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${XAI_API_KEY}`,
+        Authorization: `Bearer ${cfg.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'grok-3-fast',
+        model: cfg.model,
         messages: [
           {
             role: 'system',
-            content: `You are Merlin, a wise astrologer. Be poetic, personal, and profound. Return valid JSON.`
+            content: `You are Merlin, a wise astrologer. Be poetic, personal, and profound. Return valid JSON.`,
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         temperature: 0.8,
         max_tokens: 1800,
-        stream: true // Enable streaming
-      })
+        stream: true,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Grok API error: ${response.status}`);
+      throw new Error(`${cfg.provider} API error: ${response.status}`);
     }
 
     let fullResponse = '';
@@ -222,14 +204,14 @@ export async function generateGrokInterpretationStream(
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
-        
+        const lines = chunk.split('\n').filter((line) => line.trim().startsWith('data: '));
+
         for (const line of lines) {
           const data = line.replace('data: ', '');
           if (data === '[DONE]') break;
-          
+
           try {
             const parsed = JSON.parse(data);
             const content = parsed.choices?.[0]?.delta?.content || '';
@@ -237,7 +219,7 @@ export async function generateGrokInterpretationStream(
               fullResponse += content;
               onChunk(content);
             }
-          } catch (e) {
+          } catch {
             // Skip malformed chunks
           }
         }
@@ -245,16 +227,14 @@ export async function generateGrokInterpretationStream(
     }
 
     const result = parseGrokResponse(fullResponse, planets, aspects);
-    
-    // Cache the result
+
     if (cacheKey) {
       serverCache.set(cacheKey, result);
     }
 
     return result;
-
   } catch (error) {
-    console.error('[Grok] Streaming failed:', error);
+    console.error('[LLM] Streaming failed:', error);
     throw error;
   }
 }
@@ -396,8 +376,9 @@ export async function generateGrokForecast(
   birthChart: any,
   transitData?: any
 ): Promise<string> {
-  if (!XAI_API_KEY) {
-    throw new Error('XAI_API_KEY not configured');
+  void transitData;
+  if (!isLlmConfigured()) {
+    throw new Error(`${getLlmConfig().envKeyName} not configured`);
   }
 
   const prompt = `Based on this natal chart and current transits, give a personal daily forecast (2-3 paragraphs):
@@ -409,33 +390,22 @@ Current Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month:
 Speak as Merlin, directly to the person. What energies are active today? What should they be aware of? What opportunities exist?`;
 
   try {
-    const response = await fetch(`${XAI_API_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'grok-3-fast',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are Merlin, offering daily cosmic guidance with warmth and wisdom.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.9,
-        max_tokens: 500
-      })
+    return await chatCompletion({
+      temperature: 0.9,
+      maxTokens: 500,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are Merlin, offering daily cosmic guidance with warmth and wisdom.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
     });
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'The cosmos whispers softly today...';
   } catch (error) {
-    console.error('[Grok] Forecast generation failed:', error);
+    console.error('[LLM] Forecast generation failed:', error);
     throw error;
   }
 }

@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PlanetLabel, TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { PLANET_TOOLTIPS } from '@/lib/astrology/BirthChartTooltips';
-import { PLANET_GLYPHS } from '@/lib/astrology/planetaryData';
+import { resolvePlanetStyle } from '@/lib/astrology/planet-style';
 
 interface ChartTabsProps {
   planets: any[];
@@ -126,10 +127,25 @@ export function ChartTabs({
                 onMouseLeave={() => onHoverPlanet(null)}
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-3xl">{PLANET_GLYPHS[p.name as keyof typeof PLANET_GLYPHS] || '●'}</span>
+                  {(() => {
+                    const style = resolvePlanetStyle(p.name);
+                    return (
+                      <span
+                        className="text-3xl leading-none"
+                        style={style ? { color: style.hex } : undefined}
+                        aria-hidden
+                      >
+                        {style?.glyph || '●'}
+                      </span>
+                    );
+                  })()}
                   <div>
-                    <div className="font-bold text-amber-400">
-                      {p.name} in {p.sign} {p.degree}°{p.minute}' — House {p.house}
+                    <div className="font-bold">
+                      <PlanetLabel name={p.name} strong />
+                      <span className="text-amber-400">
+                        {' '}
+                        in {p.sign} {p.degree}°{p.minute}&apos; — House {p.house}
+                      </span>
                     </div>
                     <div className="text-sm text-gray-300 mt-1">
                       {PLANET_TOOLTIPS[p.name as keyof typeof PLANET_TOOLTIPS]}
@@ -160,8 +176,15 @@ export function ChartTabs({
                   onMouseLeave={() => onHoverAspect(null)}
                 >
                   <div className="font-bold text-amber-400">
-                    {a.planet1.name} {a.type} {a.planet2.name} (orb {a.orb?.toFixed?.(2) || '0.00'}°)
-                    {a.exact && " — EXACT"}
+                    <TransitAspectLabel
+                      transiting={a.planet1?.name || a.planet1}
+                      aspect={a.type || a.aspect}
+                      natal={a.planet2?.name || a.planet2}
+                    />
+                    <span className="ml-1 text-xs font-medium text-slate-400">
+                      (orb {a.orb?.toFixed?.(2) || '0.00'}°)
+                      {a.exact ? ' — EXACT' : ''}
+                    </span>
                   </div>
                   <div className="text-sm text-gray-300 mt-1">
                     {a.meaning || 'No interpretation available'}
@@ -208,8 +231,20 @@ export function ChartTabs({
                   onMouseLeave={() => onHoverPlanet(null)}
                 >
                   <div className="font-bold text-amber-400">
-                    {t.transitingPlanet} {t.transitingSign ? `(${t.transitingSign}) ` : ''}{t.aspect} natal {t.natalPlanet} (orb {t.orb?.toFixed?.(2) || '0.00'}°)
-                    {t.exact && " — EXACT"}
+                    <TransitAspectLabel
+                      transiting={t.transitingPlanet}
+                      aspect={t.aspect}
+                      natal={t.natalPlanet}
+                    />
+                    {t.transitingSign ? (
+                      <span className="ml-1 text-xs font-medium text-slate-400">
+                        in {t.transitingSign}
+                      </span>
+                    ) : null}
+                    <span className="ml-1 text-xs font-medium text-slate-400">
+                      (orb {t.orb?.toFixed?.(2) || '0.00'}°)
+                      {t.exact ? ' — EXACT' : ''}
+                    </span>
                   </div>
                   <div className="text-sm text-gray-300 mt-1">
                     {t.shortDescription || 'No interpretation available for this transit yet.'}

@@ -115,8 +115,8 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.25 }}
             className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed mb-3"
           >
-            Merlin is personalized life weather: pressure, storms, and a clear move for the day —
-            grounded in a real birth chart, not a generic horoscope.
+            Personal friction radar for your chart: when life bullshit is elevated, when it isn&apos;t,
+            and one clear move — grounded in Swiss Ephemeris, not a generic horoscope.
           </motion.p>
 
           <motion.p
@@ -125,7 +125,7 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.32 }}
             className="text-sm md:text-base text-slate-400 max-w-xl mx-auto mb-8"
           >
-            Built because astrology shouldn&apos;t lie. Still in beta — the weather math is the point.
+            Still in beta. The weather math is the product. Chart + dual MBTI are how it gets personal.
           </motion.p>
 
           {/* Two-pillar preview */}
@@ -142,9 +142,9 @@ export default function Home() {
                   Life weather · primary
                 </span>
               </div>
-              <p className="text-sm font-semibold text-sky-50">Today&apos;s weather for your life</p>
+              <p className="text-sm font-semibold text-sky-50">Today + storm radar</p>
               <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                Intensity, storms, weekly radar, and a single high-leverage move.
+                Friction score, bullshit odds, day chart, and a single high-leverage move.
               </p>
             </div>
             <div className="rounded-2xl border border-amber-500/30 bg-amber-950/25 p-4 backdrop-blur-sm">

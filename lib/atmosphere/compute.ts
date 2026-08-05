@@ -1,5 +1,6 @@
 import { computeAtmosphereConfluence } from '@/lib/atmosphere/confluence';
 import { resolveDominantDriver } from '@/lib/atmosphere/headline';
+import { computeLifeRisk } from '@/lib/atmosphere/life-risk';
 import { resolveAtmospherePatternsContext } from '@/lib/atmosphere/pattern-tags';
 import { computeRealityCheck } from '@/lib/atmosphere/reality-check';
 import {
@@ -96,6 +97,30 @@ export function computeAtmosphere(input: ComputeAtmosphereInput = {}): Atmospher
   const tone = resolveTone(intensity);
   const confidence = amplified.confidence;
 
+  const risk = computeLifeRisk({
+    date: resolveDate(input),
+    intensity,
+    confidence,
+    forecast: input.forecast,
+    predictive: input.predictive,
+    storms: input.storms,
+    confluence: {
+      aligned: confluence.aligned,
+      tripleHit: confluence.tripleHit,
+      signalCount: confluence.signalCount,
+      themes: confluence.themes,
+    },
+  });
+  if (risk.bullshitPossible) {
+    provenance.push('life-risk-elevated');
+  }
+  provenance.push(
+    ...risk.provenance.filter(
+      (p) => p !== 'life-risk-v1' && !provenance.includes(p)
+    )
+  );
+  provenance.push('life-risk-v1');
+
   const calibration =
     input.calibration && input.calibration.feedbackCount >= 3
       ? {
@@ -114,6 +139,7 @@ export function computeAtmosphere(input: ComputeAtmosphereInput = {}): Atmospher
     dayRating,
     tone,
     dominantDriver,
+    risk,
     temporal: {
       progressedMoonSign: input.predictive?.progressedMoon?.sign,
       progressedMoonDegree: input.predictive?.progressedMoon?.degree,

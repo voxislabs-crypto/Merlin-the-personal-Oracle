@@ -92,11 +92,17 @@ export function isAtmosphereRationaleLlmAvailable(config = getAtmosphereRational
 }
 
 function normalizeProvider(value: string | undefined): AtmosphereRationaleProvider {
-  const normalized = (value || '').toLowerCase();
-  if (normalized === 'openrouter') return 'openrouter';
-  if (normalized === 'ollama') return 'ollama';
-  if (normalized === 'groq') return 'groq';
-  if (normalized === 'xai') return 'xai';
+  // Prefer explicit ATMOSPHERE_RATIONALE_LLM_PROVIDER; else inherit global LLM_PROVIDER when enabled
+  const explicit = (value || '').toLowerCase();
+  if (explicit === 'openrouter') return 'openrouter';
+  if (explicit === 'ollama') return 'ollama';
+  if (explicit === 'groq') return 'groq';
+  if (explicit === 'xai') return 'xai';
+  if (explicit === 'none') return 'none';
+
+  const globalProvider = (process.env.LLM_PROVIDER || 'groq').toLowerCase();
+  if (globalProvider === 'groq') return 'groq';
+  if (globalProvider === 'xai') return 'xai';
   return 'none';
 }
 

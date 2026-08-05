@@ -6,6 +6,7 @@ import ThumbsFeedback from './ThumbsFeedback';
 import { FeedbackCollector } from './FeedbackCollector';
 import { UserContextCard } from './UserContextCard';
 import { PredictionTimeline } from './PredictionTimeline';
+import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
 
 // eslint-disable-next-line no-unused-vars
@@ -597,7 +598,11 @@ export function ActiveTransits({
                   );
                 })()}
                 <p className="text-sm font-semibold text-violet-100">
-                  {event.transit.transitingPlanet} {event.transit.aspect} {event.transit.natalPlanet}
+                  <TransitAspectLabel
+                    transiting={event.transit.transitingPlanet}
+                    aspect={event.transit.aspect}
+                    natal={event.transit.natalPlanet}
+                  />
                 </p>
                 <p className="text-xs text-violet-300/80 mt-1">
                   {event.timing.phase.toUpperCase()} · peaks {new Date(event.timing.peakAt).toLocaleDateString()} ({event.timing.hoursToPeak}h) · intensity {event.scores.intensity}/100
@@ -679,11 +684,20 @@ export function ActiveTransits({
                 transition={{ delay: idx * 0.1 }}
                 onClick={onAskContext ? () => onAskContext(`${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}`, `How should I work with this exact transit right now: ${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}?`) : undefined}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <span className="font-bold text-red-200">
-                    {transit.transitingPlanet} ({transit.transitingSign}) {transit.aspect} {transit.natalPlanet}
+                <div className="flex justify-between items-start mb-2 gap-2">
+                  <span className="font-bold text-red-200 min-w-0">
+                    <TransitAspectLabel
+                      transiting={transit.transitingPlanet}
+                      aspect={transit.aspect}
+                      natal={transit.natalPlanet}
+                    />
+                    {transit.transitingSign ? (
+                      <span className="ml-1.5 text-xs font-medium text-slate-400">
+                        in {transit.transitingSign}
+                      </span>
+                    ) : null}
                   </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold ${
                     transit.exact ? 'bg-red-600 text-red-100' : 'bg-orange-600 text-orange-100'
                   }`}>
                     {transit.exact ? 'EXACT' : `${transit.orb.toFixed(1)}° orb`}
@@ -730,11 +744,20 @@ export function ActiveTransits({
                 transition={{ delay: idx * 0.1 }}
                 onClick={onAskContext ? () => onAskContext(`${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}`, `What should I watch for as this transit approaches: ${transit.transitingPlanet} ${transit.aspect} ${transit.natalPlanet}?`) : undefined}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <span className="font-bold text-amber-200">
-                    {transit.transitingPlanet} ({transit.transitingSign}) {transit.aspect} {transit.natalPlanet}
+                <div className="flex justify-between items-start mb-2 gap-2">
+                  <span className="font-bold text-amber-200 min-w-0">
+                    <TransitAspectLabel
+                      transiting={transit.transitingPlanet}
+                      aspect={transit.aspect}
+                      natal={transit.natalPlanet}
+                    />
+                    {transit.transitingSign ? (
+                      <span className="ml-1.5 text-xs font-medium text-slate-400">
+                        in {transit.transitingSign}
+                      </span>
+                    ) : null}
                   </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-600 text-amber-100">
+                  <span className="shrink-0 px-3 py-1 rounded-full text-xs font-semibold bg-amber-600 text-amber-100">
                     {transit.orb.toFixed(1)}° orb
                   </span>
                 </div>

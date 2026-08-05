@@ -8,9 +8,11 @@ import {
   getAtmosphereShellClassName,
 } from '@/components/dashboard/AtmosphereHeader';
 import { ArcanePane } from '@/components/dashboard/ArcanePane';
+import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 import { StatusPanel } from '@/components/ui/status-panel';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
+import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 
 /**
  * Day-one / daily hero: intensity · why · one move.
@@ -45,6 +47,8 @@ export interface TodayWeatherBriefProps {
   isEmpty?: boolean;
   emptyTitle?: string;
   emptyMessage?: string;
+  /** Optional risk packet for share text */
+  risk?: LifeRiskPacket | null;
 }
 
 function arcaneToneFromIntensity(
@@ -84,6 +88,7 @@ export function TodayWeatherBrief({
   isEmpty = false,
   emptyTitle = 'No life weather yet',
   emptyMessage = "Build your chart from birth details and Merlin will assemble today's personal forecast.",
+  risk = null,
 }: TodayWeatherBriefProps) {
   if (loading) {
     return (
@@ -243,6 +248,29 @@ export function TodayWeatherBrief({
               Who you are · Self
             </button>
           ) : null}
+          <ShareWeatherButton
+            payload={{
+              date,
+              dayRating: typeof dayRating === 'string' ? dayRating : undefined,
+              intensity,
+              friction: risk?.overallFriction,
+              levelLabel: risk
+                ? risk.level === 'storm'
+                  ? 'Storm risk'
+                  : risk.level === 'friction'
+                    ? 'Friction elevated'
+                    : risk.level === 'watch'
+                      ? 'Watch window'
+                      : 'Relatively clear'
+                : undefined,
+              bullshitPossible: risk?.bullshitPossible,
+              confidence: risk?.confidence,
+              story,
+              why: whyLine,
+              move: todayMove,
+              driver: risk?.topDrivers?.[0]?.label,
+            }}
+          />
           {selfChips.length ? (
             <p className="text-xs text-slate-400 sm:ml-auto">{selfChips.join(' · ')}</p>
           ) : null}

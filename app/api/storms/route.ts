@@ -1,6 +1,6 @@
 // API Route: Storms & Navigations
-// Detects challenging astrological transits over the next 7 days
-// and generates personalised MBTI-aware navigation advice
+// Detects challenging life-weather windows and packages them as a storm playbook
+// (category · confidence · when · actionable steps)
 import { NextResponse } from "next/server";
 import { calculateBirthChart } from "@/lib/engine";
 import { calculateBirthChart as calculateBirthChartFallback } from "@/lib/engine-fallback";
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, mbtiType, daysAhead = 7, timezoneOffset } = body;
+    const { birthDate, birthTime, lat, lon, mbtiType, daysAhead = 30, timezoneOffset } = body;
 
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       ) as BirthChartData;
     }
 
-    const safeDaysAhead = Math.max(1, Math.min(30, Number(daysAhead) || 7));
+    const safeDaysAhead = Math.max(1, Math.min(45, Number(daysAhead) || 30));
     const cacheHash = generateChartHash(
       birthDate,
       birthTime,
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       Number(lon ?? 0),
       { useGrok: false, houseSystem: `storms-${safeDaysAhead}`, tone: "direct" }
     );
-    const cacheKey = `storms:${cacheHash}:${mbtiType || "none"}`;
+    const cacheKey = `storms:v2:${cacheHash}:${mbtiType || "none"}`;
     const cached = serverCache.get<{ cachedAt: number; data: any }>(cacheKey);
     if (cached && Date.now() - cached.cachedAt < TTL_24H_MS) {
       return NextResponse.json({

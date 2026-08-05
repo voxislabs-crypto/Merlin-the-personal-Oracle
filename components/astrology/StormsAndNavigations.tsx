@@ -1,330 +1,488 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CloudLightning, Wind, ShieldCheck, AlertTriangle, Zap,
-  Compass, Sun, Brain, Heart, Swords, Leaf, Globe,
-  ChevronDown, ChevronUp,
+  AlertTriangle,
+  Briefcase,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  CloudLightning,
+  Heart,
+  HeartPulse,
+  ListChecks,
+  ShieldCheck,
+  Wallet,
+  XCircle,
 } from 'lucide-react';
-import { AstroStorm, StormsReport } from '@/hooks/useStorms';
+import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
+import {
+  buildStormDayMarkers,
+  HorizonDateStrip,
+} from '@/components/dashboard/HorizonDateStrip';
+import {
+  STORM_CATEGORY_META,
+  STORM_CATEGORY_ORDER,
+  type StormLifeCategory,
+} from '@/lib/astrology/storm-playbook';
+import type { AstroStorm, StormsReport } from '@/hooks/useStorms';
 
 interface StormsAndNavigationsProps {
   report: StormsReport | null;
   loading?: boolean;
   mbtiType?: string;
+  /** Controlled date (YYYY-MM-DD) or 'all' — shared with timeline */
+  selectedDate?: string;
+  onSelectedDateChange?: (dateOrAll: string) => void;
+  /** Hide internal header when embedded under a shared radar title */
+  embedded?: boolean;
 }
 
-// ─── Intensity visual config ──────────────────────────────────────────────────
+/** Collapse same transit listed on multiple days → one card + related dates */
+function dedupeStormsBySignature(storms: AstroStorm[]): Array<
+  AstroStorm & { relatedDates: string[] }
+> {
+  const groups = new Map<string, AstroStorm[]>();
+  for (const s of storms) {
+    const key = `${s.transitingPlanet}|${s.aspect}|${s.natalPlanet}`.toLowerCase();
+    const list = groups.get(key) || [];
+    list.push(s);
+    groups.set(key, list);
+  }
 
-const INTENSITY = {
+  const rank = (s: AstroStorm) => {
+    const i = s.intensity === 'severe' ? 30 : s.intensity === 'moderate' ? 20 : 10;
+    return i + (s.confidence || 0) + (s.phase === 'peak' ? 5 : 0);
+  };
+
+  const out: Array<AstroStorm & { relatedDates: string[] }> = [];
+  Array.from(groups.values()).forEach((list) => {
+    const sorted = [...list].sort((a, b) => rank(b) - rank(a));
+    const primary = sorted[0];
+    const relatedDates = Array.from(new Set(list.map((x: AstroStorm) => x.date))).sort();
+    out.push({ ...primary, relatedDates });
+  });
+
+  // Soonest first among primaries
+  out.sort((a, b) => {
+    const da = a.when?.daysUntil ?? 99;
+    const db = b.when?.daysUntil ?? 99;
+    if (da !== db) return da - db;
+    return (b.confidence || 0) - (a.confidence || 0);
+  });
+  return out;
+}
+
+function localTodayIso(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
+const INTENSITY_BADGE: Record<
+  AstroStorm['intensity'],
+  { label: string; className: string }
+> = {
   severe: {
-    border: 'border-red-500/50',
-    headerBg: 'bg-red-950/60',
-    bodyBg: 'bg-red-950/20',
-    badge: 'bg-red-500/20 text-red-300 border border-red-500/30',
-    navBg: 'bg-red-950/40 border-red-500/30',
-    navTitle: 'text-red-300',
-    dot: 'bg-red-500',
-    glow: 'shadow-lg shadow-red-500/10',
-    label: 'Severe',
-    icon: <AlertTriangle className="w-4 h-4 text-red-400" />,
-    dayDot: 'bg-red-500',
+    label: 'High',
+    className: 'border-rose-400/45 bg-rose-500/20 text-rose-100',
   },
   moderate: {
-    border: 'border-amber-500/40',
-    headerBg: 'bg-amber-950/50',
-    bodyBg: 'bg-amber-950/15',
-    badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-    navBg: 'bg-amber-950/40 border-amber-500/30',
-    navTitle: 'text-amber-300',
-    dot: 'bg-amber-500',
-    glow: 'shadow-lg shadow-amber-500/10',
-    label: 'Moderate',
-    icon: <CloudLightning className="w-4 h-4 text-amber-400" />,
-    dayDot: 'bg-amber-500',
+    label: 'Elevated',
+    className: 'border-amber-400/45 bg-amber-500/20 text-amber-100',
   },
   mild: {
-    border: 'border-blue-500/30',
-    headerBg: 'bg-blue-950/40',
-    bodyBg: 'bg-blue-950/10',
-    badge: 'bg-blue-500/15 text-blue-300 border border-blue-500/25',
-    navBg: 'bg-blue-950/30 border-blue-500/25',
-    navTitle: 'text-blue-300',
-    dot: 'bg-blue-400',
-    glow: 'shadow-lg shadow-blue-500/10',
     label: 'Mild',
-    icon: <Wind className="w-4 h-4 text-blue-400" />,
-    dayDot: 'bg-blue-400',
+    className: 'border-sky-400/40 bg-sky-500/15 text-sky-100',
   },
 };
 
-// ─── Life area icons ──────────────────────────────────────────────────────────
-
-const LIFE_AREA_ICON: Record<string, React.ReactNode> = {
-  'Identity & Confidence':  <Zap    className="w-3.5 h-3.5 text-yellow-400" />,
-  'Emotional Wellbeing':    <Heart  className="w-3.5 h-3.5 text-pink-400"   />,
-  'Communication & Mind':   <Brain  className="w-3.5 h-3.5 text-cyan-400"   />,
-  'Love & Relationships':   <Heart  className="w-3.5 h-3.5 text-rose-400"   />,
-  'Drive & Conflict':       <Swords className="w-3.5 h-3.5 text-orange-400" />,
-  'Growth & Beliefs':       <Leaf   className="w-3.5 h-3.5 text-emerald-400"/>,
-  'Discipline & Structure': <Brain  className="w-3.5 h-3.5 text-slate-400"  />,
-  'Change & Freedom':       <Wind   className="w-3.5 h-3.5 text-purple-400" />,
-  'Intuition & Boundaries': <Sun    className="w-3.5 h-3.5 text-violet-400" />,
-  'Power & Transformation': <Zap    className="w-3.5 h-3.5 text-red-400"    />,
-  'Self-Presentation':      <Globe  className="w-3.5 h-3.5 text-teal-400"   />,
-  'General Life':           <Globe  className="w-3.5 h-3.5 text-slate-400"  />,
+const CATEGORY_ICON: Record<StormLifeCategory, React.ReactNode> = {
+  social: <Heart className="h-4 w-4" />,
+  work: <Briefcase className="h-4 w-4" />,
+  financial: <Wallet className="h-4 w-4" />,
+  health: <HeartPulse className="h-4 w-4" />,
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDisplayDate(dateString: string): string {
-  const d = new Date(dateString + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-/** Return worst intensity for a given date across a list of storms */
-function worstIntensityForDate(
-  storms: AstroStorm[],
-  date: string,
-): 'severe' | 'moderate' | 'mild' | null {
-  const day = storms.filter((s) => s.date === date);
-  if (day.length === 0) return null;
-  if (day.some((s) => s.intensity === 'severe'))   return 'severe';
-  if (day.some((s) => s.intensity === 'moderate')) return 'moderate';
-  return 'mild';
-}
-
-// ─── 7-day weather strip ──────────────────────────────────────────────────────
-
-function WeekStrip({
-  storms,
-  selectedDate,
-  onSelectDate,
-}: {
-  storms: AstroStorm[];
-  selectedDate: string | null;
-  onSelectDate: (d: string) => void;
-}) {
-  // Build ordered 7-day array starting from the earliest storm date or today
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-  const days = useMemo(() => {
-    const arr: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(todayStr + 'T12:00:00');
-      d.setDate(d.getDate() + i);
-      arr.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
-    }
-    return arr;
-  }, [todayStr]);
-
+function ConfidenceMeter({ value, hex }: { value: number; hex: string }) {
   return (
-    <div className="grid grid-cols-7 gap-1.5">
-      {days.map((date) => {
-        const worst = worstIntensityForDate(storms, date);
-        const isToday = date === todayStr;
-        const isSelected = date === selectedDate;
-        const d = new Date(date + 'T12:00:00');
-        const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
-        const dayNum = d.getDate();
-
-        return (
-          <button
-            key={date}
-            onClick={() => worst ? onSelectDate(date) : undefined}
-            className={[
-              'relative flex flex-col items-center gap-1 py-3 rounded-xl border transition-all text-center',
-              worst ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default',
-              isSelected
-                ? `border-amber-400/70 bg-amber-950/40 shadow-amber-500/20 shadow-md`
-                : isToday
-                ? 'border-purple-500/40 bg-purple-950/20'
-                : worst
-                ? `border-slate-600/40 bg-slate-800/30 hover:border-slate-500/60`
-                : 'border-slate-700/30 bg-slate-900/20',
-            ].join(' ')}
-          >
-            {isToday && (
-              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-purple-600 text-[9px] font-bold text-white leading-none">
-                TODAY
-              </span>
-            )}
-            <span className={`text-[11px] font-semibold uppercase tracking-wider ${isSelected ? 'text-amber-300' : isToday ? 'text-purple-300' : 'text-slate-400'}`}>
-              {dayLabel}
-            </span>
-            <span className={`text-lg font-bold ${isSelected ? 'text-amber-200' : isToday ? 'text-purple-200' : 'text-slate-300'}`}>
-              {dayNum}
-            </span>
-            {/* Storm indicator */}
-            {worst ? (
-              <span className={`w-2 h-2 rounded-full ${INTENSITY[worst].dayDot}`} />
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-emerald-500/40" />
-            )}
-          </button>
-        );
-      })}
+    <div className="min-w-[7.5rem]">
+      <div className="mb-0.5 flex items-center justify-between text-[10px] uppercase tracking-[0.12em]">
+        <span className="text-slate-500">Confidence</span>
+        <span className="font-semibold tabular-nums" style={{ color: hex }}>
+          {Math.round(value)}%
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${Math.max(6, Math.min(100, value))}%`,
+            backgroundColor: hex,
+          }}
+        />
+      </div>
     </div>
   );
 }
 
-// ─── Single storm card ────────────────────────────────────────────────────────
-
-function StormCard({ storm, mbtiType, index }: { storm: AstroStorm; mbtiType?: string; index: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const cfg = INTENSITY[storm.intensity];
+function StormPlaybookCard({
+  storm,
+  index,
+  defaultOpen,
+  relatedDates,
+}: {
+  storm: AstroStorm;
+  index: number;
+  defaultOpen?: boolean;
+  relatedDates?: string[];
+}) {
+  const [open, setOpen] = useState(Boolean(defaultOpen));
+  const meta = STORM_CATEGORY_META[storm.category] || STORM_CATEGORY_META.work;
+  const intensity = INTENSITY_BADGE[storm.intensity];
+  const when = storm.when;
+  const steps = storm.actionableSteps || [];
+  const avoids = storm.avoidSteps || [];
+  const extraDates = (relatedDates || []).filter((d) => d !== storm.date);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
+    <motion.article
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.07, duration: 0.35 }}
-      className={`rounded-2xl border ${cfg.border} overflow-hidden ${cfg.glow}`}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
+      className={`overflow-hidden rounded-2xl border ${meta.borderClass} ${meta.bgClass} shadow-lg shadow-black/20`}
     >
-      {/* ── Card header ── */}
-      <div className={`${cfg.headerBg} px-5 py-4`}>
-        <div className="flex items-start justify-between gap-3">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left hover:bg-white/[0.03]"
+        aria-expanded={open}
+      >
+        <div className="mt-0.5 shrink-0 rounded-lg border border-white/10 bg-black/30 p-2" style={{ color: meta.hex }}>
+          {CATEGORY_ICON[storm.category]}
+        </div>
 
-          {/* Left block */}
-          <div className="flex-1 min-w-0 space-y-2">
-            {/* Title row */}
-            <div className="flex flex-wrap items-center gap-2">
-              {cfg.icon}
-              <span className="font-bold text-white text-[15px] leading-snug">{storm.title}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${cfg.badge}`}>
-                {cfg.label}
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-sm font-semibold text-slate-50 sm:text-base">
+              {storm.plainTitle || storm.title}
+            </h4>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${intensity.className}`}>
+              {intensity.label}
+            </span>
+            {storm.secondaryCategory ? (
+              <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] text-slate-300">
+                also {STORM_CATEGORY_META[storm.secondaryCategory].shortLabel}
               </span>
-            </div>
-
-            {/* Meta row */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-slate-400">
-              <span className="font-medium text-slate-300">{formatDisplayDate(storm.date)}</span>
-              <span className="flex items-center gap-1">
-                {LIFE_AREA_ICON[storm.lifeArea] ?? <Globe className="w-3.5 h-3.5" />}
-                {storm.lifeArea}
-              </span>
-              <span>orb {storm.orb}°</span>
-            </div>
-
-            {/* Keywords */}
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {storm.keywords.map((kw) => (
-                <span key={kw} className="px-2 py-0.5 rounded-full text-[11px] bg-slate-700/50 text-slate-400 border border-slate-600/30">
-                  {kw}
-                </span>
-              ))}
-            </div>
+            ) : null}
           </div>
 
-          {/* Expand toggle */}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex-shrink-0 mt-0.5 p-1.5 rounded-lg bg-slate-700/40 hover:bg-slate-600/60 transition-colors text-slate-300"
-            aria-label={expanded ? 'Collapse' : 'Expand'}
-          >
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-slate-300">
+              <Clock className="h-3.5 w-3.5 text-slate-500" />
+              <span className="font-medium text-slate-100">
+                {when?.relativeLabel || storm.dayName}
+              </span>
+              <span className="text-slate-500">·</span>
+              <span>{when?.dateLabel || storm.date}</span>
+              {when?.phase && when.phase !== 'unknown' ? (
+                <>
+                  <span className="text-slate-500">·</span>
+                  <span className="capitalize text-slate-400">{when.phase}</span>
+                </>
+              ) : null}
+              {extraDates.length > 0 ? (
+                <span className="rounded-full border border-white/10 bg-black/30 px-2 py-0.5 text-[10px] text-slate-400">
+                  also {extraDates.length} other day{extraDates.length === 1 ? '' : 's'}
+                </span>
+              ) : null}
+            </p>
+            <ConfidenceMeter value={storm.confidence ?? 55} hex={meta.hex} />
+          </div>
+
+          <p className="text-xs leading-relaxed text-slate-400 line-clamp-2">
+            {storm.plainExpect || storm.description}
+          </p>
         </div>
-      </div>
 
-      {/* ── Expandable detail body ── */}
-      <AnimatePresence>
-        {expanded && (
+        <span className="mt-1 shrink-0 text-slate-500">
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open ? (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="overflow-hidden border-t border-white/10"
           >
-            <div className={`${cfg.bodyBg} px-5 pt-4 pb-5 space-y-4`}>
-
-              {/* What this mean */}
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-                  What This Storm Means
+            <div className="space-y-4 px-4 py-4">
+              {/* When detail */}
+              <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  When
                 </p>
-                <p className="text-[13px] text-slate-300 leading-relaxed">{storm.description}</p>
+                <p className="mt-1 text-sm text-slate-100">
+                  {when?.summary || `${storm.dayName} ${storm.date}`}
+                </p>
+                {when?.windowLabel ? (
+                  <p className="mt-1 text-xs text-slate-400">{when.windowLabel}</p>
+                ) : null}
+                {extraDates.length > 0 ? (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Same pressure also scores on:{' '}
+                    <span className="text-slate-200">
+                      {extraDates
+                        .map((d) =>
+                          new Date(`${d}T12:00:00`).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        )
+                        .join(' · ')}
+                    </span>
+                  </p>
+                ) : null}
               </div>
 
-              {/* Transiting vs natal detail */}
-              <div className="flex flex-wrap gap-3 text-[12px]">
-                <div className="flex-1 min-w-[140px] rounded-lg bg-slate-800/50 border border-slate-700/40 px-3 py-2">
-                  <p className="text-slate-500 mb-0.5">Transiting Planet</p>
-                  <p className="text-white font-semibold">{storm.transitingPlanet}</p>
+              {/* Driver + expect */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Sky driver
+                  </p>
+                  <div className="mt-1.5 text-sm">
+                    <TransitAspectLabel
+                      label={storm.title}
+                      transiting={storm.transitingPlanet}
+                      aspect={storm.aspect}
+                      natal={storm.natalPlanet}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    orb {storm.orb}° · {storm.lifeArea}
+                  </p>
                 </div>
-                <div className="flex items-center text-slate-500 font-bold self-center">{storm.aspect}</div>
-                <div className="flex-1 min-w-[140px] rounded-lg bg-slate-800/50 border border-slate-700/40 px-3 py-2">
-                  <p className="text-slate-500 mb-0.5">Natal Planet</p>
-                  <p className="text-white font-semibold">{storm.natalPlanet}</p>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    What to expect
+                  </p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-200">
+                    {storm.plainExpect || storm.description}
+                  </p>
                 </div>
               </div>
 
-              {/* MBTI Navigation — always shown, styled prominently */}
-              <div className={`rounded-xl border ${cfg.navBg} px-4 pt-3 pb-4`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Compass className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <span className={`text-[11px] font-bold uppercase tracking-wider ${cfg.navTitle}`}>
-                    {mbtiType ? `${mbtiType} Navigation Strategy` : 'Navigation Strategy'}
-                  </span>
-                </div>
-                <p className="text-[13px] text-slate-200 leading-relaxed">{storm.navigation}</p>
-                {storm.personalityReaction && (
-                  <p className="text-[12px] text-slate-300/90 leading-relaxed mt-2">
-                    <span className="font-semibold text-slate-200">Likely reaction: </span>
+              {/* Action steps */}
+              <div className="rounded-xl border border-emerald-400/25 bg-emerald-950/25 px-3.5 py-3">
+                <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
+                  <ListChecks className="h-3.5 w-3.5" />
+                  How to navigate
+                </p>
+                <ol className="space-y-2">
+                  {steps.map((step, i) => (
+                    <li key={i} className="flex gap-2.5 text-sm text-slate-100">
+                      <span
+                        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                        style={{ backgroundColor: `${meta.hex}33`, color: meta.hex }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="leading-relaxed">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                {storm.personalityReaction ? (
+                  <p className="mt-3 text-xs leading-relaxed text-slate-400">
+                    <span className="font-semibold text-slate-300">Likely reaction: </span>
                     {storm.personalityReaction}
                   </p>
-                )}
-                {(storm.peakWindow || storm.recoveryNote) && (
-                  <div className="mt-2 space-y-1">
-                    {storm.peakWindow && (
-                      <p className="text-[11px] text-amber-200/90">Peak window: {storm.peakWindow}</p>
-                    )}
-                    {storm.recoveryNote && (
-                      <p className="text-[11px] text-emerald-200/90">Recovery: {storm.recoveryNote}</p>
-                    )}
-                  </div>
-                )}
+                ) : null}
               </div>
 
+              {/* Avoid */}
+              {avoids.length > 0 ? (
+                <div className="rounded-xl border border-rose-400/20 bg-rose-950/20 px-3.5 py-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-300/80">
+                    <XCircle className="h-3.5 w-3.5" />
+                    Skip this
+                  </p>
+                  <ul className="space-y-1.5">
+                    {avoids.map((line, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-rose-50/90">
+                        <span className="text-rose-400/80">•</span>
+                        <span className="leading-relaxed">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
-    </motion.div>
+    </motion.article>
   );
 }
 
-// ─── Loading skeleton ─────────────────────────────────────────────────────────
+function CategorySection({
+  category,
+  storms,
+  startIndex,
+}: {
+  category: StormLifeCategory;
+  storms: Array<AstroStorm & { relatedDates?: string[] }>;
+  startIndex: number;
+}) {
+  if (!storms.length) return null;
+  const meta = STORM_CATEGORY_META[category];
+  const topConfidence = Math.max(...storms.map((s) => s.confidence || 0));
+
+  return (
+    <section className="space-y-3" id={`storm-cat-${category}`}>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2" style={{ color: meta.hex }}>
+            {CATEGORY_ICON[category]}
+            <h3 className="text-lg font-bold tracking-tight">{meta.label}</h3>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">{meta.blurb}</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <span className={`rounded-full border px-2.5 py-0.5 font-semibold ${meta.badgeClass}`}>
+            {storms.length} storm{storms.length === 1 ? '' : 's'}
+          </span>
+          <span className="tabular-nums">top conf. {topConfidence}%</span>
+        </div>
+      </div>
+      <div className="space-y-2.5">
+        {storms.map((storm, i) => (
+          <StormPlaybookCard
+            key={storm.id}
+            storm={storm}
+            index={startIndex + i}
+            relatedDates={storm.relatedDates}
+            defaultOpen={i === 0 && storm.intensity === 'severe'}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function StormsSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
-      {/* Week strip skeleton */}
-      <div className="grid grid-cols-7 gap-1.5">
-        {[...Array(7)].map((_, i) => (
-          <div key={i} className="h-20 rounded-xl bg-slate-700/30" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-16 rounded-xl bg-slate-700/30" />
         ))}
       </div>
-      {/* Cards */}
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-20 rounded-2xl bg-slate-700/25 border border-slate-600/20" />
+        <div key={i} className="h-24 rounded-2xl bg-slate-700/25 border border-slate-600/20" />
       ))}
     </div>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+/**
+ * Storm Playbook UI — date strip · category · confidence · when · steps.
+ */
+export function StormsAndNavigations({
+  report,
+  loading,
+  mbtiType,
+  selectedDate: controlledDate,
+  onSelectedDateChange,
+  embedded = false,
+}: StormsAndNavigationsProps) {
+  const [filter, setFilter] = useState<StormLifeCategory | 'all'>('all');
+  const [internalDate, setInternalDate] = useState<string>('all');
 
-export function StormsAndNavigations({ report, loading, mbtiType }: StormsAndNavigationsProps) {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const selectedDate = controlledDate ?? internalDate;
+  const setSelectedDate = (value: string) => {
+    if (onSelectedDateChange) onSelectedDateChange(value);
+    else setInternalDate(value);
+  };
+
+  const storms = report?.storms || [];
+  const horizon = report?.horizonDays ?? 30;
+
+  const dayMarkers = useMemo(
+    () => buildStormDayMarkers(storms, report?.clearDays || []),
+    [storms, report?.clearDays]
+  );
+
+  // Default selection: today if it has storms, else first storm day
+  useEffect(() => {
+    if (controlledDate !== undefined) return;
+    if (internalDate !== 'all') return;
+    if (dayMarkers.length === 0) return;
+    const today = localTodayIso();
+    const todayHas = dayMarkers.some((d) => d.date === today && (d.count || 0) > 0);
+    if (todayHas) setInternalDate(today);
+  }, [controlledDate, dayMarkers, internalDate]);
+
+  /** Date-filtered list (or all), then dedupe multi-day repeats when viewing All */
+  const visibleStorms = useMemo(() => {
+    const forDate =
+      selectedDate === 'all' ? storms : storms.filter((s) => s.date === selectedDate);
+
+    if (selectedDate === 'all') {
+      return dedupeStormsBySignature(forDate);
+    }
+    // Single day: still collapse exact same signature if engine double-fired
+    return dedupeStormsBySignature(forDate);
+  }, [storms, selectedDate]);
+
+  const byCategory = useMemo(() => {
+    const empty: Record<StormLifeCategory, Array<AstroStorm & { relatedDates?: string[] }>> = {
+      social: [],
+      work: [],
+      financial: [],
+      health: [],
+    };
+    for (const s of visibleStorms) {
+      const cat = s.category || 'work';
+      if (empty[cat]) empty[cat].push(s);
+    }
+    return empty;
+  }, [visibleStorms]);
+
+  const counts = useMemo(
+    () =>
+      STORM_CATEGORY_ORDER.map((cat) => ({
+        cat,
+        count: byCategory[cat]?.length || 0,
+        meta: STORM_CATEGORY_META[cat],
+      })),
+    [byCategory]
+  );
+
+  const visibleCategories = useMemo(() => {
+    if (filter === 'all') {
+      return STORM_CATEGORY_ORDER.filter((c) => (byCategory[c]?.length || 0) > 0);
+    }
+    return (byCategory[filter]?.length || 0) > 0 ? [filter] : [];
+  }, [filter, byCategory]);
 
   if (loading) {
     return (
-      <div className="mt-8">
-        <SectionHeader loading />
+      <div className="space-y-4">
+        {!embedded ? (
+          <div className="flex items-center gap-2">
+            <CloudLightning className="h-5 w-5 text-amber-400" />
+            <h3 className="text-xl font-bold text-amber-300">Storm playbook</h3>
+            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">
+              Scanning horizon…
+            </span>
+          </div>
+        ) : null}
         <StormsSkeleton />
       </div>
     );
@@ -332,190 +490,158 @@ export function StormsAndNavigations({ report, loading, mbtiType }: StormsAndNav
 
   if (!report) return null;
 
-  const { storms, clearDays, weekSummary } = report;
-  const severeCount  = storms.filter((s) => s.intensity === 'severe').length;
-  const moderateCount = storms.filter((s) => s.intensity === 'moderate').length;
-  const mildCount    = storms.filter((s) => s.intensity === 'mild').length;
-
-  // Storms to show: if a date is selected, show only those; else show all
-  const visibleStorms = selectedDate
-    ? storms.filter((s) => s.date === selectedDate)
-    : storms;
+  const severeCount = visibleStorms.filter((s) => s.intensity === 'severe').length;
+  const rawCount = storms.length;
+  const uniqueCount = visibleStorms.length;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45 }}
-      className="mt-8 space-y-6"
+      transition={{ duration: 0.4 }}
+      className="space-y-5"
     >
-      {/* ── Header ── */}
-      <SectionHeader
-        severeCount={severeCount}
-        moderateCount={moderateCount}
-        mildCount={mildCount}
-        mbtiType={mbtiType}
-        hasStorms={storms.length > 0}
-      />
+      {!embedded ? (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <CloudLightning className="h-5 w-5 text-amber-400" />
+              <h3 className="text-xl font-bold text-amber-300">Storm playbook</h3>
+              {severeCount > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[11px] font-semibold text-rose-100">
+                  <AlertTriangle className="h-3 w-3" />
+                  {severeCount} high-intensity
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 max-w-xl text-sm text-slate-400">
+              Next {horizon} days · pick a day to focus · same transit across days is merged
+              {mbtiType ? (
+                <>
+                  {' '}
+                  · tuned for <span className="font-semibold text-amber-300/90">{mbtiType}</span>
+                </>
+              ) : null}
+              .
+            </p>
+          </div>
+        </div>
+      ) : null}
 
-      {/* ── What this section does ── */}
-      <div className="px-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700/40 text-[13px] text-slate-400 leading-relaxed">
-        <span className="text-slate-300 font-medium">How to read this: </span>
-        This section scans the next 7 days of planetary transits against your natal chart to identify
-        astrological "storms" — moments when a transiting planet forms a tense angle to one of your
-        natal planets. Each storm is rated by intensity, tied to the life area it activates, and
-        paired with navigation guidance tailored to your{' '}
-        {mbtiType ? <span className="text-amber-300 font-semibold">{mbtiType}</span> : 'personality'}{' '}
-        type. Tap a highlighted day to focus its storms.
+      {/* Clickable dates */}
+      {dayMarkers.length > 0 ? (
+        <HorizonDateStrip
+          days={dayMarkers}
+          selected={selectedDate}
+          onSelect={setSelectedDate}
+          showAll
+        />
+      ) : null}
+
+      {/* Category chips (counts for current date filter) */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <button
+          type="button"
+          onClick={() => setFilter('all')}
+          className={`rounded-xl border px-3 py-2.5 text-left transition ${
+            filter === 'all'
+              ? 'border-amber-400/45 bg-amber-500/15 text-amber-100'
+              : 'border-white/10 bg-slate-900/50 text-slate-300 hover:border-white/20'
+          }`}
+        >
+          <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
+            {selectedDate === 'all' ? 'Unique' : 'This day'}
+          </p>
+          <p className="text-lg font-bold tabular-nums">{uniqueCount}</p>
+          {selectedDate === 'all' && rawCount !== uniqueCount ? (
+            <p className="text-[10px] text-slate-500">{rawCount} raw hits</p>
+          ) : null}
+        </button>
+        {counts.map(({ cat, count, meta }) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => setFilter(filter === cat ? 'all' : cat)}
+            className={`rounded-xl border px-3 py-2.5 text-left transition ${
+              filter === cat
+                ? meta.badgeClass
+                : 'border-white/10 bg-slate-900/50 text-slate-300 hover:border-white/20'
+            }`}
+            style={filter === cat ? { boxShadow: `0 0 0 1px ${meta.hex}44` } : undefined}
+          >
+            <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] opacity-80">
+              <span style={{ color: meta.hex }}>{CATEGORY_ICON[cat]}</span>
+              {meta.shortLabel}
+            </p>
+            <p
+              className="text-lg font-bold tabular-nums"
+              style={{ color: count ? meta.hex : undefined }}
+            >
+              {count}
+            </p>
+          </button>
+        ))}
       </div>
 
-      {/* ── 7-day weather strip ── */}
-      <WeekStrip
-        storms={storms}
-        selectedDate={selectedDate}
-        onSelectDate={(d) => setSelectedDate(selectedDate === d ? null : d)}
-      />
+      {report.weekSummary && selectedDate === 'all' ? (
+        <div className="rounded-xl border border-slate-700/50 bg-slate-900/60 px-4 py-3 text-sm leading-relaxed text-slate-300">
+          {report.weekSummary}
+        </div>
+      ) : null}
 
-      {/* ── Week summary prose ── */}
-      {weekSummary && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
-          className="px-5 py-4 rounded-xl bg-slate-900/60 border border-slate-700/40"
-        >
-          <p className="text-[13px] text-slate-300 leading-relaxed">{weekSummary}</p>
-        </motion.div>
-      )}
-
-      {/* ── Selected day header ── */}
-      <AnimatePresence>
-        {selectedDate && (
-          <motion.div
-            key="sel-header"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="flex items-center justify-between"
+      {selectedDate !== 'all' ? (
+        <p className="text-xs text-slate-400">
+          Showing storms for{' '}
+          <span className="font-semibold text-slate-200">
+            {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </span>
+          {' · '}
+          <button
+            type="button"
+            className="text-sky-300 underline-offset-2 hover:underline"
+            onClick={() => setSelectedDate('all')}
           >
-            <p className="text-sm font-semibold text-amber-300">
-              {formatDisplayDate(selectedDate)} — {visibleStorms.length} storm{visibleStorms.length !== 1 ? 's' : ''}
-            </p>
-            <button
-              onClick={() => setSelectedDate(null)}
-              className="text-xs text-slate-400 hover:text-slate-200 underline transition-colors"
-            >
-              Show all
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            Show all dates
+          </button>
+        </p>
+      ) : null}
 
-      {/* ── No storms ── */}
-      {storms.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center gap-3 py-12 text-slate-500"
-        >
-          <ShieldCheck className="w-12 h-12 text-emerald-500/50" />
-          <p className="text-sm">No significant storms detected in the week ahead.</p>
-          <p className="text-xs text-slate-600">Your chart is in relatively calm waters.</p>
-        </motion.div>
-      )}
-
-      {/* ── Storm cards ── */}
-      {visibleStorms.length > 0 && (
-        <div className="space-y-3">
-          {visibleStorms.map((storm, i) => (
-            <StormCard key={storm.id} storm={storm} mbtiType={mbtiType} index={i} />
-          ))}
+      {storms.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-slate-500">
+          <ShieldCheck className="h-12 w-12 text-emerald-500/50" />
+          <p className="text-sm text-slate-300">No significant storms on this horizon.</p>
+          <p className="text-xs">
+            Use the calm — ship one meaningful thing before the next weather system.
+          </p>
         </div>
-      )}
+      ) : null}
 
-      {/* ── Clear days footer ── */}
-      {clearDays.length > 0 && storms.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="flex flex-wrap items-center gap-2 pt-1"
-        >
-          <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span className="text-xs text-slate-400">Storm-free days:</span>
-          {clearDays.map((d) => (
-            <span
-              key={d}
-              className="px-2.5 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-            >
-              {d}
-            </span>
-          ))}
-        </motion.div>
-      )}
+      {visibleStorms.length === 0 && storms.length > 0 ? (
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 px-4 py-6 text-center">
+          <ShieldCheck className="mx-auto mb-2 h-8 w-8 text-emerald-400/70" />
+          <p className="text-sm text-emerald-100">Clear on this day</p>
+          <p className="mt-1 text-xs text-slate-400">No storm scores for the selected date.</p>
+        </div>
+      ) : null}
+
+      {visibleCategories.length === 0 && visibleStorms.length > 0 ? (
+        <p className="text-sm text-slate-400">No storms in this category for the selection.</p>
+      ) : null}
+
+      <div className="space-y-8">
+        {visibleCategories.map((cat, sectionIdx) => (
+          <CategorySection
+            key={cat}
+            category={cat}
+            storms={byCategory[cat] || []}
+            startIndex={sectionIdx * 3}
+          />
+        ))}
+      </div>
     </motion.div>
-  );
-}
-
-// ─── Section header ───────────────────────────────────────────────────────────
-
-function SectionHeader({
-  loading,
-  severeCount,
-  moderateCount,
-  mildCount,
-  mbtiType,
-  hasStorms,
-}: {
-  loading?: boolean;
-  severeCount?: number;
-  moderateCount?: number;
-  mildCount?: number;
-  mbtiType?: string;
-  hasStorms?: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-3 mb-1">
-      <CloudLightning className="w-5 h-5 text-amber-400 flex-shrink-0" />
-      <h3 className="text-xl font-bold text-amber-300">Storms &amp; Navigation</h3>
-
-      {loading && (
-        <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20">
-          Scanning week ahead…
-        </span>
-      )}
-
-      {!loading && !hasStorms && (
-        <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-          Clear skies
-        </span>
-      )}
-
-      {!loading && hasStorms && (
-        <div className="flex gap-1.5">
-          {(severeCount ?? 0) > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-red-500/15 text-red-300 border border-red-500/25">
-              {severeCount} severe
-            </span>
-          )}
-          {(moderateCount ?? 0) > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/15 text-amber-300 border border-amber-500/25">
-              {moderateCount} moderate
-            </span>
-          )}
-          {(mildCount ?? 0) > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/15 text-blue-300 border border-blue-500/25">
-              {mildCount} mild
-            </span>
-          )}
-        </div>
-      )}
-
-      {mbtiType && !loading && (
-        <span className="ml-auto px-2 py-0.5 rounded-full text-xs bg-purple-500/15 text-purple-300 border border-purple-500/25">
-          ✦ {mbtiType} navigation
-        </span>
-      )}
-    </div>
   );
 }

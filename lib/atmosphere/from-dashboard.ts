@@ -54,6 +54,8 @@ export function computeAtmosphereFromDashboardSources(options: {
               eventId: event.eventId,
               scores: event.scores,
               transit: event.transit,
+              timing: event.timing,
+              domains: event.domains,
               narrative: event.narrative,
             })),
             lunarTiming: {
@@ -75,6 +77,9 @@ export function computeAtmosphereFromDashboardSources(options: {
               natalPlanet: storm.natalPlanet,
               aspect: storm.aspect,
               description: storm.description,
+              date: storm.date,
+              lifeArea: storm.lifeArea,
+              phase: storm.phase,
             })),
             weekSummary: stormsReport.weekSummary,
           }

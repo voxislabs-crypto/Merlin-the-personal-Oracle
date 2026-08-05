@@ -2,8 +2,10 @@
 
 import { motion } from 'framer-motion';
 import { MessageCircle, X } from 'lucide-react';
+import { PlanetLabel } from '@/components/astrology/PlanetLabel';
 import type { PlanetPosition } from '@/types/astrology';
 import { PLANET_GLYPHS } from '@/lib/astrology/planetaryData';
+import { resolvePlanetStyle } from '@/lib/astrology/planet-style';
 import { ELEMENT_COLORS, getSignMeta } from '@/lib/astrology/zodiac';
 import { getPlanetPlacementInterpretation, ordinalHouse } from '@/lib/astrology/planet-placement';
 
@@ -21,9 +23,12 @@ export function PlanetDetailCard({
   onAskContext,
 }: PlanetDetailCardProps) {
   const signMeta = getSignMeta(planet.sign);
-  const element = signMeta?.element ?? 'Fire';
-  const colors = ELEMENT_COLORS[element];
-  const glyph = PLANET_GLYPHS[planet.name] ?? '●';
+  const planetStyle = resolvePlanetStyle(planet.name);
+  // Prefer planetary element for planet chrome; sign element for sign chip context
+  const planetElement = planetStyle?.element ?? signMeta?.element ?? 'Fire';
+  const colors = ELEMENT_COLORS[planetElement];
+  const glyph = planetStyle?.glyph ?? PLANET_GLYPHS[planet.name] ?? '●';
+  const hex = planetStyle?.hex;
   const summary =
     interpretation?.trim() ||
     getPlanetPlacementInterpretation(planet.name, planet.sign, planet.house);
@@ -38,16 +43,27 @@ export function PlanetDetailCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <span className={`text-4xl leading-none ${colors.text}`} aria-hidden>
+          <span
+            className="text-4xl leading-none"
+            style={hex ? { color: hex } : undefined}
+            aria-hidden
+          >
             {glyph}
           </span>
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Planet</p>
-            <h4 className={`text-2xl font-bold truncate ${colors.text}`}>{planet.name}</h4>
+            <h4 className="text-2xl font-bold truncate">
+              <PlanetLabel name={planet.name} strong />
+            </h4>
             <span
-              className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${colors.border} ${colors.text}`}
+              className="mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+              style={
+                hex
+                  ? { color: hex, borderColor: hex }
+                  : undefined
+              }
             >
-              {element} · {signMeta?.glyph} {planet.sign}
+              {planetElement} · {signMeta?.glyph} {planet.sign}
             </span>
           </div>
         </div>

@@ -96,12 +96,16 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
 
   const packet = input.packet;
   const intensity = packet?.intensity ?? 45;
+  const risk = packet?.risk;
+  // Today = today's driver/tone — not the 30-day risk radar headline (that lives on Forecast)
   const driverLabel = packet?.dominantDriver?.label?.trim();
   const driverWhy = packet?.dominantDriver?.rationale?.trim();
   const toneLabel = packet?.tone?.label;
 
+  // Prefer today's forecast summary + driver; never lead with multi-day risk copy
+  const daySummary = firstSentence(input.forecastSummary || '');
   const summary =
-    firstSentence(input.forecastSummary || '') ||
+    daySummary ||
     (driverWhy ? firstSentence(driverWhy) : '') ||
     (toneLabel
       ? `${intensityLead(intensity)} Tone: ${toneLabel}.`
@@ -113,20 +117,34 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     alreadyLed ? summary : `${intensityLead(intensity)} ${summary}`.replace(/\s+/g, ' ').trim(),
   );
 
+  // Horizon friction is a secondary note on Today (full radar is Forecast)
+  const horizonNote =
+    risk?.bullshitPossible && risk.nextFrictionPeak?.label
+      ? ` Horizon: ${risk.nextFrictionPeak.label}${
+          typeof risk.nextFrictionPeak.daysToPeak === 'number'
+            ? ` (~${risk.nextFrictionPeak.daysToPeak}d)`
+            : ''
+        }.`
+      : '';
+
   const why = sanitizeCopyText(
     driverLabel
       ? driverWhy && driverWhy.length < 180
-        ? `${driverLabel} — ${firstSentence(driverWhy, 140)}`
-        : `Main signal: ${driverLabel}.`
+        ? `${driverLabel} — ${firstSentence(driverWhy, 140)}${horizonNote}`
+        : `Main signal today: ${driverLabel}.${horizonNote}`
       : driverWhy
-        ? firstSentence(driverWhy, 160)
-        : 'No single storm dominates — watch pace and energy, not drama.',
+        ? `${firstSentence(driverWhy, 160)}${horizonNote}`
+        : horizonNote
+          ? `Today is relatively even.${horizonNote}`
+          : 'No single storm dominates today — watch pace and energy, not drama.',
   );
 
+  // Today move: day's actionable do / advice first — risk.move is horizon-scoped
   const move = sanitizeCopyText(
     input.transitDo ||
       input.forecastAdvice ||
       input.predictiveMove ||
+      risk?.move ||
       fallbackMove(intensity),
   );
 

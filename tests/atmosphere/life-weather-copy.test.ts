@@ -76,4 +76,25 @@ describe('buildLifeWeatherBrief', () => {
     const brief = buildLifeWeatherBrief({ loading: true });
     expect(brief.story).toMatch(/Reading life weather/i);
   });
+
+  it('prefers today forecast summary over multi-day risk headline', () => {
+    const brief = buildLifeWeatherBrief({
+      packet: mockPacket({
+        risk: {
+          headline: 'High life-friction window — Saturn square Moon is loud.',
+          move: 'Shrink the whole week.',
+          bullshitPossible: true,
+          nextFrictionPeak: { label: 'Saturn square Moon', daysToPeak: 4, friction: 80 },
+          topDrivers: [{ label: 'Saturn square Moon' }],
+        } as any,
+      }),
+      forecastSummary: 'A tense emotional day that rewards honest pacing.',
+      transitDo: 'Walk before you reply.',
+    });
+
+    expect(brief.story).toMatch(/tense emotional day/i);
+    expect(brief.story).not.toMatch(/High life-friction window/i);
+    expect(brief.move).toBe('Walk before you reply.');
+    expect(brief.why).toMatch(/Mars square Moon/i);
+  });
 });

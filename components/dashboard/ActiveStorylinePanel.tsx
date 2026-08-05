@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { MessageCircle, Radio, Sparkles, Clock } from 'lucide-react';
+import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
+import { parseTransitPhrase } from '@/lib/astrology/planet-style';
 import { explainTransitTitle } from '@/lib/astrology/transit-plain-language';
 import { ArcanePane } from '@/components/dashboard/ArcanePane';
 
@@ -164,7 +166,13 @@ function TimingPeakRow({
     <div className="rounded-lg border border-sky-400/20 bg-slate-950/40 px-3 py-2.5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-sky-50">{w.title}</p>
+          <p className="text-sm font-semibold text-sky-50">
+            {parseTransitPhrase(w.title) ? (
+              <TransitAspectLabel label={w.title} />
+            ) : (
+              w.title
+            )}
+          </p>
           <p className="text-[11px] text-slate-400 mt-0.5">
             Peak {formatPeak(w.exactAt)}
             {w.currentPhase ? ` · ${w.currentPhase}` : ''}

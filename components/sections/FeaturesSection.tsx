@@ -6,22 +6,22 @@ import { CloudSun, Radar, HeartPulse, Compass, Layers, MessageCircle } from 'luc
 const skyFeatures = [
   {
     icon: CloudSun,
-    pillar: 'Sky',
+    pillar: 'Weather',
     title: "Today's life weather",
     description:
-      'One clear read on how life feels for your chart today — intensity, tone, and why — not a sun-sign blurb.',
+      'One clear read for *your* chart today — intensity, why, and one reversible move. Not a sun-sign blurb.',
   },
   {
     icon: Radar,
-    pillar: 'Sky',
-    title: 'Forecast & storm radar',
+    pillar: 'Weather',
+    title: 'Friction radar & storms',
     description:
-      'Pressure windows, storms, and weekly horizon so you can see what’s building before it hits.',
+      'See when life friction spikes, by day and domain (work, bonds, body, money) — with confidence and a playbook.',
   },
   {
     icon: HeartPulse,
-    pillar: 'Sky',
-    title: 'Felt vs sky check-in',
+    pillar: 'Weather',
+    title: 'Felt vs chart check-in',
     description:
       'Tell Merlin how you actually feel. Reality-check guidance when your mood and the chart diverge.',
   },
@@ -89,8 +89,8 @@ export function FeaturesSection() {
             Life weather first. Identity underneath.
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Most apps sell a chart and sprinkle a horoscope. Merlin sells a daily life-weather habit —
-            then lets you fall into the Self map when you want depth.
+            Most apps sell a chart and sprinkle a horoscope. Merlin answers one question people pay for:
+            <span className="text-slate-200"> is life friction elevated for me — and what do I do?</span>
           </p>
         </motion.div>
 

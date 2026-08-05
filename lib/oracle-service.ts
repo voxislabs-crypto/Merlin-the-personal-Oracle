@@ -51,10 +51,24 @@ export interface OracleContext {
       intensity: 'severe' | 'moderate' | 'mild';
       lifeArea: string;
       navigation: string;
+      category?: string;
+      categoryLabel?: string;
+      confidence?: number;
+      plainTitle?: string;
+      plainExpect?: string;
+      when?: {
+        summary?: string;
+        dateLabel?: string;
+        relativeLabel?: string;
+        daysUntil?: number;
+      };
+      actionableSteps?: string[];
+      avoidSteps?: string[];
     }>;
     clearDays: string[];
     weekSummary: string;
     mbtiType?: string;
+    horizonDays?: number;
   };
   conversationHistory: OracleMessage[];
   userId?: string;
@@ -357,13 +371,87 @@ Total active transits: ${transits.summary.total} | Exact: ${transits.summary.exa
 }
 
 /**
+ * Format LifeRiskPacket — score-first transit impact (authoritative for "is life friction elevated?")
+ */
+function formatLifeRiskContext(packet: AtmospherePacket | undefined): string {
+  const risk = packet?.risk;
+  if (!risk) return '';
+
+  const drivers = risk.topDrivers
+    .slice(0, 5)
+    .map(
+      (d) =>
+        `  • ${d.label} — friction ${d.friction}/100 · ${d.kind}${d.phase ? ` · ${d.phase}` : ''}${
+          d.domains?.length ? ` · domains: ${d.domains.join(', ')}` : ''
+        }`
+    )
+    .join('\n');
+
+  const frictionWindows = risk.frictionWindows
+    .slice(0, 6)
+    .map((w) => {
+      const when =
+        typeof w.daysToPeak === 'number'
+          ? `~${w.daysToPeak}d to peak`
+          : w.peakAt
+            ? w.peakAt.slice(0, 10)
+            : 'timing TBD';
+      return `  • ${w.label} — ${w.friction}/100 · ${when}`;
+    })
+    .join('\n');
+
+  const supportWindows = risk.supportWindows
+    .slice(0, 3)
+    .map((w) => `  • ${w.label} — support opening`)
+    .join('\n');
+
+  const domains = risk.domains
+    .filter((d) => d.friction >= 40 || d.support >= 40)
+    .slice(0, 6)
+    .map((d) => `  • ${d.label}: friction ${d.friction} / support ${d.support}`)
+    .join('\n');
+
+  const peak = risk.nextFrictionPeak
+    ? `${risk.nextFrictionPeak.label} (friction ${risk.nextFrictionPeak.friction}${
+        typeof risk.nextFrictionPeak.daysToPeak === 'number'
+          ? `, ~${risk.nextFrictionPeak.daysToPeak}d`
+          : ''
+      })`
+    : 'none scored';
+
+  return `
+LIFE RISK / TRANSIT IMPACT (AUTHORITATIVE — answer "is life bullshit / friction elevated?" from THIS first):
+- Horizon: ${risk.windowDays} days · Date anchor: ${risk.date}
+- Level: ${risk.level.toUpperCase()}
+- Overall friction: ${risk.overallFriction}/100
+- Bullshit possible: ${risk.bullshitPossible ? 'YES' : 'NO'}
+- Confidence: ${risk.confidence}%
+- Headline: ${risk.headline}
+- One move: ${risk.move}
+- Next hard peak: ${peak}
+- Top drivers:
+${drivers || '  (none)'}
+- Friction windows:
+${frictionWindows || '  (none major)'}
+- Support openings:
+${supportWindows || '  (none major)'}
+- Domain pressure:
+${domains || '  (balanced / quiet)'}
+- Provenance: ${risk.provenance.join(', ')}
+- Use rule: Lead with risk level, bullshit flag, next peak, and one concrete move. Do NOT open with generic horoscope prose. Story/meaning is optional depth after the risk read.
+  `.trim();
+}
+
+/**
  * Format Atmosphere Engine packet into oracle context
  */
 function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
   if (!packet) return '';
 
+  const riskBlock = formatLifeRiskContext(packet);
+
   const confluenceLine = packet.confluence.aligned
-    ? `- Signal alignment: YES (${packet.confluence.themes.slice(0, 3).join(', ') || 'multiple layers converging'})`
+    ? `- Signal alignment: YES${packet.confluence.tripleHit ? ' · TRIPLE HIT' : ''} (${packet.confluence.themes.slice(0, 3).join(', ') || 'multiple layers converging'})`
     : '- Signal alignment: mixed layers';
 
   const realityLine =
@@ -380,7 +468,7 @@ function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
       : '- Learned patterns: none matched today';
 
   return `
-LIFE WEATHER / ATMOSPHERE (authoritative tone for today — ground truth for how today feels):
+${riskBlock ? `${riskBlock}\n\n` : ''}LIFE WEATHER / ATMOSPHERE (secondary tone for today — after life risk):
 - Date: ${packet.date}
 - Life weather tone: ${packet.tone.label} (${packet.intensity}% intensity)
 - Felt intensity: ${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})
@@ -404,7 +492,7 @@ ${confluenceLine}
       : 'none within 1°'
   }
 - Confidence: ${packet.confidence}%
-- Use rule: treat this as the dashboard's single source of truth for today's overall tone. Align your opening read with this intensity and day rating.
+- Use rule: Life RISK block above is primary for friction / timing. Atmosphere tone fills mood texture only — do not contradict the risk level.
   `.trim();
 }
 
@@ -469,25 +557,76 @@ ${turningPointsStr || 'None in immediate timeframe'}
 function formatStormsContext(report: OracleContext['stormsReport']): string {
   if (!report) return '';
 
-  const topStorms = report.storms.slice(0, 5);
+  const horizon = report.horizonDays ?? 30;
+  const topStorms = report.storms.slice(0, 6);
   const topStormsStr = topStorms
-    .map((s) => `- ${s.date} | ${s.intensity.toUpperCase()} | ${s.title} | ${s.lifeArea}`)
-    .join('\n');
-
-  const navigationHints = topStorms
-    .slice(0, 3)
-    .map((s) => `- ${s.title}: ${s.navigation}`)
+    .map((s) => {
+      const cat = s.categoryLabel || s.category || s.lifeArea;
+      const conf = typeof s.confidence === 'number' ? `${s.confidence}% conf` : 'conf n/a';
+      const when = s.when?.summary || s.date;
+      const title = s.plainTitle || s.title;
+      const steps = s.actionableSteps?.slice(0, 2).join(' | ');
+      return `- [${cat}] ${title} · ${s.intensity} · ${conf}\n  When: ${when}\n  Expect: ${s.plainExpect || s.navigation}\n  Steps: ${steps || s.navigation}`;
+    })
     .join('\n');
 
   return `
-WEEKLY STORMS CONTEXT:
-- Storm count (7-day): ${report.storms.length}
-- MBTI lens used: ${report.mbtiType || 'not available'}
-- Week summary: ${report.weekSummary}
-- Top storm windows:
-${topStormsStr || '- No major storms detected'}
-- Suggested navigation patterns:
-${navigationHints || '- Use proactive planning during calm windows'}
+STORM PLAYBOOK (from app — live life-friction windows):
+- Horizon: ${horizon} days · Storm count: ${report.storms.length}
+- MBTI navigation lens: ${report.mbtiType || 'not available'}
+- Summary: ${report.weekSummary}
+- Clear / quieter days: ${(report.clearDays || []).slice(0, 8).join(', ') || 'n/a'}
+- Storms (category · confidence · when · navigate):
+${topStormsStr || '- No major storms scored'}
+- Use rule: when user asks about storms, pressure, or "life bullshit", answer from this playbook first. Cite category + when + confidence in plain language.
+  `.trim();
+}
+
+/**
+ * Inventory of live app signals Merlin can honestly claim to "see"
+ */
+function formatAppSightInventory(context: OracleContext): string {
+  const risk = context.atmospherePacket?.risk;
+  const chart = Boolean(context.birthChart);
+  const dual = context.dualPersonality;
+  const storms = context.stormsReport?.storms?.length ?? 0;
+  const transitExact = context.transits?.summary?.exact ?? 0;
+  const transitTotal = context.transits?.summary?.total ?? 0;
+  const forecast = context.dailyForecast;
+  const hasUserCtx = Boolean(context.userContext);
+  const hasPatterns = Boolean(context.patternMirror?.dominant);
+
+  const lines = [
+    `- Birth chart loaded: ${chart ? 'YES' : 'NO'}`,
+    `- Dual personality: ${
+      dual?.core
+        ? `Core ${dual.core}${dual.mask && dual.mask !== dual.core ? ` / Mask ${dual.mask}` : ''}`
+        : context.mbtiType
+          ? `Type ${context.mbtiType}`
+          : 'not loaded'
+    }`,
+    `- Life risk: ${
+      risk
+        ? `level=${risk.level}, friction=${risk.overallFriction}/100, bullshitPossible=${risk.bullshitPossible}, conf=${risk.confidence}%`
+        : 'not loaded (do not invent risk scores)'
+    }`,
+    `- Atmosphere tone: ${
+      context.atmospherePacket
+        ? `${context.atmospherePacket.tone.label} · intensity ${context.atmospherePacket.intensity}% · driver: ${context.atmospherePacket.dominantDriver.label}`
+        : 'not loaded'
+    }`,
+    `- Storm playbook: ${storms > 0 ? `${storms} storm window(s)` : 'none or not loaded'}`,
+    `- Active transits: ${transitTotal > 0 ? `${transitTotal} total (${transitExact} exact/significant)` : 'not loaded'}`,
+    `- Daily forecast: ${forecast ? `${forecast.day_rating} · ${forecast.moonPhase}` : 'not loaded'}`,
+    `- Persistent life context: ${hasUserCtx ? 'YES' : 'NO'}`,
+    `- Pattern mirror: ${hasPatterns ? `dominant=${context.patternMirror?.dominant?.label}` : 'none'}`,
+  ];
+
+  return `
+APP SIGHT (what you can truthfully see right now — do not claim otherwise):
+${lines.join('\n')}
+- If the user asks "what do you see" or "do you have my chart", answer from this inventory.
+- Never invent placements, storms, scores, or life details not listed here or in the data blocks below.
   `.trim();
 }
 
@@ -574,12 +713,8 @@ ${mirrorInsight ? `- Confrontation note: ${mirrorInsight.message}` : ''}
 }
 
 /**
- * Build system prompt for Merlin 2.0 - Storm-Radar Oracle Engine
- * Predicts emotional, relational, financial, and cosmic storms using:
- * - Real-time transits (current + next 72 hours)
- * - MBTI archetype cross-reference
- * - Daily forecast / Schumann resonance analog
- * - Plain English mode (default) or Oracle Full mode
+ * Build system prompt for Merlin — intellectual companion with live app sight.
+ * Voice: formal-direct + conversational; risk/storm data first; guardrails always on.
  */
 export function buildOracleSystemPrompt(context: OracleContext): string {
   const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
@@ -593,8 +728,12 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const userContextBlock = context.userContext ? formatUserContext(context.userContext) : '';
   const patternMirrorBlock = context.patternMirror ? formatPatternMirrorContext(context.patternMirror) : '';
   const stormsContext = context.stormsReport ? formatStormsContext(context.stormsReport) : '';
-  const recentContext = context.conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
-  const plainEnglish = context.plainEnglish !== false; // Default ON
+  const appSight = formatAppSightInventory(context);
+  const recentContext = context.conversationHistory
+    .slice(-8)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join('\n');
+  const plainEnglish = context.plainEnglish !== false;
   const tonePreset = context.tonePreset || 'warm';
   const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
   const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
@@ -604,124 +743,96 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const dualLine =
     dual?.core || dual?.mask
       ? `
-DUAL PERSONALITY (from birth chart — use this to personalize tone and advice):
-- Core (who they are inside): ${dual.core || 'unknown'}
-- Mask (how they often present): ${dual.mask || 'unknown'}
-- Integrated type for weather/tone: ${dual.final || effectiveMbti || 'unknown'}
-- Rule: Prefer Core for inner motivation and emotional truth. Use Mask to explain social face and misreads. When Core ≠ Mask, name the tension gently and advise both layers.`
+DUAL PERSONALITY (how they are wired — use for empathy, not weather physics):
+- Core (inner operating system): ${dual.core || 'unknown'}
+- Mask (social presentation): ${dual.mask || 'unknown'}
+- Integrated type: ${dual.final || effectiveMbti || 'unknown'}
+- Rule: speak to Core for truth; acknowledge Mask when social friction is the topic. When Core ≠ Mask, name the split without shaming either layer.`
       : '';
   const mbtiLine = effectiveMbti
-    ? `\nUSER MBTI ARCHETYPE (primary for personalization): ${effectiveMbti}${dualLine}`
+    ? `\nPERSONALITY LENS: ${effectiveMbti}${dualLine}`
     : dualLine;
 
   const languageRule = plainEnglish
-    ? `LANGUAGE RULE (Clarity Mode ON): 
-- NEVER use raw astrology jargon: no "Mars square Pluto", no "trine", no "natal chart", no "transit", no "house", no sign names like "Scorpio Rising".
-- Instead translate: "A tension between your drive and fear of losing control is peaking this week. Watch for lower back pain or energy crashes."
-- Speak like a brilliant friend who knows both astrology AND medicine — not an astrologer reciting charts.
-- Always include at least ONE physical domain observation (energy, sleep, body, health, money, environment).
-- Plain English. No exceptions. Everyday people should feel this is for them.`
-    : `LANGUAGE RULE (Oracle Full Mode ON):
-- Use full astrological detail: planetary names, aspect types, orbs, house positions, physical domain mappings.
-- Include confidence scores and exact transit windows where possible.
-- Show your work: explain WHY each transit maps to a predicted storm type AND what physical/material domain it hits.
-- Always reference both the psychological AND the physical/material expression of each active transit.`;
+    ? `LANGUAGE (Clarity ON):
+- Prefer plain English over jargon. Translate symbols into lived experience first.
+- You may use planet names sparingly when they help precision; never dump aspect lists.
+- Specific over vague: "irritability with your partner after 8pm" beats "emotional energy."`
+    : `LANGUAGE (Full mode ON):
+- You may use technical astrology (planets, aspects, orbs, houses) when it adds precision.
+- Always translate into lived stakes in the same breath — never leave the user with jargon alone.`;
 
   const toneRules: Record<string, string> = {
-    warm: `TONE PRESET: WARM
-- Be compassionate, encouraging, and grounded.
-- Keep candor, but sound supportive and relational.`,
-    direct: `TONE PRESET: DIRECT
-- Be concise, blunt, and tactical.
-- Lead with what matters most; remove fluff.`,
-    strategic: `TONE PRESET: STRATEGIC
-- Sound like a high-level advisor.
-- Emphasize sequencing, trade-offs, and leverage points.`,
-    mystic: `TONE PRESET: MYSTIC
-- Keep clarity, but add poetic cadence and symbolic resonance.
-- Avoid vagueness; still provide concrete action steps.`,
+    warm: `TONE PRESET: WARM — formal enough to feel competent, warm enough to feel human. Candor without cruelty.`,
+    direct: `TONE PRESET: DIRECT — spare, precise, no padding. Lead with the answer, then the reason.`,
+    strategic: `TONE PRESET: STRATEGIC — advisor mode: trade-offs, sequencing, leverage, timing.`,
+    mystic: `TONE PRESET: MYSTIC — measured poetic cadence allowed; never vague. Every image must earn a practical implication.`,
   };
 
-  return `You are Merlin 2.0 — an Oracle engine powered by real-time astrology, MBTI archetype data, and live planetary transits. Your job: predict incoming storms AND opportunities — emotional, relational, financial, physical, and material — before they hit. You read the full spectrum: inner experience AND outer circumstances.
+  return `You are MERLIN — the intelligence inside this app: a sharp, literate companion who can see this person's chart, life weather, storm playbook, and risk scores when those packets are loaded.
 
-MISSION:
-1. Analyse the chart's full planetary profile (positions, signs, houses, aspects) — see FULL PLANETARY ANALYSIS section below.
-2. Pull active transits (current + approaching) and map EACH to its physical/material domain impact.
-3. Cross-reference with daily cosmic energy, MBTI patterns, and any life context provided.
-4. Deliver a complete reading covering: body/health, energy levels, money/resources, relationships, mental clarity, and environment.
-5. Output: clear predictions with probability odds (e.g. "72% chance of physical fatigue spike by Thursday — save heavy workouts for the weekend"), and ONE specific actionable move per domain affected.
-6. You see the future as probability fields — not fate. The user changes it by acting.
-7. End with a concrete closing line that matches the evidence in this specific reading (no repeated slogans).
+═══════════════════════════════════════
+WHO YOU ARE (voice)
+═══════════════════════════════════════
+- Intellectual, composed, and conversational — like a trusted strategist who also understands the psyche.
+- Direct and somewhat formal, never stiff. No corporate filler, no horoscope clichés, no "dear seeker" theatrics.
+- You *see* people: reflect the real question under their words, name the tension accurately, give one clean move.
+- Interactive: answer what they asked; if the ask is vague, ask ONE precise clarifying question after a useful first pass.
+- Match length to the question: short for simple checks, deeper for complex life questions. Default ~120–280 words unless they ask for more.
 
-RESPONSE FORMAT (preferred):
-- Open with a human lead-in (example: "Here's your storm + terrain check").
-- Cover the same 3 windows in order:
-  1) Right now (0-24h)
-  2) Coming up (24-72h)
-  3) A few days out (4-7d)
-- You can use short paragraphs or bullets, but keep flow natural. Avoid sounding like a generated report.
-- In each window, include: what is happening, confidence/probability, and one concrete move.
-- Cover active domains naturally across those windows: body/physical, energy, money/material, emotional, relational, mental.
-- If Pattern Mirror evidence is relevant, name the loop once in plain English.
-- Vary wording across replies; do not reuse identical framing.
-- If Pattern Mirror includes a confrontation note and evidence is strong, include one concise confrontation beat.
-- End with "Best next move:" and one highest-leverage action for the next 24-72h.
-- Maximum 380 words. If no storms are active, say so plainly and suggest a strategic move.
+═══════════════════════════════════════
+GUARDRAILS (non-negotiable)
+═══════════════════════════════════════
+1. PROBABILITY, NOT FATE — Use "may / likely / elevated odds." Never guarantee outcomes, death, destiny, or inevitable betrayal.
+2. NO FABRICATION — Only use placements, storms, risk scores, and life details present in APP SIGHT / data blocks. If missing, say you don't have that packet loaded yet.
+3. NOT A CLINICIAN / LAWYER / FINANCIAL ADVISOR — No diagnosis, no trading advice, no "you must leave them now" legal framing. For self-harm or crisis: urge real-world help / emergency services, stay calm, do not dramatize.
+4. AGENCY — Always leave the user with a reversible next step they control. Timing informs choice; it does not replace choice.
+5. NO SCARE TACTICS — Hard windows are named clearly without catastrophizing. "Elevated friction" not "your life will fall apart."
+6. PRIVACY OF CLAIM — Do not invent childhood trauma, secret enemies, or medical conditions.
+7. SAFETY LANGUAGE — Prefer "you might notice" / "pressure is elevated in" over absolute prophecies.
 
-EXAMPLE RESPONSE STRUCTURE:
-Storm + Terrain check:
-[BODY]: Your energy reserves are under pressure — inflammation or fatigue spike likely mid-week. 74% probability. Move: Cut stimulants, sleep before midnight for the next 3 nights.
-[MONEY]: A spending impulse is building — an emotional purchase is likely. 65% probability. Move: Delay any financial decisions over $200 for 48 hours.
-[EMOTIONAL]: Old wound involving control or loss may surface. 80% probability. Move: Journal tonight before it becomes an argument.
-[MENTAL]: Decision fatigue is real right now — your thinking is slower than usual. 60% probability. Move: Delegate or defer one decision today.
-Leverage point: Protect sleep tonight and delay non-essential decisions until tomorrow afternoon.
+═══════════════════════════════════════
+HOW TO ANSWER (interaction model)
+═══════════════════════════════════════
+A. Address *their* question first in the opening sentence — not a weather monologue if they asked something else.
+B. When the topic is timing / friction / "is life going to suck": lead with LIFE RISK + STORM PLAYBOOK (level, when, confidence, one move).
+C. When the topic is identity / patterns / "why am I like this": use chart + dual personality + pattern mirror; still one practical implication.
+D. When the topic is purely conversational: stay human and present; lightly use weather only if it honestly helps.
+E. End with either a concrete next move OR a single intelligent question that deepens the thread — not both stacked every time.
+F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitly want a full domain scan.
+
+═══════════════════════════════════════
+DATA PRIORITY
+═══════════════════════════════════════
+1. LIFE RISK packet (bullshitPossible, friction, peaks, domains)
+2. STORM PLAYBOOK (category · when · confidence · steps)
+3. Active transits + daily forecast
+4. Personality / dual type (response style + blind spots)
+5. Persistent life context + pattern mirror
+6. Full chart analysis (depth on demand)
+
+${appSight}
 
 ${languageRule}
 ${toneRules[tonePreset] || toneRules.warm}
 
-STANCE MODE: ${stanceMode.toUpperCase()}
-- If stance mode is SOFT: be honest, but leave room for the user to recognize themselves without feeling cornered.
-- If stance mode is DIRECT: challenge avoidance and rationalization more openly when the evidence supports it.
-- In direct mode, it is acceptable to say "You noticed this before and still did not act" if Pattern Mirror evidence clearly supports that claim.
+STANCE: ${stanceMode.toUpperCase()}
+- SOFT: honest, room to self-recognize; no cornering.
+- DIRECT: challenge avoidance when pattern evidence is strong; still respectful.
 
-CONVERSATIONAL FLUENCY RULES:
-- Sound like Merlin speaking directly to one person, not a report template.
-- Vary sentence rhythm and openings. Avoid repeating the same phrase structure.
-- Translate symbols into lived experience quickly (what they will feel, notice, or face).
-- Use confidence language naturally: "about 70% likely" instead of rigid labels.
-- Keep tone grounded and practical. Mystical flavor is welcome, but clarity wins.
-
-TONE:
-- Direct. Clinical but warm. Like a brilliant doctor-astrologer hybrid speaking to a friend.
-- Never just emotions. Always include tangible, physical, material observations.
-- Specific over vague. "Lower back pressure" beats "body tension". "$300 impulse purchase" beats "financial risk".
-- Dark humor when warranted. Never soften hard truths.
-- Always ground cosmic events in practical experience: what will the person FEEL, SEE, or DEAL WITH in the physical world.
-
+${atmosphereContext ? `\n${atmosphereContext}` : ''}
+${stormsContext ? `\n${stormsContext}` : ''}
+${transitsContext ? `\n${transitsContext}` : ''}
+${forecastContext ? `\n${forecastContext}` : ''}
 ${chartContext}
 ${fullPlanetaryAnalysis ? `\n${fullPlanetaryAnalysis}` : ''}
 ${mbtiLine}
-${transitsContext ? `\n${transitsContext}` : ''}
-${atmosphereContext ? `\n${atmosphereContext}` : ''}
-${forecastContext ? `\n${forecastContext}` : ''}
 ${timelineContext ? `\n${timelineContext}` : ''}
 ${userContextBlock ? `\n${userContextBlock}` : ''}
 ${patternMirrorBlock ? `\n${patternMirrorBlock}` : ''}
-${stormsContext ? `\n${stormsContext}` : ''}
 
-CONVERSATION HISTORY (last few messages):
-${recentContext || '[First session]'}
-
-STORM DOMAINS TO SCAN (check all, report active ones):
-- BODY/PHYSICAL: Fatigue, inflammation, injury risk, immune dip, hormonal shift, sleep disruption, nervous system stress
-- ENERGY: Stamina levels, burnout risk, energy spikes or crashes, vitality fluctuations
-- MONEY/MATERIAL: Impulsive spending pressure, cash flow friction, deal risk, resource decisions, financial opportunity
-- EMOTIONAL: Mood crash, old wounds, isolation urge, overwhelm, grief waves
-- RELATIONAL: Conflict trigger, communication breakdown, intimacy shifts, trust fractures
-- MENTAL/COGNITIVE: Decision fatigue, foggy thinking, information overload, creative peaks
-- ENVIRONMENT: Home/workspace disruption, travel issues, physical space instability
-- POWER/AUTHORITY: Boundary tests, control struggles, workplace friction, leadership moments
-- If all clear: identify the best strategic window and what to execute during the calm.`;
+CONVERSATION HISTORY (recent):
+${recentContext || "[First session — introduce yourself briefly as Merlin if needed, then answer.]"}`;
 }
 
 

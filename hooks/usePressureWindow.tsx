@@ -22,14 +22,30 @@ export interface PressureWindowData {
       scores: {
         intensity: number;
         confidence: number;
+        volatility?: number;
       };
       transit: {
         transitingPlanet: string;
         natalPlanet: string;
         aspect: string;
       };
+      timing?: {
+        phase?: 'building' | 'peaking' | 'releasing';
+        startsAt?: string;
+        peakAt?: string;
+        endsAt?: string;
+        daysToPeak?: number;
+        hoursToPeak?: number;
+      };
+      domains?: Array<{
+        name: 'love' | 'career' | 'money' | 'family' | 'health' | 'self';
+        impact: number;
+        valence: number;
+      }>;
       narrative: {
         whisper: string;
+        risk?: string;
+        opportunity?: string;
       };
     }>;
     lunarTiming: {
@@ -73,7 +89,7 @@ export function usePressureWindow() {
             timezoneOffset: timezoneOffsetHours,
             mbtiType: options?.mbtiType,
             userId: options?.userId,
-            windowDays: options?.windowDays,
+            windowDays: options?.windowDays ?? 30,
           }),
         });
 

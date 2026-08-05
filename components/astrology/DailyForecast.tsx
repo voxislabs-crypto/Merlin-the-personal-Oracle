@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { ChevronDown, Zap, Lightbulb, Sparkles, Heart, Briefcase, MessageSquare, Waves } from 'lucide-react';
 import ThumbsFeedback from './ThumbsFeedback';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
+import { parseTransitPhrase } from '@/lib/astrology/planet-style';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 
@@ -375,7 +377,13 @@ export function DailyForecast({
                     onClick={onAskContext ? () => onAskContext(highlight, `How should I work with this energy today: ${highlight}?`) : undefined}
                   >
                     <span className="text-amber-400 shrink-0">✦</span>
-                    <span>{highlight}</span>
+                    <span>
+                      {parseTransitPhrase(highlight) ? (
+                        <TransitAspectLabel label={highlight} />
+                      ) : (
+                        highlight
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -760,7 +768,13 @@ export function DailyForecast({
                 onClick={onAskContext ? () => onAskContext(highlight, `How should I work with this energy today: ${highlight}?`) : undefined}
               >
                 <span className="text-amber-400 mt-1 shrink-0">✦</span>
-                <span className="text-white text-sm">{highlight}</span>
+                <span className="text-white text-sm">
+                  {parseTransitPhrase(highlight) ? (
+                    <TransitAspectLabel label={highlight} />
+                  ) : (
+                    highlight
+                  )}
+                </span>
               </motion.div>
             ))}
           </div>

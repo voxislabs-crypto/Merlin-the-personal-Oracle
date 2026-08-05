@@ -1,3 +1,5 @@
+import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+
 export type OracleTonePreset = 'warm' | 'direct' | 'mystic' | 'strategic';
 
 const REPETITIVE_OPENERS = [
@@ -70,8 +72,11 @@ export function polishOracleOutput(text: string): string {
 
   const softened = softenRepeatedOpeners(rawLines);
 
-  return softened
+  const cleaned = softened
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  // Probability-language guardrails (strip absolute prophecy phrasing)
+  return sanitizeCopyText(cleaned);
 }

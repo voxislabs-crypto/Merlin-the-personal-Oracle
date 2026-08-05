@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { generateGrokInterpretation } from '@/lib/grok-service';
+import { chatCompletion, getLlmConfig, isLlmConfigured } from '@/lib/llm-config';
 
 export async function POST(request: Request) {
   console.log('[Life Event Detail] Received request for detailed interpretation');
   
   try {
     const body = await request.json();
-    const { event, mode = 'grok', userName, allEvents } = body;
+    const { event, mode = 'llm', userName, allEvents } = body;
     
     if (!event) {
       return NextResponse.json(
@@ -52,47 +52,37 @@ Make them understand why it had to hurt.
 Just the words. No preamble.`;
 
     try {
-      // Use Grok AI for interpretation
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'grok-3-fast',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are Merlin: wise, raw, unflinching. A friend who survived too much. Speak truth that cuts and heals. No astrology jargon. No safe platitudes. Make them FEEL the transit like a scar they forgot they had.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.9,
-          max_tokens: 1000
-        })
+      if (!isLlmConfigured()) {
+        throw new Error(`${getLlmConfig().envKeyName} not configured`);
+      }
+
+      const interpretation = await chatCompletion({
+        temperature: 0.9,
+        maxTokens: 1000,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are Merlin: wise, raw, unflinching. A friend who survived too much. Speak truth that cuts and heals. No astrology jargon. No safe platitudes. Make them FEEL the transit like a scar they forgot they had.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
       });
 
-      if (!response.ok) {
-        throw new Error(`Grok API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const interpretation = data.choices?.[0]?.message?.content;
-
       if (!interpretation) {
-        throw new Error('No interpretation returned from Grok');
+        throw new Error('No interpretation returned from LLM');
       }
 
-      console.log('[Life Event Detail] Successfully generated interpretation via Grok');
+      const cfg = getLlmConfig();
+      console.log(`[Life Event Detail] Successfully generated interpretation via ${cfg.provider}`);
       return NextResponse.json({
         success: true,
         data: {
           detailed: interpretation.trim(),
-          interpreter: 'grok',
+          interpreter: cfg.provider,
           transitingPlanet,
           natalPlanet,
           aspect,
@@ -101,9 +91,9 @@ Just the words. No preamble.`;
         }
       });
 
-    } catch (grokError) {
+    } catch (llmError) {
       // Fallback to traditional interpretation
-      console.log('[Life Event Detail] Grok failed, using fallback:', grokError);
+      console.log('[Life Event Detail] LLM failed, using fallback:', llmError);
       
       const fallbackInterpretation = generateFallbackInterpretation(
         transitingPlanet,

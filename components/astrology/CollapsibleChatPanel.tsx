@@ -53,6 +53,11 @@ interface CollapsibleChatPanelProps {
   draftPromptKey?: number;
   draftLabel?: string;
   showExpandToggle?: boolean;
+  /**
+   * `minimal` = drawer mode: no double header, no identity cards, no avatar wall —
+   * conversation text is the product.
+   */
+  chrome?: 'full' | 'minimal';
   atmospherePacket?: AtmospherePacket | null;
   dualPersonality?: {
     core?: string;
@@ -75,9 +80,11 @@ export function CollapsibleChatPanel({
   draftPromptKey,
   draftLabel,
   showExpandToggle = true,
+  chrome = 'full',
   atmospherePacket,
   dualPersonality,
 }: CollapsibleChatPanelProps) {
+  const minimal = chrome === 'minimal';
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -606,12 +613,12 @@ export function CollapsibleChatPanel({
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
       
-      // Auto-read the message aloud after a brief delay
-      setTimeout(() => {
-        if (polishedContent.trim()) {
+      // Auto-TTS only in full chrome; drawer stays quiet so reading wins
+      if (!minimal && polishedContent.trim()) {
+        setTimeout(() => {
           readMessageAloud(assistantMessage.id, polishedContent);
-        }
-      }, 500);
+        }, 500);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorText = error instanceof Error ? error.message : 'Unknown error';
@@ -655,399 +662,386 @@ export function CollapsibleChatPanel({
   const maskType = dualPersonality?.mask;
   const weatherTone = atmospherePacket?.tone?.label;
   const weatherIntensity = atmospherePacket?.intensity;
+  const hasMessageExtras = (msg: Message) =>
+    Boolean(
+      msg.mirrorInsight ||
+        (msg.tactics && msg.tactics.length > 0) ||
+        msg.forecast ||
+        msg.level
+    );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-r-lg border-l border-sky-500/25 bg-slate-950/90 shadow-2xl backdrop-blur-md">
-      {/* Header */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-sky-500/20 bg-slate-950/70 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-sky-100">Oracle Chat</h3>
-          <p className="text-xs text-sky-300/70">Reads your core + today&apos;s life weather</p>
-          {/* Live context strip — always show what the Oracle is using */}
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {coreType ? (
-              <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
-                Core {coreType}
-              </span>
-            ) : mbtiType ? (
-              <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
-                Type {mbtiType}
-              </span>
+    <div
+      className={`flex h-full flex-col overflow-hidden bg-slate-950 ${
+        minimal ? '' : 'rounded-r-lg border-l border-sky-500/25 shadow-2xl backdrop-blur-md'
+      }`}
+    >
+      {/* Header — full chrome only; drawer owns its own slim bar */}
+      {!minimal ? (
+        <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-sky-500/20 bg-slate-950/70 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-sky-100">Oracle Chat</h3>
+            <p className="text-xs text-sky-300/70">Reads your core + today&apos;s life weather</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {coreType ? (
+                <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
+                  Core {coreType}
+                </span>
+              ) : mbtiType ? (
+                <span className="rounded-full border border-violet-400/35 bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
+                  Type {mbtiType}
+                </span>
+              ) : null}
+              {maskType && maskType !== coreType ? (
+                <span className="rounded-full border border-orange-400/35 bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-100">
+                  Mask {maskType}
+                </span>
+              ) : null}
+              {weatherTone ? (
+                <span className="rounded-full border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-100">
+                  {weatherTone}
+                  {typeof weatherIntensity === 'number' ? ` · ${weatherIntensity}%` : ''}
+                </span>
+              ) : null}
+            </div>
+            {identityPack ? (
+              <div className="mt-2 max-w-sm">
+                <IdentityPatternCard
+                  archetypeName={identityPack.archetypeName}
+                  patternSignature={identityPack.patternSignature}
+                  coreContradiction={identityPack.coreContradiction}
+                  compact
+                />
+              </div>
             ) : null}
-            {maskType && maskType !== coreType ? (
-              <span className="rounded-full border border-orange-400/35 bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-100">
-                Mask {maskType}
-              </span>
+            {progression ? (
+              <div className="mt-2 max-w-sm">
+                <ProgressPathCard
+                  arcPath={progression.arcPath}
+                  arcLevel={progression.arcLevel}
+                  arcXp={progression.arcXp}
+                  interactionCount={progression.interactionCount}
+                  compact
+                />
+              </div>
             ) : null}
-            {weatherTone ? (
-              <span className="rounded-full border border-sky-400/35 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-100">
-                {weatherTone}
-                {typeof weatherIntensity === 'number' ? ` · ${weatherIntensity}%` : ''}
-              </span>
-            ) : (
-              <span className="rounded-full border border-slate-600/50 bg-slate-800/60 px-2 py-0.5 text-[10px] text-slate-400">
-                Weather loading…
-              </span>
-            )}
-            {atmospherePacket?.dominantDriver?.label ? (
-              <span
-                className="max-w-[160px] truncate rounded-full border border-slate-600/40 bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-300"
-                title={atmospherePacket.dominantDriver.label}
+            {ttsError ? <p className="mt-1 text-xs text-orange-400">⚠️ {ttsError}</p> : null}
+          </div>
+          <div className="flex shrink-0 gap-1">
+            {playingMessageId ? (
+              <div className="mr-1 flex items-center gap-1 rounded border border-purple-500/30 bg-purple-500/10 px-1.5 py-1">
+                <button
+                  type="button"
+                  onClick={toggleCurrentSpeech}
+                  className="rounded p-1 text-purple-300 transition hover:bg-purple-500/20 hover:text-purple-100"
+                  title={isSpeaking ? 'Pause speech' : 'Resume speech'}
+                >
+                  {isSpeaking ? <Pause size={12} /> : <Play size={12} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={stopCurrentSpeech}
+                  className="rounded p-1 text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-100"
+                  title="Stop speech"
+                >
+                  <Square size={12} />
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={toggleClarityMode}
+              title={
+                plainEnglish
+                  ? 'Clarity Mode ON — plain English'
+                  : 'Oracle Full Mode — click for plain English'
+              }
+              className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition ${
+                plainEnglish
+                  ? 'border border-emerald-500/30 bg-emerald-500/20 text-emerald-300'
+                  : 'border border-purple-500/30 bg-purple-500/20 text-purple-300'
+              }`}
+            >
+              {plainEnglish ? <Eye size={11} /> : <Sparkles size={11} />}
+              <span>{plainEnglish ? 'Clear' : 'Full'}</span>
+            </button>
+            <Link
+              href="/profile"
+              title={`Tone: ${tonePreset}`}
+              className="flex items-center gap-1 rounded border border-cyan-500/30 bg-cyan-500/20 px-2 py-1 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/30"
+            >
+              <span className="uppercase">{tonePreset}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={clearHistory}
+              className="rounded p-1.5 text-slate-400 transition hover:bg-slate-700/50 hover:text-slate-300"
+              title="Clear history"
+            >
+              <Trash2 size={14} />
+            </button>
+            {showExpandToggle ? (
+              <button
+                type="button"
+                onClick={handleToggleExpand}
+                className="rounded p-1.5 text-slate-400 transition hover:bg-slate-700/50 hover:text-slate-300"
+                title={expanded ? 'Collapse' : 'Expand'}
               >
-                {atmospherePacket.dominantDriver.label}
-              </span>
+                {expanded ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+              </button>
             ) : null}
           </div>
-          {identityPack && (
-            <div className="mt-2 max-w-sm">
-              <IdentityPatternCard
-                archetypeName={identityPack.archetypeName}
-                patternSignature={identityPack.patternSignature}
-                coreContradiction={identityPack.coreContradiction}
-                compact
-              />
-            </div>
-          )}
-          {progression && (
-            <div className="mt-2 max-w-sm">
-              <ProgressPathCard
-                arcPath={progression.arcPath}
-                arcLevel={progression.arcLevel}
-                arcXp={progression.arcXp}
-                interactionCount={progression.interactionCount}
-                compact
-              />
-            </div>
-          )}
-          {ttsError && (
-            <p className="mt-1 text-xs text-orange-400">⚠️ {ttsError}</p>
-          )}
         </div>
-        <div className="flex gap-1 flex-shrink-0">
-          {playingMessageId && (
-            <div className="flex items-center gap-1 mr-1 px-1.5 py-1 rounded border border-purple-500/30 bg-purple-500/10">
+      ) : (
+        /* Minimal toolbar — one row, secondary to messages */
+        <div className="flex shrink-0 items-center justify-end gap-1 border-b border-slate-800/80 px-2 py-1.5">
+          {playingMessageId ? (
+            <div className="mr-auto flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5">
               <button
+                type="button"
                 onClick={toggleCurrentSpeech}
-                className="p-1 text-purple-300 hover:text-purple-100 hover:bg-purple-500/20 rounded transition"
-                title={isSpeaking ? 'Pause speech' : 'Resume speech'}
+                className="rounded p-1 text-sky-300 hover:bg-slate-800"
+                title={isSpeaking ? 'Pause' : 'Resume'}
               >
                 {isSpeaking ? <Pause size={12} /> : <Play size={12} />}
               </button>
               <button
+                type="button"
                 onClick={stopCurrentSpeech}
-                className="p-1 text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 rounded transition"
-                title="Stop speech"
+                className="rounded p-1 text-rose-300 hover:bg-slate-800"
+                title="Stop"
               >
                 <Square size={12} />
               </button>
             </div>
-          )}
-          {/* Clarity Mode toggle */}
+          ) : null}
           <button
+            type="button"
             onClick={toggleClarityMode}
-            title={plainEnglish ? 'Clarity Mode ON — plain English (click for Oracle Full)' : 'Oracle Full Mode — click for plain English'}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition ${
-              plainEnglish
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
-                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30'
-            }`}
+            className={`rounded px-2 py-1 text-[11px] font-medium ${
+              plainEnglish ? 'text-emerald-300/90' : 'text-violet-300/90'
+            } hover:bg-slate-800`}
+            title="Toggle plain English"
           >
-            {plainEnglish ? <Eye size={11} /> : <Sparkles size={11} />}
-            <span>{plainEnglish ? 'Clear' : 'Full'}</span>
+            {plainEnglish ? 'Clear' : 'Full'}
           </button>
-          <Link
-            href="/profile"
-            title={`Oracle tone is managed in Preferences. Current tone: ${tonePreset}`}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/30"
-          >
-            <span>Tone</span>
-            <span className="uppercase">{tonePreset}</span>
-          </Link>
           <button
+            type="button"
             onClick={clearHistory}
-            className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-700/50 rounded transition"
+            className="rounded p-1.5 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
             title="Clear history"
           >
-            <Trash2 size={14} />
+            <Trash2 size={13} />
           </button>
-          {showExpandToggle ? (
-            <button
-              onClick={handleToggleExpand}
-              className="p-1.5 text-slate-400 hover:text-slate-300 hover:bg-slate-700/50 rounded transition"
-              title={expanded ? 'Collapse' : 'Expand'}
-            >
-              {expanded ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
-          ) : null}
         </div>
-      </div>
+      )}
 
-      {/* Messages Area */}
-      <div 
+      {/* Messages — primary surface */}
+      <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto space-y-3 p-4"
+        className={`min-h-0 flex-1 space-y-3 overflow-y-auto ${minimal ? 'px-3 py-3' : 'p-4'}`}
       >
-        <motion.div
-          key="voice-avatar"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          transition={{ duration: 0.3 }}
-          className="flex justify-center pb-3 border-b border-purple-500/20 overflow-hidden"
-        >
-          <div className="w-full max-w-[220px]">
-            <VoiceAvatar
-              compact
-              isPlaying={isSpeaking}
-              isThinking={isLoading || !!streamingContent}
-              audioRef={globalAudioRef}
-              messageText={
-                streamingContent ||
-                messages.find((m: Message) => m.id === playingMessageId)?.content ||
-                (messages.length === 0 ? 'Merlin is ready for your question.' : '')
-              }
-              portraitImage={MERLIN_PORTRAIT_IMAGE}
-            />
-          </div>
-        </motion.div>
+        {!minimal ? (
+          <motion.div
+            key="voice-avatar"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ duration: 0.3 }}
+            className="flex justify-center overflow-hidden border-b border-purple-500/20 pb-3"
+          >
+            <div className="w-full max-w-[220px]">
+              <VoiceAvatar
+                compact
+                isPlaying={isSpeaking}
+                isThinking={isLoading || !!streamingContent}
+                audioRef={globalAudioRef}
+                messageText={
+                  streamingContent ||
+                  messages.find((m: Message) => m.id === playingMessageId)?.content ||
+                  (messages.length === 0 ? 'Merlin is ready for your question.' : '')
+                }
+                portraitImage={MERLIN_PORTRAIT_IMAGE}
+              />
+            </div>
+          </motion.div>
+        ) : null}
 
-        {messages.length === 0 && !streamingContent && (
-          <div className="h-full flex items-center justify-center text-center">
-            <div className="text-slate-500 text-sm">
-              <p>Ask Merlin about your chart</p>
-              <p className="text-xs text-slate-600 mt-2">or click a pattern, placement, or signal to prefill the prompt</p>
+        {messages.length === 0 && !streamingContent ? (
+          <div className="flex h-full min-h-[12rem] items-center justify-center text-center">
+            <div className="max-w-[16rem] text-sm text-slate-400">
+              <p className="font-medium text-slate-300">Ask Merlin anything</p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Risk windows, storms, chart questions — keep it practical.
+              </p>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {messages.map((msg: Message) => (
-          <motion.div
-            key={msg.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-xs rounded-lg px-3 py-2 text-sm ${
-                msg.role === 'user'
-                  ? 'bg-purple-600/40 text-purple-100 border border-purple-500/30'
-                  : 'bg-slate-800/50 text-slate-100 border border-purple-500/20'
-              }`}
+        {messages.map((msg: Message) => {
+          const extrasOpen = expandedMessageId === msg.id;
+          const showExtras = hasMessageExtras(msg);
+          return (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {/* Main message */}
-              <div className="flex gap-2 items-start justify-between">
-                <p className="leading-relaxed flex-1 break-words">{msg.content}</p>
-
-                {/* TTS Button - only for assistant messages */}
-                {msg.role === 'assistant' && (
-                  <div className="flex flex-col gap-1 flex-shrink-0 ml-1">
+              <div
+                className={`rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed ${
+                  minimal ? 'max-w-[96%]' : 'max-w-[92%] sm:max-w-sm'
+                } ${
+                  msg.role === 'user'
+                    ? 'border border-violet-500/35 bg-violet-600/35 text-violet-50'
+                    : 'border border-slate-700/80 bg-slate-900 text-slate-100 shadow-sm'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-slate-100">
+                    {msg.content}
+                  </p>
+                  {msg.role === 'assistant' ? (
                     <button
+                      type="button"
                       onClick={() => readMessageAloud(msg.id, msg.content)}
                       disabled={isTTSLoading && playingMessageId === msg.id}
-                      className={`p-1 rounded hover:bg-purple-500/20 transition ${
-                        playingMessageId === msg.id
-                          ? 'text-purple-400'
-                          : 'text-slate-400 hover:text-purple-300'
+                      className={`mt-0.5 shrink-0 rounded p-1 transition hover:bg-slate-800 ${
+                        playingMessageId === msg.id ? 'text-sky-300' : 'text-slate-500'
                       } disabled:opacity-50`}
-                      title={
-                        playingMessageId === msg.id
-                          ? isSpeaking
-                            ? 'Pause'
-                            : isPaused
-                            ? 'Resume'
-                            : 'Playing'
-                          : 'Read aloud'
-                      }
+                      title="Read aloud"
                     >
                       {isTTSLoading && playingMessageId === msg.id ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : playingMessageId === msg.id ? (
-                        isSpeaking ? (
-                          <Pause size={12} className="animate-pulse" />
-                        ) : (
-                          <Play size={12} />
-                        )
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : playingMessageId === msg.id && isSpeaking ? (
+                        <Pause size={14} />
                       ) : (
-                        <Volume2 size={12} />
+                        <Volume2 size={14} />
                       )}
                     </button>
-                    {/* Cache indicator */}
-                    {getCachedAudio(msg.content, 'oracle') && (
-                      <div className="text-xs text-green-400 px-1" title="Audio cached - no API credit used">
-                        💾
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                  ) : null}
+                </div>
 
-              {/* Tactics */}
-              {msg.mirrorInsight && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 pt-2 border-t border-rose-400/20"
-                >
-                  <div className="rounded-md border border-rose-400/25 bg-rose-950/20 px-2 py-2">
-                    <p className="text-[10px] uppercase tracking-wide text-rose-300/85 mb-1">
-                      Why Merlin pushed {msg.mirrorInsight.stanceMode === 'direct' ? '(direct)' : '(soft)'}
-                    </p>
-                    <p className="text-xs text-rose-100/90 leading-relaxed">{msg.mirrorInsight.message}</p>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Tactics */}
-              {msg.tactics && msg.tactics.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 pt-2 border-t border-purple-500/20"
-                >
-                  <p className="text-xs font-semibold text-purple-300 mb-1">⚡ Moves:</p>
-                  <ul className="space-y-1 text-xs text-purple-200">
-                    {msg.tactics.map((tactic: string, i: number) => (
-                      <li key={i} className="flex items-start gap-1 group">
-                        <span className="text-purple-400 mt-0.5">→</span>
-                        <span className="flex-1">{tactic}</span>
-                        <button
-                          onClick={() => saveTacticAsQuest(tactic)}
-                          title="Save to Quest Log"
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-yellow-500 hover:text-yellow-300 transition-opacity text-xs px-1 py-0.5 rounded hover:bg-yellow-500/10"
-                        >
-                          📜
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              )}
-
-              {/* Forecast */}
-              {msg.forecast && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 pt-2 border-t border-purple-500/20"
-                >
-                  <p className="text-xs font-semibold text-purple-300 mb-1">📅 {msg.forecast.timeframe}:</p>
-                  <div className="flex gap-1 flex-wrap">
-                    {msg.forecast.themes.map((theme: string, i: number) => (
-                      <span key={i} className="text-xs bg-purple-500/30 text-purple-200 px-1.5 py-0.5 rounded">
-                        {theme}
-                      </span>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Level Info */}
-              {msg.level && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 pt-2 border-t border-purple-500/20 cursor-pointer"
-                  onClick={() =>
-                    setExpandedMessageId(expandedMessageId === msg.id ? null : msg.id)
-                  }
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-purple-300">🎮 {msg.level.current}</p>
-                  </div>
-                  {expandedMessageId === msg.id && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="text-xs text-purple-300 mt-1 space-y-0.5"
+                {msg.role === 'assistant' && showExtras ? (
+                  <div className="mt-2 border-t border-slate-700/60 pt-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedMessageId(extrasOpen ? null : msg.id)
+                      }
+                      className="text-[11px] font-medium text-slate-400 hover:text-slate-200"
                     >
-                      <p>
-                        <span className="text-purple-400">Challenge:</span> {msg.level.challenge}
-                      </p>
-                      <p>
-                        <span className="text-green-400">Reward:</span> {msg.level.reward}
-                      </p>
-                    </motion.div>
-                  )}
-                </motion.div>
-              )}
-
-              {/* Timestamp */}
-              <p className="text-xs text-slate-500 mt-1 opacity-50">
-                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-
-        {/* Streaming content */}
-        {streamingContent && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-start"
-          >
-            <div className="max-w-xs rounded-lg px-3 py-2 bg-slate-800/50 text-slate-100 border border-purple-500/20">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {streamingContent}
-                <span className="animate-pulse">▌</span>
-              </p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Loading state */}
-        {isLoading && !streamingContent && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start"
-          >
-            <div className="bg-slate-800/50 px-3 py-2 rounded-lg border border-purple-500/20">
-              <div className="flex items-center gap-2 text-purple-300">
-                <Loader2 size={14} className="animate-spin" />
-                <span className="text-xs">Merlin contemplates...</span>
+                      {extrasOpen ? 'Hide extras' : 'Show extras (moves · timing)'}
+                    </button>
+                    {extrasOpen ? (
+                      <div className="mt-2 space-y-2 text-xs text-slate-300">
+                        {msg.mirrorInsight ? (
+                          <div className="rounded-md border border-rose-400/20 bg-rose-950/30 px-2 py-1.5">
+                            <p className="mb-0.5 text-[10px] uppercase tracking-wide text-rose-300/80">
+                              Pattern note
+                            </p>
+                            <p className="leading-relaxed">{msg.mirrorInsight.message}</p>
+                          </div>
+                        ) : null}
+                        {msg.tactics && msg.tactics.length > 0 ? (
+                          <ul className="space-y-1">
+                            {msg.tactics.map((tactic: string, i: number) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-sky-400">→</span>
+                                <span className="flex-1">{tactic}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => saveTacticAsQuest(tactic)}
+                                  className="text-amber-400/80 hover:text-amber-300"
+                                  title="Save to Quest Log"
+                                >
+                                  📜
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        {msg.forecast ? (
+                          <p>
+                            <span className="text-slate-500">{msg.forecast.timeframe}: </span>
+                            {msg.forecast.themes.join(' · ')}
+                          </p>
+                        ) : null}
+                        {msg.level ? (
+                          <p className="text-slate-400">
+                            {msg.level.current}
+                            {msg.level.challenge ? ` — ${msg.level.challenge}` : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
+            </motion.div>
+          );
+        })}
+
+        {streamingContent ? (
+          <div className="flex justify-start">
+            <div
+              className={`rounded-2xl border border-slate-700/80 bg-slate-900 px-3.5 py-2.5 text-[15px] text-slate-100 ${
+                minimal ? 'max-w-[96%]' : 'max-w-[92%] sm:max-w-sm'
+              }`}
+            >
+              <p className="whitespace-pre-wrap leading-relaxed">
+                {streamingContent}
+                <span className="animate-pulse text-sky-300">▌</span>
+              </p>
             </div>
-          </motion.div>
-        )}
+          </div>
+        ) : null}
+
+        {isLoading && !streamingContent ? (
+          <div className="flex justify-start">
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-900 px-3 py-2 text-xs text-slate-400">
+              <Loader2 size={14} className="animate-spin text-sky-400" />
+              Merlin is reading…
+            </div>
+          </div>
+        ) : null}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="border-t border-purple-500/20 bg-slate-900/50 backdrop-blur p-3 space-y-2 flex-shrink-0">
-        {activeDraftLabel && (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+      {/* Composer */}
+      <div className="shrink-0 space-y-2 border-t border-slate-800 bg-slate-950 px-3 py-3">
+        {activeDraftLabel ? (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/25 bg-sky-950/40 px-2.5 py-1.5 text-xs text-sky-100">
             <span className="truncate">Context: {activeDraftLabel}</span>
             <button
               type="button"
               onClick={() => setActiveDraftLabel(null)}
-              className="text-cyan-200/80 hover:text-cyan-100 transition"
-              title="Dismiss selected context"
+              className="text-sky-300/80 hover:text-sky-100"
+              title="Dismiss"
             >
               <X size={12} />
             </button>
           </div>
-        )}
+        ) : null}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-            placeholder="Ask..."
+            placeholder="Ask Merlin…"
             disabled={isLoading}
-            className="flex-1 bg-slate-800/50 border border-purple-500/30 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/60 disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500/50 focus:outline-none disabled:opacity-50"
           />
           <Button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="shrink-0 rounded-xl bg-sky-600 px-3 text-white hover:bg-sky-500"
             size="sm"
           >
-            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </Button>
         </form>
       </div>

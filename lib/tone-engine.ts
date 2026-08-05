@@ -1,7 +1,6 @@
 import 'server-only';
 
-const XAI_API_BASE = 'https://api.x.ai/v1';
-const XAI_API_KEY = process.env.XAI_API_KEY;
+import { chatCompletion, isLlmConfigured } from '@/lib/llm-config';
 
 const MERLIN_SYSTEM_PROMPT = `You are Merlin.
 
@@ -65,17 +64,17 @@ function buildToneInstruction(
     patternCount >= 6
       ? `This pattern (${patternLabel || 'the loop'}) has repeated ${patternCount} times. Escalate accordingly — the user is choosing this, not stumbling into it.`
       : patternCount >= 3
-      ? `This pattern has appeared ${patternCount} times. Make repetition undeniable without labeling it as data.`
-      : patternCount === 2
-      ? `This has appeared twice. Note the repetition without over-emphasizing it.`
-      : '';
+        ? `This pattern has appeared ${patternCount} times. Make repetition undeniable without labeling it as data.`
+        : patternCount === 2
+          ? `This has appeared twice. Note the repetition without over-emphasizing it.`
+          : '';
 
   const toneNote =
     toneLevel === 'confrontational'
       ? 'Be direct. No softening. The user is at a level where comfort is a trap.'
       : toneLevel === 'direct'
-      ? 'Be clear and calm. Lean into the uncomfortable truth without going cold.'
-      : 'Be observant and slightly uncomfortable — not harsh. The user is still building awareness.';
+        ? 'Be clear and calm. Lean into the uncomfortable truth without going cold.'
+        : 'Be observant and slightly uncomfortable — not harsh. The user is still building awareness.';
 
   return [toneNote, repetitionNote].filter(Boolean).join('\n');
 }
@@ -89,13 +88,13 @@ export interface ApplyMerlinToneParams {
 }
 
 /**
- * Rewrites a base oracle message through Merlin's voice using Grok.
+ * Rewrites a base oracle message through Merlin's voice (Groq by default).
  * Falls back to the original message if the API key is missing or the call fails.
  */
 export async function applyMerlinTone(params: ApplyMerlinToneParams): Promise<string> {
   const { baseMessage, arcLevel, patternCount, patternLabel, mirrorMessage } = params;
 
-  if (!XAI_API_KEY) {
+  if (!isLlmConfigured()) {
     return baseMessage;
   }
 
@@ -112,32 +111,14 @@ Base Insight to rewrite:
 ${baseMessage}`;
 
   try {
-    const response = await fetch(`${XAI_API_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'grok-3-fast',
-        messages: [
-          { role: 'system', content: MERLIN_SYSTEM_PROMPT },
-          { role: 'user', content: userContent },
-        ],
-        temperature: 0.72,
-        max_tokens: 600,
-      }),
+    const result = await chatCompletion({
+      temperature: 0.72,
+      maxTokens: 600,
+      messages: [
+        { role: 'system', content: MERLIN_SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
     });
-
-    if (!response.ok) {
-      console.warn('[ToneEngine] xAI call failed, using base message. Status:', response.status);
-      return baseMessage;
-    }
-
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const result = data?.choices?.[0]?.message?.content?.trim();
     return result || baseMessage;
   } catch (err) {
     console.warn('[ToneEngine] Tone rewrite failed, using base message.', err);

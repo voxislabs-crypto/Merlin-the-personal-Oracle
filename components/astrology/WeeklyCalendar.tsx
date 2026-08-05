@@ -8,32 +8,51 @@ import { DayWhisper } from '@/hooks/useWeeklyForecast';
 interface WeeklyCalendarProps {
   week: DayWhisper[];
   loading?: boolean;
+  /** Controlled selection (YYYY-MM-DD). When 'all', falls back to today. */
+  selectedDate?: string;
+  onSelectDate?: (date: string) => void;
 }
 
 /**
  * Horizontal scrolling 7-day calendar
  * Today always centered, user can select any day
  */
-export function WeeklyCalendar({ week, loading = false }: WeeklyCalendarProps) {
+export function WeeklyCalendar({
+  week,
+  loading = false,
+  selectedDate: controlledDate,
+  onSelectDate,
+}: WeeklyCalendarProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [selectedDay, setSelectedDay] = useState<string>('');
+  const [internalDay, setInternalDay] = useState<string>('');
 
   // Find today's date index — use local date components to avoid UTC midnight off-by-one
   const _ld = new Date();
   const todayDateString = `${_ld.getFullYear()}-${String(_ld.getMonth() + 1).padStart(2, '0')}-${String(_ld.getDate()).padStart(2, '0')}`;
   const todayIndex = week.findIndex(day => day.date === todayDateString);
 
-  // Initialize selected day to today
+  const selectedDay =
+    controlledDate && controlledDate !== 'all'
+      ? controlledDate
+      : internalDay || todayDateString;
+
+  const setSelectedDay = (date: string) => {
+    if (onSelectDate) onSelectDate(date);
+    else setInternalDay(date);
+  };
+
+  // Initialize selected day to today when uncontrolled
   useEffect(() => {
-    if (week.length > 0 && !selectedDay) {
+    if (controlledDate !== undefined) return;
+    if (week.length > 0 && !internalDay) {
       const today = week.find(day => day.date === todayDateString);
       if (today) {
-        setSelectedDay(today.date);
+        setInternalDay(today.date);
       } else {
-        setSelectedDay(week[0]?.date || '');
+        setInternalDay(week[0]?.date || '');
       }
     }
-  }, [week, todayDateString, selectedDay]);
+  }, [week, todayDateString, internalDay, controlledDate]);
 
   // Auto-scroll to center today's date
   useEffect(() => {

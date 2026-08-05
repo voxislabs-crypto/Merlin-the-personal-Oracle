@@ -45,7 +45,7 @@ export function useAtmosphere() {
             clientDate: options?.clientDate || getClientLocalDateString(),
             mbtiType: options?.mbtiType,
             userId: options?.userId,
-            windowDays: options?.windowDays,
+            windowDays: options?.windowDays ?? 30,
           }),
         });
 

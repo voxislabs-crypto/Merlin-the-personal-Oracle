@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowRight, Zap } from 'lucide-react';
+import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { AtmosphereHeader } from '@/components/dashboard/AtmosphereHeader';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 
@@ -104,9 +105,13 @@ export function WheelTransitPanel({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <Zap className="h-3.5 w-3.5 shrink-0 text-red-300" />
-                    <p className="text-sm font-semibold text-red-100 truncate">
-                      {transit.transitingPlanet} {transit.aspect} {transit.natalPlanet}
-                    </p>
+                    <div className="text-sm font-semibold text-red-100 min-w-0">
+                      <TransitAspectLabel
+                        transiting={transit.transitingPlanet}
+                        aspect={transit.aspect}
+                        natal={transit.natalPlanet}
+                      />
+                    </div>
                   </div>
                   <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-red-200/80">
                     {transit.exact ? 'Exact' : `${transit.orb.toFixed(1)}°`}

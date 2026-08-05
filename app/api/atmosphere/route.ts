@@ -78,14 +78,30 @@ function mapPredictiveBundle(
       scores: {
         intensity: event.scores.intensity,
         confidence: event.scores.confidence,
+        volatility: event.scores.volatility,
       },
       transit: {
         transitingPlanet: event.transit.transitingPlanet,
         aspect: event.transit.aspect,
         natalPlanet: event.transit.natalPlanet,
       },
+      timing: {
+        phase: event.timing.phase,
+        startsAt: event.timing.startsAt,
+        peakAt: event.timing.peakAt,
+        endsAt: event.timing.endsAt,
+        daysToPeak: event.timing.daysToPeak,
+        hoursToPeak: event.timing.hoursToPeak,
+      },
+      domains: event.domains?.map((domain) => ({
+        name: domain.name,
+        impact: domain.impact,
+        valence: domain.valence,
+      })),
       narrative: {
         whisper: sanitizeCopyText(event.narrative.whisper),
+        risk: sanitizeCopyText(event.narrative.risk),
+        opportunity: sanitizeCopyText(event.narrative.opportunity),
       },
     })),
     lunarTiming: {
@@ -106,13 +122,17 @@ function mapPredictiveBundle(
 function mapStormsReport(report: ReturnType<typeof predictStorms>): AtmosphereStormsInput {
   return {
     storms: report.storms.map((storm) => ({
+      // Keep technical transit title for risk radar bars/drivers (not repeated plain blurbs)
       title: storm.title,
       intensity: storm.intensity,
       intensityScore: storm.intensityScore,
       transitingPlanet: storm.transitingPlanet,
       natalPlanet: storm.natalPlanet,
       aspect: storm.aspect,
-      description: sanitizeCopyText(storm.description),
+      description: sanitizeCopyText(storm.plainExpect || storm.description),
+      date: storm.date,
+      lifeArea: storm.categoryLabel || storm.lifeArea,
+      phase: storm.phase,
     })),
     weekSummary: sanitizeCopyText(report.weekSummary),
   };
@@ -158,7 +178,7 @@ export async function POST(request: Request) {
       mbtiType,
       userId,
       clientDate,
-      windowDays = 7,
+      windowDays = 30,
     } = body;
 
     if (!birthDate || !birthTime) {
@@ -204,7 +224,7 @@ export async function POST(request: Request) {
         windowDays,
       }),
       Promise.resolve(getTodaysForecast(natalChart, targetDate)),
-      Promise.resolve(predictStorms(natalChart, 7, parsedMbti)),
+      Promise.resolve(predictStorms(natalChart, Math.min(Number(windowDays) || 30, 45), parsedMbti)),
     ]);
 
     const emptyResonanceProfile: Awaited<ReturnType<typeof getResonanceWeightsProfile>> = {
