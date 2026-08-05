@@ -1,540 +1,202 @@
-# 🌟 Merlin - Your Personal Oracle
+# Merlin — the personal Oracle
 
-## Personalized life weather — with a real chart underneath
+**Personalized life weather for your chart.**
 
-Merlin leads with **how life feels for you today** (forecast, pressure, storms, mood reality-check), then lets people discover **Self** — birth chart, wheel, and MBTI — so every weather read is personal. Swiss Ephemeris precision, dual-pillar product model. Built with Next.js 15, TypeScript, and modern web technologies.
+Merlin answers one question people actually pay for:
 
-**Architecture:** [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md) — **Life weather** (sell) + **Self** (discover) + Shared foundation.
+> Is life friction elevated for *me* — and what’s the one move?
 
----
+Not another generic horoscope. Not a bare birth-chart calculator.  
+**Life weather first. Identity underneath.**
 
-## 🚀 **Live Demo**
-
-[Visit Merlin](https://merlin-the-personal-oracle-a2ay.vercel.app/)
-
----
-
-## ✨ **Features**
-
-### Core Functionality:
-- ✅ **Swiss Ephemeris Calculations** - NASA-grade astronomical precision
-- ✅ **Complete Birth Charts** - Planets, houses, aspects, angles
-- ✅ **Daily Forecasts** - Personalized cosmic guidance
-- ✅ **Transit Tracking** - Real-time planetary movements
-- ✅ **7-Day Predictive Transit Intelligence** - 6-hour sampling with intensity/confidence/volatility scoring
-- ✅ **Lunar Timing Engine** - phase-aware action bias with void-of-course caution windows
-- ✅ **Progressed Moon Overlay** - domain emphasis boosts integrated into predictive scoring
-- ✅ **MBTI Integration** - Personality type overlays
-- ✅ **Life Timeline** - Major life events and timing
-- ✅ **Weekly Whispers** - 7-day forecasts
-- ✅ **Interactive Wheel Visualization** - D3.js rendering
-
-### Business Features:
-- ✅ **Monthly Subscription** - $9.99/mo with 7-day free trial
-- ✅ **Lifetime Access** - One-time $50 founder pricing
-- ✅ **Stripe Integration** - Secure payment processing
-- ✅ **Clerk Authentication** - User management
-- ✅ **Email Capture** - Lead generation
-- ✅ **Analytics Tracking** - Conversion optimization
-- ✅ **SEO Optimized** - Organic traffic ready
-- ✅ **PWA Support** - Install as mobile app
+- **Live:** [merlin-the-personal-oracle-a2ay.vercel.app](https://merlin-the-personal-oracle-a2ay.vercel.app/)
+- **Architecture:** [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md)
+- **First users (no ads):** [docs/FIRST_10_USERS.md](docs/FIRST_10_USERS.md)
 
 ---
 
-## 🏗️ **Recent Improvements (v2.0)**
+## Product model
 
-### 1. **Enhanced Landing Page**
-- Professional conversion-optimized design
-- Trust badges and social proof
-- Pricing comparison section
-- FAQ section (8 common questions)
-- Detailed testimonials (6 real users)
-- Clear CTAs with urgency messaging
+| Pillar | User question | What they get |
+|--------|---------------|---------------|
+| **Weather** (primary sell) | What does *now* feel like for me? | Today brief, friction radar, storm playbook, weekly horizon |
+| **Self** (depth / retention) | Who am I in that weather? | Birth chart, wheel, dual MBTI, identity |
+| **Oracle** (shared) | What should I do with this? | Chat that sees chart + risk + storms + personality |
 
-### 2. **SEO & Analytics**
-- Comprehensive meta tags
-- Open Graph & Twitter Card support
-- Structured data (Schema.org)
-- Google Analytics 4 integration
-- Facebook Pixel support
-- Conversion tracking on all key events
-
-### 3. **Lead Generation**
-- Email capture component
-- Multiple display variants
-- Ready for Mailchimp/ConvertKit/Klaviyo
-- Analytics tracking for leads
-
-### 4. **Enhanced UX**
-- Professional loading states
-- Comprehensive error handling
-- Smooth animations
-- Mobile-optimized layouts
-- Accessible design
-
-### 5. **Documentation**
-- Complete monetization guide
-- Performance optimization guide
-- Environment setup instructions
-- Deployment checklist
-- Growth strategies
-
-### 6. **Forecast Intelligence Layer**
-- Persistent resonance learning via API feedback (user context + thumbs/collector inputs)
-- Deterministic predictive transit bundle exposed from `/api/transits`
-- Dashboard surfaces include:
-  - **Daily Transit Forecast** snapshot card (lunar timing, progressed Moon, top signal)
-  - **Active Transits** clairvoyance panel (context read, lunar read, score explainability)
-  - **Action Signal** badges (`DO NOW` / `DELAY NOW`) for top predictive events
-
-### 7. **Atmosphere Engine** (2026-06)
-Unified daily sky tone for the dashboard — single `AtmospherePacket` for Home, wheel forecast, and Oracle.
-
-- **Core** — pressure → storms → rating intensity chain, tone tokens, confluence, triple-hit amplification
-- **Returns** — solar return annual briefing, lunar return emotional weather
-- **Reality check** — felt vs sky intensity from check-ins + opt-in journal; guidance when mood and chart diverge
-- **Pattern store** — learns transit sensitivities from thumbs + check-ins; **Recalibrate** refreshes patterns
-- **Premium default** — on for premium users; set `NEXT_PUBLIC_MERLIN_ATMOSPHERE_ENGINE_V1=false` to roll back
-
-Docs: [`docs/atmosphere-engine/`](docs/atmosphere-engine/) (ROADMAP, TODO, pattern-store decision)
-
-After pulling latest code, sync the pattern store schema:
-
-```bash
-npx prisma db push
-npx prisma generate
+```
+Birth data
+    │
+    ▼
+Chart engine (Swiss Ephemeris)
+    ├── Self → IdentityPacket
+    └── Transits / storms / pressure
+            │
+            ▼
+        AtmospherePacket + LifeRiskPacket
+            │
+            ▼
+     Today · Forecast · Oracle
 ```
 
 ---
 
-## 📦 **Tech Stack**
+## What Merlin does
 
-```typescript
-Frontend:
-- Next.js 15 (App Router)
-- React 18
-- TypeScript
-- Tailwind CSS
-- Framer Motion
-- D3.js
+### Weather
+- **Today** — day-scoped life weather (intensity, why, one reversible move)
+- **Life risk radar** — overall friction 0–100, bullshit-possible flag, confidence, friction-by-day bar chart
+- **Storm playbook** — storms by **Social / Work / Financial / Health**, with when · confidence · navigate / avoid steps
+- **Date strip** — click a day; same selection links storm list and 7-day timeline (dedupes multi-day spam)
+- **Share** — one-tap share/copy for Today and Forecast (product-led growth)
 
-Backend:
-- Next.js API Routes
-- Swiss Ephemeris (sweph)
-- Node.js
+### Self
+- Natal chart with **Swiss Ephemeris** precision
+- Interactive wheel, placements, aspects
+- **Dual MBTI** from the chart (core / mask) as a lens on weather + Oracle tone
 
-Services:
-- Clerk (Authentication)
-- Stripe (Payments)
-- Vercel (Hosting)
-- Google Analytics (Tracking)
-```
+### Oracle (Merlin chat)
+- Reads live **app sight**: chart, risk packet, storm playbook, transits, dual personality
+- Intellectual, direct, conversational voice with hard guardrails (probability ≠ fate, no fabrication)
+- Clean drawer UI so you can actually read the reply
+- Default LLM: **Groq** (switchable to xAI via env)
 
 ---
 
-## 🚀 **Quick Start**
+## Pricing (beta)
 
-### Prerequisites:
-- Node.js 18+ 
-- npm or yarn
-- Clerk account (free)
-- Stripe account (test mode free)
+| Plan | Price |
+|------|--------|
+| Free peek | Limited chart / locked weather depth |
+| Monthly | **$9.99/mo** · 7-day free trial |
+| Lifetime | **$50** one-time founder pricing |
 
-### Installation:
+Stripe + Clerk for auth and billing.
+
+---
+
+## Tech stack
+
+| Layer | Stack |
+|-------|--------|
+| App | Next.js 15 (App Router), React, TypeScript, Tailwind |
+| Chart math | Swiss Ephemeris (`sweph` / `ephe/`), D3 wheel |
+| Data | Prisma, Postgres-compatible |
+| Auth / pay | Clerk, Stripe |
+| LLM | Groq by default (`lib/llm-config.ts`); optional xAI |
+| Tests | Jest |
+
+Node **≥ 20**.
+
+---
+
+## Quick start
+
+### Prerequisites
+- Node 20+
+- Clerk project
+- Stripe account (test mode is fine)
+- Optional: `GROQ_API_KEY` for Oracle / AI interpretations
+- Swiss Ephemeris files in `./ephe` (or set `SWEPH_PATH`)
+
+### Setup
 
 ```bash
-# Clone repository
 git clone https://github.com/voxislabs-crypto/Merlin-the-personal-Oracle.git
 cd Merlin-the-personal-Oracle
 
-# Install dependencies
 npm install
-
-# Configure environment
 cp .env.example .env.local
-# Edit .env.local with your API keys
+# fill Clerk, Stripe, GROQ_API_KEY, NEXT_PUBLIC_URL
 
-# Run development server
+npx prisma db push
+npx prisma generate
+
 npm run dev
-
-# Open http://localhost:3000
 ```
 
-### Minimum Required Environment Variables:
+Open [http://localhost:3000](http://localhost:3000).
 
-```env
-# Clerk Authentication (free at dashboard.clerk.com)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
-CLERK_SECRET_KEY=sk_test_xxxxx
-
-# Stripe Payment (test mode free at dashboard.stripe.com)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
-STRIPE_SECRET_KEY=sk_test_xxxxx
-NEXT_PUBLIC_STRIPE_PRICE_ID=price_xxxxx
-
-# Development mode (bypasses payment)
-NEXT_PUBLIC_DEV_MODE=true
-```
-
-Full configuration options in [`.env.example`](.env.example)
-
----
-
-## 📚 **Documentation**
-
-### For Developers:
-- [**Copilot Instructions**](.github/copilot-instructions.md) - Architecture & patterns
-- [**Atmosphere Engine**](docs/atmosphere-engine/README.md) - Sky tone, reality check, pattern store
-- [**Performance Guide**](PERFORMANCE_GUIDE.md) - Optimization strategies
-- [**API Documentation**](docs/API.md) - Endpoint reference
-
-### For Business:
-- [**Monetization Guide**](MONETIZATION_GUIDE.md) - Complete launch strategy
-- [**Improvements Summary**](IMPROVEMENTS_SUMMARY.md) - What's new in v2.0
-- [**Deployment Checklist**](DEPLOY.md) - Production deployment
-
----
-
-## 💰 **Monetization**
-
-### Current Model: **Subscription + Lifetime**
-- **Monthly**: $9.99/mo with a **7-day free trial** (card required; cancel anytime)
-- **Lifetime**: $50 one-time founder pricing (limited while in beta)
-- **Free tier**: Basic chart + limited features to explore
-
-### Revenue Potential:
-```
-Month 1: 20-50 subscribers + 5-15 lifetime = $700-2,000 MRR baseline
-Month 2: 50-150 subscribers = $500-1,500 MRR + lifetime upsells
-Month 3: 150-400 subscribers = $1,500-4,000 MRR
-
-At scale: recurring MRR + lifetime cash boosts
-```
-
-See [MONETIZATION_GUIDE.md](MONETIZATION_GUIDE.md) for complete strategy.
-
----
-
-## 🔧 **Development**
-
-### Commands:
+### Scripts
 
 ```bash
-# Development
-npm run dev              # Start dev server
-npm run build            # Production build
-npm run start            # Run production build
-npm run lint             # ESLint
-npm run test             # Jest tests
-npm run test:watch       # Jest watch mode
-
-# Database (if using Prisma)
-npm run prisma:generate  # Generate Prisma client
-npm run prisma:push      # Push schema to DB
-npm run prisma:studio    # Open Prisma Studio
+npm run dev          # Next dev server
+npm run build        # prisma generate + production build
+npm run start        # production server
+npm test             # Jest
+npm run test:app     # app tests only (skip backend/)
+npm run prisma:studio
 ```
 
-### Project Structure:
+### LLM configuration
+
+Oracle chat and interpretation paths use a shared provider:
+
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Optional fallback
+# LLM_PROVIDER=xai
+# XAI_API_KEY=...
+```
+
+See `.env.example` for the full list (Clerk satellite domain, Stripe prices, atmosphere flags, etc.).
+
+---
+
+## Repo map (high signal)
 
 ```
 app/
-  api/              # API endpoints
-  (routes)/         # Page routes
-  layout.tsx        # Root layout
-  page.tsx          # Landing page
-
+  dashboard/          # Weather + Self experience
+  api/                # forecast, atmosphere, storms, oracle-chat, stripe…
 components/
-  sections/         # Landing page sections
-  astrology/        # Chart components
-  forms/            # Input forms
-  ui/               # Base UI components
-  layout/           # Header, footer, nav
-
+  dashboard/          # LifeRiskRadar, Today brief, date strip, share
+  astrology/          # Storms playbook, wheel, transits, chat panel
 lib/
-  astrology/        # Calculation engine
-  analytics.ts      # Tracking utilities
-  cache-service.ts  # Caching layer
-
-hooks/
-  useBirthChart.tsx    # Chart state management
-  useInterpretations.tsx
-  useForecast.tsx
-  useTransits.tsx
-
-types/
-  astrology.ts      # Type definitions
+  atmosphere/         # AtmospherePacket, LifeRiskPacket, life-weather copy
+  astrology/          # storms, storm-playbook, planet-style, ephemeris
+  llm-config.ts       # Groq/xAI shared client
+  oracle-service.ts   # system prompt, app sight, guardrails
+docs/
+  TWO_PILLARS.md
+  FIRST_10_USERS.md
+  atmosphere-engine/
+  MARKETING_PLAYBOOK.md
 ```
 
 ---
 
-## 🚀 **Deployment**
+## Development notes
 
-### Deploy to Vercel (Recommended):
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
-
-# Configure environment variables in Vercel dashboard
-```
-
-### Environment Variables to Set:
-1. All Clerk keys
-2. All Stripe keys (live mode)
-3. Google Analytics ID
-4. Facebook Pixel ID (optional)
-5. Email marketing API keys (optional)
-6. Set `NEXT_PUBLIC_DEV_MODE=false`
-
-Full deployment guide: [DEPLOY.md](DEPLOY.md)
+- **Today** is day-scoped; **Forecast** owns the 30d friction radar and storm horizon.
+- Client atmosphere fallback is **not** shown while the server atmosphere request is loading (avoids Today flashing Forecast copy).
+- Friction scores use a soft ceiling so domains/days land in a believable range (not all 100s).
+- After pulling schema changes: `npx prisma db push && npx prisma generate`.
 
 ---
 
-## 📊 **Analytics & Tracking**
+## Docs
 
-### Key Metrics:
-- **Page Views** - Google Analytics
-- **Sign Ups** - Clerk dashboard
-- **Chart Calculations** - Custom event
-- **Checkout Initiations** - Stripe + GA
-- **Purchases** - Stripe + GA + Facebook
-- **Email Captures** - Lead generation
-
-### Conversion Funnel:
-```
-Homepage → Calculator Form → Payment → Dashboard
-Target: 2-5% conversion rate (visitors to buyers)
-```
-
-### Setup:
-1. Add Google Analytics ID to `.env.local`
-2. Add Facebook Pixel ID (optional)
-3. Import and use tracking functions from `lib/analytics.ts`
+| Doc | Purpose |
+|-----|---------|
+| [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md) | Product architecture |
+| [docs/atmosphere-engine/](docs/atmosphere-engine/) | Atmosphere engine roadmap & contracts |
+| [docs/FIRST_10_USERS.md](docs/FIRST_10_USERS.md) | Zero-ad acquisition sprint |
+| [docs/MARKETING_PLAYBOOK.md](docs/MARKETING_PLAYBOOK.md) | Broader marketing angles |
+| [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md) | Deploy / Stripe / env checklist |
 
 ---
 
-## 🎨 **Customization**
+## Status
 
-### Branding:
-```typescript
-// Update colors in tailwind.config.js
-colors: {
-  primary: '#fcd34d',    // Amber
-  secondary: '#0f172a',  // Slate
-  accent: '#7c3aed',     // Purple
-}
-```
+**Beta.** Core weather math, storm playbook, risk radar, and Oracle sight are live and iterating. The chart is the foundation; the **habit** is daily life weather.
 
-### Content:
-- **Landing page copy**: `app/page.tsx`
-- **Testimonials**: `components/sections/TestimonialsSection.tsx`
-- **Features**: `components/sections/FeaturesSection.tsx`
-- **FAQ**: `components/sections/FAQSection.tsx`
-- **Pricing**: `components/sections/PricingSection.tsx`
-
-### Assets:
-- **Logo**: `/public/icon.svg`
-- **OG Image**: `/public/og-image.png` (create 1200x630px)
-- **Manifest**: `/public/manifest.json`
+Built with the conviction that astrology tools should not lie — precision first, poetry second.
 
 ---
 
-## 🧪 **Testing**
+## License
 
-### Manual Testing:
-
-1. **Birth Chart Calculation**:
-```bash
-# Test data:
-Date: 1990-01-15
-Time: 14:30
-Location: New York, NY (40.7128, -74.0060)
-```
-
-2. **Payment Flow** (Test Mode):
-```
-Card: 4242 4242 4242 4242
-Expiry: Any future date
-CVC: Any 3 digits
-ZIP: Any 5 digits
-```
-
-3. **Email Capture**:
-- Test form submission
-- Check server logs
-- Verify analytics event fires
-
-### Automated Testing:
-```bash
-npm run test
-# Tests in /tests/
-```
-
----
-
-## 🐛 **Troubleshooting**
-
-### Build Warnings:
-- Unused imports = Normal, won't affect production
-- Missing dependencies in useEffect = Expected, controlled behavior
-- Swisseph import error = Uses fallback calculations
-
-### Common Issues:
-
-**"Payment not working"**
-- Check Stripe keys in `.env.local`
-- Verify `NEXT_PUBLIC_STRIPE_PRICE_ID` is set
-- Ensure dev mode is off: `NEXT_PUBLIC_DEV_MODE=false`
-
-**"Charts not calculating"**
-- Check browser console for errors
-- Verify API endpoint: `/api/calculate-birth-chart`
-- Check Swiss Ephemeris fallback is working
-
-**"Analytics not tracking"**
-- Verify Google Analytics ID is correct
-- Check `window.gtag` exists in browser console
-- Test in incognito mode (extensions can block)
-
----
-
-## 📖 **API Reference**
-
-### Core Endpoints:
-
-```typescript
-POST /api/calculate-birth-chart
-Body: { birthDate, birthTime, latitude, longitude }
-Response: { success, data: BirthChartData }
-
-POST /api/interpret
-Body: { birthData, mode: 'grok' | 'traditional' }
-Response: { success, data: Interpretations }
-
-POST /api/forecast
-Body: { birthData }
-Response: { success, data: DailyForecast }
-
-POST /api/transits
-Body: { birthData }
-Response: { success, data: AspectMatch[] }
-
-GET /api/spots
-Response: { spotsLeft: number }
-```
-
-Full API documentation: [docs/API.md](docs/API.md)
-
----
-
-## 🤝 **Contributing**
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
-
----
-
-## 📄 **License**
-
-This project is private/proprietary. All rights reserved.
-
-*(Or specify your license: MIT, Apache 2.0, etc.)*
-
----
-
-## 🙏 **Acknowledgments**
-
-- **Swiss Ephemeris** - Astronomical calculations
-- **Astrodienst** - Astrological reference
-- **MBTI Foundation** - Personality typing framework
-- **Indie Hackers Community** - Business guidance
-
----
-
-## 📞 **Support & Contact**
-
-### For Technical Issues:
-- GitHub Issues: [Create issue](https://github.com/voxislabs-crypto/Merlin-the-personal-Oracle/issues)
-- Email: dev@merlin-oracle.com
-
-### For Business/Sales:
-- Email: hello@merlin-oracle.com
-- Twitter: [@merlinoracle](https://twitter.com/merlinoracle)
-
----
-
-## 🗺️ **Roadmap**
-
-### Q1 2026:
-- [ ] Launch Product Hunt
-- [ ] Implement affiliate program
-- [ ] Add synastry (relationship compatibility)
-- [ ] iOS/Android app wrappers
-
-### Q2 2026:
-- [ ] AI voice readings
-- [ ] Professional tier ($299)
-- [ ] API for developers
-- [ ] White-label licensing
-
-### Q3 2026:
-- [ ] Marketplace: Third-party integrations
-- [ ] Team/business features
-- [ ] Advanced forecasting engine
-- [ ] Mobile native apps
-
----
-
-## ⭐ **Star History**
-
-If this project helped you, please give it a star! ⭐
-
----
-
-## 📈 **Stats**
-
-```
-Lines of Code: ~15,000
-Components: 50+
-API Endpoints: 20+
-Tests: 15+
-Documentation Pages: 8
-```
-
----
-
-**Built with ❤️ for the cosmic truth-seekers.**
-
-*The astrology that doesn't lie.*
-
----
-
-## 📝 **Changelog**
-
-### v2.0.0 (Current)
-- ✅ Complete landing page redesign
-- ✅ SEO optimization
-- ✅ Analytics integration
-- ✅ Email capture system
-- ✅ Enhanced UX components
-- ✅ Comprehensive documentation
-- ✅ Monetization features
-
-### v1.0.0
-- ✅ Core birth chart calculations
-- ✅ Dashboard interface
-- ✅ Stripe payment integration
-- ✅ Clerk authentication
-- ✅ Basic features
-
----
-
-*Last updated: February 2026*
+Private / proprietary unless otherwise noted. © Voxis Labs.
