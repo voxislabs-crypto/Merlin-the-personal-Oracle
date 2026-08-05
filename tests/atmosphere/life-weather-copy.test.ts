@@ -83,7 +83,7 @@ describe('buildLifeWeatherBrief', () => {
         risk: {
           headline: 'High life-friction window — Saturn square Moon is loud.',
           move: 'Shrink the whole week.',
-          bullshitPossible: true,
+          elevatedDisruption: true,
           nextFrictionPeak: { label: 'Saturn square Moon', daysToPeak: 4, friction: 80 },
           topDrivers: [{ label: 'Saturn square Moon' }],
         } as any,

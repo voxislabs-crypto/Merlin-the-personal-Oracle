@@ -111,7 +111,7 @@ export function computeAtmosphere(input: ComputeAtmosphereInput = {}): Atmospher
       themes: confluence.themes,
     },
   });
-  if (risk.bullshitPossible) {
+  if (risk.elevatedDisruption) {
     provenance.push('life-risk-elevated');
   }
   provenance.push(

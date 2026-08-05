@@ -93,7 +93,7 @@ export interface AtmospherePacket {
   dayRating: DayRating;
   tone: AtmosphereTone;
   dominantDriver: AtmosphereDriver;
-  /** Score-first transit impact forecast (friction windows, domains, bullshit flag) */
+  /** Score-first transit impact forecast (friction windows, domains, disruption risk) */
   risk: LifeRiskPacket;
   temporal: AtmosphereTemporalContext;
   confluence: AtmosphereConfluence;
@@ -172,8 +172,8 @@ export interface LifeRiskPacket {
   /** 0–100: how loud is hard-transit / life-friction pressure */
   overallFriction: number;
   level: LifeRiskLevel;
-  /** True when challenging windows are elevated enough that "life bullshit" is plausible */
-  bullshitPossible: boolean;
+  /** True when challenging windows are elevated enough that material disruption is plausible */
+  elevatedDisruption: boolean;
   confidence: number;
   headline: string;
   move: string;

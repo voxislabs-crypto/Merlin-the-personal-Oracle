@@ -420,11 +420,11 @@ function formatLifeRiskContext(packet: AtmospherePacket | undefined): string {
     : 'none scored';
 
   return `
-LIFE RISK / TRANSIT IMPACT (AUTHORITATIVE — answer "is life bullshit / friction elevated?" from THIS first):
+LIFE RISK / TRANSIT IMPACT (AUTHORITATIVE — answer "is disruption risk / friction elevated?" from THIS first):
 - Horizon: ${risk.windowDays} days · Date anchor: ${risk.date}
 - Level: ${risk.level.toUpperCase()}
 - Overall friction: ${risk.overallFriction}/100
-- Bullshit possible: ${risk.bullshitPossible ? 'YES' : 'NO'}
+- Elevated disruption risk: ${risk.elevatedDisruption ? 'YES' : 'NO'}
 - Confidence: ${risk.confidence}%
 - Headline: ${risk.headline}
 - One move: ${risk.move}
@@ -438,7 +438,7 @@ ${supportWindows || '  (none major)'}
 - Domain pressure:
 ${domains || '  (balanced / quiet)'}
 - Provenance: ${risk.provenance.join(', ')}
-- Use rule: Lead with risk level, bullshit flag, next peak, and one concrete move. Do NOT open with generic horoscope prose. Story/meaning is optional depth after the risk read.
+- Use rule: Lead with risk level, elevated disruption flag, next peak, and one concrete move. Do NOT open with generic horoscope prose. Story/meaning is optional depth after the risk read.
   `.trim();
 }
 
@@ -578,7 +578,7 @@ STORM PLAYBOOK (from app — live life-friction windows):
 - Clear / quieter days: ${(report.clearDays || []).slice(0, 8).join(', ') || 'n/a'}
 - Storms (category · confidence · when · navigate):
 ${topStormsStr || '- No major storms scored'}
-- Use rule: when user asks about storms, pressure, or "life bullshit", answer from this playbook first. Cite category + when + confidence in plain language.
+- Use rule: when user asks about storms, pressure, or disruption risk, answer from this playbook first. Cite category + when + confidence in plain language.
   `.trim();
 }
 
@@ -607,7 +607,7 @@ function formatAppSightInventory(context: OracleContext): string {
     }`,
     `- Life risk: ${
       risk
-        ? `level=${risk.level}, friction=${risk.overallFriction}/100, bullshitPossible=${risk.bullshitPossible}, conf=${risk.confidence}%`
+        ? `level=${risk.level}, friction=${risk.overallFriction}/100, elevatedDisruption=${risk.elevatedDisruption}, conf=${risk.confidence}%`
         : 'not loaded (do not invent risk scores)'
     }`,
     `- Atmosphere tone: ${
@@ -804,7 +804,7 @@ F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitl
 ═══════════════════════════════════════
 DATA PRIORITY
 ═══════════════════════════════════════
-1. LIFE RISK packet (bullshitPossible, friction, peaks, domains)
+1. LIFE RISK packet (elevatedDisruption, friction, peaks, domains)
 2. STORM PLAYBOOK (category · when · confidence · steps)
 3. Active transits + daily forecast
 4. Personality / dual type (response style + blind spots)

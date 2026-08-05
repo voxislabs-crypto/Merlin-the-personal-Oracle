@@ -82,7 +82,7 @@ describe('computeAtmosphere', () => {
     expect(packet.risk).toBeDefined();
     expect(packet.risk.overallFriction).toBeGreaterThan(0);
     expect(['calm', 'watch', 'friction', 'storm']).toContain(packet.risk.level);
-    expect(typeof packet.risk.bullshitPossible).toBe('boolean');
+    expect(typeof packet.risk.elevatedDisruption).toBe('boolean');
     expect(packet.risk.headline.length).toBeGreaterThan(5);
     expect(packet.patterns.active).toEqual([]);
   });

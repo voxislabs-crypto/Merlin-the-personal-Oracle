@@ -454,12 +454,12 @@ export function LifeRiskRadar({
               )}
               style={{ color: presentation.hex }}
             >
-              {risk.bullshitPossible ? (
+              {risk.elevatedDisruption ? (
                 <AlertTriangle className="h-3.5 w-3.5" />
               ) : (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               )}
-              {risk.bullshitPossible ? 'Bullshit possible' : 'Low drama odds'}
+              {risk.elevatedDisruption ? 'Elevated disruption risk' : 'Disruption risk low'}
             </span>
             <span className="text-[11px] text-slate-500">
               Confidence {Math.round(risk.confidence)}%
@@ -654,7 +654,7 @@ export function LifeRiskRadar({
               date: risk.date,
               levelLabel: presentation.label,
               friction: risk.overallFriction,
-              bullshitPossible: risk.bullshitPossible,
+              elevatedDisruption: risk.elevatedDisruption,
               confidence: risk.confidence,
               story: risk.headline,
               move: risk.move,

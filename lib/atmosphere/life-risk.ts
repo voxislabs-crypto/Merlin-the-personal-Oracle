@@ -142,7 +142,7 @@ function eventBaseFriction(event: AtmospherePredictiveEventInput): number {
     0.55 * planetWeight(event.transit?.transitingPlanet) +
     0.45 * natalWeight(event.transit?.natalPlanet);
 
-  // Soft aspects can still register as "signal" but not as life-bullshit risk.
+  // Soft aspects can still register as "signal" but not as hard disruption risk.
   const softDamp = SOFT_ASPECTS.has(normalizeAspect(event.transit?.aspect)) ? 0.32 : 1;
   // Slightly softer multipliers so hard aspects don't all land at the ceiling
   const combined =
@@ -284,7 +284,8 @@ function moveFor(level: LifeRiskLevel, domains: LifeRiskDomainScore[]): string {
   }
 }
 
-function bullshitPossible(level: LifeRiskLevel, friction: number, hardHits: number): boolean {
+/** Whether material life disruption is plausible this window (professional flag; not casual slang). */
+function elevatedDisruptionRisk(level: LifeRiskLevel, friction: number, hardHits: number): boolean {
   if (level === 'storm' || level === 'friction') return true;
   if (level === 'watch' && (friction >= 46 || hardHits >= 2)) return true;
   return false;
@@ -562,12 +563,12 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
   const nextFriction = frictionWindows[0];
   const nextSupport = supportWindows[0];
 
-  let isBullshit = bullshitPossible(level, overallFriction, hardHits);
-  // Triple-hit on a non-calm sky → treat as plausible life friction even at "watch"
+  let elevatedDisruption = elevatedDisruptionRisk(level, overallFriction, hardHits);
+  // Triple-hit on a non-calm sky → treat as plausible disruption even at "watch"
   if (confluence?.tripleHit && overallFriction >= 48) {
-    isBullshit = true;
+    elevatedDisruption = true;
   } else if (confluence?.aligned && level !== 'calm' && overallFriction >= 50) {
-    isBullshit = true;
+    elevatedDisruption = true;
   }
 
   const provenance = [
@@ -595,7 +596,7 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
     windowDays,
     overallFriction,
     level,
-    bullshitPossible: isBullshit,
+    elevatedDisruption,
     confidence,
     headline: sanitizeCopyText(`${headlineFor(level, topDriverLabel)}${themeHint}`.trim()),
     move: moveFor(level, domains),

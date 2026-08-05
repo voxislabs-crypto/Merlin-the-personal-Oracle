@@ -8,7 +8,8 @@ export interface ShareWeatherPayload {
   dayRating?: string;
   intensity?: number;
   friction?: number;
-  bullshitPossible?: boolean;
+  /** Professional flag: material disruption risk is elevated this window */
+  elevatedDisruption?: boolean;
   confidence?: number;
   story?: string;
   why?: string;
@@ -47,10 +48,12 @@ export function buildShareWeatherText(payload: ShareWeatherPayload): string {
     lines.push(`Intensity ${Math.round(payload.intensity)}%${payload.dayRating ? ` · ${payload.dayRating}` : ''}`);
   }
 
-  if (payload.bullshitPossible === true) {
-    lines.push(`Bullshit possible${typeof payload.confidence === 'number' ? ` · conf ${Math.round(payload.confidence)}%` : ''}`);
-  } else if (payload.bullshitPossible === false) {
-    lines.push('Low drama odds on this window');
+  if (payload.elevatedDisruption === true) {
+    lines.push(
+      `Elevated disruption risk${typeof payload.confidence === 'number' ? ` · conf ${Math.round(payload.confidence)}%` : ''}`
+    );
+  } else if (payload.elevatedDisruption === false) {
+    lines.push('Disruption risk contained this window');
   }
 
   if (payload.story?.trim()) {

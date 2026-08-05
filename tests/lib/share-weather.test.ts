@@ -6,7 +6,7 @@ describe('buildShareWeatherText', () => {
       date: 'Wed, Aug 5',
       levelLabel: 'Friction elevated',
       friction: 73,
-      bullshitPossible: true,
+      elevatedDisruption: true,
       confidence: 77,
       story: 'Pressure is real but workable.',
       move: 'One priority max.',
@@ -17,7 +17,7 @@ describe('buildShareWeatherText', () => {
     expect(text).toMatch(/MY LIFE WEATHER/);
     expect(text).toMatch(/Friction elevated/);
     expect(text).toMatch(/73/);
-    expect(text).toMatch(/Bullshit possible/);
+    expect(text).toMatch(/Elevated disruption risk/);
     expect(text).toMatch(/One priority max/);
     expect(text).toMatch(/https:\/\/example\.com/);
   });

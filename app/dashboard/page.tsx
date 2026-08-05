@@ -2915,7 +2915,7 @@ export default function UnifiedDashboard() {
                           queueAskContext(
                             'Transit risk',
                             risk
-                              ? `Score-first read: level ${risk.level}, friction ${risk.overallFriction}/100, bullshitPossible=${risk.bullshitPossible}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
+                              ? `Score-first read: level ${risk.level}, friction ${risk.overallFriction}/100, elevatedDisruption=${risk.elevatedDisruption}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
                               : 'What hard transit windows should I prepare for this week, and is life friction elevated for my chart?',
                           );
                         }}

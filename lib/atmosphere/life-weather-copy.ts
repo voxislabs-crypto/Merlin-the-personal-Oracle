@@ -119,7 +119,7 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
 
   // Horizon friction is a secondary note on Today (full radar is Forecast)
   const horizonNote =
-    risk?.bullshitPossible && risk.nextFrictionPeak?.label
+    risk?.elevatedDisruption && risk.nextFrictionPeak?.label
       ? ` Horizon: ${risk.nextFrictionPeak.label}${
           typeof risk.nextFrictionPeak.daysToPeak === 'number'
             ? ` (~${risk.nextFrictionPeak.daysToPeak}d)`

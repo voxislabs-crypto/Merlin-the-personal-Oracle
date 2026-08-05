@@ -44,7 +44,7 @@ Chart engine (Swiss Ephemeris)
 
 ### Weather
 - **Today** — day-scoped life weather (intensity, why, one reversible move)
-- **Life risk radar** — overall friction 0–100, bullshit-possible flag, confidence, friction-by-day bar chart
+- **Life risk radar** — overall friction 0–100, elevated disruption risk flag, confidence, friction-by-day bar chart
 - **Storm playbook** — storms by **Social / Work / Financial / Health**, with when · confidence · navigate / avoid steps
 - **Date strip** — click a day; same selection links storm list and 7-day timeline (dedupes multi-day spam)
 - **Share** — one-tap share/copy for Today and Forecast (product-led growth)

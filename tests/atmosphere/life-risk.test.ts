@@ -58,7 +58,7 @@ describe('computeLifeRisk', () => {
     });
 
     expect(risk.level === 'friction' || risk.level === 'storm').toBe(true);
-    expect(risk.bullshitPossible).toBe(true);
+    expect(risk.elevatedDisruption).toBe(true);
     expect(risk.overallFriction).toBeGreaterThanOrEqual(50);
     // Soft scale: even loud stacks should not pin absolute 100
     expect(risk.overallFriction).toBeLessThan(96);
@@ -107,7 +107,7 @@ describe('computeLifeRisk', () => {
     });
 
     expect(risk.level === 'calm' || risk.level === 'watch').toBe(true);
-    expect(risk.bullshitPossible).toBe(false);
+    expect(risk.elevatedDisruption).toBe(false);
     expect(risk.supportWindows.length).toBeGreaterThan(0);
     expect(risk.overallFriction).toBeLessThan(62);
   });
@@ -254,6 +254,6 @@ describe('computeLifeRisk', () => {
     expect(boosted.overallFriction).toBeGreaterThan(base.overallFriction);
     expect(boosted.confidence).toBeGreaterThanOrEqual(base.confidence);
     expect(boosted.provenance).toContain('confluence-triple-hit');
-    expect(boosted.bullshitPossible).toBe(true);
+    expect(boosted.elevatedDisruption).toBe(true);
   });
 });

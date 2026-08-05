@@ -4,7 +4,7 @@ You have a real product now. Zero subscribers is normal until you **show the res
 
 **The hook people share:**
 
-> Not another horoscope. A personal friction radar for *my* chart — when life bullshit is elevated, and what to do.
+> Not another horoscope. A personal friction radar for *my* chart — when disruption risk is elevated, and what to do.
 
 ---
 

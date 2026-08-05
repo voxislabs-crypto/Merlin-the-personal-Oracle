@@ -263,7 +263,7 @@ export function TodayWeatherBrief({
                       ? 'Watch window'
                       : 'Relatively clear'
                 : undefined,
-              bullshitPossible: risk?.bullshitPossible,
+              elevatedDisruption: risk?.elevatedDisruption,
               confidence: risk?.confidence,
               story,
               why: whyLine,
