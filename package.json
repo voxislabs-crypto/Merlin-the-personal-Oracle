@@ -11,7 +11,6 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "test:app": "jest --testPathIgnorePatterns=/backend/",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",

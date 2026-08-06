@@ -16,6 +16,13 @@ backup/
 possible front end stuff/
 localhost_files/
 
+# Voxis / voice stack does not deploy with Merlin (Next app only)
+backend/
+frontend/
+MeloTTS/
+OpenVoice/
+ecosystem.config.cjs
+
 # Local environment
 .env.local
 .env*.local

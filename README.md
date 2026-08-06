@@ -18,6 +18,27 @@ Not another generic horoscope. Not a bare birth-chart calculator.
 | **Architecture** | [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md) |
 | **First users (no ads)** | [docs/FIRST_10_USERS.md](docs/FIRST_10_USERS.md) |
 | **Today follow-ups** | [docs/TODAY_FOLLOWUPS.md](docs/TODAY_FOLLOWUPS.md) |
+| **Repo scope** | [docs/REPO_SCOPE.md](docs/REPO_SCOPE.md) — Merlin only (Voxis is separate) |
+
+---
+
+## This repository
+
+**Merlin only.** Next.js 15 app: life weather, Self, Oracle, Stripe/Clerk.
+
+Voxis (voice companion / personas / TTS) is a **separate product** and lives in its own repo (e.g. `X:\Voxis`). It is not required to run or deploy Merlin.
+
+```
+app/           Next App Router (dashboard + API routes)
+lib/           Atmosphere, astrology, oracle, self, voice
+components/    UI
+prisma/        Merlin data models
+hooks/         Client data hooks
+tests/         Jest
+ephe/          Swiss Ephemeris files
+public/        Static assets
+shared/schema  Shared MBTI type config used by Merlin
+```
 
 ---
 
@@ -173,19 +194,20 @@ app/
   dashboard/              # Weather + Self
   api/                    # atmosphere, forecast, storms, oracle-chat, stripe…
 components/
-  dashboard/              # Today brief, AtmosphereHeader, LifeDomainStrip,
-                          # DefaultOperatingSystem, LifeRiskRadar, share
+  dashboard/              # Today brief, domain strip, OS, LifeRiskRadar, share
 lib/
   voice/                  # MERLIN_VOICE system block, lint, product claim
   atmosphere/             # LifeRiskPacket, life-weather-copy, domain-strip
   self/                   # IdentityPacket, operating-system, edge-takeaway
   oracle-service.ts       # system prompt + app sight
   llm-config.ts           # Groq / xAI client
+  datetime/               # local calendar day for “today”
 docs/
-  MERLIN_VOICE.md         # Canonical writing style
+  MERLIN_VOICE.md
   TWO_PILLARS.md
+  REPO_SCOPE.md           # What is / is not Merlin
   FIRST_10_USERS.md
-  TODAY_FOLLOWUPS.md      # Pill deep-dive, icon nav (deferred)
+  TODAY_FOLLOWUPS.md
 ```
 
 ---
@@ -204,6 +226,7 @@ docs/
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/REPO_SCOPE.md](docs/REPO_SCOPE.md) | Merlin vs Voxis boundary |
 | [docs/MERLIN_VOICE.md](docs/MERLIN_VOICE.md) | **Voice & copy law** |
 | [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md) | Product architecture |
 | [docs/atmosphere-engine/](docs/atmosphere-engine/) | Atmosphere engine contracts |

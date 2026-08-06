@@ -64,5 +64,14 @@ Thumbs.db
 prisma/dev.db
 prisma/dev.db-journal
 
+# Voxis lives in its own repo (X:\Voxis) — never re-merge into Merlin
+backend/
+frontend/
+MeloTTS/
+OpenVoice/
+ecosystem.config.cjs
+voxis.sqlite
+personas_export.json
+
 # clerk configuration (can include secrets)
 /.clerk/
