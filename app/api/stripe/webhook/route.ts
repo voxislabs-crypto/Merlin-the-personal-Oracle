@@ -17,8 +17,39 @@ import {
   sendSubscriptionCancelledEmail,
 } from '@/lib/email-service';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+/**
+ * Lazy Stripe client — do NOT construct at module load.
+ * Next collects page data for /api/stripe/webhook at build time; if
+ * STRIPE_SECRET_KEY is missing then, `new Stripe(undefined)` throws and
+ * the whole Vercel build dies with "Failed to collect page data".
+ */
+let stripeClient: Stripe | null = null;
+
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  if (!stripeClient) {
+    stripeClient = new Stripe(key);
+  }
+  return stripeClient;
+}
+
+function getWebhookSecret(): string {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
+  }
+  return secret;
+}
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const sub = (invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null })
+    .subscription;
+  if (!sub) return null;
+  return typeof sub === 'string' ? sub : sub.id;
+}
 
 async function getUserEmail(userId: string): Promise<string | null> {
   try {
@@ -53,6 +84,16 @@ async function updateUserForCompletedCheckout(session: Stripe.Checkout.Session):
 }
 
 export async function POST(request: Request) {
+  let stripe: Stripe;
+  let webhookSecret: string;
+  try {
+    stripe = getStripe();
+    webhookSecret = getWebhookSecret();
+  } catch (error) {
+    console.error('[Stripe Webhook] Misconfigured:', error);
+    return NextResponse.json({ error: 'Stripe webhook is not configured' }, { status: 503 });
+  }
+
   const body = await request.text();
   const headersList = await headers();
   const signature = headersList.get('stripe-signature');
@@ -144,10 +185,7 @@ export async function POST(request: Request) {
 
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId =
-        typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription?.id;
+      const subscriptionId = invoiceSubscriptionId(invoice);
 
       console.log(`[Stripe] Payment succeeded for invoice: ${invoice.id}`);
 
@@ -169,10 +207,7 @@ export async function POST(request: Request) {
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId =
-        typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription?.id;
+      const subscriptionId = invoiceSubscriptionId(invoice);
 
       console.log(`[Stripe] Payment failed for invoice: ${invoice.id}`);
 
