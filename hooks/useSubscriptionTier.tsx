@@ -8,11 +8,15 @@ import {
 } from '@/lib/subscription-tier-client';
 import { resolveTierFromMetadata, type SubscriptionTier } from '@/lib/subscription-tier';
 
+/**
+ * Minimal user shape for tier resolution.
+ * Compatible with Clerk `UserResource` (reload returns UserResource, not void).
+ */
 type ClerkUser = {
   id: string;
-  reload?: () => Promise<void>;
-  publicMetadata?: Record<string, unknown>;
-  unsafeMetadata?: Record<string, unknown>;
+  reload?: () => Promise<unknown>;
+  publicMetadata?: Record<string, unknown> | null;
+  unsafeMetadata?: Record<string, unknown> | null;
 };
 
 type ClientFeatureFlags = {
