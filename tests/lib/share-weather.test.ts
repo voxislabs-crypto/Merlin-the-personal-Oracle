@@ -17,7 +17,7 @@ describe('buildShareWeatherText', () => {
     expect(text).toMatch(/MY LIFE WEATHER/);
     expect(text).toMatch(/Friction elevated/);
     expect(text).toMatch(/73/);
-    expect(text).toMatch(/Elevated disruption risk/);
+    expect(text).toMatch(/Hard friction window|Elevated disruption/i);
     expect(text).toMatch(/One priority max/);
     expect(text).toMatch(/https:\/\/example\.com/);
     expect(text).toMatch(/Not a horoscope|clear read/i);

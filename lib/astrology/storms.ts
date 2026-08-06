@@ -223,8 +223,8 @@ function getTemplate(transiting: string, aspect: string, natal: string): StormTe
     return {
       keywords: ["tension", "friction", "challenge", "pressure"],
       descriptions: [
-        `${transiting} squares your natal ${natal}, creating significant friction in ${lifeAreaFor(natal).toLowerCase()}. This is a forcing function—pressure that produces change.`,
-        `A challenging angle between ${transiting} and your ${natal} demands adjustment. Resistance only intensifies the friction.`,
+        `Friction rises around ${lifeAreaFor(natal).toLowerCase()} — pressure that wants a cleaner response, not a bigger fight.`,
+        `Something in ${lifeAreaFor(natal).toLowerCase()} is forcing adjustment. Resistance usually intensifies the load.`,
       ],
     };
   }
@@ -232,8 +232,8 @@ function getTemplate(transiting: string, aspect: string, natal: string): StormTe
     return {
       keywords: ["confrontation", "balance", "tension", "external pressure"],
       descriptions: [
-        `${transiting} opposes your natal ${natal}. What you want and what the world requires diverge sharply. Find the middle line.`,
-        `The opposition between ${transiting} and your ${natal} brings external forces into direct conflict with your inner landscape.`,
+        `What you want and what the room requires may diverge. Find the middle line before you escalate.`,
+        `Outer pressure meets inner need — balance costs more energy than usual this window.`,
       ],
     };
   }
@@ -241,8 +241,8 @@ function getTemplate(transiting: string, aspect: string, natal: string): StormTe
     return {
       keywords: ["intensity", "activation", "power surge", "volatility"],
       descriptions: [
-        `${transiting} merges with your natal ${natal}. The themes of both planets fuse—powerfully and sometimes uncomfortably.`,
-        `A conjunction amplifies everything ${natal} represents in your chart. The energy needs a conscious outlet.`,
+        `Intensity stacks in ${lifeAreaFor(natal).toLowerCase()}. Give the energy a conscious outlet or it leaks sideways.`,
+        `Volume is up. Small moves work better than dramatic ones until this settles.`,
       ],
     };
   }

@@ -350,24 +350,58 @@ function plainTitleFor(
   }
 }
 
-function plainExpect(storm: StormLike, category: StormLifeCategory): string {
-  // Prefer first sentence of description, cleaned of jargon weight if short enough
-  const raw = (storm.description || '').replace(/\s+/g, ' ').trim();
-  const first = raw.match(/^(.+?[.!?])(?:\s|$)/)?.[1] || raw;
-  if (first && first.length <= 180) return first;
+/** Aspect/planet soup that fails Merlin voice — never lead the card with this. */
+function looksLikeAspectSoup(text: string): boolean {
+  return /\b(challenging angle|opposes? your natal|squares? your natal|opposition between|conjunction amplifies|merges with your natal|squares? your|trines? your natal|aspect)\b/i.test(
+    text,
+  );
+}
 
+/**
+ * Human "what to expect" — coach language first.
+ * Technical transit labels stay in Sky driver / pills, not the hero sentence.
+ */
+function plainExpect(storm: StormLike, category: StormLifeCategory): string {
+  const intensity = storm.intensity || 'moderate';
+  const peakish = storm.phase === 'peak';
+
+  let base: string;
   switch (category) {
     case 'social':
-      return 'People dynamics may feel sharper — misreads, tension, or distance are more likely if you force conversations.';
+      base = peakish
+        ? 'People dynamics feel sharp now — misreads and short fuses are more likely if you force big talks.'
+        : 'People dynamics may feel sharper — misreads, tension, or distance rise if you push conversations cold.';
+      break;
     case 'work':
-      return 'Performance pressure rises. Authority, deadlines, or ego collisions may demand a slower, cleaner response.';
+      base = peakish
+        ? 'Work pressure is loud — authority, deadlines, or ego heat need a slower, cleaner response.'
+        : 'Performance pressure rises. Prefer one priority and reversible commitments until the peak passes.';
+      break;
     case 'financial':
-      return 'Money decisions carry extra weight. Impulse spends and fuzzy deals are higher risk until the peak passes.';
+      base =
+        'Money decisions carry extra weight. Impulse spends and fuzzy deals are higher risk until this window eases.';
+      break;
     case 'health':
-      return 'Body and nervous system take more of the load. Fatigue, reactivity, or sleep dips are plausible under stress.';
+      base = peakish
+        ? 'Body and bandwidth are taking the hit — fatigue and reactivity are plausible. Protect sleep before heroics.'
+        : 'Body and nervous system take more of the load. Fatigue, reactivity, or sleep dips are plausible under stress.';
+      break;
     default:
-      return 'Life friction is elevated in this window — pace yourself and prefer reversible moves.';
+      base = 'Life friction is elevated in this window — pace yourself and prefer reversible moves.';
   }
+
+  if (intensity === 'severe') {
+    base = `${base} Shrink the plate; half the list is still a win.`;
+  }
+
+  // Only use engine description if it already reads human (not aspect soup)
+  const raw = (storm.description || '').replace(/\s+/g, ' ').trim();
+  const first = raw.match(/^(.+?[.!?])(?:\s|$)/)?.[1] || raw;
+  if (first && first.length >= 40 && first.length <= 160 && !looksLikeAspectSoup(first)) {
+    return first;
+  }
+
+  return base;
 }
 
 const CATEGORY_DO_STEPS: Record<StormLifeCategory, string[]> = {

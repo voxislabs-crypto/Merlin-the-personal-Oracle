@@ -53,10 +53,10 @@ export function buildShareWeatherText(payload: ShareWeatherPayload): string {
 
   if (payload.elevatedDisruption === true) {
     lines.push(
-      `Elevated disruption risk${typeof payload.confidence === 'number' ? ` · conf ${Math.round(payload.confidence)}%` : ''}`
+      `Hard friction window${typeof payload.confidence === 'number' ? ` · signal ${Math.round(payload.confidence)}%` : ''}`
     );
   } else if (payload.elevatedDisruption === false) {
-    lines.push('Disruption risk contained this window');
+    lines.push('Friction contained this window');
   }
 
   if (payload.story?.trim()) {

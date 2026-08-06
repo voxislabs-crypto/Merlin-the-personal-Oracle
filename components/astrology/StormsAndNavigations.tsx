@@ -105,11 +105,13 @@ const CATEGORY_ICON: Record<StormLifeCategory, React.ReactNode> = {
   health: <HeartPulse className="h-4 w-4" />,
 };
 
-function ConfidenceMeter({ value, hex }: { value: number; hex: string }) {
+function SignalStrengthMeter({ value, hex }: { value: number; hex: string }) {
   return (
     <div className="min-w-[7.5rem]">
       <div className="mb-0.5 flex items-center justify-between text-[10px] uppercase tracking-[0.12em]">
-        <span className="text-slate-500">Confidence</span>
+        <span className="text-slate-500" title="How solid this window read is — not a fate score">
+          Signal strength
+        </span>
         <span className="font-semibold tabular-nums" style={{ color: hex }}>
           {Math.round(value)}%
         </span>
@@ -198,12 +200,18 @@ function StormPlaybookCard({
                 </span>
               ) : null}
             </p>
-            <ConfidenceMeter value={storm.confidence ?? 55} hex={meta.hex} />
+            <SignalStrengthMeter value={storm.confidence ?? 55} hex={meta.hex} />
           </div>
 
-          <p className="text-xs leading-relaxed text-slate-400 line-clamp-2">
+          <p className="text-xs leading-relaxed text-slate-300 line-clamp-2">
             {storm.plainExpect || storm.description}
           </p>
+          {steps[0] ? (
+            <p className="text-xs font-medium text-emerald-200/90 line-clamp-1">
+              <span className="text-emerald-400/80">Move · </span>
+              {steps[0]}
+            </p>
+          ) : null}
         </div>
 
         <span className="mt-1 shrink-0 text-slate-500">
@@ -252,9 +260,20 @@ function StormPlaybookCard({
 
               {/* Driver + expect */}
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3 sm:col-span-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Sky driver
+                    What this feels like
+                  </p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-slate-100">
+                    {storm.plainExpect || storm.description}
+                  </p>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    Weather window — not a verdict on you. Prefer reversible moves.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3 sm:col-span-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Sky driver · optional depth
                   </p>
                   <div className="mt-1.5 text-sm">
                     <TransitAspectLabel
@@ -266,14 +285,6 @@ function StormPlaybookCard({
                   </div>
                   <p className="mt-1 text-[11px] text-slate-500">
                     orb {storm.orb}° · {storm.lifeArea}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    What to expect
-                  </p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-slate-200">
-                    {storm.plainExpect || storm.description}
                   </p>
                 </div>
               </div>
@@ -339,9 +350,13 @@ function CategorySection({
   storms: Array<AstroStorm & { relatedDates?: string[] }>;
   startIndex: number;
 }) {
+  const [expanded, setExpanded] = useState(false);
   if (!storms.length) return null;
   const meta = STORM_CATEGORY_META[category];
-  const topConfidence = Math.max(...storms.map((s) => s.confidence || 0));
+  const topSignal = Math.max(...storms.map((s) => s.confidence || 0));
+  const INITIAL = 2;
+  const shown = expanded ? storms : storms.slice(0, INITIAL);
+  const hidden = Math.max(0, storms.length - INITIAL);
 
   return (
     <section className="space-y-3" id={`storm-cat-${category}`}>
@@ -355,22 +370,33 @@ function CategorySection({
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className={`rounded-full border px-2.5 py-0.5 font-semibold ${meta.badgeClass}`}>
-            {storms.length} storm{storms.length === 1 ? '' : 's'}
+            {storms.length} window{storms.length === 1 ? '' : 's'}
           </span>
-          <span className="tabular-nums">top conf. {topConfidence}%</span>
+          <span className="tabular-nums" title="Strongest signal in this category">
+            top signal {topSignal}%
+          </span>
         </div>
       </div>
       <div className="space-y-2.5">
-        {storms.map((storm, i) => (
+        {shown.map((storm, i) => (
           <StormPlaybookCard
             key={storm.id}
             storm={storm}
             index={startIndex + i}
             relatedDates={storm.relatedDates}
-            defaultOpen={i === 0 && storm.intensity === 'severe'}
+            defaultOpen={false}
           />
         ))}
       </div>
+      {hidden > 0 ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs font-semibold text-sky-300 underline-offset-2 hover:underline"
+        >
+          {expanded ? 'Show fewer' : `Show ${hidden} more in ${meta.shortLabel || meta.label}`}
+        </button>
+      ) : null}
     </section>
   );
 }

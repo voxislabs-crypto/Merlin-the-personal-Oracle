@@ -232,25 +232,42 @@ function levelFromFriction(friction: number): LifeRiskLevel {
   return 'calm';
 }
 
-function headlineFor(level: LifeRiskLevel, topDriver?: string): string {
-  // Avoid stacking "Elevated friction — Elevated work pressure…"
-  const driver = topDriver?.replace(/^(Elevated|High|Mild)\s+/i, '').trim();
+function looksLikeAspectLabel(text: string): boolean {
+  return /\b(square|opposition|oppose|conjunct|conjunction|trine|sextile|quincunx)\b/i.test(text)
+    || /\b(mars|venus|mercury|saturn|jupiter|uranus|neptune|pluto)\b.*\b(sun|moon|mars|venus|mercury|saturn)\b/i.test(
+      text,
+    );
+}
+
+/** Human headline — life stakes first, not "Mars Opposition Neptune". */
+function headlineFor(
+  level: LifeRiskLevel,
+  topDriver?: string,
+  domainHint?: string,
+  themeHint?: string,
+): string {
+  const humanDriver =
+    topDriver && !looksLikeAspectLabel(topDriver)
+      ? topDriver.replace(/^(Elevated|High|Mild)\s+/i, '').trim()
+      : '';
+  const where = domainHint || humanDriver || themeHint || '';
+
   switch (level) {
     case 'storm':
-      return driver
-        ? `High life-friction window — ${driver} is loud.`
+      return where
+        ? `High life-friction window around ${where}. Simplify hard.`
         : 'High life-friction window. Simplify hard.';
     case 'friction':
-      return driver
-        ? `Friction elevated around ${driver}.`
+      return where
+        ? `Friction elevated around ${where}. Pace decisions.`
         : 'Elevated friction ahead. Pace decisions.';
     case 'watch':
-      return driver
-        ? `Mixed signals — watch ${driver}.`
+      return where
+        ? `Mixed signals — watch ${where}.`
         : 'Mixed signals. Stay flexible.';
     default:
-      return driver
-        ? `Relatively clear — ${driver} is mild.`
+      return where
+        ? `Relatively clear — ${where} is mild.`
         : 'Relatively clear window. Use the calm.';
   }
 }
@@ -586,9 +603,15 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
       ? input.date
       : new Date().toISOString().slice(0, 10);
 
-  const themeHint =
+  const hotDomainLabels = domains
+    .filter((d) => d.friction >= 48)
+    .sort((a, b) => b.friction - a.friction)
+    .slice(0, 2)
+    .map((d) => d.label.toLowerCase());
+  const domainHint = hotDomainLabels.length ? hotDomainLabels.join(' + ') : '';
+  const themeForHeadline =
     confluence?.aligned && confluence.themes?.length
-      ? ` Confluence themes: ${confluence.themes.slice(0, 3).join(', ')}.`
+      ? confluence.themes.slice(0, 2).join(', ')
       : '';
 
   return {
@@ -598,7 +621,9 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
     level,
     elevatedDisruption,
     confidence,
-    headline: sanitizeCopyText(`${headlineFor(level, topDriverLabel)}${themeHint}`.trim()),
+    headline: sanitizeCopyText(
+      headlineFor(level, topDriverLabel, domainHint, themeForHeadline),
+    ),
     move: moveFor(level, domains),
     topDrivers,
     frictionWindows: frictionWindows.slice(0, 8),
@@ -645,7 +670,8 @@ export function lifeRiskLevelPresentation(level: LifeRiskLevel): {
         barClass: 'from-rose-500 via-fuchsia-500 to-violet-600',
         textClass: 'text-rose-200',
         hex: '#fb7185',
-        description: 'Hard transit pressure is elevated. Life friction is likely if you overcommit.',
+        description:
+          'Hard pressure is elevated. Friction rises if you overcommit — shrink the plate, not your worth.',
       };
     case 'friction':
       return {
@@ -655,7 +681,7 @@ export function lifeRiskLevelPresentation(level: LifeRiskLevel): {
         barClass: 'from-amber-500 via-orange-500 to-rose-500',
         textClass: 'text-orange-200',
         hex: '#fb923c',
-        description: 'Challenging windows are active. Pace yourself; prefer reversible moves.',
+        description: 'Active pressure windows. Pace yourself; prefer reversible moves. Not a verdict.',
       };
     case 'watch':
       return {

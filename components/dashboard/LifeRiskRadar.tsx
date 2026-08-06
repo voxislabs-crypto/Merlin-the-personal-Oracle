@@ -453,18 +453,49 @@ export function LifeRiskRadar({
                 presentation.badgeClass,
               )}
               style={{ color: presentation.hex }}
+              title={
+                risk.elevatedDisruption
+                  ? 'Hard life-friction window — timing awareness, not a verdict on you'
+                  : 'No major disruption window dominating right now'
+              }
             >
               {risk.elevatedDisruption ? (
                 <AlertTriangle className="h-3.5 w-3.5" />
               ) : (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               )}
-              {risk.elevatedDisruption ? 'Elevated disruption risk' : 'Disruption risk low'}
+              {risk.elevatedDisruption ? 'Hard friction window' : 'Friction contained'}
             </span>
-            <span className="text-[11px] text-slate-500">
-              Confidence {Math.round(risk.confidence)}%
+            <span
+              className="text-[11px] text-slate-500"
+              title="How solid this read is — not a fate score"
+            >
+              Signal strength {Math.round(risk.confidence)}%
             </span>
           </div>
+        </div>
+
+        {/* Move first — especially on hard days */}
+        <div
+          className={cn(
+            'rounded-xl border px-4 py-3.5',
+            risk.elevatedDisruption || risk.level === 'storm' || risk.level === 'friction'
+              ? 'border-emerald-400/35 bg-emerald-950/30 shadow-[0_0_24px_rgba(16,185,129,0.08)]'
+              : 'border-emerald-400/20 bg-emerald-950/20',
+          )}
+        >
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+            <Shield className="h-3.5 w-3.5" />
+            Your move
+          </p>
+          <p className="mt-1.5 text-base font-semibold leading-snug text-emerald-50 md:text-lg">
+            {risk.move}
+          </p>
+          {risk.elevatedDisruption ? (
+            <p className="mt-2 text-xs text-slate-400">
+              Hard window — not a judgment. Shrink the plate; prefer reversible steps.
+            </p>
+          ) : null}
         </div>
 
         {/* Overall friction */}
@@ -493,32 +524,23 @@ export function LifeRiskRadar({
           onSelectDate={setSelectedDate}
         />
 
-        {/* Next peak + move */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Next hard peak</p>
-            {risk.nextFrictionPeak ? (
-              <>
-                <div className="mt-1 text-sm font-semibold text-slate-100">
-                  <TransitAspectLabel label={risk.nextFrictionPeak.label} />
-                </div>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {formatPeak(risk.nextFrictionPeak.peakAt, risk.nextFrictionPeak.daysToPeak)}
-                  {' · '}
-                  friction {risk.nextFrictionPeak.friction}
-                </p>
-              </>
-            ) : (
-              <p className="mt-1 text-sm text-slate-400">No major hard peak in this window</p>
-            )}
-          </div>
-          <div className="rounded-xl border border-emerald-400/20 bg-emerald-950/20 px-3.5 py-3">
-            <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-emerald-300/70">
-              <Shield className="h-3 w-3" />
-              Move
-            </p>
-            <p className="mt-1 text-sm text-emerald-50/95">{risk.move}</p>
-          </div>
+        {/* Next peak */}
+        <div className="rounded-xl border border-white/10 bg-black/25 px-3.5 py-3">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Next hard peak</p>
+          {risk.nextFrictionPeak ? (
+            <>
+              <div className="mt-1 text-sm font-semibold text-slate-100">
+                <TransitAspectLabel label={risk.nextFrictionPeak.label} />
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {formatPeak(risk.nextFrictionPeak.peakAt, risk.nextFrictionPeak.daysToPeak)}
+                {' · '}
+                friction {risk.nextFrictionPeak.friction}
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-slate-400">No major hard peak in this window</p>
+          )}
         </div>
 
         {/* Domains as mini horizontal bars */}
