@@ -83,6 +83,7 @@ import { BirthData, BirthChartData } from '@/components/astrology/BirthChartCalc
 import { GeocodingService } from '@/lib/astrology/geocoding';
 import type { SynastryReport } from '@/lib/astrology/synastry';
 import { useUser } from '@clerk/nextjs';
+import { resolveClerkFirstName } from '@/lib/auth/clerk-display-name';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, RefreshCcw, ScrollText } from 'lucide-react';
@@ -137,6 +138,8 @@ export default function UnifiedDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  /** Clerk profile first name for Today greeting — never a hardcoded example name */
+  const clerkFirstName = React.useMemo(() => resolveClerkFirstName(user), [user]);
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
@@ -315,6 +318,7 @@ export default function UnifiedDashboard() {
   const {
     atmosphere,
     loading: atmosphereLoading,
+    error: atmosphereError,
     calculateAtmosphere,
     reset: resetAtmosphere,
   } = useAtmosphere();
@@ -1586,24 +1590,50 @@ export default function UnifiedDashboard() {
     todayCheckinEntry,
   ]);
 
-  // Prefer server atmosphere. While the server packet is still loading, do NOT
-  // fall back to the client-composed packet — that partial build (storms /
-  // pressure / week risk) is why Today briefly looks like Forecast, then jumps.
+  /**
+   * Day-scoped weather is not ready until server atmosphere + forecast settle
+   * (or error). Idle hooks start as loading=false with null data — treat that
+   * as still pending so we never paint a fake Caution from week storms.
+   */
+  const hasWeatherContext = Boolean(
+    featureFlags.premiumInsights && birthData && chartData,
+  );
+  const serverAtmospherePending =
+    atmosphereEngineEnabled &&
+    hasWeatherContext &&
+    !atmosphere &&
+    !atmosphereError;
+  const forecastPending = hasWeatherContext && !forecast && !forecastError;
+
+  /** Hold Today on a loader until day-scoped feeds settle (prevents tone flash) */
+  const todayWeatherStillLoading =
+    hasWeatherContext &&
+    (serverAtmospherePending ||
+      forecastPending ||
+      atmosphereLoading ||
+      forecastLoading);
+
+  // Prefer server atmosphere. While server packet is unresolved, do NOT fall
+  // back to the client-composed packet — that partial build (storms / pressure /
+  // week risk) is why Today briefly shows Caution, then jumps to Clear Flow.
   const activeAtmospherePacket = atmosphereEngineEnabled
-    ? atmosphere ?? (atmosphereLoading ? null : clientAtmospherePacket)
+    ? atmosphere ??
+      (serverAtmospherePending || atmosphereLoading ? null : clientAtmospherePacket)
     : null;
 
+  // Today hero fallback only — omit week storms (they paint false Caution).
   const legacyCosmicWeatherIntensity = React.useMemo(
     () =>
       resolveLegacyCosmicWeatherIntensity({
-        storms: stormsReport?.storms,
         dayRating: forecast?.day_rating,
         topPressureIntensity: pressureWindow?.predictive?.events?.[0]?.scores?.intensity,
       }),
-    [forecast?.day_rating, pressureWindow?.predictive?.events, stormsReport?.storms]
+    [forecast?.day_rating, pressureWindow?.predictive?.events],
   );
 
-  const cosmicWeatherIntensity = activeAtmospherePacket?.intensity ?? legacyCosmicWeatherIntensity;
+  const cosmicWeatherIntensity =
+    activeAtmospherePacket?.intensity ??
+    (todayWeatherStillLoading ? null : legacyCosmicWeatherIntensity);
 
   const legacyCosmicWeatherHeadline = React.useMemo(() => {
     if (predictiveTopEvent) {
@@ -1721,12 +1751,6 @@ export default function UnifiedDashboard() {
         };
       })()
     : null;
-
-  /** Hold Today on a loader until day-scoped feeds settle (prevents Forecast flash) */
-  const todayWeatherStillLoading =
-    Boolean(featureFlags.premiumInsights) &&
-    ((atmosphereEngineEnabled && atmosphereLoading && !atmosphere) ||
-      (forecastLoading && !forecast));
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
@@ -1858,8 +1882,19 @@ export default function UnifiedDashboard() {
             (chartData as { houseSystem?: { cusps?: number[] } } | null)?.houseSystem?.cusps?.length,
         ),
         confidenceSource: dualOverlay ? 'dual_overlay' : mbtiType ? 'mbti_fusion' : 'chart_only',
+        // Soft tint only — OS stays stable; edge line can nod at weather
+        weatherIntensity: activeAtmospherePacket?.intensity ?? null,
       }),
-    [sunSign, moonSign, risingSign, mbtiType, dualOverlay, identityPack, chartData],
+    [
+      sunSign,
+      moonSign,
+      risingSign,
+      mbtiType,
+      dualOverlay,
+      identityPack,
+      chartData,
+      activeAtmospherePacket?.intensity,
+    ],
   );
 
   const selfIdentityHeadline = chartIdentityHeadline || identityPacket.headline;
@@ -2086,6 +2121,7 @@ export default function UnifiedDashboard() {
             premiumLocked={premiumLocked}
             tierLoading={tierLoading}
             tierError={tierError}
+            firstName={clerkFirstName}
             onRefreshTier={() => {
               premiumHydrationKeyRef.current = null;
               void refreshTier();
@@ -2410,18 +2446,23 @@ export default function UnifiedDashboard() {
                     oracleRef={oracleSectionRef}
                     detailsRef={detailsSectionRef}
                     ritualRef={ritualSectionRef}
-                    intensity={cosmicWeatherIntensity}
+                    intensity={cosmicWeatherIntensity ?? 0}
                     feltIntensity={activeAtmospherePacket?.feltIntensity}
                     sentimentScore={activeAtmospherePacket?.realityCheck.sentimentScore}
-                    dayRating={cosmicDayRating}
+                    dayRating={todayWeatherStillLoading ? undefined : cosmicDayRating}
                     date={forecast?.date}
                     story={cosmicStoryText}
                     whyLine={cosmicWeatherHeadlineForUi}
                     todayMove={cosmicStoryMove}
+                    driverLabel={
+                      todayWeatherStillLoading
+                        ? null
+                        : activeAtmospherePacket?.dominantDriver?.label
+                    }
                     mbtiType={mbtiType || undefined}
                     mbtiGuidance={cosmicStoryMbtiGuidance}
-                    moonPhase={forecast?.moonPhase}
-                    moonSign={forecast?.moonSign}
+                    moonPhase={todayWeatherStillLoading ? undefined : forecast?.moonPhase}
+                    moonSign={todayWeatherStillLoading ? undefined : forecast?.moonSign}
                     streak={dailyCheckinStreak}
                     forecastLoading={todayWeatherStillLoading}
                     atmosphereProvenance={activeAtmospherePacket?.provenance}
@@ -2495,6 +2536,7 @@ export default function UnifiedDashboard() {
                       });
                     }}
                     risk={activeAtmospherePacket?.risk ?? null}
+                    firstName={clerkFirstName}
                   />
                   </WeatherShell>
                 ) : null}
@@ -2540,6 +2582,18 @@ export default function UnifiedDashboard() {
                           : personalityBlend.combinedInterpretation
                         : identityPacket.mbti.blendSummary
                     }
+                    edgeTakeaway={
+                      identityPacket.edgeTakeaway ||
+                      (personalityBlend
+                        ? {
+                            title: 'Your edge',
+                            body: personalityBlend.sameType
+                              ? personalityBlend.summary
+                              : personalityBlend.combinedInterpretation,
+                          }
+                        : null)
+                    }
+                    operatingSystem={identityPacket.operatingSystem}
                     activeStoryline={activeTransitStoryline}
                     storylineThemes={interpretations?.confluence || null}
                     storylineWindows={interpretations?.transitWindows || null}
@@ -2751,14 +2805,16 @@ export default function UnifiedDashboard() {
                               }
                               forecastPanel={
                                 <WheelTransitPanel
-                                  intensity={cosmicWeatherIntensity}
+                                  intensity={cosmicWeatherIntensity ?? undefined}
                                   dayRating={cosmicDayRating}
                                   driverLabel={activeAtmospherePacket?.dominantDriver.label}
                                   moonPhase={forecast?.moonPhase}
                                   moonSign={forecast?.moonSign}
                                   significant={transits?.significant || []}
                                   approaching={transits?.approaching || []}
-                                  loading={forecastLoading && !forecast}
+                                  loading={
+                                    todayWeatherStillLoading || (forecastLoading && !forecast)
+                                  }
                                   transitsLoading={transitsLoading && !transits}
                                   onAskContext={queueAskContext}
                                   onOpenHomeForecast={() => setDashboardTab('home')}

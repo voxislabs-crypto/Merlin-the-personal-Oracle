@@ -1,7 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Compass, Lightbulb, MessageCircle } from 'lucide-react';
+import { Compass, Lightbulb, MessageCircle, Radio } from 'lucide-react';
 import ThumbsFeedback from '@/components/astrology/ThumbsFeedback';
 import {
   AtmosphereHeader,
@@ -11,14 +12,16 @@ import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 import { StatusPanel } from '@/components/ui/status-panel';
+import { buildWhyDriverPills } from '@/lib/atmosphere/life-weather-copy';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 
 /**
- * Day-one / daily hero: intensity · why · one move.
- * Self is one click away; depth lives below.
+ * Day-one / daily hero: one move · intensity · why.
+ * Move is the visual headline; score + why support it.
  */
 export interface TodayWeatherBriefProps {
+  /** Chart intensity 0–100; ignored while loading */
   intensity: number;
   feltIntensity?: number;
   sentimentScore?: number | null;
@@ -27,6 +30,8 @@ export interface TodayWeatherBriefProps {
   story: string;
   whyLine?: string;
   todayMove?: string;
+  /** Optional dominant driver label for Why pills when risk is thin */
+  driverLabel?: string | null;
   moonPhase?: string;
   moonSign?: string;
   streak?: number;
@@ -47,8 +52,10 @@ export interface TodayWeatherBriefProps {
   isEmpty?: boolean;
   emptyTitle?: string;
   emptyMessage?: string;
-  /** Optional risk packet for share text */
+  /** Optional risk packet for share text + Why pills + domain strip */
   risk?: LifeRiskPacket | null;
+  /** First name for hero greeting */
+  firstName?: string | null;
 }
 
 function arcaneToneFromIntensity(
@@ -62,6 +69,20 @@ function arcaneToneFromIntensity(
   return 'violet';
 }
 
+/** Soft ambient wash by band — screenshot-friendly, no heavy FX. */
+function ambientWashClass(tone: 'sky' | 'amber' | 'violet' | 'storm'): string {
+  switch (tone) {
+    case 'storm':
+      return 'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_top,_rgba(251,113,133,0.14),_transparent_55%)] before:content-[""]';
+    case 'amber':
+      return 'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_top,_rgba(251,191,36,0.12),_transparent_55%)] before:content-[""]';
+    case 'sky':
+      return 'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_top,_rgba(56,189,248,0.1),_transparent_55%)] before:content-[""]';
+    default:
+      return 'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_top,_rgba(52,211,153,0.1),_transparent_55%)] before:content-[""]';
+  }
+}
+
 export function TodayWeatherBrief({
   intensity,
   feltIntensity,
@@ -71,6 +92,7 @@ export function TodayWeatherBrief({
   story,
   whyLine,
   todayMove,
+  driverLabel = null,
   moonPhase,
   moonSign,
   streak,
@@ -89,24 +111,52 @@ export function TodayWeatherBrief({
   emptyTitle = 'No life weather yet',
   emptyMessage = "Build your chart from birth details and Merlin will assemble today's personal forecast.",
   risk = null,
+  firstName = null,
 }: TodayWeatherBriefProps) {
+  const whyPills = useMemo(
+    () => buildWhyDriverPills(risk, driverLabel || risk?.topDrivers?.[0]?.label, 3),
+    [risk, driverLabel],
+  );
+
   if (loading) {
     return (
       <ArcanePane
         tone="sky"
         shellClassName="border-sky-500/25 bg-slate-950/50"
-        className="animate-pulse"
         orbs
       >
-        <AtmosphereHeader loading variant="hero" barLabel="Life weather" />
-        <div className="mt-5 space-y-2">
-          <div className="h-3 w-full rounded bg-slate-700/50" />
-          <div className="h-3 w-5/6 rounded bg-slate-700/50" />
-          <div className="h-10 w-full rounded-lg bg-emerald-900/20" />
+        <AtmosphereHeader
+          loading
+          variant="hero"
+          barLabel="Life weather"
+          showGreeting
+          firstName={firstName}
+        />
+        <div className="mt-5 space-y-3">
+          <div className="h-20 w-full animate-pulse rounded-xl bg-emerald-900/25" />
+          <div className="h-3 w-full animate-pulse rounded bg-slate-700/50" />
+          <div className="h-3 w-5/6 animate-pulse rounded bg-slate-700/50" />
         </div>
-        <p className="mt-4 text-center text-xs tracking-wide text-sky-300/60">
-          Station reading the currents…
-        </p>
+        {/* Signal lock progress — feels like computation, not a dead wait */}
+        <div className="mt-5 space-y-2">
+          <div className="flex items-center justify-center gap-2 text-xs tracking-wide text-sky-300/75">
+            <Radio className="h-3.5 w-3.5 animate-pulse text-sky-300" aria-hidden />
+            <span>Station locking signals…</span>
+          </div>
+          <div
+            className="h-1.5 overflow-hidden rounded-full border border-sky-400/20 bg-slate-900/80"
+            role="progressbar"
+            aria-label="Reading life weather"
+            aria-valuetext="In progress"
+          >
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-sky-500"
+              initial={{ x: '-100%', width: '45%' }}
+              animate={{ x: ['-100%', '160%'] }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+        </div>
       </ArcanePane>
     );
   }
@@ -142,15 +192,34 @@ export function TodayWeatherBrief({
 
   const tone = resolveTone(resolveAtmosphereIntensity(intensity, dayRating));
   const arcaneTone = arcaneToneFromIntensity(intensity, dayRating);
+  const moveEdge =
+    arcaneTone === 'storm'
+      ? 'border-rose-300/55 bg-gradient-to-br from-rose-500/25 via-rose-600/15 to-black/40 shadow-[0_0_36px_rgba(251,113,133,0.18)]'
+      : arcaneTone === 'amber'
+        ? 'border-amber-300/55 bg-gradient-to-br from-amber-400/30 via-amber-500/15 to-black/40 shadow-[0_0_36px_rgba(251,191,36,0.16)]'
+        : 'border-emerald-300/55 bg-gradient-to-br from-emerald-400/28 via-emerald-500/12 to-black/40 shadow-[0_0_36px_rgba(52,211,153,0.16)]';
+  const moveIcon =
+    arcaneTone === 'storm'
+      ? 'text-rose-200'
+      : arcaneTone === 'amber'
+        ? 'text-amber-200'
+        : 'text-emerald-200';
+  const moveLabel =
+    arcaneTone === 'storm'
+      ? 'text-rose-100/90'
+      : arcaneTone === 'amber'
+        ? 'text-amber-100/90'
+        : 'text-emerald-100/90';
+  const moveText = 'text-white';
 
   return (
     <ArcanePane
       tone={arcaneTone}
-      shellClassName={getAtmosphereShellClassName(intensity, dayRating)}
+      shellClassName={`${getAtmosphereShellClassName(intensity, dayRating)} ${ambientWashClass(arcaneTone)}`}
       glass
       orbs
     >
-      <div className="flex flex-col gap-5">
+      <div className="relative z-[1] flex flex-col gap-5">
         <AtmosphereHeader
           intensity={intensity}
           feltIntensity={feltIntensity}
@@ -165,10 +234,13 @@ export function TodayWeatherBrief({
           barLabel="Life weather"
           confluenceAligned={confluenceAligned}
           confluenceThemes={confluenceThemes}
+          showGreeting
+          firstName={firstName}
+          risk={risk}
         />
 
-        {/* Three-beat brief — glass inner pane */}
-        <div className="relative space-y-4 overflow-hidden rounded-xl border border-white/15 bg-black/30 p-4 shadow-inner shadow-black/40 backdrop-blur-sm md:p-5">
+        {/* Three-beat brief — Move is the 2-second headline */}
+        <div className="relative space-y-3.5 overflow-hidden rounded-xl border border-white/15 bg-black/30 p-4 shadow-inner shadow-black/40 backdrop-blur-sm md:p-5">
           <div
             className="pointer-events-none absolute inset-x-0 top-0 h-px"
             style={{
@@ -182,42 +254,67 @@ export function TodayWeatherBrief({
             }}
           />
 
-          <div>
-            <p className="mb-1.5 text-[10px] uppercase tracking-[0.28em] text-slate-400">
-              How it feels
-            </p>
-            <p className="text-base font-medium leading-relaxed text-white/95 md:text-lg">
-              {story}
-            </p>
-          </div>
-
-          {whyLine ? (
-            <div className="border-t border-white/10 pt-3">
-              <p className="mb-1.5 text-[10px] uppercase tracking-[0.28em] text-slate-400">Why</p>
-              <p className="text-sm leading-relaxed text-slate-200/95 md:text-[15px]">{whyLine}</p>
-            </div>
-          ) : null}
-
           {todayMove ? (
             <motion.div
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="flex items-start gap-2.5 rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3.5 py-3 shadow-[0_0_24px_rgba(52,211,153,0.08)]"
+              transition={{ duration: 0.35 }}
+              className={`flex items-start gap-3.5 rounded-2xl border-2 px-4 py-4 md:px-5 md:py-5 ${moveEdge}`}
             >
-              <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-200/80">
+              <div
+                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-black/25 ${moveIcon}`}
+              >
+                <Lightbulb className="h-5 w-5 md:h-6 md:w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className={`text-[11px] font-bold uppercase tracking-[0.24em] ${moveLabel}`}>
                   Today&apos;s move
                 </p>
-                <p className="mt-0.5 text-sm leading-relaxed text-emerald-50 md:text-[15px]">
+                <p
+                  className={`mt-1.5 text-xl font-bold leading-snug tracking-tight md:text-2xl ${moveText}`}
+                >
                   {todayMove}
                 </p>
               </div>
             </motion.div>
           ) : null}
 
-          <div className="pt-1">
+          <div className="space-y-3 border-t border-white/10 pt-3">
+            <div>
+              <p className="mb-1 text-[10px] uppercase tracking-[0.28em] text-slate-500">
+                How it feels
+              </p>
+              <p className="text-sm leading-relaxed text-slate-300/90 md:text-[15px]">{story}</p>
+            </div>
+
+            {whyLine || whyPills.length ? (
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-[0.28em] text-slate-500">Why</p>
+                {whyLine ? (
+                  <p className="text-sm leading-relaxed text-slate-400 md:text-[14px]">{whyLine}</p>
+                ) : null}
+                {whyPills.length ? (
+                  <ul className="mt-2.5 flex flex-col gap-2">
+                    {whyPills.map((pill) => (
+                      <li
+                        key={pill.id}
+                        className="flex flex-wrap items-start gap-2 sm:items-center"
+                      >
+                        <span className="inline-flex max-w-full shrink-0 items-center rounded-full border border-sky-400/35 bg-sky-500/15 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-sky-100">
+                          {pill.label}
+                        </span>
+                        <span className="min-w-0 text-xs leading-snug text-slate-400 sm:text-[13px]">
+                          {pill.hint}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="pt-0.5">
             <ThumbsFeedback
               itemId={`life-weather-${date || 'today'}`}
               label="today's life weather"
@@ -268,7 +365,7 @@ export function TodayWeatherBrief({
               story,
               why: whyLine,
               move: todayMove,
-              driver: risk?.topDrivers?.[0]?.label,
+              driver: risk?.topDrivers?.[0]?.label || driverLabel || undefined,
             }}
           />
           {selfChips.length ? (
@@ -276,7 +373,6 @@ export function TodayWeatherBrief({
           ) : null}
         </div>
 
-        {/* Soft tone caption — high-tech flavor, low noise */}
         <p className="text-center font-mono text-[10px] tracking-[0.2em] text-slate-500/80">
           MERLIN · {tone.label.toUpperCase()} · {resolveAtmosphereIntensity(intensity, dayRating)}%
         </p>

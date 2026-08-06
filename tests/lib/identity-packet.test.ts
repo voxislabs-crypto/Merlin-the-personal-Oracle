@@ -18,6 +18,9 @@ describe('buildIdentityPacket', () => {
     expect(packet.headline).toContain('ENFP');
     expect(packet.provenance.chartHasHouses).toBe(true);
     expect(packet.provenance.confidenceSource).toBe('mbti_fusion');
+    expect(packet.operatingSystem.length).toBeGreaterThanOrEqual(5);
+    expect(packet.operatingSystem.some((t) => t.id === 'decision')).toBe(true);
+    expect(packet.edgeTakeaway?.body.length).toBeGreaterThan(20);
   });
 
   it('headlines core before mask when dual layers differ', () => {

@@ -240,25 +240,26 @@ export function getSummaryOpening(
   day_rating: DailyForecast['day_rating'],
   natalSunSign: string
 ): string {
+  // Life-weather openings — no "stars/universe/cosmic" fluff; sun sign is light context only.
   switch (day_rating) {
     case 'Very Positive':
-      return `The stars are beautifully aligned for you today, ${natalSunSign}.`;
+      return `Friction is low and momentum is on your side today (${natalSunSign}).`;
     case 'Positive':
-      return `Today carries forward momentum for you, ${natalSunSign}.`;
+      return `Today carries forward momentum (${natalSunSign}) — good window to push one real step.`;
     case 'green':
-      return `Supportive sky signals outweigh the friction today, ${natalSunSign}.`;
+      return `Supportive signals outweigh friction today (${natalSunSign}).`;
     case 'Neutral':
-      return `The cosmic weather is steady and balanced for you, ${natalSunSign}.`;
+      return `Life weather is steady and balanced today (${natalSunSign}).`;
     case 'yellow':
-      return `Mixed cosmic signals are in play today, ${natalSunSign}—pace yourself and stay flexible.`;
+      return `Mixed pressure today (${natalSunSign}) — plan for a mid-course adjust.`;
     case 'Challenging':
-      return `The universe has a lesson waiting for you today, ${natalSunSign}.`;
+      return `Friction is elevated today (${natalSunSign}) — simplify before you escalate.`;
     case 'red':
-      return `Heavier transits are louder today, ${natalSunSign}—simplify your plate and protect your energy.`;
+      return `Heavier pressure is louder today (${natalSunSign}) — shrink the plate and protect energy.`;
     case 'Very Challenging':
-      return `Today's energies are intense, ${natalSunSign}—but remember, pressure creates diamonds.`;
+      return `High-pressure day (${natalSunSign}) — reversible moves only until it eases.`;
     default:
-      return `The cosmos speaks to you today, ${natalSunSign}.`;
+      return `Here's your life-weather read for today (${natalSunSign}).`;
   }
 }
 

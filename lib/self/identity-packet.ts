@@ -1,3 +1,5 @@
+import { buildEdgeTakeaway } from '@/lib/self/edge-takeaway';
+import { buildOperatingSystemProfile } from '@/lib/self/operating-system';
 import type {
   IdentityArchetype,
   IdentityMbti,
@@ -22,6 +24,8 @@ export interface BuildIdentityPacketInput {
   calcSource?: string | null;
   chartHasHouses?: boolean;
   confidenceSource?: IdentityProvenance['confidenceSource'];
+  /** Optional weather intensity to softly tint edge takeaway only */
+  weatherIntensity?: number | null;
 }
 
 function cleanSign(value?: string | null): string | undefined {
@@ -125,12 +129,27 @@ export function buildIdentityPacket(input: BuildIdentityPacketInput): IdentityPa
     input.confidenceSource ||
     (hasArchetype ? 'identity_pack' : hasMbti ? 'mbti_fusion' : 'chart_only');
 
+  const coreType = mbti.primary?.type;
+  const maskType = mbti.secondary?.type;
+  const operatingSystem = buildOperatingSystemProfile({
+    coreType,
+    maskType,
+  });
+  const edgeTakeaway =
+    buildEdgeTakeaway({
+      coreType,
+      maskType,
+      weatherIntensity: input.weatherIntensity,
+    }) || undefined;
+
   return {
     pillar: 'self',
     placements,
     mbti,
     archetype,
     headline: buildHeadline(placements, mbti, archetype),
+    operatingSystem,
+    edgeTakeaway,
     provenance: {
       calcSource: input.calcSource || undefined,
       chartHasHouses: Boolean(input.chartHasHouses),

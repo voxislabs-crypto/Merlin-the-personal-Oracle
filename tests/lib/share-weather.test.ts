@@ -20,5 +20,6 @@ describe('buildShareWeatherText', () => {
     expect(text).toMatch(/Elevated disruption risk/);
     expect(text).toMatch(/One priority max/);
     expect(text).toMatch(/https:\/\/example\.com/);
+    expect(text).toMatch(/Not a horoscope|clear read/i);
   });
 });

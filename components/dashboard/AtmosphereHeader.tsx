@@ -9,8 +9,14 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { DayRatingBadge } from '@/components/dashboard/DayRatingBadge';
+import { LifeDomainStrip } from '@/components/dashboard/LifeDomainStrip';
+import {
+  buildDomainStripItems,
+  buildPersonalGreeting,
+  resolveRiskPercent,
+} from '@/lib/atmosphere/domain-strip';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
-import type { AtmosphereToneIcon } from '@/lib/atmosphere/types';
+import type { AtmosphereToneIcon, LifeRiskPacket } from '@/lib/atmosphere/types';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 
 const TONE_ICONS: Record<AtmosphereToneIcon, LucideIcon> = {
@@ -38,6 +44,12 @@ export interface AtmosphereHeaderProps {
   variant?: AtmosphereHeaderVariant;
   loading?: boolean;
   barLabel?: string;
+  /** First name for "Good evening, Kai" */
+  firstName?: string | null;
+  /** Life-risk packet for domain strip + risk % */
+  risk?: LifeRiskPacket | null;
+  /** Show personal greeting line (hero Today) */
+  showGreeting?: boolean;
 }
 
 function formatStoryDate(value?: string): string | null {
@@ -61,16 +73,16 @@ function AtmosphereHeaderSkeleton({ variant }: { variant: AtmosphereHeaderVarian
   }
 
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between animate-pulse">
-      <div className="flex items-start gap-3">
-        <div className="h-12 w-12 rounded-xl bg-slate-700/60" />
-        <div className="space-y-2">
-          <div className="h-3 w-32 bg-slate-700/50 rounded" />
-          <div className="h-7 w-48 bg-slate-700/50 rounded" />
-          <div className="h-3 w-36 bg-slate-700/40 rounded" />
-        </div>
+    <div className="animate-pulse space-y-4">
+      <div className="h-4 w-40 rounded bg-slate-700/50" />
+      <div className="h-3 w-36 rounded bg-slate-700/40" />
+      <div className="h-14 w-full max-w-md rounded bg-slate-700/50" />
+      <div className="flex flex-wrap gap-2">
+        <div className="h-6 w-24 rounded-full bg-slate-700/40" />
+        <div className="h-6 w-20 rounded-full bg-slate-700/40" />
+        <div className="h-6 w-16 rounded-full bg-slate-700/40" />
       </div>
-      <div className="min-w-[180px] h-10 rounded-full bg-slate-700/50" />
+      <div className="h-10 w-full max-w-sm rounded-full bg-slate-700/50" />
     </div>
   );
 }
@@ -91,6 +103,9 @@ export function AtmosphereHeader({
   variant = 'hero',
   loading = false,
   barLabel = 'Life weather',
+  firstName = null,
+  risk = null,
+  showGreeting = false,
 }: AtmosphereHeaderProps) {
   if (loading) {
     return <AtmosphereHeaderSkeleton variant={variant} />;
@@ -106,6 +121,11 @@ export function AtmosphereHeader({
   const tone = resolveTone(resolvedIntensity);
   const Icon = TONE_ICONS[tone.icon];
   const formattedDate = formatStoryDate(date);
+  const greeting = showGreeting ? buildPersonalGreeting(firstName) : null;
+  const domainItems =
+    variant === 'hero' ? buildDomainStripItems(risk, { max: 5, includeQuiet: true }) : [];
+  const riskPercent = variant === 'hero' ? resolveRiskPercent(risk, resolvedIntensity) : null;
+
   const feltLine = showFeltLine ? (
     <p className="mt-1 text-xs text-slate-300/90">
       Felt intensity {resolvedFeltIntensity}% · chart weather {resolvedIntensity}%
@@ -126,6 +146,71 @@ export function AtmosphereHeader({
       </span>
     ) : null;
 
+  /** Clear → Storm weather scale (shared compact + hero). */
+  const weatherBar = (
+    <div
+      className={
+        variant === 'hero' ? 'w-full' : 'min-w-[120px] max-w-[220px] flex-1'
+      }
+    >
+      <div className="flex items-end justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-slate-400">
+          {variant === 'hero' ? 'Weather scale' : barLabel}
+        </span>
+        {variant === 'hero' ? (
+          <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>{resolvedIntensity}%</span>
+        ) : null}
+      </div>
+      <div
+        className="relative mt-2"
+        role="meter"
+        aria-valuenow={resolvedIntensity}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Life weather intensity ${resolvedIntensity} percent — ${tone.label}`}
+      >
+        <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-slate-950/90 shadow-inner">
+          <div
+            className="h-full w-full opacity-35"
+            style={{
+              background:
+                'linear-gradient(90deg, #34d399 0%, #22d3ee 28%, #fbbf24 58%, #f43f5e 100%)',
+            }}
+          />
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-3 overflow-hidden rounded-full">
+          <motion.div
+            className={`h-full rounded-full bg-gradient-to-r ${tone.gradient} shadow-[0_0_14px_rgba(255,255,255,0.22)]`}
+            initial={{ width: 0 }}
+            animate={{ width: `${resolvedIntensity}%` }}
+            transition={{ duration: variant === 'hero' ? 0.85 : 0.6, ease: 'easeOut' }}
+          />
+        </div>
+        <motion.div
+          className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white/80 bg-slate-950 shadow-md ${tone.glow}`}
+          style={{ left: `clamp(0px, calc(${resolvedIntensity}% - 8px), calc(100% - 16px))` }}
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, duration: 0.35 }}
+          aria-hidden
+        />
+      </div>
+      <div className="mt-1.5 flex justify-between text-[10px] font-medium tracking-wide text-slate-500">
+        <span className={resolvedIntensity < 40 ? 'text-emerald-300/90' : undefined}>Clear</span>
+        <span className={resolvedIntensity >= 40 && resolvedIntensity < 60 ? 'text-cyan-300/90' : undefined}>
+          Mixed
+        </span>
+        <span className={resolvedIntensity >= 60 && resolvedIntensity < 80 ? 'text-amber-300/90' : undefined}>
+          Caution
+        </span>
+        <span className={resolvedIntensity >= 80 ? 'text-rose-300/90' : undefined}>Storm</span>
+      </div>
+      {variant === 'hero' && typeof streak === 'number' && streak > 0 ? (
+        <p className="mt-1.5 text-right text-xs text-slate-400">{streak}-day return streak</p>
+      ) : null}
+    </div>
+  );
+
   if (variant === 'compact') {
     return (
       <div className={`rounded-xl border ${tone.border} bg-gradient-to-br ${tone.shellBg} px-4 py-3`}>
@@ -138,25 +223,16 @@ export function AtmosphereHeader({
               <p className="text-[10px] uppercase tracking-wider text-slate-400">Life weather</p>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`text-sm font-bold ${tone.text}`}>{tone.label}</p>
-                <span className={`text-xs font-semibold ${tone.text}`}>{resolvedIntensity}%</span>
+                <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>{resolvedIntensity}%</span>
                 {dayRating ? <DayRatingBadge dayRating={dayRating} /> : null}
               </div>
             </div>
           </div>
-          <div className="min-w-[120px] flex-1 max-w-[200px]">
-            <div className="h-2 rounded-full bg-slate-800/80 overflow-hidden">
-              <motion.div
-                className={`h-full rounded-full bg-gradient-to-r ${tone.gradient}`}
-                initial={{ width: 0 }}
-                animate={{ width: `${resolvedIntensity}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              />
-            </div>
-          </div>
+          {weatherBar}
         </div>
         {feltLine}
         {(driverLabel || moonPhase || moonSign) && (
-          <p className="mt-2 text-xs text-slate-300/90 line-clamp-2">
+          <p className="mt-2 line-clamp-2 text-xs text-slate-300/90">
             {driverLabel ||
               `${moonPhase && moonPhase !== 'Unknown' ? moonPhase : 'Lunar phase updating'}${
                 moonSign ? ` · Moon in ${moonSign}` : ''
@@ -167,57 +243,56 @@ export function AtmosphereHeader({
     );
   }
 
+  // Hero: greeting → life weather → gigantic tone → domain strip → scale
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div className="flex items-start gap-3">
-        <div
-          className={`rounded-xl border ${tone.border} bg-black/30 p-3 shadow-[0_0_24px_rgba(0,0,0,0.35)] backdrop-blur-sm`}
+    <div className="flex flex-col gap-4">
+      <div className="min-w-0">
+        {greeting ? (
+          <p className="text-base font-medium text-slate-200 sm:text-lg">{greeting}.</p>
+        ) : null}
+        <p
+          className={`text-[11px] uppercase tracking-[0.32em] text-slate-300/85 ${greeting ? 'mt-1.5' : ''}`}
         >
-          <Icon className={`h-6 w-6 ${tone.text} drop-shadow-[0_0_8px_currentColor]`} />
-        </div>
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.32em] text-slate-300/85">{eyebrow}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h2 className={`text-2xl font-bold tracking-tight ${tone.text} drop-shadow-[0_0_20px_rgba(255,255,255,0.08)]`}>
-              {tone.label}
-            </h2>
-            <span className={`text-sm font-semibold tabular-nums ${tone.text}`}>{resolvedIntensity}%</span>
+          {eyebrow}
+        </p>
+
+        <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
+          <h2
+            className={`text-[2.75rem] font-black uppercase leading-[0.95] tracking-tight sm:text-5xl md:text-[3.5rem] ${tone.text} drop-shadow-[0_0_28px_rgba(255,255,255,0.1)]`}
+          >
+            {tone.label}
+          </h2>
+          <span
+            className={`mb-1 text-2xl font-bold tabular-nums sm:text-3xl ${tone.text} opacity-90`}
+          >
+            {resolvedIntensity}%
+          </span>
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
             {dayRating ? <DayRatingBadge dayRating={dayRating} /> : null}
             {confluenceChip}
           </div>
-          {formattedDate ? <p className="mt-1 text-sm text-slate-300/90">{formattedDate}</p> : null}
-          {feltLine}
-          {(moonPhase || moonSign) && (
-            <p className="mt-1 text-xs text-slate-400">
-              {moonPhase && moonPhase !== 'Unknown' ? moonPhase : 'Lunar phase updating'}
-              {moonSign ? ` · Moon in ${moonSign}` : ''}
-            </p>
-          )}
         </div>
+
+        {formattedDate ? <p className="mt-2 text-sm text-slate-300/90">{formattedDate}</p> : null}
+        {feltLine}
+        {(moonPhase || moonSign) && (
+          <p className="mt-1 text-xs text-slate-400">
+            {moonPhase && moonPhase !== 'Unknown' ? moonPhase : 'Lunar phase updating'}
+            {moonSign ? ` · Moon in ${moonSign}` : ''}
+          </p>
+        )}
       </div>
 
-      <div className="min-w-[180px]">
-        <div className="flex items-end justify-between gap-2">
-          <span className="text-xs uppercase tracking-widest text-slate-400">{barLabel}</span>
-        </div>
-        <div className="mt-2 h-3 overflow-hidden rounded-full border border-white/10 bg-slate-900/80 shadow-inner">
-          <motion.div
-            className={`h-full rounded-full bg-gradient-to-r ${tone.gradient} shadow-[0_0_12px_rgba(255,255,255,0.25)]`}
-            initial={{ width: 0 }}
-            animate={{ width: `${resolvedIntensity}%` }}
-            transition={{ duration: 0.85, ease: 'easeOut' }}
-          />
-        </div>
-        {typeof streak === 'number' && streak > 0 ? (
-          <p className="mt-2 text-right text-xs text-slate-400">{streak}-day return streak</p>
-        ) : null}
-      </div>
+      {(domainItems.length > 0 || riskPercent != null) && (
+        <LifeDomainStrip items={domainItems} riskPercent={riskPercent} />
+      )}
+
+      {weatherBar}
     </div>
   );
 }
 
 export function getAtmosphereShellClassName(intensity?: number, dayRating?: DayRating | string): string {
   const tone = resolveTone(resolveAtmosphereIntensity(intensity, dayRating));
-  // rounded-2xl kept for CosmicStoryCard and other direct consumers
   return `rounded-2xl border ${tone.border} bg-gradient-to-br ${tone.shellBg} shadow-xl ${tone.glow}`;
 }

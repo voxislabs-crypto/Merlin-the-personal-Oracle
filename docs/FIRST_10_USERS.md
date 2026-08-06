@@ -4,7 +4,9 @@ You have a real product now. Zero subscribers is normal until you **show the res
 
 **The hook people share:**
 
-> Not another horoscope. A personal friction radar for *my* chart — when disruption risk is elevated, and what to do.
+> Not a horoscope. A clear read on *my* day — through the lens of who I am. When friction is elevated, and one move.
+
+**Voice rule (always):** Astrology is the engine. Clarity is the product. @see `docs/MERLIN_VOICE.md`
 
 ---
 

@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     default: 'Merlin — Personalized Life Weather',
     template: '%s | Merlin'
   },
-  description: 'Personalized life weather: how today feels for your birth chart, storm radar, and a clear move — with full natal chart and dual MBTI underneath. Swiss Ephemeris precision. Monthly or lifetime.',
+  description: 'Not a horoscope. A clear read on your day through the lens of who you are — life weather, one move, and Self identity underneath. Swiss Ephemeris precision. Monthly or lifetime.',
   keywords: [
     'personalized life weather',
     'life weather forecast',
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: 'Merlin Oracle',
     title: 'Merlin — Know how today feels for you',
-    description: 'Personalized life weather for your chart: intensity, storms, weekly radar, and a clear move. Birth chart + dual MBTI underneath so every forecast is yours.',
+    description: 'Not a horoscope. Clarity on your day: intensity, storms, weekly radar, and one move — personal to your chart and dual personality.',
     images: [
       {
         url: '/og-image.svg',

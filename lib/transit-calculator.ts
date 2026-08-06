@@ -144,8 +144,8 @@ async function calculateDailyTransits(date: Date, birthData: BirthData, userId?:
           orb: `${Math.abs(aspect.orb).toFixed(2)}°`,
           effect: interpretation?.effect || "neutral",
           interpretation: interpretation?.interpretation || "Transit energy present",
-          do: interpretation?.do || ["Stay mindful of cosmic energies"],
-          dont: interpretation?.dont || ["Ignore your intuition"],
+          do: interpretation?.do || ["One reversible step only — talk, draft, or scout before you commit."],
+          dont: interpretation?.dont || ["Force a permanent decision while the signal is unclear"],
           score: aspect.score,
           resonanceStats,
           adjustedScore,
@@ -174,8 +174,8 @@ function calculateMockTransits(date: Date, userId?: string): Transit[] {
         orb: mockTransit.orb,
         effect: "neutral" as const,
         interpretation: "Transit interpretation not available",
-        do: ["Stay mindful of cosmic energies"],
-        dont: ["Ignore your intuition"],
+        do: ["One reversible step only — talk, draft, or scout before you commit."],
+        dont: ["Force a permanent decision while the signal is unclear"],
       }
     }
 

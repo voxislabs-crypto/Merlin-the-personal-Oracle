@@ -1,6 +1,9 @@
 /**
  * Share helpers for product-led growth — screenshot-friendly + copy/share text.
+ * Voice: lead with move + human story, not aspect lists. @see docs/MERLIN_VOICE.md
  */
+
+import { MERLIN_PRODUCT_CLAIM } from '@/lib/voice/merlin-voice';
 
 export interface ShareWeatherPayload {
   date?: string;
@@ -64,12 +67,13 @@ export function buildShareWeatherText(payload: ShareWeatherPayload): string {
     lines.push('', `Move: ${payload.move.trim().slice(0, 160)}`);
   }
 
-  if (payload.driver?.trim()) {
-    lines.push(`Driver: ${payload.driver.trim()}`);
+  // Optional tech driver last — never the hero of the share
+  if (payload.driver?.trim() && payload.why?.trim()) {
+    lines.push('', payload.why.trim().slice(0, 140));
   }
 
   lines.push('', `Get yours → ${payload.siteUrl || siteBase()}`);
-  lines.push('(Swiss Ephemeris · personal chart · not a generic horoscope)');
+  lines.push(MERLIN_PRODUCT_CLAIM);
 
   return lines.join('\n');
 }

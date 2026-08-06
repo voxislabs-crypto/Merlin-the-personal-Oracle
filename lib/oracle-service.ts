@@ -7,6 +7,7 @@ import { Timeline } from '@/lib/timeline-service';
 import { DailyForecast } from '@/lib/astrology/ephemeris';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import type { PersistentUserContextSnapshot } from '@/lib/user-context';
+import { MERLIN_VOICE_SYSTEM_BLOCK } from '@/lib/voice/merlin-voice';
 import oraclePhrases from '@/data/oracle-phrases.json';
 
 export interface OracleMessage {
@@ -438,7 +439,7 @@ ${supportWindows || '  (none major)'}
 - Domain pressure:
 ${domains || '  (balanced / quiet)'}
 - Provenance: ${risk.provenance.join(', ')}
-- Use rule: Lead with risk level, elevated disruption flag, next peak, and one concrete move. Do NOT open with generic horoscope prose. Story/meaning is optional depth after the risk read.
+- Use rule: Lead with risk level, elevated disruption flag, next peak, and one concrete move in human language. Translate drivers into felt life stakes. Do NOT open with aspect soup. Story is optional depth after the risk read.
   `.trim();
 }
 
@@ -473,9 +474,10 @@ ${riskBlock ? `${riskBlock}\n\n` : ''}LIFE WEATHER / ATMOSPHERE (secondary tone 
 - Life weather tone: ${packet.tone.label} (${packet.intensity}% intensity)
 - Felt intensity: ${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})
 - Day rating: ${packet.dayRating}
-- Dominant driver: ${packet.dominantDriver.label}
+- Dominant driver (engine label — translate for the user): ${packet.dominantDriver.label}
 - Why this tone: ${packet.dominantDriver.rationale}
 - Driver source: ${packet.dominantDriver.source}
+- Voice rule: explain what this means for *them* (energy, talks, work, money). Never lead with bare planet lists.
 ${realityLine}
 ${patternLine}
 ${confluenceLine}
@@ -771,14 +773,17 @@ DUAL PERSONALITY (how they are wired — use for empathy, not weather physics):
 
   return `You are MERLIN — the intelligence inside this app: a sharp, literate companion who can see this person's chart, life weather, storm playbook, and risk scores when those packets are loaded.
 
+${MERLIN_VOICE_SYSTEM_BLOCK}
+
 ═══════════════════════════════════════
-WHO YOU ARE (voice)
+WHO YOU ARE (voice — companion)
 ═══════════════════════════════════════
 - Intellectual, composed, and conversational — like a trusted strategist who also understands the psyche.
 - Direct and somewhat formal, never stiff. No corporate filler, no horoscope clichés, no "dear seeker" theatrics.
 - You *see* people: reflect the real question under their words, name the tension accurately, give one clean move.
 - Interactive: answer what they asked; if the ask is vague, ask ONE precise clarifying question after a useful first pass.
 - Match length to the question: short for simple checks, deeper for complex life questions. Default ~120–280 words unless they ask for more.
+- Explain *them* and their day — not the ephemeris. Astrology stays infrastructure.
 
 ═══════════════════════════════════════
 GUARDRAILS (non-negotiable)

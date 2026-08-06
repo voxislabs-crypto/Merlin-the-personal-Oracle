@@ -3,7 +3,7 @@
 import type { Ref } from 'react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MessageCircle } from 'lucide-react';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import { AnnualBriefingCard } from '@/components/dashboard/AnnualBriefingCard';
 import { TodayWeatherBrief } from '@/components/dashboard/TodayWeatherBrief';
@@ -40,6 +40,8 @@ interface HomeTabPanelProps {
   story: string;
   whyLine?: string;
   todayMove?: string;
+  /** Dominant transit/driver label for Why pills */
+  driverLabel?: string | null;
   mbtiType?: string;
   mbtiGuidance?: string;
   moonPhase?: string;
@@ -106,6 +108,8 @@ interface HomeTabPanelProps {
   forecastError?: boolean;
   onRetryForecast?: () => void;
   risk?: LifeRiskPacket | null;
+  /** Clerk first name for Today greeting */
+  firstName?: string | null;
 }
 
 /**
@@ -124,6 +128,7 @@ export function HomeTabPanel({
   story,
   whyLine,
   todayMove,
+  driverLabel = null,
   mbtiType,
   moonPhase,
   moonSign,
@@ -175,6 +180,7 @@ export function HomeTabPanel({
   forecastError = false,
   onRetryForecast,
   risk = null,
+  firstName = null,
 }: HomeTabPanelProps) {
   const [depthOpen, setDepthOpen] = useState(false);
   const chips =
@@ -197,10 +203,14 @@ export function HomeTabPanel({
           story={story}
           whyLine={whyLine}
           todayMove={todayMove}
+          driverLabel={driverLabel}
           moonPhase={moonPhase}
           moonSign={moonSign}
           streak={streak}
-          loading={forecastLoading && !forecast && !story && !forecastError}
+          // Parent passes todayWeatherStillLoading — do not gate on story
+          // (loading brief always sets story, which hid the skeleton and
+          // flashed a false Caution tone from partial/legacy intensity).
+          loading={Boolean(forecastLoading)}
           userId={userId}
           onAskMerlin={onAskMerlin}
           onExploreSelf={onExploreSelf}
@@ -212,27 +222,45 @@ export function HomeTabPanel({
           isError={forecastError}
           onRetry={onRetryForecast}
           risk={risk}
+          firstName={firstName}
         />
       </div>
 
-      {/* Depth on demand — keeps first session light */}
-      <div className="overflow-hidden rounded-2xl border border-slate-600/45 bg-slate-950/55 shadow-lg shadow-slate-950/30 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={() => setDepthOpen((o) => !o)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-900/50"
-          aria-expanded={depthOpen}
-        >
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Optional depth</p>
-            <p className="text-sm font-semibold text-slate-200">
-              Oracle, lunar weather, journal &amp; forecast detail
-            </p>
-          </div>
-          <ChevronDown
-            className={`h-5 w-5 text-slate-400 shrink-0 transition-transform ${depthOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
+      {/* Talk-through + depth — Oracle is the primary pull; rest expands */}
+      <div className="overflow-hidden rounded-2xl border border-violet-500/25 bg-slate-950/55 shadow-lg shadow-violet-950/20 backdrop-blur-md">
+        <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={() => setDepthOpen((o) => !o)}
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition-colors"
+            aria-expanded={depthOpen}
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-violet-300/80">
+                Talk it through
+              </p>
+              <p className="text-sm font-semibold text-slate-100">
+                Oracle · lunar weather · journal
+              </p>
+              <p className="text-xs text-slate-500">
+                Ask Merlin about today, or open more context
+              </p>
+            </div>
+            <ChevronDown
+              className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${depthOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {onAskMerlin ? (
+            <button
+              type="button"
+              onClick={onAskMerlin}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-violet-300/45 bg-violet-500/25 px-4 py-2 text-sm font-semibold text-violet-50 shadow-[0_0_18px_rgba(167,139,250,0.18)] transition-all hover:bg-violet-500/35"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Ask Oracle
+            </button>
+          ) : null}
+        </div>
 
         {depthOpen ? (
           <div className="space-y-5 border-t border-white/5 px-4 pb-5 pt-4">

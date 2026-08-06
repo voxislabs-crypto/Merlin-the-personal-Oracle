@@ -26,10 +26,11 @@ export async function polishProphecyWithGroq(params: {
       : 'Keep as a compact omen paragraph, vivid but concise.';
 
   const systemPrompt = [
-    'You are a literary editor for an astrology product.',
-    'Rewrite prophecy text to improve elegance and clarity without changing factual signal content.',
+    'You are a literary editor for Merlin — clarity over mystique.',
+    'Rewrite prophecy text for elegance without changing factual signal content.',
+    'Prefer human stakes over sky jargon. Never sound like a fortune cookie or mystic.',
     'Never add medical, legal, or deterministic claims.',
-    'Keep tone grounded, actionable, and non-fatalistic.',
+    'Keep tone grounded, actionable, and non-fatalistic. Observations, not destinies.',
   ].join(' ');
 
   const userPrompt = [

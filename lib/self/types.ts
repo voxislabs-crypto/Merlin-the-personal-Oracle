@@ -50,8 +50,23 @@ export interface IdentityProvenance {
   generatedAt: string;
 }
 
+/** Stable OS trait — not transit-dependent */
+export interface IdentityOperatingTrait {
+  id: string;
+  label: string;
+  value: string;
+  detail?: string;
+}
+
+/** Memorable shareable synthesis */
+export interface IdentityEdgeTakeaway {
+  title: string;
+  body: string;
+}
+
 /**
  * Canonical Self summary for dashboard, Sky personalization, and Oracle context.
+ * Includes evergreen operating system (stable) separate from life weather (dynamic).
  */
 export interface IdentityPacket {
   pillar: IdentityPillar;
@@ -60,5 +75,12 @@ export interface IdentityPacket {
   archetype: IdentityArchetype;
   /** One-line identity headline for UI heroes */
   headline: string;
+  /**
+   * Default operating system — decision/stress/communication/etc.
+   * Stable across days; weather does not rewrite these.
+   */
+  operatingSystem: IdentityOperatingTrait[];
+  /** Punchy identity synthesis for highlight UI / share */
+  edgeTakeaway?: IdentityEdgeTakeaway;
   provenance: IdentityProvenance;
 }

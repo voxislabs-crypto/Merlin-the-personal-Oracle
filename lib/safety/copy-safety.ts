@@ -58,5 +58,8 @@ export function sanitizeCopyText(input: string): string {
     return input;
   }
 
+  // Fate hedges first; voice soft-rewrites live in lib/voice (applyMerlinVoicePass)
+  // to avoid circular imports. Deterministic templates should call applyMerlinVoicePass
+  // when they want both. Core sanitize stays hedge-only.
   return SANITIZE_REPLACEMENTS.reduce((value, rule) => value.replace(rule.pattern, rule.replacement), input);
 }

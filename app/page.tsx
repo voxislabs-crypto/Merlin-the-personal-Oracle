@@ -115,8 +115,8 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.25 }}
             className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed mb-3"
           >
-            Personal friction radar for your chart: when disruption risk is elevated, when it isn&apos;t,
-            and one clear move — grounded in Swiss Ephemeris, not a generic horoscope.
+            Not a horoscope. A clear read on your day — through the lens of who you are.
+            When friction is elevated, when it isn&apos;t, and one concrete move.
           </motion.p>
 
           <motion.p
@@ -125,7 +125,8 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.32 }}
             className="text-sm md:text-base text-slate-400 max-w-xl mx-auto mb-8"
           >
-            Still in beta. The weather math is the product. Chart + dual MBTI are how it gets personal.
+            Astrology is the engine. Clarity is the product. Chart + dual personality make every
+            forecast personal — Swiss Ephemeris precision, coach-level language.
           </motion.p>
 
           {/* Two-pillar preview */}

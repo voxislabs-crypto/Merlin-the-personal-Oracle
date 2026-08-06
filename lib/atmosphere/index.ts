@@ -51,10 +51,28 @@ export {
 export { buildAtmosphereConfluenceSignals, computeAtmosphereConfluence } from '@/lib/atmosphere/confluence';
 export { resolveDominantDriver } from '@/lib/atmosphere/headline';
 export {
+  buildFeltStory,
   buildLifeWeatherBrief,
+  buildTodayMove,
+  buildWhyDriverPills,
+  formatWhyLine,
+  frictionLeadForWhy,
+  isFluffyLifeWeatherCopy,
+  looksLikeTechnicalTransit,
+  resolveWhyDomains,
   type BuildLifeWeatherBriefInput,
   type LifeWeatherBriefCopy,
+  type WhyDriverPill,
 } from '@/lib/atmosphere/life-weather-copy';
+export {
+  buildDomainStripItems,
+  buildPersonalGreeting,
+  domainTrendFromScores,
+  resolveRiskPercent,
+  timeOfDayGreeting,
+  type DomainStripItem,
+  type DomainTrend,
+} from '@/lib/atmosphere/domain-strip';
 export {
   applyBaselineModifier,
   applyCalibrationModifier,

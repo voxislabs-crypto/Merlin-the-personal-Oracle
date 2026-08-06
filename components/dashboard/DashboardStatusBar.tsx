@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Flame, Sparkles, VolumeX } from 'lucide-react';
 import { arcaneChromeClass } from '@/components/dashboard/ArcanePane';
+import { buildPersonalGreeting } from '@/lib/atmosphere/domain-strip';
 
 interface DashboardStatusBarProps {
   showHeroTitle: boolean;
@@ -15,6 +16,8 @@ interface DashboardStatusBarProps {
   onRefreshTier: () => void;
   onStopVoice: () => void;
   dateLabel?: string;
+  /** First name for greeting (onboarding hero) */
+  firstName?: string | null;
 }
 
 export function DashboardStatusBar({
@@ -28,21 +31,25 @@ export function DashboardStatusBar({
   onRefreshTier,
   onStopVoice,
   dateLabel,
+  firstName = null,
 }: DashboardStatusBarProps) {
   const todayLabel =
     dateLabel ||
     new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const greeting = buildPersonalGreeting(firstName);
 
   return (
     <div className="mb-6 space-y-3">
       {showHeroTitle ? (
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-[0.32em] text-sky-300/80 mb-2">Personalized life weather</p>
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-sky-300 via-cyan-300 to-amber-300 bg-clip-text text-transparent">
-            Your personal forecast
+          <p className="mb-2 text-[11px] uppercase tracking-[0.32em] text-sky-300/80">
+            Merlin
+          </p>
+          <h1 className="bg-gradient-to-r from-sky-300 via-cyan-300 to-amber-300 bg-clip-text text-3xl font-bold text-transparent md:text-4xl">
+            {greeting}.
           </h1>
-          <p className="mt-2 text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-            How life feels for you today — and the Self chart that makes the read yours.
+          <p className="mx-auto mt-2 max-w-xl text-sm text-slate-400 md:text-base">
+            Your life weather for today — clarity first, chart depth when you want it.
           </p>
         </div>
       ) : null}

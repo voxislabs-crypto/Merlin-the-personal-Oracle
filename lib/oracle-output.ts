@@ -1,4 +1,4 @@
-import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { applyMerlinVoicePass } from '@/lib/voice/merlin-voice';
 
 export type OracleTonePreset = 'warm' | 'direct' | 'mystic' | 'strategic';
 
@@ -77,6 +77,6 @@ export function polishOracleOutput(text: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  // Probability-language guardrails (strip absolute prophecy phrasing)
-  return sanitizeCopyText(cleaned);
+  // Probability hedges + Merlin voice soft rewrites (@see docs/MERLIN_VOICE.md)
+  return applyMerlinVoicePass(cleaned);
 }

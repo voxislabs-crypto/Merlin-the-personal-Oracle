@@ -22,6 +22,8 @@ The **second pillar** is classic astrology identity — birth chart, wheel, plac
 
 **Oracle** is a shared surface that *consumes* both pillars (identity context + atmosphere context). It is not a third pillar.
 
+**Voice (all pillars):** Merlin explains *you*, not the ephemeris. See `docs/MERLIN_VOICE.md` and `lib/voice/merlin-voice.ts`.
+
 ---
 
 ## One-way data flow (hard rule)
@@ -71,11 +73,13 @@ Rules:
 
 ### Self (wheel / birth chart / MBTI)
 
-**Owns the answer:** natal chart structure, wheel visualization, placements, interpretations, dual MBTI / personality overlay, identity brief, archetype/pattern cards, life-arc *identity* framing (not daily weather).
+**Owns the answer:** natal chart structure, wheel visualization, placements, interpretations, dual MBTI / personality overlay, identity brief, **default operating system** (decision/stress/communication/recharge/strengths/blind spots — evergreen), **edge takeaway** (shareable synthesis), archetype/pattern cards, life-arc *identity* framing (not daily weather).
 
 | Layer | Paths (current → target) |
 |-------|---------------------------|
-| Identity contract | `lib/self/**` (IdentityPacket — mirror of AtmospherePacket) |
+| Identity contract | `lib/self/**` (IdentityPacket — mirror of AtmospherePacket; includes `operatingSystem` + `edgeTakeaway`) |
+| OS / edge builders | `lib/self/operating-system.ts`, `lib/self/edge-takeaway.ts` |
+| Self UI | `ChartIdentityBrief`, `DefaultOperatingSystem` |
 | Personality | `lib/personality/**`, `lib/mbti-overlay.ts`, `lib/mbti-system.ts`, `lib/astrology/mbtiFusion.ts`, `lib/astrology/mbti-profiles.ts`, `lib/astrology/planet-personality-bridge.ts` |
 | Chart-facing astrology | `lib/astrology/calculate.ts`, `chartCalculations.ts`, `interpretations.ts`, wheel types, synastry, progressions (as chart technique), life-arc engines when used for *who you are* |
 | Data | `data/mbti-*.json`, deep-dive / shadow templates as identity content |

@@ -16,7 +16,7 @@ export function DayRatingBadge({ dayRating }: DayRatingBadgeProps) {
         <TooltipTrigger asChild>
           <span
             tabIndex={0}
-            className={`inline-flex cursor-help items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${presentation.badgeClass}`}
+            className={`inline-flex cursor-help items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${presentation.badgeClass}`}
             aria-label={`Day rating: ${presentation.label}. ${presentation.tooltip}`}
           >
             {presentation.label}
