@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
+import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 
 export type { AtmospherePacket };
 
@@ -11,14 +12,6 @@ export type AtmosphereRequestOptions = {
   clientDate?: string;
   windowDays?: number;
 };
-
-function getClientLocalDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 export function useAtmosphere() {
   const [atmosphere, setAtmosphere] = useState<AtmospherePacket | null>(null);
@@ -42,7 +35,7 @@ export function useAtmosphere() {
             lat: birthData.latitude,
             lon: birthData.longitude,
             timezoneOffset: timezoneOffsetHours,
-            clientDate: options?.clientDate || getClientLocalDateString(),
+            clientDate: options?.clientDate || getLocalCalendarDate(),
             mbtiType: options?.mbtiType,
             userId: options?.userId,
             windowDays: options?.windowDays ?? 30,

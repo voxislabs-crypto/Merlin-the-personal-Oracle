@@ -6,6 +6,10 @@ import { generateDailyForecast } from '@/lib/transit-calculator';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import {
+  calendarDateToLocalNoon,
+  resolveForecastTargetDate,
+} from '@/lib/datetime/local-calendar';
 import type { MBTIType } from '@/lib/mbti-system';
 
 const VALID_MBTI_TYPES = new Set<string>([
@@ -135,10 +139,10 @@ export async function POST(request: Request) {
       console.warn('[Forecast] Swiss failed, using fallback:', error);
     }
 
-    // Generate today's forecast (ephemeris-based)
-    const forecastDate = typeof clientDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)
-      ? clientDate
-      : undefined;
+    // Generate day's forecast for the *client's* local calendar date (not server UTC)
+    const forecastDate = resolveForecastTargetDate(
+      typeof clientDate === 'string' ? clientDate : undefined,
+    );
     const forecast = getTodaysForecast(natalChart, forecastDate);
 
     // Enrich with TRANSIT_LOOKUP (28-aspect library) + day_rating + mbti_overlay
@@ -148,8 +152,10 @@ export async function POST(request: Request) {
       const [y, mo, d] = birthDateStr.split('-').map(Number);
       const [h, m] = birthTimeStr.split(':').map(Number);
       const birthDateObj = new Date(Date.UTC(y, mo - 1, d, h || 12, m || 0));
+      // Same local day as the ephemeris forecast — not bare server `new Date()`
+      const transitAsOf = calendarDateToLocalNoon(forecastDate);
       const tcForecast = await generateDailyForecast(
-        new Date(),
+        transitAsOf,
         { date: birthDateObj, location: { latitude: lat || 0, longitude: lon || 0 } },
         parseMbtiType(mbtiType),
         typeof userId === 'string' ? userId : undefined,

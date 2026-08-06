@@ -384,6 +384,8 @@ function buildSummary(
 }
 
 export function getTodaysForecast(birthChart: BirthChartData, targetDate?: string): DailyForecast {
+  // Prefer explicit client calendar day. On serverless hosts, bare `new Date()` is often UTC
+  // and will paint the wrong "today" near local midnight without a clientDate.
   const today = new Date();
   const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const dateString = targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate) ? targetDate : localDateString;

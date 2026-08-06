@@ -242,6 +242,12 @@ export default function UnifiedDashboard() {
   const checkoutHandledRef = useRef(false);
   const atmosphereTelemetryKeyRef = useRef<string | null>(null);
   const [atmosphereHeroSeen, setAtmosphereHeroSeen] = useState(false);
+  /** Local calendar day (YYYY-MM-DD) — weather rehydrates when this rolls over */
+  const [localCalendarDay, setLocalCalendarDay] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     if (!isLoaded || !userId || typeof window === 'undefined') return;
@@ -281,7 +287,13 @@ export default function UnifiedDashboard() {
 
   // Call ALL hooks BEFORE any early returns - this is critical for React rules of hooks
   const { interpretations, loading: interpretLoading, cacheHit, generateInterpretations } = useInterpretations();
-  const { forecast, loading: forecastLoading, error: forecastError, calculateForecast } = useForecast();
+  const {
+    forecast,
+    loading: forecastLoading,
+    error: forecastError,
+    calculateForecast,
+    reset: resetForecast,
+  } = useForecast();
   const { transits, loading: transitsLoading, calculateTransits } = useTransits();
   const {
     pressureWindow,
@@ -987,12 +999,62 @@ export default function UnifiedDashboard() {
     userId,
   ]);
 
+  // Keep local calendar day fresh (tab focus + midnight) so weather isn't stuck on yesterday
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncLocalDay = () => {
+      const n = new Date();
+      const day = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+      setLocalCalendarDay((prev) => (prev === day ? prev : day));
+    };
+
+    syncLocalDay();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') syncLocalDay();
+    };
+    window.addEventListener('focus', syncLocalDay);
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Fire shortly after local midnight, then every minute as a backstop
+    let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+    const armMidnight = () => {
+      const n = new Date();
+      const next = new Date(n);
+      next.setHours(24, 0, 5, 0);
+      midnightTimer = setTimeout(() => {
+        syncLocalDay();
+        armMidnight();
+      }, Math.max(1000, next.getTime() - n.getTime()));
+    };
+    armMidnight();
+    const minuteTick = setInterval(syncLocalDay, 60_000);
+
+    return () => {
+      window.removeEventListener('focus', syncLocalDay);
+      document.removeEventListener('visibilitychange', onVisible);
+      if (midnightTimer) clearTimeout(midnightTimer);
+      clearInterval(minuteTick);
+    };
+  }, []);
+
   useEffect(() => {
     if (!featureFlags.premiumInsights || !birthData || !chartData) return;
+    if (!localCalendarDay) return;
 
-    const hydrationKey = `${tier}:${birthData.date}:${birthData.time}`;
+    // Include local calendar day so Aug 5 → Aug 6 always re-fetches weather
+    const hydrationKey = `${tier}:${birthData.date}:${birthData.time}:${localCalendarDay}`;
     if (premiumHydrationKeyRef.current === hydrationKey) return;
+
+    const previousKey = premiumHydrationKeyRef.current;
     premiumHydrationKeyRef.current = hydrationKey;
+
+    // Day roll-over (or first load after day change): clear stale day packets so UI
+    // doesn't paint yesterday while the new day is in flight
+    if (previousKey && !previousKey.endsWith(`:${localCalendarDay}`)) {
+      resetForecast();
+      resetAtmosphere();
+    }
 
     const derivedMbti = applyChartPersonality(chartData);
 
@@ -1022,6 +1084,7 @@ export default function UnifiedDashboard() {
         ? calculateAtmosphere(birthData, {
             mbtiType: derivedMbti || mbtiType || undefined,
             userId: userId || undefined,
+            clientDate: localCalendarDay,
           })
         : Promise.resolve(null),
     ]).catch((error) => console.error('Error hydrating premium dashboard data:', error));
@@ -1042,7 +1105,10 @@ export default function UnifiedDashboard() {
     featureFlags.premiumInsights,
     generateInterpretations,
     interpretMode,
+    localCalendarDay,
     mbtiType,
+    resetAtmosphere,
+    resetForecast,
     tier,
     userId,
   ]);
@@ -1594,9 +1660,15 @@ export default function UnifiedDashboard() {
    * Day-scoped weather is not ready until server atmosphere + forecast settle
    * (or error). Idle hooks start as loading=false with null data — treat that
    * as still pending so we never paint a fake Caution from week storms.
+   * Also treat packets dated for a previous local day as pending (day roll-over).
    */
   const hasWeatherContext = Boolean(
     featureFlags.premiumInsights && birthData && chartData,
+  );
+  const weatherPacketStale = Boolean(
+    localCalendarDay &&
+      ((forecast?.date && forecast.date !== localCalendarDay) ||
+        (atmosphere?.date && atmosphere.date !== localCalendarDay)),
   );
   const serverAtmospherePending =
     atmosphereEngineEnabled &&
@@ -1611,14 +1683,22 @@ export default function UnifiedDashboard() {
     (serverAtmospherePending ||
       forecastPending ||
       atmosphereLoading ||
-      forecastLoading);
+      forecastLoading ||
+      weatherPacketStale);
 
-  // Prefer server atmosphere. While server packet is unresolved, do NOT fall
-  // back to the client-composed packet — that partial build (storms / pressure /
-  // week risk) is why Today briefly shows Caution, then jumps to Clear Flow.
+  // Prefer server atmosphere. While loading, pending, or packet is for a prior
+  // local day, do not paint client/stale weather as "today".
+  const atmosphereForToday =
+    atmosphere && localCalendarDay && atmosphere.date === localCalendarDay
+      ? atmosphere
+      : atmosphere && !localCalendarDay
+        ? atmosphere
+        : null;
   const activeAtmospherePacket = atmosphereEngineEnabled
-    ? atmosphere ??
-      (serverAtmospherePending || atmosphereLoading ? null : clientAtmospherePacket)
+    ? atmosphereForToday ??
+      (serverAtmospherePending || atmosphereLoading || weatherPacketStale
+        ? null
+        : clientAtmospherePacket)
     : null;
 
   // Today hero fallback only — omit week storms (they paint false Caution).

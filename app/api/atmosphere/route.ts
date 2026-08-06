@@ -20,6 +20,10 @@ import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { generateDailyForecast } from '@/lib/transit-calculator';
+import {
+  calendarDateToLocalNoon,
+  resolveForecastTargetDate,
+} from '@/lib/datetime/local-calendar';
 import type { BirthChartData, TransitDriver } from '@/types/astrology';
 import type { MBTIType } from '@/lib/mbti-system';
 
@@ -212,8 +216,10 @@ export async function POST(request: Request) {
     }
 
     const parsedMbti = parseMbtiType(mbtiType);
-    const targetDate =
-      typeof clientDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(clientDate) ? clientDate : undefined;
+    // Always pin to client local day when provided; never silently use server UTC day
+    const targetDate = resolveForecastTargetDate(
+      typeof clientDate === 'string' ? clientDate : undefined,
+    );
 
     const [predictive, forecastBase, stormsReport] = await Promise.all([
       buildPredictiveTransitBundle({
@@ -286,7 +292,7 @@ export async function POST(request: Request) {
       const [h, m] = birthTimeStr.split(':').map(Number);
       const birthDateObj = new Date(Date.UTC(y, mo - 1, d, h || 12, m || 0));
       const tcForecast = await generateDailyForecast(
-        new Date(),
+        calendarDateToLocalNoon(targetDate),
         { date: birthDateObj, location: { latitude: lat || 0, longitude: lon || 0 } },
         parsedMbti,
         typeof userId === 'string' ? userId : undefined
@@ -306,7 +312,7 @@ export async function POST(request: Request) {
 
     const basePacket = computeAtmosphere(
       assembleAtmosphereInput({
-        date: targetDate || forecastBase.date,
+        date: targetDate || forecastBase.date || targetDate,
         explainability,
         predictive: mapPredictiveBundle(predictive, sortedEvents),
         temporal,
