@@ -102,7 +102,7 @@ export function looksLikeTechnicalTransit(label: string): boolean {
 }
 
 function joinDomainPhrases(phrases: string[]): string {
-  const unique = [...new Set(phrases.filter(Boolean))];
+  const unique = Array.from(new Set(phrases.filter(Boolean)));
   if (unique.length === 0) return '';
   if (unique.length === 1) return unique[0];
   if (unique.length === 2) return `${unique[0]} and ${unique[1]}`;

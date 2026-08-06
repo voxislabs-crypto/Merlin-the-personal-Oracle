@@ -2,10 +2,33 @@ import 'server-only';
 import fs from 'fs';
 import path from 'path';
 
-type SwephModule = {
+/** Swiss Ephemeris native binding shape (subset we call). */
+export type SwephCalcResult = {
+  flag: number;
+  data: number[];
+  error?: string;
+};
+
+export type SwephModule = {
   set_ephe_path?: (ephePath: string) => void;
-  constants?: Record<string, number>;
-  calc_ut?: (...args: unknown[]) => unknown;
+  constants: Record<string, number>;
+  calc_ut: (jd: number, body: number, flags: number) => SwephCalcResult;
+  utc_to_jd: (
+    year: number,
+    month: number,
+    day: number,
+    hour: number,
+    minute: number,
+    second: number,
+    gregflag: number,
+  ) => SwephCalcResult;
+  houses_ex?: (
+    jd: number,
+    flags: number,
+    lat: number,
+    lon: number,
+    hsys: string,
+  ) => unknown;
 };
 
 let swephModule: SwephModule | null | undefined;
@@ -39,10 +62,21 @@ function configureEphePath(sweph: SwephModule): void {
       console.log(`[sweph] Ephemeris files loaded from ${ephePath}`);
     } else {
       console.warn(
-        `[sweph] Ephemeris path set to ${ephePath} but no .se1 files found — calculations will use Moshier fallback`
+        `[sweph] Ephemeris path set to ${ephePath} but no .se1 files found — calculations will use Moshier fallback`,
       );
     }
   }
+}
+
+function isUsableSweph(value: unknown): value is SwephModule {
+  if (!value || typeof value !== 'object') return false;
+  const mod = value as Partial<SwephModule>;
+  return (
+    typeof mod.calc_ut === 'function' &&
+    typeof mod.utc_to_jd === 'function' &&
+    !!mod.constants &&
+    typeof mod.constants === 'object'
+  );
 }
 
 export function getSwephPath(): string {
@@ -55,11 +89,14 @@ export function getSweph(): SwephModule | null {
 
   try {
     // Native addon: dynamic require so optional sweph is not a hard compile dependency.
-    const sweph = require('sweph') as SwephModule;
-    configureEphePath(sweph);
-    swephModule = sweph;
+    const loaded = require('sweph') as unknown;
+    if (!isUsableSweph(loaded)) {
+      throw new Error('sweph module missing calc_ut/utc_to_jd/constants');
+    }
+    configureEphePath(loaded);
+    swephModule = loaded;
     console.log('[sweph] Native module loaded');
-    return sweph;
+    return swephModule;
   } catch (error) {
     swephModule = null;
     const hint =

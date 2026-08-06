@@ -120,7 +120,8 @@ export function detectSolarArcHitsAtAge(
     for (const natalPlanet of NATAL_TARGETS) {
       const natalLongitude = natalLongitudes[natalPlanet];
       if (typeof natalLongitude !== 'number') continue;
-      if (directedPlanet === natalPlanet && natalPlanet !== 'Ascendant' && natalPlanet !== 'Midheaven') {
+      // Skip self-aspects (directed body to the same natal body)
+      if ((directedPlanet as string) === (natalPlanet as string)) {
         continue;
       }
 

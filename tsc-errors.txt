@@ -1,0 +1,112 @@
+﻿hooks/useInterpretations.tsx(112,21): error TS2339: Property 'error' does not exist on type 'never'.
+hooks/useInterpretations.tsx(119,22): error TS2339: Property 'success' does not exist on type 'never'.
+hooks/useInterpretations.tsx(120,35): error TS2339: Property 'error' does not exist on type 'never'.
+hooks/useInterpretations.tsx(124,20): error TS2339: Property 'cached' does not exist on type 'never'.
+hooks/useInterpretations.tsx(124,37): error TS2339: Property 'cacheHit' does not exist on type 'never'.
+hooks/useInterpretations.tsx(130,21): error TS2339: Property 'data' does not exist on type 'never'.
+hooks/useInterpretations.tsx(131,31): error TS2339: Property 'interpreter' does not exist on type 'never'.
+lib/astrology/advanced.ts(1775,13): error TS2339: Property 'utc_to_jd' does not exist on type 'SwephModule'.
+lib/astrology/advanced.ts(1782,9): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/advanced.ts(1811,22): error TS2339: Property 'utc_to_jd' does not exist on type 'SwephModule'.
+lib/astrology/advanced.ts(1818,7): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/solar-arc.ts(123,45): error TS2367: This comparison appears to be unintentional because the types '"Sun" | "Moon" | "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Uranus" | "Neptune" | "Pluto"' and '"Ascendant"' have no overlap.
+lib/astrology/solar-arc.ts(123,76): error TS2367: This comparison appears to be unintentional because the types '"Sun" | "Moon" | "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Uranus" | "Neptune" | "Pluto"' and '"Midheaven"' have no overlap.
+lib/astrology/storms.ts(598,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(599,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(600,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(601,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(602,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(603,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(604,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(605,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(606,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(607,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(611,22): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+lib/astrology/storms.ts(611,22): error TS18048: 'sweph.calc_ut' is possibly 'undefined'.
+lib/astrology/storms.ts(611,51): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/storms.ts(612,11): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/storms.ts(613,40): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/storms.ts(619,19): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/storms.ts(620,19): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/storms.ts(621,16): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/storms.ts(622,21): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/transits.ts(116,28): error TS2339: Property 'utc_to_jd' does not exist on type 'SwephModule'.
+lib/astrology/transits.ts(123,7): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(126,27): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(136,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(137,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(138,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(139,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(140,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(141,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(142,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(143,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(144,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(145,13): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(149,22): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+lib/astrology/transits.ts(149,22): error TS18048: 'sweph.calc_ut' is possibly 'undefined'.
+lib/astrology/transits.ts(149,51): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/astrology/transits.ts(150,11): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/transits.ts(155,40): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/transits.ts(156,24): error TS18046: 'result' is of type 'unknown'.
+lib/astrology/transits.ts(157,24): error TS18046: 'result' is of type 'unknown'.
+lib/atmosphere/life-weather-copy.ts(105,22): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+lib/engine.ts(80,29): error TS2339: Property 'houses_ex' does not exist on type 'SwephModule'.
+lib/engine.ts(178,28): error TS2339: Property 'utc_to_jd' does not exist on type 'SwephModule'.
+lib/engine.ts(185,7): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(187,90): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(188,27): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(197,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(198,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(199,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(200,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(201,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(202,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(203,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(204,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(205,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(206,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(207,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(212,22): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+lib/engine.ts(212,22): error TS18048: 'sweph.calc_ut' is possibly 'undefined'.
+lib/engine.ts(212,51): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(213,64): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(213,90): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(214,11): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(215,75): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(216,57): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(219,25): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(220,24): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(221,24): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(253,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(254,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(255,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(256,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(257,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(258,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(259,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(260,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(261,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(262,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(263,11): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(267,20): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+lib/engine.ts(267,20): error TS18048: 'sweph.calc_ut' is possibly 'undefined'.
+lib/engine.ts(267,49): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(268,9): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(270,23): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(271,22): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(272,22): error TS18046: 'result' is of type 'unknown'.
+lib/engine.ts(336,28): error TS2339: Property 'utc_to_jd' does not exist on type 'SwephModule'.
+lib/engine.ts(343,7): error TS18048: 'sweph.constants' is possibly 'undefined'.
+lib/engine.ts(366,31): error TS2339: Property 'houses_ex' does not exist on type 'SwephModule'.
+lib/stripe-clerk-sync.ts(87,36): error TS2339: Property 'current_period_end' does not exist on type 'Subscription'.
+lib/stripe-clerk-sync.ts(118,36): error TS2339: Property 'current_period_end' does not exist on type 'Subscription'.
+lib/swiss-ephemeris-core.ts(87,22): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+lib/swiss-ephemeris-core.ts(87,22): error TS18048: 'swisseph.calc_ut' is possibly 'undefined'.
+lib/swiss-ephemeris-core.ts(89,11): error TS18046: 'result' is of type 'unknown'.
+lib/swiss-ephemeris-core.ts(89,27): error TS18046: 'result' is of type 'unknown'.
+lib/swiss-ephemeris-core.ts(90,80): error TS18046: 'result' is of type 'unknown'.
+lib/swiss-ephemeris-core.ts(95,20): error TS18046: 'result' is of type 'unknown'.
+lib/swiss-ephemeris-core.ts(96,19): error TS18046: 'result' is of type 'unknown'.
+lib/swiss-ephemeris-core.ts(97,19): error TS18046: 'result' is of type 'unknown'.
+lib/swiss-ephemeris-core.ts(98,25): error TS18046: 'result' is of type 'unknown'.

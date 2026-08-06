@@ -82,18 +82,19 @@ export function useInterpretations() {
 
         const contentType = response.headers.get('content-type') || '';
         const rawBody = await response.text();
-        let result: {
+        type InterpretationApiResult = {
           success?: boolean;
           error?: string;
           cached?: boolean;
           cacheHit?: boolean;
           interpreter?: string;
           data?: InterpretationData;
-        } | null = null;
+        };
+        let result: InterpretationApiResult | null = null;
 
         if (contentType.includes('application/json')) {
           try {
-            result = JSON.parse(rawBody) as typeof result;
+            result = JSON.parse(rawBody) as InterpretationApiResult;
           } catch {
             throw new Error('Interpretation service returned invalid JSON.');
           }
@@ -126,9 +127,19 @@ export function useInterpretations() {
         }
 
         // Add interpreter info to data
-        const dataWithInterpreter = {
-          ...result.data,
-          interpreter: result.interpreter || mode
+        const dataWithInterpreter: InterpretationData = {
+          chartSummary: result.data?.chartSummary || '',
+          synthesis: result.data?.synthesis,
+          confluence: result.data?.confluence,
+          transitWindows: result.data?.transitWindows,
+          planetInterpretations: result.data?.planetInterpretations || [],
+          aspectInterpretations: result.data?.aspectInterpretations || [],
+          metadata: result.data?.metadata || {
+            generatedAt: new Date().toISOString(),
+            birthDate: birthData.date,
+            birthTime: birthData.time,
+          },
+          interpreter: (result.interpreter as InterpretationData['interpreter']) || mode,
         };
 
         setInterpretations(dataWithInterpreter);

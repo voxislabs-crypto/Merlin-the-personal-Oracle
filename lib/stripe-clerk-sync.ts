@@ -73,6 +73,17 @@ export function buildCheckoutCompletedMetadata(
   };
 }
 
+/** Stripe typings vary by API version — period fields may live on Subscription or items. */
+function subscriptionPeriodEnd(subscription: Stripe.Subscription): number | null {
+  const sub = subscription as Stripe.Subscription & {
+    current_period_end?: number | null;
+    items?: { data?: Array<{ current_period_end?: number | null }> };
+  };
+  if (typeof sub.current_period_end === 'number') return sub.current_period_end;
+  const fromItem = sub.items?.data?.[0]?.current_period_end;
+  return typeof fromItem === 'number' ? fromItem : null;
+}
+
 export function buildSubscriptionSyncMetadata(
   subscription: Stripe.Subscription
 ): MetadataPatch {
@@ -84,7 +95,7 @@ export function buildSubscriptionSyncMetadata(
     subscriptionId: subscription.id,
     subscriptionStatus: status,
     trialEnd: subscription.trial_end || null,
-    currentPeriodEnd: subscription.current_period_end || null,
+    currentPeriodEnd: subscriptionPeriodEnd(subscription),
     cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
   };
 
@@ -115,7 +126,7 @@ export function buildPaymentSucceededMetadata(
   return {
     tier: tier === 'free' ? 'monthly' : tier,
     subscriptionStatus: subscription.status === 'trialing' ? 'trialing' : 'active',
-    currentPeriodEnd: subscription.current_period_end || null,
+    currentPeriodEnd: subscriptionPeriodEnd(subscription),
     lastPaymentDate: Math.floor(Date.now() / 1000),
   };
 }

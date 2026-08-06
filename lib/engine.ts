@@ -77,6 +77,14 @@ const calculateHouses = (jd: number, lat: number, lon: number) => {
     };
   }
   const hsys = "P"; // Placidus
+  if (typeof sweph.houses_ex !== 'function') {
+    console.warn("[engine.calculateHouses] houses_ex unavailable, using fallback");
+    return {
+      houses: [],
+      ascendant: { longitude: 0, sign: "Aries", degree: 0, minute: 0 },
+      mc: { longitude: 0, sign: "Aries", degree: 0, minute: 0 },
+    };
+  }
   const houseResult = sweph.houses_ex(jd, 0, lat, lon, "P");
 
   const houses = (houseResult as any).data?.houses || (houseResult as any).house || [];
@@ -363,43 +371,45 @@ export const calculateBirthChart = (
     // Create Placidus house system for additional data
     houseSystemData = createPlacidusHouses(jd, lat, lon);
 
-    const houseResult = sweph.houses_ex(jd, 0, lat, lon, "P" as any);
-    const houseLongitudes = (houseResult as any).data?.houses || (houseResult as any).house || [];
-    // data.points[0] = Ascendant, data.points[1] = MC
-    const housePoints = (houseResult as any).data?.points || (houseResult as any).points || [];
+    if (typeof sweph.houses_ex === 'function') {
+      const houseResult = sweph.houses_ex(jd, 0, lat, lon, "P" as any);
+      const houseLongitudes = (houseResult as any).data?.houses || (houseResult as any).house || [];
+      // data.points[0] = Ascendant, data.points[1] = MC
+      const housePoints = (houseResult as any).data?.points || (houseResult as any).points || [];
 
-    houses = houseLongitudes.map((cusp: any, i: number) => {
-      const { sign, degree, minute } = getZodiacPosition(Number(cusp));
-      return {
-        house: i + 1,
-        position: Number(cusp),
-        sign,
-        degree,
-        minute,
-        longitude: Number(cusp),
-      };
-    });
-
-    // Add house positions to planets
-    const planetsWithHouses = planetsWithDignities.map((planet) => {
-      const house = houses.find((h) => {
-        const nextHouse = houses[(houses.indexOf(h) + 1) % 12];
-        return (
-          planet.longitude >= (h.position ?? 0) &&
-          planet.longitude < (nextHouse?.position ?? 360)
-        );
+      houses = houseLongitudes.map((cusp: any, i: number) => {
+        const { sign, degree, minute } = getZodiacPosition(Number(cusp));
+        return {
+          house: i + 1,
+          position: Number(cusp),
+          sign,
+          degree,
+          minute,
+          longitude: Number(cusp),
+        };
       });
-      return { ...planet, house: house?.house || 1 };
-    });
-    // Update reference to include house assignments
-    planetsWithDignities = planetsWithHouses;
 
-    // Derive Ascendant and MC from houses_ex points (avoids invalid calc_ut usage)
-    const ascLong = normalizeAngle(Number(housePoints[0]) || 0);
-    const mcLong = normalizeAngle(Number(housePoints[1]) || 0);
+      // Add house positions to planets
+      const planetsWithHouses = planetsWithDignities.map((planet) => {
+        const house = houses.find((h) => {
+          const nextHouse = houses[(houses.indexOf(h) + 1) % 12];
+          return (
+            planet.longitude >= (h.position ?? 0) &&
+            planet.longitude < (nextHouse?.position ?? 360)
+          );
+        });
+        return { ...planet, house: house?.house || 1 };
+      });
+      // Update reference to include house assignments
+      planetsWithDignities = planetsWithHouses;
 
-    ascendant = { longitude: ascLong, ...getZodiacPosition(ascLong) };
-    mc = { longitude: mcLong, ...getZodiacPosition(mcLong) };
+      // Derive Ascendant and MC from houses_ex points (avoids invalid calc_ut usage)
+      const ascLong = normalizeAngle(Number(housePoints[0]) || 0);
+      const mcLong = normalizeAngle(Number(housePoints[1]) || 0);
+
+      ascendant = { longitude: ascLong, ...getZodiacPosition(ascLong) };
+      mc = { longitude: mcLong, ...getZodiacPosition(mcLong) };
+    }
   }
 
   // Calculate aspects
