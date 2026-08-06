@@ -75,3 +75,6 @@ personas_export.json
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+tsc-errors*.txt
+

@@ -1,6 +1,0 @@
-﻿hooks/useInterpretations.tsx(135,28): error TS2345: Argument of type '{ interpreter: string; chartSummary?: string | undefined; synthesis?: SynthesisData; confluence?: ConfluenceTheme[]; transitWindows?: TransitWindow[]; planetInterpretations?: { planet: string; interpretation: string; }[] | undefined; aspectInterpretations?: { ...; }[] | undefined; metadata?: { ...; } | undefined; }' is not assignable to parameter of type 'SetStateAction<InterpretationData | null>'.
-hooks/useInterpretations.tsx(136,9): error TS2322: Type '{ interpreter: string; chartSummary?: string | undefined; synthesis?: SynthesisData; confluence?: ConfluenceTheme[]; transitWindows?: TransitWindow[]; planetInterpretations?: { planet: string; interpretation: string; }[] | undefined; aspectInterpretations?: { ...; }[] | undefined; metadata?: { ...; } | undefined; }' is not assignable to type 'InterpretationData'.
-lib/engine.ts(80,23): error TS2722: Cannot invoke an object which is possibly 'undefined'.
-lib/engine.ts(80,23): error TS18048: 'sweph.houses_ex' is possibly 'undefined'.
-lib/engine.ts(366,25): error TS2722: Cannot invoke an object which is possibly 'undefined'.
-lib/engine.ts(366,25): error TS18048: 'sweph.houses_ex' is possibly 'undefined'.
