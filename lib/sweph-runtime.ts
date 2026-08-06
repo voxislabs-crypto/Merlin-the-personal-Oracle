@@ -54,7 +54,7 @@ export function getSweph(): SwephModule | null {
   if (swephModule !== undefined) return swephModule;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // Native addon: dynamic require so optional sweph is not a hard compile dependency.
     const sweph = require('sweph') as SwephModule;
     configureEphePath(sweph);
     swephModule = sweph;
