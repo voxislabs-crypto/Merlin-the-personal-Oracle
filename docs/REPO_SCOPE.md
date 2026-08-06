@@ -45,3 +45,11 @@ Historical monorepo merge. Voxis and Merlin share a company brand (Voxis Labs / 
 ## Separation completed
 
 Voxis sources were removed from this repository. Continue Voxis work only under `X:\Voxis` (or its remote).
+
+## Production URL (Vercel)
+
+Current production host:
+
+`https://merlin-the-personal-oracle-chi.vercel.app`
+
+Set `NEXT_PUBLIC_URL` to that value in Vercel. Clerk allowed origins / redirect URLs should match it (Path A: app-hosted `/sign-in`, satellite off) until custom domains are fully wired.

@@ -7,7 +7,7 @@ interface ClerkProviderProps {
   children: ReactNode;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin.voxislabs.com';
+const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin-the-personal-oracle-chi.vercel.app';
 const appUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`;
 
 const resolveAbsoluteUrl = (value: string | undefined, fallbackPath: string) => {

@@ -13,7 +13,7 @@ Not another generic horoscope. Not a bare birth-chart calculator.
 
 | | |
 |--|--|
-| **Live** | [merlin-the-personal-oracle-a2ay.vercel.app](https://merlin-the-personal-oracle-a2ay.vercel.app/) |
+| **Live** | [merlin-the-personal-oracle-chi.vercel.app](https://merlin-the-personal-oracle-chi.vercel.app/) |
 | **Voice (canonical)** | [docs/MERLIN_VOICE.md](docs/MERLIN_VOICE.md) |
 | **Architecture** | [docs/TWO_PILLARS.md](docs/TWO_PILLARS.md) |
 | **First users (no ads)** | [docs/FIRST_10_USERS.md](docs/FIRST_10_USERS.md) |

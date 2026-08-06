@@ -5,7 +5,7 @@ import { PWAInstaller } from '@/components/PWAInstaller';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 
-const rawUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin-oracle.com';
+const rawUrl = process.env.NEXT_PUBLIC_URL || 'https://merlin-the-personal-oracle-chi.vercel.app';
 const siteUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
 
 export const viewport: Viewport = {
