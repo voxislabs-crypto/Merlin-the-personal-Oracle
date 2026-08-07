@@ -22,15 +22,15 @@ const freeFeatures = [
   'Full birth chart wheel & placements',
   'Dual MBTI (Core + Mask) from your chart',
   'Today’s life weather sample',
-  'Oracle chat (basic)',
+  'Oracle chat · 3 messages / day',
 ];
 
 const freeNotIncluded = [
+  'Unlimited Oracle chat',
   'Storm radar & multi-day pressure windows',
   'Weekly horizon & full forecast depth',
   'Chart reading, transits & life timeline',
   'Returns, synastry & deep interpretations',
-  'Priority support',
 ];
 
 export function PricingSection() {

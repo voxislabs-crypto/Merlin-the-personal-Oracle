@@ -10,10 +10,10 @@ interface PremiumUpgradeBannerProps {
 }
 
 const PREMIUM_FEATURES = [
+  'Unlimited Oracle chat (no daily cap)',
   'Storm radar, pressure windows & weekly horizon',
   'Full forecast depth & life timeline',
   'Chart reading, transits & returns',
-  'Oracle with full weather + identity context',
 ];
 
 export function PremiumUpgradeBanner({ tier, compact = false }: PremiumUpgradeBannerProps) {

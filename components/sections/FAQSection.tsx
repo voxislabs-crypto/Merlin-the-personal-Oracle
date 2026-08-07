@@ -28,7 +28,7 @@ const faqs = [
   {
     question: 'What pricing options do you offer?',
     answer:
-      'Free includes chart, dual MBTI, and a Today life-weather sample. Paid unlocks storm radar, weekly horizon, full forecast depth, and timeline. 7-day free trial then $9.99/month, or $50 lifetime (founder pricing while in beta).',
+      'Free includes chart, dual MBTI, a Today life-weather sample, and 3 Oracle messages per day. Paid unlocks unlimited Oracle, storm radar, weekly horizon, full forecast depth, and timeline. 7-day free trial then $9.99/month, or $50 lifetime (founder pricing while in beta).',
   },
   {
     question: 'Do I need my exact birth time?',

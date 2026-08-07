@@ -46,6 +46,49 @@ export interface OracleChatStreamResult {
   ancientLayer?: boolean;
 }
 
+export type OracleQuotaSnapshot = {
+  allowed: boolean;
+  tier: string;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  day?: string;
+  code?: string;
+  error?: string;
+};
+
+export class OracleApiError extends Error {
+  status: number;
+  code?: string;
+  quota?: OracleQuotaSnapshot;
+
+  constructor(
+    message: string,
+    options?: { status?: number; code?: string; quota?: OracleQuotaSnapshot }
+  ) {
+    super(message);
+    this.name = 'OracleApiError';
+    this.status = options?.status ?? 500;
+    this.code = options?.code;
+    this.quota = options?.quota;
+  }
+}
+
+export async function fetchOracleQuota(): Promise<OracleQuotaSnapshot | null> {
+  try {
+    const response = await fetch('/api/oracle-quota', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data?.success || !data.quota) return null;
+    return data.quota as OracleQuotaSnapshot;
+  } catch {
+    return null;
+  }
+}
+
 interface RequestOracleChatOptions {
   onChunk?: (fullContent: string, delta: string) => void;
 }
@@ -123,7 +166,33 @@ export async function requestOracleChat(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
-    throw new Error(errorText || `HTTP ${response.status}: ${response.statusText}`);
+    let message = errorText || `HTTP ${response.status}: ${response.statusText}`;
+    let code: string | undefined;
+    let quota: OracleQuotaSnapshot | undefined;
+
+    try {
+      const parsed = JSON.parse(errorText) as {
+        error?: string;
+        code?: string;
+        quota?: OracleQuotaSnapshot;
+      };
+      if (parsed?.error) message = parsed.error;
+      code = parsed?.code;
+      if (parsed?.quota) {
+        quota = {
+          ...parsed.quota,
+          allowed: false,
+        };
+      }
+    } catch {
+      // Non-JSON error body — keep raw text.
+    }
+
+    throw new OracleApiError(message, {
+      status: response.status,
+      code,
+      quota,
+    });
   }
 
   // Backward compatibility with older JSON casual responses.

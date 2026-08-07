@@ -12,6 +12,11 @@ import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 import { useOracleChatStream } from '@/hooks/useOracleChatStream';
 import type { OracleMode } from '@/lib/oracle-chat-client';
+import {
+  fetchOracleQuota,
+  OracleApiError,
+  type OracleQuotaSnapshot,
+} from '@/lib/oracle-chat-client';
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
@@ -63,6 +68,7 @@ export function OracleChat({
   const [ancientLayer, setAncientLayer] = useState(false); // Ancient source weaving toggle
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
+  const [oracleQuota, setOracleQuota] = useState<OracleQuotaSnapshot | null>(null);
   const preferencesSyncEnabled = Boolean(userId && userId !== 'anonymous');
   const { preferences, persistPreferences } = useOraclePreferences({ enabled: preferencesSyncEnabled });
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,6 +76,12 @@ export function OracleChat({
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { sendOracleMessage } = useOracleChatStream();
+  const freeQuotaExhausted =
+    oracleQuota?.limit != null && (oracleQuota.remaining ?? 0) <= 0;
+  const freeQuotaLabel =
+    oracleQuota?.limit != null
+      ? `${Math.max(0, oracleQuota.remaining ?? 0)} of ${oracleQuota.limit} free messages left today`
+      : null;
 
   // Check if user is near the bottom of the chat
   const checkIfNearBottom = useCallback(() => {
@@ -236,14 +248,26 @@ export function OracleChat({
     fetchHistory();
   }, [userId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const quota = await fetchOracleQuota();
+      if (!cancelled && quota) setOracleQuota(quota);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || freeQuotaExhausted) return;
 
+    const questionText = input;
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input,
+      content: questionText,
       timestamp: new Date(),
     };
 
@@ -262,7 +286,7 @@ export function OracleChat({
 
       const streamResult = await sendOracleMessage(
         {
-          question: input,
+          question: questionText,
           birthChart,
           progressedChart,
           userId,
@@ -303,13 +327,28 @@ export function OracleChat({
 
       setMessages((prev: Message[]) => [...prev, assistantMessage]);
       setStreamingContent('');
+
+      const nextQuota = await fetchOracleQuota();
+      if (nextQuota) setOracleQuota(nextQuota);
     } catch (error) {
       console.error('Chat error:', error);
+      if (error instanceof OracleApiError && error.quota) {
+        setOracleQuota(error.quota);
+      } else if (error instanceof OracleApiError && error.code === 'ORACLE_QUOTA_EXCEEDED') {
+        const nextQuota = await fetchOracleQuota();
+        if (nextQuota) setOracleQuota(nextQuota);
+      }
+
       const errorText = error instanceof Error ? error.message : 'Unknown error';
+      const isQuota =
+        error instanceof OracleApiError &&
+        (error.code === 'ORACLE_QUOTA_EXCEEDED' || error.code === 'ORACLE_AUTH_REQUIRED');
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: `Merlin hit a disruption: ${errorText}. Check your API key and try again.`,
+        content: isQuota
+          ? errorText
+          : `Merlin hit a disruption: ${errorText}. Try again in a moment.`,
         timestamp: new Date(),
       };
       setMessages((prev: Message[]) => [...prev, errorMessage]);
@@ -681,19 +720,43 @@ export function OracleChat({
 
       {/* Input */}
       <div className="border-t border-purple-500/20 bg-slate-900/50 backdrop-blur p-4 space-y-2">
+        {freeQuotaLabel ? (
+          <div
+            className={`rounded-lg border px-3 py-2 text-xs ${
+              freeQuotaExhausted
+                ? 'border-amber-400/40 bg-amber-500/10 text-amber-100'
+                : 'border-purple-500/25 bg-purple-950/40 text-purple-200'
+            }`}
+          >
+            {freeQuotaExhausted ? (
+              <span>
+                Free Oracle limit reached for today.{' '}
+                <Link
+                  href="/checkout-subscription"
+                  className="font-semibold text-amber-200 underline-offset-2 hover:underline"
+                >
+                  Upgrade for unlimited
+                </Link>
+                {' '}or try again tomorrow.
+              </span>
+            ) : (
+              <span>{freeQuotaLabel}</span>
+            )}
+          </div>
+        ) : null}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-            placeholder="Ask your question..."
-            disabled={isLoading}
+            placeholder={freeQuotaExhausted ? 'Daily free limit reached' : 'Ask your question...'}
+            disabled={isLoading || freeQuotaExhausted}
             className="flex-1 bg-slate-800/50 border border-purple-500/30 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/60 disabled:opacity-50"
           />
           <Button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || freeQuotaExhausted}
             className="bg-purple-600 hover:bg-purple-700 text-white"
             size="sm"
           >

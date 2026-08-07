@@ -23,6 +23,7 @@ import { detectQueryMode, generateCasualResponse, shouldSkipStructure } from '@/
 import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import { getLlmConfig } from '@/lib/llm-config';
+import { consumeOracleQuota, oracleQuotaDeniedResponse } from '@/lib/oracle-quota';
 
 interface OracleChatRequest {
   question: string;
@@ -74,6 +75,13 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Question cannot be empty' },
         { status: 400 }
       );
+    }
+
+    // Free tier: hard daily message cap (paid unlimited). Enforce before any LLM work.
+    const quota = await consumeOracleQuota();
+    if (!quota.allowed) {
+      const denied = oracleQuotaDeniedResponse(quota);
+      return NextResponse.json(denied.body, { status: denied.status });
     }
 
     // ========== ADAPTIVE MODE ==========

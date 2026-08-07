@@ -15,6 +15,11 @@ import type { BirthChartData } from '@/types/astrology';
 import { polishOracleOutput, type OracleTonePreset } from '@/lib/oracle-output';
 import { useOracleChatStream } from '@/hooks/useOracleChatStream';
 import type { OracleMode } from '@/lib/oracle-chat-client';
+import {
+  fetchOracleQuota,
+  OracleApiError,
+  type OracleQuotaSnapshot,
+} from '@/lib/oracle-chat-client';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 
@@ -106,6 +111,7 @@ export function CollapsibleChatPanel({
   const [identityPack, setIdentityPack] = useState<{ archetypeName?: string; patternSignature?: string; coreContradiction?: string } | null>(null);
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [activeDraftLabel, setActiveDraftLabel] = useState<string | null>(null);
+  const [oracleQuota, setOracleQuota] = useState<OracleQuotaSnapshot | null>(null);
   const preferencesSyncEnabled = Boolean(userId && userId !== 'anonymous');
   const { preferences, persistPreferences } = useOraclePreferences({ enabled: preferencesSyncEnabled });
   // Use parent-controlled value if provided, else internal state
@@ -115,6 +121,12 @@ export function CollapsibleChatPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const { sendOracleMessage } = useOracleChatStream();
+  const freeQuotaExhausted =
+    oracleQuota?.limit != null && (oracleQuota.remaining ?? 0) <= 0;
+  const freeQuotaLabel =
+    oracleQuota?.limit != null
+      ? `${Math.max(0, oracleQuota.remaining ?? 0)} of ${oracleQuota.limit} free messages left today`
+      : null;
   
   // Create a ref to the global audio element for VoiceAvatar visualization
   const globalAudioRef = useRef<HTMLAudioElement | null>(
@@ -144,6 +156,17 @@ export function CollapsibleChatPanel({
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamingContent, scrollToBottom]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const quota = await fetchOracleQuota();
+      if (!cancelled && quota) setOracleQuota(quota);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!draftPromptKey || !draftPrompt?.trim()) return;
@@ -545,16 +568,17 @@ export function CollapsibleChatPanel({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || freeQuotaExhausted) return;
 
     if (playingMessageId || isSpeaking || isPaused || isTTSLoading) {
       stopCurrentSpeech();
     }
 
+    const questionText = input;
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input,
+      content: questionText,
       timestamp: new Date(),
     };
 
@@ -568,7 +592,7 @@ export function CollapsibleChatPanel({
     try {
       const streamResult = await sendOracleMessage(
         {
-          question: input,
+          question: questionText,
           birthChart,
           progressedChart,
           userId,
@@ -612,6 +636,10 @@ export function CollapsibleChatPanel({
 
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
+
+      // Refresh free-tier remaining after a successful paid-or-free send.
+      const nextQuota = await fetchOracleQuota();
+      if (nextQuota) setOracleQuota(nextQuota);
       
       // Auto-TTS only in full chrome; drawer stays quiet so reading wins
       if (!minimal && polishedContent.trim()) {
@@ -621,11 +649,23 @@ export function CollapsibleChatPanel({
       }
     } catch (error) {
       console.error('Chat error:', error);
+      if (error instanceof OracleApiError && error.quota) {
+        setOracleQuota(error.quota);
+      } else if (error instanceof OracleApiError && error.code === 'ORACLE_QUOTA_EXCEEDED') {
+        const nextQuota = await fetchOracleQuota();
+        if (nextQuota) setOracleQuota(nextQuota);
+      }
+
       const errorText = error instanceof Error ? error.message : 'Unknown error';
+      const isQuota =
+        error instanceof OracleApiError &&
+        (error.code === 'ORACLE_QUOTA_EXCEEDED' || error.code === 'ORACLE_AUTH_REQUIRED');
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: `Merlin hit a disruption: ${errorText}. Check your API key and try again.`,
+        content: isQuota
+          ? errorText
+          : `Merlin hit a disruption: ${errorText}. Try again in a moment.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -1012,6 +1052,27 @@ export function CollapsibleChatPanel({
 
       {/* Composer */}
       <div className="shrink-0 space-y-2 border-t border-slate-800 bg-slate-950 px-3 py-3">
+        {freeQuotaLabel ? (
+          <div
+            className={`rounded-lg border px-2.5 py-1.5 text-[11px] ${
+              freeQuotaExhausted
+                ? 'border-amber-400/40 bg-amber-500/10 text-amber-100'
+                : 'border-slate-600/50 bg-slate-900/70 text-slate-300'
+            }`}
+          >
+            {freeQuotaExhausted ? (
+              <span>
+                Free Oracle limit reached for today.{' '}
+                <Link href="/checkout-subscription" className="font-semibold text-amber-200 underline-offset-2 hover:underline">
+                  Upgrade for unlimited
+                </Link>
+                {' '}or try again tomorrow.
+              </span>
+            ) : (
+              <span>{freeQuotaLabel}</span>
+            )}
+          </div>
+        ) : null}
         {activeDraftLabel ? (
           <div className="flex items-center justify-between gap-2 rounded-lg border border-sky-500/25 bg-sky-950/40 px-2.5 py-1.5 text-xs text-sky-100">
             <span className="truncate">Context: {activeDraftLabel}</span>
@@ -1031,13 +1092,13 @@ export function CollapsibleChatPanel({
             type="text"
             value={input}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-            placeholder="Ask Merlin…"
-            disabled={isLoading}
+            placeholder={freeQuotaExhausted ? 'Daily free limit reached' : 'Ask Merlin…'}
+            disabled={isLoading || freeQuotaExhausted}
             className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500/50 focus:outline-none disabled:opacity-50"
           />
           <Button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || freeQuotaExhausted}
             className="shrink-0 rounded-xl bg-sky-600 px-3 text-white hover:bg-sky-500"
             size="sm"
           >
