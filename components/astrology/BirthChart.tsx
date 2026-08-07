@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, MapPin } from 'lucide-react';
+import { CalendarDays, Clock3, Loader2, MapPin, Radio, Sparkles } from 'lucide-react';
 import { BirthChartData, BirthData, HouseCusp } from './BirthChartCalculator';
 import { transformChartData } from '@/lib/astrology/chartDataTransformers';
 import type { ChartData } from '@/lib/astrology/newWheelTypes';
@@ -14,7 +14,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlanetInfo } from './PlanetInfo';
 import { GeocodingService, type GeocodingResult } from '@/lib/astrology/geocoding';
 import { LifeWeatherStationLoader } from '@/components/dashboard/LifeWeatherStationLoader';
+import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { StatusPanel, LocationEmptyHint } from '@/components/ui/status-panel';
+import { cn } from '@/lib/utils';
+
+const fieldShellClass =
+  'group relative rounded-xl border border-sky-400/20 bg-slate-950/55 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-sky-300/50 focus-within:bg-sky-950/30 focus-within:shadow-[0_0_24px_rgba(56,189,248,0.12)]';
+
+const fieldInputClass =
+  'h-11 border-0 bg-transparent px-0 text-base text-slate-50 shadow-none placeholder:text-slate-500 focus-visible:ring-0 focus-visible:ring-offset-0 md:text-[15px]';
 
 // Dynamically import the WheelVisualization component with SSR disabled
 const WheelVisualization = dynamic(
@@ -269,27 +277,88 @@ export function BirthChart({
   }, [chartData]);
 
   const locationPlaceholder =
-    selectedLocation?.displayName || 'e.g., New York, NY or London, UK';
+    selectedLocation?.displayName || 'City, region, or country';
+  const hasDate = Boolean(birthData.date);
+  const hasTime = Boolean(birthData.time);
+  const hasLocation = Boolean(selectedLocation || birthData.latitude);
+  const canSubmit = hasDate && hasTime && hasLocation && !isStationBusy;
+  const signalReadyCount = [hasDate, hasTime, hasLocation].filter(Boolean).length;
 
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Intake form OR station loader in the same slot — never stack both. */}
       {showControls && !isStationBusy ? (
-        <Card className="border-sky-400/30 bg-gradient-to-br from-slate-950/80 via-sky-950/30 to-slate-950/70 shadow-xl shadow-sky-950/30 backdrop-blur-md">
-          <CardHeader>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.28em] text-sky-300/80">
-              Life weather · station intake
-            </p>
-            <CardTitle className="text-sky-50">Birth details</CardTitle>
-            <p className="text-sm text-slate-400">
-              Enter date, time, and place — Merlin locks the signal and builds your personalized life weather.
-            </p>
-          </CardHeader>
-          <CardContent>
+        <ArcanePane
+          tone="sky"
+          shellClassName="border-sky-400/35 bg-gradient-to-br from-slate-950/90 via-indigo-950/35 to-sky-950/45 shadow-2xl shadow-sky-500/15"
+          padding="p-5 md:p-7"
+        >
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-sky-300/45 bg-sky-500/15 shadow-[0_0_24px_rgba(56,189,248,0.22)]">
+                  <Radio className="h-5 w-5 text-sky-300 drop-shadow-[0_0_8px_rgba(56,189,248,0.65)]" />
+                  <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400/70" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-sky-300/90">
+                    Life weather · station intake
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-50 md:text-2xl">
+                    Lock your birth signal
+                  </h2>
+                  <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-400">
+                    Date, time, and place — three coordinates. Merlin builds your chart and life weather from
+                    them.
+                  </p>
+                  <p className="mt-1.5 font-mono text-[11px] text-sky-200/45">
+                    MERLIN · LW-01 · INTAKE
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                {(
+                  [
+                    { ok: hasDate, label: 'Date' },
+                    { ok: hasTime, label: 'Time' },
+                    { ok: hasLocation, label: 'Place' },
+                  ] as const
+                ).map((chip) => (
+                  <span
+                    key={chip.label}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]',
+                      chip.ok
+                        ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+                        : 'border-slate-600/50 bg-slate-900/60 text-slate-500'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full',
+                        chip.ok ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-slate-600'
+                      )}
+                    />
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="text-slate-200">Birth Date</Label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className={fieldShellClass}>
+                  <Label
+                    htmlFor="date"
+                    className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-sky-300/75"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Birth date
+                  </Label>
                   <Input
                     id="date"
                     name="date"
@@ -297,11 +366,17 @@ export function BirthChart({
                     value={birthData.date}
                     onChange={handleInputChange}
                     required
-                    className="bg-slate-800 text-white border-slate-700"
+                    className={cn(fieldInputClass, '[color-scheme:dark]')}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="time" className="text-slate-200">Birth Time (24h)</Label>
+                <div className={fieldShellClass}>
+                  <Label
+                    htmlFor="time"
+                    className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-sky-300/75"
+                  >
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Birth time · 24h
+                  </Label>
                   <Input
                     id="time"
                     name="time"
@@ -309,85 +384,108 @@ export function BirthChart({
                     value={birthData.time}
                     onChange={handleInputChange}
                     required
-                    className="bg-slate-800 text-white border-slate-700"
+                    className={cn(fieldInputClass, '[color-scheme:dark]')}
                   />
                 </div>
               </div>
-              
-              {/* Location Search Field */}
-              <div className="space-y-2 relative" ref={locationInputRef}>
-                <Label htmlFor="location" className="text-slate-200">
-                  <MapPin className="inline w-4 h-4 mr-1" />
-                  Birth Location (City, State)
+
+              <div className={cn(fieldShellClass, 'relative')} ref={locationInputRef}>
+                <Label
+                  htmlFor="location"
+                  className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-sky-300/75"
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  Birth location
                 </Label>
-                <Input
-                  id="location"
-                  name="location"
-                  type="text"
-                  placeholder={locationPlaceholder}
-                  value={locationQuery}
-                  onChange={(e) => handleLocationSearch(e.target.value)}
-                  onFocus={() => locationResults.length > 0 && setShowLocationResults(true)}
-                  autoComplete="off"
-                  required={!selectedLocation && !birthData.latitude}
-                  className="bg-slate-800 text-white border-slate-700 placeholder:text-slate-500"
-                />
-                
-                {/* Location Search Results Dropdown */}
-                {showLocationResults && locationResults.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="relative">
+                  <Input
+                    id="location"
+                    name="location"
+                    type="text"
+                    placeholder={locationPlaceholder}
+                    value={locationQuery}
+                    onChange={(e) => handleLocationSearch(e.target.value)}
+                    onFocus={() => locationResults.length > 0 && setShowLocationResults(true)}
+                    autoComplete="off"
+                    required={!selectedLocation && !birthData.latitude}
+                    className={cn(fieldInputClass, 'pr-9')}
+                  />
+                  {searchingLocation ? (
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-sky-300/80" />
+                    </div>
+                  ) : null}
+                </div>
+
+                {showLocationResults && locationResults.length > 0 ? (
+                  <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-50 max-h-60 overflow-y-auto rounded-xl border border-sky-400/30 bg-slate-950/95 shadow-2xl shadow-sky-950/40 backdrop-blur-xl">
                     {locationResults.map((result, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => handleSelectLocation(result)}
-                        className="w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                        className="w-full border-b border-white/5 px-4 py-3 text-left transition last:border-b-0 hover:bg-sky-500/10"
                       >
-                        <div className="font-medium text-white">{result.city}</div>
+                        <div className="font-medium text-slate-100">{result.city}</div>
                         <div className="text-sm text-slate-400">
-                          {result.state && `${result.state}, `}{result.country}
+                          {result.state && `${result.state}, `}
+                          {result.country}
                         </div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          {result.latitude.toFixed(4)}°, {result.longitude.toFixed(4)}°
+                        <div className="mt-1 font-mono text-[11px] text-sky-300/50">
+                          {result.latitude.toFixed(4)}° · {result.longitude.toFixed(4)}°
                         </div>
                       </button>
                     ))}
                   </div>
-                )}
+                ) : null}
 
                 {!searchingLocation &&
                 locationQuery.length >= 2 &&
                 locationResults.length === 0 &&
                 !selectedLocation ? (
-                  <LocationEmptyHint query={locationQuery} />
+                  <div className="mt-2">
+                    <LocationEmptyHint query={locationQuery} />
+                  </div>
                 ) : null}
-                
-                {searchingLocation && (
-                  <div className="absolute right-3 top-9">
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+
+                {selectedLocation ? (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-100">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      Coordinates locked
+                    </span>
+                    <span className="font-mono text-[11px] text-sky-200/55">
+                      {selectedLocation.latitude.toFixed(4)}° · {selectedLocation.longitude.toFixed(4)}°
+                    </span>
                   </div>
-                )}
-                
-                {/* Display selected coordinates */}
-                {selectedLocation && (
-                  <div className="text-xs text-slate-400 mt-1">
-                    📍 {selectedLocation.latitude.toFixed(4)}°, {selectedLocation.longitude.toFixed(4)}°
-                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Start typing a city — pick one result so the station can lock lat/lon.
+                  </p>
                 )}
               </div>
-              
-              <div className="flex justify-end">
+
+              <div className="flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-mono text-[11px] text-slate-500">
+                  SIGNAL {signalReadyCount}/3
+                  {canSubmit ? ' · READY' : ' · AWAITING INPUT'}
+                </p>
                 <Button
                   type="submit"
-                  disabled={isStationBusy || (!selectedLocation && !birthData.latitude)}
-                  className="bg-sky-600 hover:bg-sky-500 text-white"
+                  disabled={!canSubmit}
+                  className={cn(
+                    'h-11 w-full gap-2 rounded-xl border border-sky-300/40 bg-gradient-to-r from-sky-600 via-cyan-600 to-sky-500 px-6 text-sm font-semibold text-white shadow-[0_0_28px_rgba(56,189,248,0.25)] transition sm:w-auto',
+                    'hover:from-sky-500 hover:via-cyan-500 hover:to-sky-400 hover:shadow-[0_0_36px_rgba(56,189,248,0.35)]',
+                    'disabled:border-slate-700 disabled:from-slate-800 disabled:via-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:shadow-none'
+                  )}
                 >
+                  <Sparkles className="h-4 w-4" />
                   Build my life weather
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </ArcanePane>
       ) : null}
 
       {isStationBusy ? (
