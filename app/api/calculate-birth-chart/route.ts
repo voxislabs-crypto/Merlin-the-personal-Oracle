@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { calculateBirthChart as calculateSwissBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateFallbackBirthChart } from '@/lib/engine-fallback';
 import { getMBTIDual } from '@/lib/personality/fusion';
+import { consumeChartQuota, chartQuotaDeniedResponse } from '@/lib/chart-quota';
 
 type ChartSource = 'swiss-real' | 'mock-fallback';
 
@@ -55,6 +56,13 @@ export async function POST(request: Request) {
     if (!birthDate || !birthTime || lat === undefined || lon === undefined) {
       console.error('[API] Missing required parameters:', { birthDate, birthTime, lat, lon });
       return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    // Lifetime chart-build cap (anti household sharing) — consume before engine work.
+    const chartQuota = await consumeChartQuota();
+    if (!chartQuota.allowed) {
+      const denied = chartQuotaDeniedResponse(chartQuota);
+      return NextResponse.json(denied.body, { status: denied.status });
     }
 
     const isNorfolkValidationInput =
@@ -114,6 +122,11 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         source: 'swiss-real',
+        quota: {
+          limit: chartQuota.limit,
+          used: chartQuota.used,
+          remaining: chartQuota.remaining,
+        },
         data: {
           ...taggedSwissData,
           personalitySnapshot: {
@@ -137,6 +150,11 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           source: 'mock-fallback',
+          quota: {
+            limit: chartQuota.limit,
+            used: chartQuota.used,
+            remaining: chartQuota.remaining,
+          },
           data: {
             ...taggedFallbackData,
             personalitySnapshot: {

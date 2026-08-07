@@ -19,7 +19,7 @@ const premiumFeatures = [
 ];
 
 const freeFeatures = [
-  'Full birth chart wheel & placements',
+  'Birth chart · up to 3 builds / account',
   'Dual MBTI (Core + Mask) from your chart',
   'Today’s life weather sample',
   'Oracle chat · 3 messages / day',

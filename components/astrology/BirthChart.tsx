@@ -97,9 +97,15 @@ export function BirthChart({
   const [showLocationResults, setShowLocationResults] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<GeocodingResult | null>(null);
   const [searchingLocation, setSearchingLocation] = useState(false);
+  const [chartQuota, setChartQuota] = useState<{
+    limit: number;
+    used: number;
+    remaining: number;
+  } | null>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
 
   const isStationBusy = loading || stationActive;
+  const chartQuotaExhausted = chartQuota != null && chartQuota.remaining <= 0;
 
   const handleStationFinished = useCallback(() => {
     const pending = pendingChartRef.current;
@@ -113,7 +119,39 @@ export function BirthChart({
     }
   }, [onChartCalculated]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/chart-quota', { cache: 'no-store', credentials: 'same-origin' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.success && data.quota) {
+          setChartQuota({
+            limit: data.quota.limit,
+            used: data.quota.used,
+            remaining: data.quota.remaining,
+          });
+        }
+      } catch {
+        // Quota badge is optional; API still enforces.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const calculateChart = async (data: BirthData) => {
+    if (chartQuotaExhausted) {
+      setError(
+        chartQuota
+          ? `This account has used all ${chartQuota.limit} chart builds.`
+          : 'Chart calculation limit reached for this account.'
+      );
+      return null;
+    }
+
     setLoading(true);
     setError(null);
     setStationActive(true);
@@ -142,14 +180,27 @@ export function BirthChart({
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Error calculating chart: ${response.statusText}`);
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        if (result?.quota) {
+          setChartQuota({
+            limit: result.quota.limit,
+            used: result.quota.used,
+            remaining: result.quota.remaining,
+          });
+        }
+        throw new Error(
+          result?.error || `Error calculating chart: ${response.statusText || response.status}`
+        );
       }
 
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to calculate birth chart');
+      if (result.quota) {
+        setChartQuota({
+          limit: result.quota.limit,
+          used: result.quota.used,
+          remaining: result.quota.remaining,
+        });
       }
 
       const chartResult = result.data as BirthChartData;
@@ -281,7 +332,7 @@ export function BirthChart({
   const hasDate = Boolean(birthData.date);
   const hasTime = Boolean(birthData.time);
   const hasLocation = Boolean(selectedLocation || birthData.latitude);
-  const canSubmit = hasDate && hasTime && hasLocation && !isStationBusy;
+  const canSubmit = hasDate && hasTime && hasLocation && !isStationBusy && !chartQuotaExhausted;
   const signalReadyCount = [hasDate, hasTime, hasLocation].filter(Boolean).length;
 
   return (
@@ -465,10 +516,40 @@ export function BirthChart({
                 )}
               </div>
 
+              {chartQuota ? (
+                <div
+                  className={cn(
+                    'rounded-xl border px-3 py-2 text-xs',
+                    chartQuotaExhausted
+                      ? 'border-amber-400/40 bg-amber-500/10 text-amber-100'
+                      : 'border-sky-400/25 bg-sky-950/40 text-sky-100/90'
+                  )}
+                >
+                  {chartQuotaExhausted ? (
+                    <span>
+                      Chart rebuild limit reached ({chartQuota.limit} per account). This stops one
+                      login from covering a whole household. Contact support for a legitimate
+                      birth-data correction.
+                    </span>
+                  ) : (
+                    <span>
+                      <span className="font-mono font-semibold">
+                        {chartQuota.remaining}/{chartQuota.limit}
+                      </span>{' '}
+                      chart builds left on this account (includes first build + recalculates).
+                    </span>
+                  )}
+                </div>
+              ) : null}
+
               <div className="flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-mono text-[11px] text-slate-500">
                   SIGNAL {signalReadyCount}/3
-                  {canSubmit ? ' · READY' : ' · AWAITING INPUT'}
+                  {chartQuotaExhausted
+                    ? ' · LIMIT REACHED'
+                    : canSubmit
+                      ? ' · READY'
+                      : ' · AWAITING INPUT'}
                 </p>
                 <Button
                   type="submit"

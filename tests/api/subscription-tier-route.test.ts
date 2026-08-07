@@ -25,8 +25,8 @@ describe('/api/subscription/tier', () => {
       canAccessSoulReading: tier !== 'free',
       canAccessSynastry: tier !== 'free',
       canAccessStorms: tier !== 'free',
-      maxChartsPerDay: tier === 'free' ? 3 : 50,
-      maxChartsTotal: tier === 'free' ? 10 : 9999,
+      maxChartsPerDay: 3,
+      maxChartsTotal: 3,
     }));
   });
 

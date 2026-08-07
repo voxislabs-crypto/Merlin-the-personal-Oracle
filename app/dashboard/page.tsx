@@ -143,6 +143,11 @@ export default function UnifiedDashboard() {
   const [birthData, setBirthData] = useState<BirthData | null>(null);
   const [chartData, setChartData] = useState<BirthChartData | null>(null);
   const [wheelData, setWheelData] = useState<ChartData | null>(null);
+  const [chartQuota, setChartQuota] = useState<{
+    limit: number;
+    used: number;
+    remaining: number;
+  } | null>(null);
   const [activeSection, setActiveSection] = useState<'wheel' | 'interpretation' | 'forecast' | 'transits' | 'lifearc' | 'personality' | 'stormradar'>('wheel');
   // Life Arc mode removed - now just raw timeline
   const [lifeArcView, setLifeArcView] = useState<'timeline' | 'prose'>('timeline');
@@ -885,6 +890,31 @@ export default function UnifiedDashboard() {
     if (!userId || !featureFlags.persistenceEnabled) return;
     fetchPatternMirror();
   }, [featureFlags.persistenceEnabled, userId, fetchPatternMirror]);
+
+  // Chart rebuild allowance (lifetime per account)
+  useEffect(() => {
+    if (!isLoaded || !userId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/chart-quota', { cache: 'no-store', credentials: 'same-origin' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.success && data.quota) {
+          setChartQuota({
+            limit: data.quota.limit,
+            used: data.quota.used,
+            remaining: data.quota.remaining,
+          });
+        }
+      } catch {
+        // UI badge only — server still enforces.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, userId]);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -2762,25 +2792,68 @@ export default function UnifiedDashboard() {
                         Tap a planet for a quick read. Detail stays closed until you want it.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (
-                          typeof window !== 'undefined' &&
-                          !window.confirm('Recalculate with new birth data? Your current chart session will clear.')
-                        ) {
-                          return;
+                    <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+                      {chartQuota ? (
+                        <p className="text-[10px] font-mono text-slate-500">
+                          {chartQuota.remaining}/{chartQuota.limit} rebuilds left
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (chartQuota && chartQuota.remaining <= 0) {
+                            toast({
+                              title: 'Chart rebuild limit reached',
+                              description: `This account allows ${chartQuota.limit} chart builds total (anti household sharing). Contact support for a legitimate birth-data fix.`,
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+
+                          const remaining =
+                            chartQuota?.remaining != null
+                              ? ` You have ${chartQuota.remaining} rebuild${chartQuota.remaining === 1 ? '' : 's'} left.`
+                              : '';
+                          if (
+                            typeof window !== 'undefined' &&
+                            !window.confirm(
+                              `Recalculate with new birth data? Your current chart session will clear.${remaining}`
+                            )
+                          ) {
+                            return;
+                          }
+
+                          // Allow BirthChart intake to mount again in the same slot.
+                          hasRestoredPersistedDataRef.current = true;
+                          premiumHydrationKeyRef.current = null;
+                          setChartData(null);
+                          setWheelData(null);
+                          setBirthData(null);
+                          setSelectedWheelPlanet(null);
+                          setSelectedWheelSign(null);
+                          setDashboardTab('chart');
+                          try {
+                            localStorage.removeItem(STORAGE_KEY);
+                            localStorage.removeItem(STORAGE_BIRTH_KEY);
+                          } catch {
+                            // ignore storage errors
+                          }
+                          requestAnimationFrame(() => {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          });
+                        }}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={Boolean(chartQuota && chartQuota.remaining <= 0)}
+                        title={
+                          chartQuota && chartQuota.remaining <= 0
+                            ? 'Chart rebuild limit reached for this account'
+                            : 'Enter new birth date, time, or place'
                         }
-                        setChartData(null);
-                        setWheelData(null);
-                        setBirthData(null);
-                        localStorage.removeItem(STORAGE_KEY);
-                        localStorage.removeItem(STORAGE_BIRTH_KEY);
-                      }}
-                      className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
-                    >
-                      Recalculate chart
-                    </button>
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" />
+                        Recalculate chart
+                      </button>
+                    </div>
                   </div>
 
                   {!wheelData ? (

@@ -106,8 +106,9 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessSoulReading: false,
     canAccessSynastry: false,
     canAccessStorms: false,
+    // Lifetime chart builds per account (enforced in /api/calculate-birth-chart).
     maxChartsPerDay: 3,
-    maxChartsTotal: 10,
+    maxChartsTotal: 3,
   },
   trial: {
     canCalculateChart: true,
@@ -121,8 +122,8 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessSoulReading: true,
     canAccessSynastry: true,
     canAccessStorms: true,
-    maxChartsPerDay: 20,
-    maxChartsTotal: 100,
+    maxChartsPerDay: 3,
+    maxChartsTotal: 3,
   },
   monthly: {
     canCalculateChart: true,
@@ -136,8 +137,8 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessSoulReading: true,
     canAccessSynastry: true,
     canAccessStorms: true,
-    maxChartsPerDay: 50,
-    maxChartsTotal: 9999,
+    maxChartsPerDay: 3,
+    maxChartsTotal: 3,
   },
   lifetime: {
     canCalculateChart: true,
@@ -151,8 +152,8 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessSoulReading: true,
     canAccessSynastry: true,
     canAccessStorms: true,
-    maxChartsPerDay: 50,
-    maxChartsTotal: 9999,
+    maxChartsPerDay: 3,
+    maxChartsTotal: 3,
   },
 };
 
