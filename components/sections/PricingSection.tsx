@@ -12,9 +12,9 @@ const premiumFeatures = [
   'Life weather · weekly horizon & today\'s move',
   'Self · full birth chart & interactive wheel',
   'Self · dual MBTI from your placements',
-  'Oracle chat with weather + identity context',
+  'Unlimited Oracle chat with weather + identity context',
+  'Merlin AI interpretations',
   'Swiss Ephemeris precision',
-  'Unlimited chart calculations',
   'PWA · install on your phone',
 ];
 

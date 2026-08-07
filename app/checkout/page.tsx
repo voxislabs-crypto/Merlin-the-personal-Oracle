@@ -8,11 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Crown, Shield, Check } from 'lucide-react';
 
 const features = [
-  'Complete Birth Chart Analysis',
-  'Daily Forecasts & Transit Intelligence',
-  'Oracle Chat & Atmosphere Engine',
-  'Life Timeline & Storm Radar',
-  'MBTI Integration & Weekly Whispers',
+  'Full life weather · daily intensity, tone & today’s move',
+  'Storm radar, pressure windows & weekly horizon',
+  'Unlimited Oracle chat with weather + identity context',
+  'Self · chart wheel, dual MBTI, timeline & transits',
+  'Merlin AI interpretations',
   'Lifetime updates — pay once, keep forever',
 ];
 
