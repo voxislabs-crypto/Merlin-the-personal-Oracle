@@ -8,6 +8,7 @@ import { predictStorms } from "@/lib/astrology/storms";
 import { BirthChartData } from "@/types/astrology";
 import { MBTIType } from "@/shared/schema";
 import { generateChartHash, serverCache } from "@/lib/cache-service";
+import { validateFeatureAccess } from "@/lib/subscription-validation";
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -38,6 +39,18 @@ function normalizeUtcBirth(
 export async function POST(request: Request) {
   console.log("[Storms] Received request for weekly storm forecast");
   const TTL_24H_MS = 24 * 60 * 60 * 1000;
+
+  const hasAccess = await validateFeatureAccess("canAccessStorms");
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Storm radar is not available on the free tier",
+        code: "FEATURE_NOT_AVAILABLE",
+      },
+      { status: 403 }
+    );
+  }
 
   try {
     const body = await request.json();

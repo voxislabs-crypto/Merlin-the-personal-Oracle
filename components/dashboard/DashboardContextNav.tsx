@@ -196,7 +196,7 @@ export function DashboardContextNav({
                 >
                   {link.label}
                   {link.key === 'personality' && mbtiType ? ` (${mbtiType})` : ''}
-                  {premiumLocked && (link.key === 'analysis' || link.key === 'personality' || link.key === 'focus')
+                  {premiumLocked && (link.key === 'analysis' || link.key === 'focus')
                     ? ' • Locked'
                     : ''}
                 </button>

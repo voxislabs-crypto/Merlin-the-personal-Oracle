@@ -28,7 +28,7 @@ const faqs = [
   {
     question: 'What pricing options do you offer?',
     answer:
-      '7-day free trial then $9.99/month, or $50 one-time lifetime (founder pricing while in beta). Full Sky + Self on paid plans. Free peek is limited.',
+      'Free includes chart, dual MBTI, and a Today life-weather sample. Paid unlocks storm radar, weekly horizon, full forecast depth, and timeline. 7-day free trial then $9.99/month, or $50 lifetime (founder pricing while in beta).',
   },
   {
     question: 'Do I need my exact birth time?',

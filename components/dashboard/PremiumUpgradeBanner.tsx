@@ -10,10 +10,10 @@ interface PremiumUpgradeBannerProps {
 }
 
 const PREMIUM_FEATURES = [
-  'Daily life weather & intensity reads',
   'Storm radar, pressure windows & weekly horizon',
-  'Oracle chat with chart + weather context',
-  'Full Self chart depth, dual MBTI & timeline',
+  'Full forecast depth & life timeline',
+  'Chart reading, transits & returns',
+  'Oracle with full weather + identity context',
 ];
 
 export function PremiumUpgradeBanner({ tier, compact = false }: PremiumUpgradeBannerProps) {
@@ -35,8 +35,8 @@ export function PremiumUpgradeBanner({ tier, compact = false }: PremiumUpgradeBa
           </div>
           <h3 className="text-lg font-semibold text-slate-50">
             {compact
-              ? 'Full life weather is locked on free'
-              : 'Your chart is ready — unlock full life weather'}
+              ? 'Unlock storms, weekly horizon & full depth'
+              : 'You’ve got the peek — unlock full life weather'}
           </h3>
           {!compact ? (
             <ul className="grid gap-1.5 sm:grid-cols-2">

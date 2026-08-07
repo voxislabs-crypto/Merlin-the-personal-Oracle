@@ -14,17 +14,19 @@ describe('/api/subscription/tier', () => {
     jest.clearAllMocks();
     getTierFeatures.mockImplementation((tier: string) => ({
       canCalculateChart: true,
-      canAccessForecast: tier !== 'free',
+      // Freemium: free gets Today forecast + personality; paid gets full depth.
+      canAccessForecast: true,
       canAccessTransits: tier !== 'free',
       canAccessInterpretations: tier !== 'free',
       canAccessWeeklyForecast: tier !== 'free',
       canAccessLifeArc: tier !== 'free',
-      canAccessPersonality: tier !== 'free',
+      canAccessPersonality: true,
       canAccessGrokNarrative: tier !== 'free',
       canAccessSoulReading: tier !== 'free',
       canAccessSynastry: tier !== 'free',
-      maxChartsPerDay: tier === 'free' ? 1 : 50,
-      maxChartsTotal: tier === 'free' ? 3 : 9999,
+      canAccessStorms: tier !== 'free',
+      maxChartsPerDay: tier === 'free' ? 3 : 50,
+      maxChartsTotal: tier === 'free' ? 10 : 9999,
     }));
   });
 
@@ -43,12 +45,13 @@ describe('/api/subscription/tier', () => {
         features: expect.objectContaining({
           canAccessForecast: true,
           canAccessTransits: true,
+          canAccessStorms: true,
         }),
       })
     );
   });
 
-  it('returns free tier flags', async () => {
+  it('returns free tier freemium flags', async () => {
     getUserTier.mockResolvedValue('free');
 
     const response = await GET();
@@ -57,6 +60,9 @@ describe('/api/subscription/tier', () => {
     expect(response.status).toBe(200);
     expect(body.tier).toBe('free');
     expect(body.premiumInsights).toBe(false);
-    expect(body.features.canAccessForecast).toBe(false);
+    expect(body.features.canAccessForecast).toBe(true);
+    expect(body.features.canAccessPersonality).toBe(true);
+    expect(body.features.canAccessStorms).toBe(false);
+    expect(body.features.canAccessTransits).toBe(false);
   });
 });

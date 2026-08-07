@@ -20,7 +20,12 @@ type ClerkUser = {
 };
 
 type ClientFeatureFlags = {
+  /** Full paid suite: storms, weekly, timeline, full interpret depth, persistence. */
   premiumInsights: boolean;
+  /** Limited Today life-weather sample (free + paid). */
+  freemiumToday: boolean;
+  /** Chart wheel + dual MBTI self peek (free + paid). */
+  selfPeek: boolean;
   persistenceEnabled: boolean;
 };
 
@@ -41,12 +46,16 @@ function getClientFeatureFlags(tier: SubscriptionTier): ClientFeatureFlags {
   if (tier === 'free') {
     return {
       premiumInsights: false,
+      freemiumToday: true,
+      selfPeek: true,
       persistenceEnabled: false,
     };
   }
 
   return {
     premiumInsights: true,
+    freemiumToday: true,
+    selfPeek: true,
     persistenceEnabled: true,
   };
 }
@@ -62,9 +71,13 @@ function pickHigherTier(a: SubscriptionTier, b: SubscriptionTier): SubscriptionT
 }
 
 function snapshotToFlags(snapshot: SubscriptionTierSnapshot): ClientFeatureFlags {
+  const paid = snapshot.premiumInsights;
   return {
-    premiumInsights: snapshot.premiumInsights,
-    persistenceEnabled: snapshot.premiumInsights,
+    premiumInsights: paid,
+    // Free still gets Today sample + Self peek; paid gets full suite.
+    freemiumToday: true,
+    selfPeek: true,
+    persistenceEnabled: paid,
   };
 }
 

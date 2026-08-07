@@ -78,3 +78,5 @@ personas_export.json
 
 tsc-errors*.txt
 
+.vercel
+.env*

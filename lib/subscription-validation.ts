@@ -10,6 +10,7 @@ import { resolveTierFromMetadata } from '@/lib/subscription-tier';
  */
 export interface TierFeatures {
   canCalculateChart: boolean;
+  /** Daily life-weather / atmosphere (Today sample on free; full on paid). */
   canAccessForecast: boolean;
   canAccessTransits: boolean;
   canAccessInterpretations: boolean;
@@ -19,6 +20,8 @@ export interface TierFeatures {
   canAccessGrokNarrative: boolean;
   canAccessSoulReading: boolean;
   canAccessSynastry: boolean;
+  /** Multi-day storm radar / horizon — paid only. */
+  canAccessStorms: boolean;
   maxChartsPerDay: number;
   maxChartsTotal: number;
 }
@@ -87,19 +90,24 @@ async function inferTierFromStripeByEmail(email: string): Promise<SubscriptionTi
 }
 
 export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
+  /**
+   * Freemium peek: chart + dual MBTI + limited Today weather.
+   * Paid keeps forecast depth, storm radar, timeline, full interpretations.
+   */
   free: {
     canCalculateChart: true,
-    canAccessForecast: false,
+    canAccessForecast: true,
     canAccessTransits: false,
     canAccessInterpretations: false,
     canAccessWeeklyForecast: false,
     canAccessLifeArc: false,
-    canAccessPersonality: false,
+    canAccessPersonality: true,
     canAccessGrokNarrative: false,
     canAccessSoulReading: false,
     canAccessSynastry: false,
-    maxChartsPerDay: 1,
-    maxChartsTotal: 3,
+    canAccessStorms: false,
+    maxChartsPerDay: 3,
+    maxChartsTotal: 10,
   },
   trial: {
     canCalculateChart: true,
@@ -112,6 +120,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessGrokNarrative: true,
     canAccessSoulReading: true,
     canAccessSynastry: true,
+    canAccessStorms: true,
     maxChartsPerDay: 20,
     maxChartsTotal: 100,
   },
@@ -126,6 +135,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessGrokNarrative: true,
     canAccessSoulReading: true,
     canAccessSynastry: true,
+    canAccessStorms: true,
     maxChartsPerDay: 50,
     maxChartsTotal: 9999,
   },
@@ -140,6 +150,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     canAccessGrokNarrative: true,
     canAccessSoulReading: true,
     canAccessSynastry: true,
+    canAccessStorms: true,
     maxChartsPerDay: 50,
     maxChartsTotal: 9999,
   },

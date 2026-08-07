@@ -465,9 +465,9 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     return {
       eyebrow,
       askLabel,
-      story: 'Full life weather is on a paid plan.',
-      why: 'Your chart is ready; depth forecast unlocks with premium.',
-      move: 'Upgrade when you want daily intensity, storms, and a clear move.',
+      story: 'Today’s life weather sample unlocks with your chart on free.',
+      why: 'Full storm radar, weekly horizon, and depth stay on paid plans.',
+      move: 'Upgrade when you want multi-day intensity, storms, and a full playbook.',
     };
   }
 

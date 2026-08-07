@@ -940,34 +940,34 @@ export default function UnifiedDashboard() {
         setWheelData(wheel);
 
         const derivedMbti = applyChartPersonality(chart);
-        
-        // Recalculate all derived data (degrade gracefully when premium features are unavailable)
+        const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
+        const canFull = featureFlags.premiumInsights;
+
+        // Freemium: free gets Today sample + chart personality; paid gets full suite.
         Promise.allSettled([
-          featureFlags.premiumInsights
+          canFull
             ? generateInterpretations(birth, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
             : Promise.resolve(null),
-          featureFlags.premiumInsights
+          canToday
             ? calculateForecast(birth, {
                 mbtiType: derivedMbti || mbtiType || undefined,
                 userId: userId || undefined,
               })
             : Promise.resolve(null),
-          featureFlags.premiumInsights
+          canFull
             ? calculateTransits(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
-          featureFlags.premiumInsights
+          canFull
             ? calculatePressureWindow(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
-          featureFlags.premiumInsights
+          canFull
             ? calculateDomainForecast(birth, { mbtiType: mbtiType || undefined, userId: userId || undefined })
             : Promise.resolve(null),
-          featureFlags.premiumInsights ? calculateLifeArc(birth, chart) : Promise.resolve(null),
-          featureFlags.premiumInsights ? calculateWeeklyForecast(birth) : Promise.resolve(null),
-          featureFlags.premiumInsights
-            ? calculateStorms(birth, derivedMbti ?? undefined)
-            : Promise.resolve(null),
-          featureFlags.premiumInsights ? calculateReturns(birth) : Promise.resolve(null),
-          atmosphereEngineEnabled && featureFlags.premiumInsights
+          canFull ? calculateLifeArc(birth, chart) : Promise.resolve(null),
+          canFull ? calculateWeeklyForecast(birth) : Promise.resolve(null),
+          canFull ? calculateStorms(birth, derivedMbti ?? undefined) : Promise.resolve(null),
+          canFull ? calculateReturns(birth) : Promise.resolve(null),
+          atmosphereEngineEnabled && canToday
             ? calculateAtmosphere(birth, {
                 mbtiType: derivedMbti || mbtiType || undefined,
                 userId: userId || undefined,
@@ -990,6 +990,7 @@ export default function UnifiedDashboard() {
     calculateWeeklyForecast,
     atmosphereEngineEnabled,
     calculateAtmosphere,
+    featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     generateInterpretations,
     interpretMode,
@@ -1039,11 +1040,13 @@ export default function UnifiedDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!featureFlags.premiumInsights || !birthData || !chartData) return;
+    const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
+    const canFull = featureFlags.premiumInsights;
+    if (!canToday || !birthData || !chartData) return;
     if (!localCalendarDay) return;
 
     // Include local calendar day so Aug 5 → Aug 6 always re-fetches weather
-    const hydrationKey = `${tier}:${birthData.date}:${birthData.time}:${localCalendarDay}`;
+    const hydrationKey = `${tier}:${canFull ? 'full' : 'today'}:${birthData.date}:${birthData.time}:${localCalendarDay}`;
     if (premiumHydrationKeyRef.current === hydrationKey) return;
 
     const previousKey = premiumHydrationKeyRef.current;
@@ -1059,27 +1062,38 @@ export default function UnifiedDashboard() {
     const derivedMbti = applyChartPersonality(chartData);
 
     Promise.allSettled([
-      generateInterpretations(birthData, interpretMode, {
-        userId: userId || undefined,
-        mbtiType: derivedMbti || mbtiType || undefined,
-      }),
+      canFull
+        ? generateInterpretations(birthData, interpretMode, {
+            userId: userId || undefined,
+            mbtiType: derivedMbti || mbtiType || undefined,
+          })
+        : Promise.resolve(null),
       calculateForecast(birthData, {
         mbtiType: derivedMbti || mbtiType || undefined,
         userId: userId || undefined,
       }),
-      calculateTransits(birthData, { mbtiType: derivedMbti || mbtiType || undefined, userId: userId || undefined }),
-      calculatePressureWindow(birthData, {
-        mbtiType: derivedMbti || mbtiType || undefined,
-        userId: userId || undefined,
-      }),
-      calculateDomainForecast(birthData, {
-        mbtiType: derivedMbti || mbtiType || undefined,
-        userId: userId || undefined,
-      }),
-      calculateLifeArc(birthData, chartData),
-      calculateWeeklyForecast(birthData),
-      calculateStorms(birthData, derivedMbti ?? undefined),
-      calculateReturns(birthData),
+      canFull
+        ? calculateTransits(birthData, {
+            mbtiType: derivedMbti || mbtiType || undefined,
+            userId: userId || undefined,
+          })
+        : Promise.resolve(null),
+      canFull
+        ? calculatePressureWindow(birthData, {
+            mbtiType: derivedMbti || mbtiType || undefined,
+            userId: userId || undefined,
+          })
+        : Promise.resolve(null),
+      canFull
+        ? calculateDomainForecast(birthData, {
+            mbtiType: derivedMbti || mbtiType || undefined,
+            userId: userId || undefined,
+          })
+        : Promise.resolve(null),
+      canFull ? calculateLifeArc(birthData, chartData) : Promise.resolve(null),
+      canFull ? calculateWeeklyForecast(birthData) : Promise.resolve(null),
+      canFull ? calculateStorms(birthData, derivedMbti ?? undefined) : Promise.resolve(null),
+      canFull ? calculateReturns(birthData) : Promise.resolve(null),
       atmosphereEngineEnabled
         ? calculateAtmosphere(birthData, {
             mbtiType: derivedMbti || mbtiType || undefined,
@@ -1087,7 +1101,7 @@ export default function UnifiedDashboard() {
             clientDate: localCalendarDay,
           })
         : Promise.resolve(null),
-    ]).catch((error) => console.error('Error hydrating premium dashboard data:', error));
+    ]).catch((error) => console.error('Error hydrating dashboard weather data:', error));
   }, [
     applyChartPersonality,
     birthData,
@@ -1102,6 +1116,7 @@ export default function UnifiedDashboard() {
     atmosphereEngineEnabled,
     calculateAtmosphere,
     chartData,
+    featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     generateInterpretations,
     interpretMode,
@@ -1166,33 +1181,42 @@ export default function UnifiedDashboard() {
     setSelectedWheelSign(null);
 
     const derivedMbti = applyChartPersonality(data);
+    const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
+    const canFull = featureFlags.premiumInsights;
 
-    // Fire off async jobs
+    // Fire off async jobs (freemium: Today sample; paid: full suite)
     Promise.allSettled([
-      featureFlags.premiumInsights
-        ? generateInterpretations(derived, interpretMode, { userId: userId || undefined, mbtiType: mbtiType || undefined })
+      canFull
+        ? generateInterpretations(derived, interpretMode, {
+            userId: userId || undefined,
+            mbtiType: mbtiType || undefined,
+          })
         : Promise.resolve(null),
-      featureFlags.premiumInsights
+      canToday
         ? calculateForecast(derived, {
             mbtiType: derivedMbti || mbtiType || undefined,
             userId: userId || undefined,
           })
         : Promise.resolve(null),
-      featureFlags.premiumInsights
+      canFull
         ? calculateTransits(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
-      featureFlags.premiumInsights
+      canFull
         ? calculatePressureWindow(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
-      featureFlags.premiumInsights
+      canFull
         ? calculateDomainForecast(derived, { mbtiType: mbtiType || undefined, userId: userId || undefined })
         : Promise.resolve(null),
-      featureFlags.premiumInsights ? calculateLifeArc(derived, data) : Promise.resolve(null),
-      featureFlags.premiumInsights ? calculateWeeklyForecast(derived) : Promise.resolve(null),
-      featureFlags.premiumInsights
-        ? calculateStorms(derived, derivedMbti ?? undefined)
+      canFull ? calculateLifeArc(derived, data) : Promise.resolve(null),
+      canFull ? calculateWeeklyForecast(derived) : Promise.resolve(null),
+      canFull ? calculateStorms(derived, derivedMbti ?? undefined) : Promise.resolve(null),
+      canFull ? calculateReturns(derived) : Promise.resolve(null),
+      atmosphereEngineEnabled && canToday
+        ? calculateAtmosphere(derived, {
+            mbtiType: derivedMbti || mbtiType || undefined,
+            userId: userId || undefined,
+          })
         : Promise.resolve(null),
-      featureFlags.premiumInsights ? calculateReturns(derived) : Promise.resolve(null),
     ]).catch((e) => console.error('Error generating dashboard data:', e));
   }, [
     generateInterpretations,
@@ -1205,6 +1229,9 @@ export default function UnifiedDashboard() {
     applyChartPersonality,
     calculateStorms,
     calculateReturns,
+    atmosphereEngineEnabled,
+    calculateAtmosphere,
+    featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     interpretMode,
     mbtiType,
@@ -1850,12 +1877,14 @@ export default function UnifiedDashboard() {
           ? `${predictiveActionHint.label} — ${predictiveActionHint.reason}`
           : null,
       loading: todayWeatherStillLoading,
-      premiumLocked: !featureFlags.premiumInsights,
+      // Free freemiumToday users see a real Today sample — don't show the locked placeholder.
+      premiumLocked: !featureFlags.premiumInsights && !featureFlags.freemiumToday,
       errorMessage:
         !todayWeatherStillLoading && forecastError?.message ? forecastError.message : null,
     });
   }, [
     activeAtmospherePacket,
+    featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     forecast,
     forecastError?.message,
@@ -2853,19 +2882,7 @@ export default function UnifiedDashboard() {
                                 </div>
                               }
                               personalityPanel={
-                                premiumLocked ? (
-                                  <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
-                                    <p className="mb-2 font-semibold">
-                                      Personality depth is locked on your current plan.
-                                    </p>
-                                    <Link
-                                      href="/checkout-subscription"
-                                      className="inline-flex items-center gap-2 rounded border border-amber-300/50 bg-amber-500/20 px-3 py-1.5 text-amber-50 hover:bg-amber-500/30"
-                                    >
-                                      Upgrade Plan
-                                    </Link>
-                                  </div>
-                                ) : (
+                                featureFlags.selfPeek ? (
                                   <div className="space-y-3">
                                     <p className="text-xs text-slate-400">
                                       Dimension map and shadow — your Core / Mask summary is already
@@ -2880,6 +2897,18 @@ export default function UnifiedDashboard() {
                                     {dualOverlay ? (
                                       <MBTIDualBreakdown dualOverlay={dualOverlay} />
                                     ) : null}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
+                                    <p className="mb-2 font-semibold">
+                                      Personality depth is locked on your current plan.
+                                    </p>
+                                    <Link
+                                      href="/checkout-subscription"
+                                      className="inline-flex items-center gap-2 rounded border border-amber-300/50 bg-amber-500/20 px-3 py-1.5 text-amber-50 hover:bg-amber-500/30"
+                                    >
+                                      Upgrade Plan
+                                    </Link>
                                   </div>
                                 )
                               }
@@ -2941,7 +2970,9 @@ export default function UnifiedDashboard() {
                             Dedicated rooms when you want a full-screen module.
                           </p>
                           {premiumLocked ? (
-                            <p className="mb-2 text-xs text-amber-200">Some require a paid plan.</p>
+                            <p className="mb-2 text-xs text-amber-200">
+                              Dual MBTI is free. Chart reading, transits, timeline, and storm radar need a paid plan.
+                            </p>
                           ) : null}
                           <div className="flex flex-wrap gap-2">
                             <Link
@@ -2967,7 +2998,6 @@ export default function UnifiedDashboard() {
                               className="rounded-lg border border-violet-500/35 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-200 hover:bg-violet-500/20"
                             >
                               Dual MBTI{mbtiType ? ` (${mbtiType})` : ''}
-                              {premiumLocked ? ' · Locked' : ''}
                             </Link>
                             <Link
                               href="/dashboard/storm-radar"
@@ -3363,14 +3393,15 @@ export default function UnifiedDashboard() {
                               'stormradar',
                             ].includes(activeSection) && (
                               <div className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-5 md:p-6 backdrop-blur-sm">
-                                {premiumLocked ? (
+                                {premiumLocked && activeSection !== 'personality' ? (
                                   <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-amber-100">
                                     <p className="font-semibold mb-2">
                                       This module is locked on your current plan.
                                     </p>
                                     <p className="text-amber-200/90 mb-3">
-                                      Upgrade to unlock chart interpretations, transits, life
-                                      timeline, and storm radar.
+                                      Free includes dual MBTI and Today&apos;s life weather sample.
+                                      Upgrade for chart interpretations, transits, life timeline, and
+                                      storm radar.
                                     </p>
                                     <Link
                                       href="/checkout-subscription"
@@ -3510,7 +3541,7 @@ export default function UnifiedDashboard() {
                                   </div>
                                 )}
 
-                                {!premiumLocked && activeSection === 'personality' && (
+                                {featureFlags.selfPeek && activeSection === 'personality' && (
                                   <div className="space-y-4">
                                     <p className="text-sm text-slate-400">
                                       Full dual personality lives on{' '}

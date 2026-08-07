@@ -19,16 +19,17 @@ const premiumFeatures = [
 ];
 
 const freeFeatures = [
-  'Basic birth chart peek',
-  'Limited interpretations',
+  'Full birth chart wheel & placements',
+  'Dual MBTI (Core + Mask) from your chart',
+  'Today’s life weather sample',
+  'Oracle chat (basic)',
 ];
 
 const freeNotIncluded = [
-  'Full life weather engine',
-  'Storm radar & pressure windows',
-  'Daily / weekly forecast depth',
-  'Dual MBTI personality layers',
-  'Oracle with full context',
+  'Storm radar & multi-day pressure windows',
+  'Weekly horizon & full forecast depth',
+  'Chart reading, transits & life timeline',
+  'Returns, synastry & deep interpretations',
   'Priority support',
 ];
 
@@ -171,7 +172,7 @@ export function PricingSection() {
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-5xl font-bold text-slate-400">$0</span>
               </div>
-              <p className="text-slate-500 text-sm">Sample the Self map · limited life weather</p>
+              <p className="text-slate-500 text-sm">Chart + dual MBTI + Today sample</p>
             </div>
 
             <Link

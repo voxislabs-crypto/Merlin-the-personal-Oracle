@@ -22,6 +22,7 @@ export async function GET() {
         canAccessGrokNarrative: features.canAccessGrokNarrative,
         canAccessSoulReading: features.canAccessSoulReading,
         canAccessSynastry: features.canAccessSynastry,
+        canAccessStorms: features.canAccessStorms,
       },
     });
   } catch (error) {

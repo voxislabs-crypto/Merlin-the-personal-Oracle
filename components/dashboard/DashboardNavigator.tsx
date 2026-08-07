@@ -114,20 +114,23 @@ export function DashboardNavigator({
 
             <div className="space-y-1 border-t border-white/8 pt-2">
               <p className="px-1 text-[10px] uppercase tracking-wider text-slate-500">Focus Views</p>
-              {FOCUS_LINKS.map((link) => (
-                <button
-                  key={link.key}
-                  type="button"
-                  onClick={() => onOpenFocusSection(link.key)}
-                  disabled={premiumLocked}
-                  className={`${navButtonClass(false)} disabled:opacity-50`}
-                  title={premiumLocked ? 'Requires paid plan' : link.title}
-                >
-                  {link.label}
-                  {link.key === 'personality' && mbtiType ? ` (${mbtiType})` : ''}
-                  {premiumLocked ? ' • Locked' : ''}
-                </button>
-              ))}
+              {FOCUS_LINKS.map((link) => {
+                const locked = premiumLocked && link.key !== 'personality';
+                return (
+                  <button
+                    key={link.key}
+                    type="button"
+                    onClick={() => onOpenFocusSection(link.key)}
+                    disabled={locked}
+                    className={`${navButtonClass(false)} disabled:opacity-50`}
+                    title={locked ? 'Requires paid plan' : link.title}
+                  >
+                    {link.label}
+                    {link.key === 'personality' && mbtiType ? ` (${mbtiType})` : ''}
+                    {locked ? ' • Locked' : ''}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="border-t border-white/8 pt-2 space-y-2">
