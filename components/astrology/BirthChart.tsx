@@ -81,6 +81,7 @@ export function BirthChart({
   const [stationActive, setStationActive] = useState(false);
   const [stationComplete, setStationComplete] = useState(false);
   const pendingChartRef = useRef<BirthChartData | null>(null);
+  const stationPanelRef = useRef<HTMLDivElement>(null);
   
   // Location search state
   const [locationQuery, setLocationQuery] = useState<string>('');
@@ -89,6 +90,8 @@ export function BirthChart({
   const [selectedLocation, setSelectedLocation] = useState<GeocodingResult | null>(null);
   const [searchingLocation, setSearchingLocation] = useState(false);
   const locationInputRef = useRef<HTMLInputElement>(null);
+
+  const isStationBusy = loading || stationActive;
 
   const handleStationFinished = useCallback(() => {
     const pending = pendingChartRef.current;
@@ -108,6 +111,12 @@ export function BirthChart({
     setStationActive(true);
     setStationComplete(false);
     pendingChartRef.current = null;
+
+    // Keep the station loader in view — form is replaced, not stacked below.
+    requestAnimationFrame(() => {
+      stationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
     
     try {
@@ -264,7 +273,8 @@ export function BirthChart({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {showControls && (
+      {/* Intake form OR station loader in the same slot — never stack both. */}
+      {showControls && !isStationBusy ? (
         <Card className="border-sky-400/30 bg-gradient-to-br from-slate-950/80 via-sky-950/30 to-slate-950/70 shadow-xl shadow-sky-950/30 backdrop-blur-md">
           <CardHeader>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.28em] text-sky-300/80">
@@ -369,25 +379,34 @@ export function BirthChart({
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  disabled={loading || stationActive || (!selectedLocation && !birthData.latitude)}
+                  disabled={isStationBusy || (!selectedLocation && !birthData.latitude)}
                   className="bg-sky-600 hover:bg-sky-500 text-white"
                 >
-                  {loading || stationActive ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Station scanning…
-                    </>
-                  ) : (
-                    'Build my life weather'
-                  )}
+                  Build my life weather
                 </Button>
               </div>
             </form>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
-      {error ? (
+      {isStationBusy ? (
+        <div
+          ref={stationPanelRef}
+          className="scroll-mt-6 rounded-2xl border border-sky-400/30 bg-gradient-to-br from-slate-950/90 via-sky-950/40 to-slate-950/80 p-4 shadow-xl shadow-sky-950/30 backdrop-blur-md md:p-6"
+        >
+          <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-sky-300/80">
+            Life weather · station online
+          </p>
+          <LifeWeatherStationLoader
+            active={stationActive}
+            complete={stationComplete}
+            onFinished={handleStationFinished}
+          />
+        </div>
+      ) : null}
+
+      {error && !isStationBusy ? (
         <StatusPanel
           tone="error"
           compact
@@ -401,15 +420,7 @@ export function BirthChart({
         />
       ) : null}
 
-      {stationActive ? (
-        <LifeWeatherStationLoader
-          active={stationActive}
-          complete={stationComplete}
-          onFinished={handleStationFinished}
-        />
-      ) : null}
-
-      {chartData && !stationActive && (
+      {chartData && !isStationBusy && (
         <Tabs defaultValue="chart" className="space-y-4">
           <TabsList>
             <TabsTrigger value="chart">Chart</TabsTrigger>
