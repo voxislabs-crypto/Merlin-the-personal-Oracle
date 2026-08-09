@@ -200,12 +200,15 @@ export default function UnifiedDashboard() {
   const [dailyOracle, setDailyOracle] = useState<{
     message?: string;
     dayRating?: string;
+    /** Local calendar day this pulse was built for (YYYY-MM-DD) */
+    date?: string;
     dominantPattern?: {
       label?: string;
       trendStatus?: 'rising' | 'stable' | 'fading' | 'new';
     } | null;
   } | null>(null);
   const [dailyOracleLoading, setDailyOracleLoading] = useState(false);
+  const dailyOracleDayRef = useRef<string | null>(null);
   const [patternMirror, setPatternMirror] = useState<any | null>(null);
   const [patternMirrorLoading, setPatternMirrorLoading] = useState(false);
   const [askDraftPrompt, setAskDraftPrompt] = useState('');
@@ -665,24 +668,50 @@ export default function UnifiedDashboard() {
   }, [featureFlags.persistenceEnabled, userId]);
 
   const fetchDailyOracle = useCallback(async (truthBomb = false) => {
-    if (!chartData || !featureFlags.persistenceEnabled) return;
+    // Free freemium + paid both get a day pulse — do not gate on paid-only persistence.
+    if (!chartData) return;
+    const clientDate =
+      localCalendarDay ||
+      (() => {
+        const n = new Date();
+        return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+      })();
+
+    // Skip redundant auto-fetch if we already hold today's pulse (manual truthBomb always runs).
+    if (!truthBomb && dailyOracleDayRef.current === clientDate && dailyOracle?.date === clientDate) {
+      return;
+    }
+
+    const previousDay = dailyOracleDayRef.current;
+    // Reserve this day immediately so day-rollover effect doesn't double-fire.
+    if (!truthBomb) {
+      dailyOracleDayRef.current = clientDate;
+    }
+
     setDailyOracleLoading(true);
     try {
       const response = await fetch('/api/daily-oracle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
+          userId: userId || undefined,
           birthChart: chartData,
           truthBomb,
+          clientDate,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        if (!truthBomb) dailyOracleDayRef.current = previousDay;
+        return;
+      }
       const result = await response.json();
       if (result?.success && result?.data) {
+        const pulseDate = result.data.date || clientDate;
+        dailyOracleDayRef.current = pulseDate;
         setDailyOracle({
           message: result.data.message,
           dayRating: result.data.dayRating,
+          date: pulseDate,
           dominantPattern: result.data.dominantPattern
             ? {
                 label: result.data.dominantPattern.label,
@@ -690,14 +719,26 @@ export default function UnifiedDashboard() {
               }
             : null,
         });
-        fetchPatternMirror();
+        if (featureFlags.persistenceEnabled) {
+          fetchPatternMirror();
+        }
+      } else if (!truthBomb) {
+        dailyOracleDayRef.current = previousDay;
       }
     } catch {
+      if (!truthBomb) dailyOracleDayRef.current = previousDay;
       // Daily oracle is a non-blocking enhancement.
     } finally {
       setDailyOracleLoading(false);
     }
-  }, [chartData, featureFlags.persistenceEnabled, userId, fetchPatternMirror]);
+  }, [
+    chartData,
+    dailyOracle?.date,
+    featureFlags.persistenceEnabled,
+    localCalendarDay,
+    userId,
+    fetchPatternMirror,
+  ]);
 
   const sendDailyOracleFeedback = useCallback(async (signal: 'hit' | 'missed') => {
     if (!userId || !dailyOracle?.message) return;
@@ -718,10 +759,14 @@ export default function UnifiedDashboard() {
     }
   }, [userId, dailyOracle, fetchPatternMirror]);
 
+  // Refetch Daily Oracle when chart loads or local calendar day rolls over
   useEffect(() => {
-    if (!chartData) return;
-    fetchDailyOracle(false);
-  }, [chartData, fetchDailyOracle]);
+    if (!chartData || !localCalendarDay) return;
+    if (dailyOracleDayRef.current === localCalendarDay) return;
+    // Day changed — clear yesterday's pulse so UI doesn't keep a stale monologue
+    setDailyOracle(null);
+    void fetchDailyOracle(false);
+  }, [chartData, localCalendarDay, fetchDailyOracle]);
 
   useEffect(() => {
     if (!chartData || !featureFlags.premiumInsights) return;
@@ -2374,6 +2419,7 @@ export default function UnifiedDashboard() {
                       <DailyOraclePulse
                         message={dailyOracle?.message}
                         dayRating={dailyOracle?.dayRating}
+                        date={dailyOracle?.date}
                         loading={dailyOracleLoading}
                         onTruthBomb={() => fetchDailyOracle(true)}
                         onFeedback={sendDailyOracleFeedback}
@@ -2632,6 +2678,7 @@ export default function UnifiedDashboard() {
                         : undefined,
                     ].filter(Boolean) as string[]}
                     dailyOracleMessage={dailyOracle?.message}
+                    dailyOracleDate={dailyOracle?.date}
                     dailyOracleRating={dailyOracle?.dayRating}
                     dailyOracleLoading={dailyOracleLoading}
                     onRefreshOracle={() => void fetchDailyOracle(true)}
@@ -3366,6 +3413,7 @@ export default function UnifiedDashboard() {
                             <DailyOraclePulse
                               message={dailyOracle?.message}
                               dayRating={dailyOracle?.dayRating}
+                              date={dailyOracle?.date}
                               loading={dailyOracleLoading}
                               onTruthBomb={() => fetchDailyOracle(true)}
                               onFeedback={sendDailyOracleFeedback}

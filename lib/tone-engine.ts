@@ -87,6 +87,8 @@ export interface ApplyMerlinToneParams {
   patternCount: number;
   patternLabel?: string;
   mirrorMessage?: string;
+  /** Local calendar day — keep the rewrite specific to this day */
+  clientDate?: string;
 }
 
 /**
@@ -94,7 +96,7 @@ export interface ApplyMerlinToneParams {
  * Falls back to the original message if the API key is missing or the call fails.
  */
 export async function applyMerlinTone(params: ApplyMerlinToneParams): Promise<string> {
-  const { baseMessage, arcLevel, patternCount, patternLabel, mirrorMessage } = params;
+  const { baseMessage, arcLevel, patternCount, patternLabel, mirrorMessage, clientDate } = params;
 
   if (!isLlmConfigured()) {
     return baseMessage;
@@ -105,6 +107,8 @@ export async function applyMerlinTone(params: ApplyMerlinToneParams): Promise<st
 
   const userContent = `Tone Level: ${toneLevel}
 Arc Level: ${arcLevel}
+Calendar day: ${clientDate || 'today'}
+This rewrite must feel specific to this day — do not recycle a generic evergreen monologue.
 
 ${toneInstruction}
 
@@ -114,7 +118,7 @@ ${baseMessage}`;
 
   try {
     const result = await chatCompletion({
-      temperature: 0.72,
+      temperature: 0.78,
       maxTokens: 600,
       messages: [
         { role: 'system', content: MERLIN_SYSTEM_PROMPT },

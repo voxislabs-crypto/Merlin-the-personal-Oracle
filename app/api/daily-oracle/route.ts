@@ -15,16 +15,20 @@ interface DailyOracleRequest {
   lon?: number;
   birthChart?: BirthChartData;
   truthBomb?: boolean;
+  /** Client local calendar day (YYYY-MM-DD) — required for correct “today” on Vercel UTC hosts */
+  clientDate?: string;
 }
 
 function buildDailyOracleMessage(params: {
   forecastSummary: string;
   dayRating?: string;
+  /** YYYY-MM-DD — forces the pulse to be day-specific even when patterns are stable */
+  clientDate?: string;
   context?: Awaited<ReturnType<typeof getUserContextSnapshot>>;
   patternMirror?: Awaited<ReturnType<typeof getPatternMirror>> | null;
   truthBomb?: boolean;
 }): string {
-  const { forecastSummary, dayRating, context, patternMirror, truthBomb } = params;
+  const { forecastSummary, dayRating, clientDate, context, patternMirror, truthBomb } = params;
   const mood = context?.mood || 'uncertain';
   const lastFeedback = context?.lastFeedbackNotes || '';
   const path = context?.arcPath || 'Path of Truth';
@@ -102,9 +106,10 @@ function buildDailyOracleMessage(params: {
   const dominantTrend = dominantPattern?.trendStatus || 'stable';
   const trendLens = trendFraming[dominantTrend];
 
+  const dayStamp = clientDate ? ` · ${clientDate}` : '';
   const opener = truthBomb
-    ? `Truth Bomb: Level ${level} on ${path} means the old script is expensive now.`
-    : `Daily Oracle: Level ${level} on ${path}.`;
+    ? `Truth Bomb (${clientDate || 'today'}): Level ${level} on ${path} means the old script is expensive now.`
+    : `Daily Oracle${dayStamp}: Level ${level} on ${path}.`;
 
   const basePressureLine = dayRating === 'Very Challenging' || dayRating === 'Challenging'
     ? 'Today is a pressure day. Choose precision over speed.'
@@ -152,7 +157,16 @@ function buildDailyOracleMessage(params: {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as DailyOracleRequest;
-    const { userId, birthDate, birthTime, lat = 0, lon = 0, birthChart, truthBomb = false } = body;
+    const {
+      userId,
+      birthDate,
+      birthTime,
+      lat = 0,
+      lon = 0,
+      birthChart,
+      truthBomb = false,
+      clientDate,
+    } = body;
 
     let chart: BirthChartData | null = birthChart || null;
 
@@ -168,13 +182,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing chart context' }, { status: 400 });
     }
 
+    const resolvedDay =
+      typeof clientDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(clientDate)
+        ? clientDate
+        : undefined;
+
     const context = userId ? await getUserContextSnapshot(userId) : null;
     const patternMirror = userId ? await getPatternMirror(userId) : null;
-    const forecast = getTodaysForecast(chart);
+    // Day-scoped sky — never rely on bare server UTC without clientDate.
+    const forecast = getTodaysForecast(chart, resolvedDay);
 
     const baseMessage = buildDailyOracleMessage({
       forecastSummary: forecast.summary,
       dayRating: forecast.day_rating,
+      clientDate: forecast.date || resolvedDay,
       context,
       patternMirror,
       truthBomb,
@@ -188,6 +209,7 @@ export async function POST(request: Request) {
       patternCount: patternMirror?.mirrorInsight?.count ?? 0,
       patternLabel: patternMirror?.dominant?.label,
       mirrorMessage: patternMirror?.mirrorInsight?.message,
+      clientDate: forecast.date || resolvedDay,
     });
 
     if (userId) {
@@ -200,6 +222,7 @@ export async function POST(request: Request) {
         confidence: detected.confidence,
         metadata: {
           dayRating: forecast.day_rating,
+          clientDate: forecast.date || resolvedDay,
         },
       });
     }
@@ -207,7 +230,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        date: forecast.date,
+        date: forecast.date || resolvedDay,
         message,
         dayRating: forecast.day_rating,
         path: context?.arcPath,

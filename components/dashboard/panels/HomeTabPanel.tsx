@@ -57,6 +57,7 @@ interface HomeTabPanelProps {
   selfChips?: string[];
   dailyOracleMessage?: string;
   dailyOracleRating?: string;
+  dailyOracleDate?: string;
   dailyOracleLoading: boolean;
   onRefreshOracle: () => void;
   onOracleFeedback: (signal: 'hit' | 'missed') => void;
@@ -142,6 +143,7 @@ export function HomeTabPanel({
   selfChips = [],
   dailyOracleMessage,
   dailyOracleRating,
+  dailyOracleDate,
   dailyOracleLoading,
   onRefreshOracle,
   onOracleFeedback,
@@ -297,6 +299,7 @@ export function HomeTabPanel({
               <DailyOraclePulse
                 message={dailyOracleMessage}
                 dayRating={dailyOracleRating}
+                date={dailyOracleDate}
                 loading={dailyOracleLoading}
                 onTruthBomb={onRefreshOracle}
                 onFeedback={onOracleFeedback}
