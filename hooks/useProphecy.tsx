@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { BirthChartData } from '@/components/astrology/BirthChartCalculator';
 import type { ProphecyPolishMode } from '@/lib/prophecy-polish';
 
@@ -49,6 +49,8 @@ export function useProphecy() {
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  /** Monotonic request id so a slow auto-generate cannot overwrite a newer regenerate. */
+  const requestIdRef = useRef(0);
 
   const generateProphecy = useCallback(async (params: {
     birthChart: BirthChartData;
@@ -61,22 +63,29 @@ export function useProphecy() {
     regenerate?: boolean;
     seedSalt?: string | number;
   }): Promise<ProphecyData | null> => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
+    // Clear old text immediately on regenerate so the UI doesn't look frozen on the prior reading.
+    if (params.regenerate) {
+      setProphecy(null);
+    }
+
+    const seedSalt =
+      params.seedSalt ??
+      (params.regenerate
+        ? `${Date.now()}-${Math.random().toString(36).slice(2, 12)}-${requestId}`
+        : undefined);
 
     try {
       const response = await fetch('/api/prophecy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({
           ...params,
-          // Client-side salt so back-to-back regenerates never collide
-          seedSalt:
-            params.seedSalt ??
-            (params.regenerate
-              ? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-              : undefined),
-          regenerate: params.regenerate,
+          seedSalt,
+          regenerate: Boolean(params.regenerate || seedSalt),
         }),
       });
 
@@ -85,14 +94,23 @@ export function useProphecy() {
         throw new Error(result?.error || 'Failed to generate prophecy');
       }
 
+      // Drop stale responses (e.g. initial load finishing after regenerate).
+      if (requestId !== requestIdRef.current) {
+        return result.data as ProphecyData;
+      }
+
       setProphecy(result.data as ProphecyData);
       return result.data as ProphecyData;
     } catch (err) {
-      const parsed = err instanceof Error ? err : new Error('Unknown error');
-      setError(parsed);
+      if (requestId === requestIdRef.current) {
+        const parsed = err instanceof Error ? err : new Error('Unknown error');
+        setError(parsed);
+      }
       return null;
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 

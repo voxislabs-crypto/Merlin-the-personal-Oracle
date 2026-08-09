@@ -106,16 +106,27 @@ const ERA_STYLES: Record<ProphecyEra, {
   },
 };
 
-function pick<T>(items: T[], seed: number): T {
-  return items[Math.abs(seed) % items.length];
+/**
+ * FNV-1a style hash — plain char-sum was broken for regenerate:
+ * template arrays of length 3 meant any salt whose char-sum differed by 3k
+ * produced the *exact same* omen (seed+1…seed+5 all shifted by a multiple of 3).
+ */
+function hashSeed(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
-function sumCharCodes(input: string): number {
-  let total = 0;
-  for (let i = 0; i < input.length; i += 1) {
-    total += input.charCodeAt(i);
+/** Mix seed with a lane so each template slot diverges independently. */
+function pick<T>(items: T[], seed: number, lane = 0): T {
+  if (!items.length) {
+    throw new Error('Cannot pick from empty template list');
   }
-  return total;
+  const mixed = Math.imul(seed ^ Math.imul(lane + 1, 0x9e3779b9), 0x85ebca6b) >>> 0;
+  return items[mixed % items.length];
 }
 
 function pickPlanet(chart: BirthChartData | undefined, candidates: string[], fallback: string): PlanetLike {
@@ -138,11 +149,11 @@ function compileTemplate(template: string, values: Record<string, string>): stri
 function createOmen(seed: number, values: Record<string, string>, era: ProphecyEra): string {
   const lines = [
     ERA_STYLES[era].opening,
-    compileTemplate(pick(TEMPLATES.timing, seed + 1), values),
-    compileTemplate(pick(TEMPLATES.blessing, seed + 2), values),
-    compileTemplate(pick(TEMPLATES.challenge, seed + 3), values),
-    pick(TEMPLATES.action, seed + 4),
-    pick(TEMPLATES.closing, seed + 5),
+    compileTemplate(pick(TEMPLATES.timing, seed, 1), values),
+    compileTemplate(pick(TEMPLATES.blessing, seed, 2), values),
+    compileTemplate(pick(TEMPLATES.challenge, seed, 3), values),
+    pick(TEMPLATES.action, seed, 4),
+    pick(TEMPLATES.closing, seed, 5),
     ERA_STYLES[era].close,
   ];
   return lines.join(' ');
@@ -153,13 +164,13 @@ function buildSonnet(seed: number, values: Record<string, string>, strictMeter: 
     return buildStrictSonnet(values, seed);
   }
 
-  const rA = pick(TEMPLATES.sonnetRhymes.A, seed + 1);
-  const rB = pick(TEMPLATES.sonnetRhymes.B, seed + 2);
-  const rC = pick(TEMPLATES.sonnetRhymes.C, seed + 3);
-  const rD = pick(TEMPLATES.sonnetRhymes.D, seed + 4);
-  const rE = pick(TEMPLATES.sonnetRhymes.E, seed + 5);
-  const rF = pick(TEMPLATES.sonnetRhymes.F, seed + 6);
-  const rG = pick(TEMPLATES.sonnetRhymes.G, seed + 7);
+  const rA = pick(TEMPLATES.sonnetRhymes.A, seed, 1);
+  const rB = pick(TEMPLATES.sonnetRhymes.B, seed, 2);
+  const rC = pick(TEMPLATES.sonnetRhymes.C, seed, 3);
+  const rD = pick(TEMPLATES.sonnetRhymes.D, seed, 4);
+  const rE = pick(TEMPLATES.sonnetRhymes.E, seed, 5);
+  const rF = pick(TEMPLATES.sonnetRhymes.F, seed, 6);
+  const rG = pick(TEMPLATES.sonnetRhymes.G, seed, 7);
 
   const lines = [
     `When ${values.deity} marks your ${values.planet} with waking ${rA},`,
@@ -191,32 +202,40 @@ function buildStrictSonnet(values: Record<string, string>, seed = 0): string {
       `When ${values.deity} names your ${values.planet}, rise with light,`,
       `When ${values.deity} calls your ${values.planet}, stand in light,`,
       `As ${values.deity} marks your ${values.planet}, take to light,`,
+      `Where ${values.deity} crowns your ${values.planet}, claim the light,`,
     ],
-    seed + 11
+    seed,
+    11
   );
   const l5 = pick(
     [
       `Yet ${values.shadowDeity} waits where pride begins to guide,`,
       `But ${values.shadowDeity} stands where haste begins to guide,`,
       `Still ${values.shadowDeity} waits where ego pulls the guide,`,
+      `And ${values.shadowDeity} tests where comfort starts to guide,`,
     ],
-    seed + 12
+    seed,
+    12
   );
   const l9 = pick(
     [
       `At dawn, keep oath with one deliberate, useful fire,`,
       `At dawn, keep faith with one deliberate, useful fire,`,
       `At dawn, keep pace with one deliberate, chosen fire,`,
+      `At dawn, keep watch with one deliberate, honest fire,`,
     ],
-    seed + 13
+    seed,
+    13
   );
   const l13 = pick(
     [
       `Greatness is not a storm that strikes the passive soul,`,
       `Greatness is not a gift that finds the idle soul,`,
       `Greatness is not a wind that crowns the drifting soul,`,
+      `Greatness is not a crown for hands that never hold,`,
     ],
-    seed + 14
+    seed,
+    14
   );
 
   const lines = [
@@ -303,7 +322,7 @@ export function generateProphecy(params: {
   const challengeSign = challengePlanet.sign || 'Capricorn';
 
   const seedInput = `${blessingPlanet.name}:${sign}:${challengePlanet.name}:${challengeSign}:${birthChart.jd || 0}:${style}:${era}:${seedSalt}`;
-  const seed = sumCharCodes(seedInput);
+  const seed = hashSeed(seedInput);
 
   const values = {
     deity: deityFor(blessingPlanet.name, era),

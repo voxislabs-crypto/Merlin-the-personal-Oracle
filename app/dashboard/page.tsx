@@ -768,8 +768,17 @@ export default function UnifiedDashboard() {
     void fetchDailyOracle(false);
   }, [chartData, localCalendarDay, fetchDailyOracle]);
 
+  // Auto-generate once per chart/style/era combo — never fight a user regenerate.
+  const prophecyAutoKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!chartData || !featureFlags.premiumInsights) return;
+    const chartKey =
+      (chartData as { jd?: number }).jd ||
+      chartData.planets?.map((p) => `${p.name}:${p.sign}`).join('|') ||
+      'chart';
+    const autoKey = `${chartKey}|${prophecyStyle}|${prophecyEra}|${strictMeter}|${prophecyPolishMode}`;
+    if (prophecyAutoKeyRef.current === autoKey) return;
+    prophecyAutoKeyRef.current = autoKey;
     generateProphecy({
       birthChart: chartData,
       style: prophecyStyle,
@@ -777,6 +786,8 @@ export default function UnifiedDashboard() {
       strictMeter,
       saveToHistory: false,
       polishMode: prophecyPolishMode,
+      // Day salt so opening the app on a new day can yield a fresh baseline reading
+      seedSalt: `auto-${new Date().toISOString().slice(0, 10)}-${autoKey.slice(0, 48)}`,
     });
   }, [chartData, featureFlags.premiumInsights, prophecyStyle, prophecyEra, strictMeter, prophecyPolishMode, generateProphecy]);
 
@@ -3816,7 +3827,9 @@ export default function UnifiedDashboard() {
                                       era: prophecyEra,
                                       strictMeter,
                                     });
-                                    generateProphecy({
+                                    // Bust auto-key so a later style effect doesn't block; regenerate owns the next text.
+                                    prophecyAutoKeyRef.current = `regen-${Date.now()}`;
+                                    void generateProphecy({
                                       birthChart: chartData,
                                       style: prophecyStyle,
                                       era: prophecyEra,
@@ -3824,8 +3837,9 @@ export default function UnifiedDashboard() {
                                       saveToHistory: true,
                                       polishMode: prophecyPolishMode,
                                       regenerate: true,
-                                    }).then(() => {
-                                      loadHistory();
+                                      seedSalt: `regen-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`,
+                                    }).then((result) => {
+                                      if (result) void loadHistory();
                                     });
                                   }}
                                   className="inline-flex items-center gap-1 rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-500/25"

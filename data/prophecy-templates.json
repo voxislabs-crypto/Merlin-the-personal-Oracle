@@ -11,35 +11,50 @@
   "blessing": [
     "{deity} lifts your banner through {sign}; the road of stature opens.",
     "Under {deity}'s watch, your {planet} in {sign} calls you toward visible greatness.",
-    "The seal of {deity} rests on this season: your {planet} in {sign} is a gate, not a wall."
+    "The seal of {deity} rests on this season: your {planet} in {sign} is a gate, not a wall.",
+    "{deity} favors the prepared — {planet} in {sign} is permission to be seen for real work.",
+    "A quiet blessing from {deity}: your {planet} in {sign} rewards the move you keep delaying.",
+    "Through {sign}, {deity} marks your {planet} as leverage — use it before the window cools."
   ],
   "challenge": [
     "Yet {shadowDeity} marks the edge: when {shadowPlanet} rules your mood, haste becomes a thief.",
     "Still, {shadowDeity} keeps a stern tablet: ignore discipline, and the harvest thins.",
-    "But {shadowDeity} tests all vows; pride without ritual focus becomes a wandering fire."
+    "But {shadowDeity} tests all vows; pride without ritual focus becomes a wandering fire.",
+    "Watch {shadowDeity}: {shadowPlanet} in {shadowSign} will tax any promise you make lightly.",
+    "The friction is {shadowDeity}'s hand — {shadowPlanet} in {shadowSign} punishes half-commitment.",
+    "Do not romanticize the drag: {shadowPlanet} under {shadowDeity} will expose every shortcut."
   ],
   "action": [
     "Choose one oath this week and keep it before witnesses.",
     "Set one clear labor at dawn, and let no lesser noise purchase your attention.",
-    "Name one fear aloud, then move one step through it before sunset."
+    "Name one fear aloud, then move one step through it before sunset.",
+    "Ship one imperfect deliverable today; refinement is for after evidence.",
+    "Cut one distraction that has been wearing your {planet}'s name as a costume.",
+    "Make one decision with the data you already have — waiting is the old loop."
   ],
   "timing": [
     "When the moon crosses your inner waters, begin quietly and build in public.",
     "At first light of the next cycle, plant the work that future-you will thank.",
-    "In the next seven days, a narrow gate opens; prepared hands pass first."
+    "In the next seven days, a narrow gate opens; prepared hands pass first.",
+    "This week's weather favors the first honest move, not the perfect plan.",
+    "Between now and the next turning, one window favors courage over polish.",
+    "The next few days reward early action; late perfectionism will miss the tide."
   ],
   "closing": [
     "Greatness is present in your chart; fate opens the door, but conduct keeps it open.",
     "The omen is favorable: rise with humility, and the crown will fit.",
-    "Your path is marked for ascent. Keep your vow, and the heavens will answer."
+    "Your path is marked for ascent. Keep your vow, and the heavens will answer.",
+    "The reading is clear: act like someone who intends to keep their own word.",
+    "Nothing here is guaranteed — only available. Take the available step.",
+    "The sky describes conditions; your next move decides the story."
   ],
   "sonnetRhymes": {
-    "A": ["light", "night", "height", "sight"],
-    "B": ["flame", "name", "frame", "claim"],
-    "C": ["tide", "guide", "stride", "wide"],
-    "D": ["stone", "throne", "known", "alone"],
-    "E": ["fire", "choir", "wire", "desire"],
-    "F": ["sea", "key", "decree", "destiny"],
-    "G": ["gold", "bold", "hold", "unfold"]
+    "A": ["light", "night", "height", "sight", "right", "flight"],
+    "B": ["flame", "name", "frame", "claim", "aim", "blame"],
+    "C": ["tide", "guide", "stride", "wide", "side", "tried"],
+    "D": ["stone", "throne", "known", "alone", "own", "grown"],
+    "E": ["fire", "choir", "wire", "desire", "higher", "pyre"],
+    "F": ["sea", "key", "decree", "destiny", "free", "see"],
+    "G": ["gold", "bold", "hold", "unfold", "told", "controlled"]
   }
 }
