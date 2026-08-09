@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
+  // Local default: set DATABASE_URL="file:./dev.db" in .env
+  // Production (Vercel): use Neon/Postgres — SQLite files cannot open on serverless.
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model UserContextSnapshot {

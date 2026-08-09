@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
 import { prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 function safeParseJson(value: string | null): Record<string, unknown> {
   if (!value) return {};
@@ -71,6 +72,12 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      return NextResponse.json({
+        success: true,
+        data: { userId: null, windowDays: 0, total: 0, entries: [], persistence: false },
+      });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

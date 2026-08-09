@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/lib/prisma';
-import { isPrismaMissingTableError } from '@/lib/prisma-errors';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 export type PatternKey =
   | 'avoidance_loop'
@@ -67,18 +67,38 @@ export async function logInteractionEvent(params: {
   feedbackSignal?: string;
   metadata?: Record<string, unknown>;
 }) {
-  return prisma.userInteractionEvent.create({
-    data: {
-      userId: params.userId,
-      type: params.type,
-      content: params.content,
-      detectedPattern: params.detectedPattern,
-      confidence: params.confidence,
-      feedbackSignal: params.feedbackSignal,
-      metadataJson: params.metadata ? JSON.stringify(params.metadata) : undefined,
-    },
-  });
+  try {
+    return await prisma.userInteractionEvent.create({
+      data: {
+        userId: params.userId,
+        type: params.type,
+        content: params.content,
+        detectedPattern: params.detectedPattern,
+        confidence: params.confidence,
+        feedbackSignal: params.feedbackSignal,
+        metadataJson: params.metadata ? JSON.stringify(params.metadata) : undefined,
+      },
+    });
+  } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      console.warn(
+        '[PatternMirror] Database unavailable; skipped interaction log.',
+        error instanceof Error ? error.message.slice(0, 120) : error
+      );
+      return null;
+    }
+    throw error;
+  }
 }
+
+const EMPTY_MIRROR = {
+  dominant: null,
+  mirrorInsight: null,
+  frequency: [] as Array<{ pattern: string; label: string; count: number }>,
+  recentTimeline: [] as unknown[],
+  trends: [] as unknown[],
+  totalEvents: 0,
+};
 
 export async function getPatternMirror(userId: string) {
   let events;
@@ -90,15 +110,9 @@ export async function getPatternMirror(userId: string) {
       take: 100,
     });
   } catch (error) {
-    if (isPrismaMissingTableError(error)) {
-      return {
-        dominant: null,
-        mirrorInsight: null,
-        frequency: [],
-        recentTimeline: [],
-        trends: [],
-        totalEvents: 0,
-      };
+    if (isPrismaStoreUnavailableError(error)) {
+      console.warn('[PatternMirror] Database unavailable; empty mirror.');
+      return EMPTY_MIRROR;
     }
     throw error;
   }

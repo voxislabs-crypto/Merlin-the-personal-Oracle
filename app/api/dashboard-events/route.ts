@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { logInteractionEvent } from '@/lib/pattern-mirror';
 import { prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 interface DashboardEventRequest {
   userId?: string;
@@ -104,6 +105,20 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          windowDays: 0,
+          totalEvents: 0,
+          uniqueUsers: 0,
+          countsByEvent: {},
+          funnel: { firstChart: 0, firstAsk: 0, onboardingComplete: 0, dailyCheckins: 0 },
+          recentEvents: [],
+          persistence: false,
+        },
+      });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
@@ -141,6 +156,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      // Analytics only — never block the dashboard
+      return NextResponse.json({ success: true, persistence: false });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

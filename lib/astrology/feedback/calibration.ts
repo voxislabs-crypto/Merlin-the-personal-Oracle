@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 const KNOWN_PLANETS = [
   'Sun',
@@ -51,21 +52,35 @@ export async function recomputeCalibrationProfile(params: {
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const feedbackLogs = await prisma.resonanceFeedbackRecord.findMany({
-    where: {
-      userId: params.userId,
-      date: { gte: since },
-    },
-    orderBy: { date: 'desc' },
-    take: 1200,
-    select: {
-      aspectId: true,
-      accuracyScore: true,
-      resonated: true,
-      notes: true,
-      theme: true,
-    },
-  });
+  let feedbackLogs: Array<{
+    aspectId: string;
+    accuracyScore: number;
+    resonated: boolean;
+    notes: string | null;
+    theme: string;
+  }> = [];
+
+  try {
+    feedbackLogs = await prisma.resonanceFeedbackRecord.findMany({
+      where: {
+        userId: params.userId,
+        date: { gte: since },
+      },
+      orderBy: { date: 'desc' },
+      take: 1200,
+      select: {
+        aspectId: true,
+        accuracyScore: true,
+        resonated: true,
+        notes: true,
+        theme: true,
+      },
+    });
+  } catch (error) {
+    if (!isPrismaStoreUnavailableError(error)) throw error;
+    console.warn('[Calibration] Database unavailable; empty feedback sample.');
+    feedbackLogs = [];
+  }
 
   const planetBuckets = new Map<KnownPlanet, { count: number; signal: number }>();
   const aspectThemeBuckets = new Map<string, { count: number; signal: number }>();

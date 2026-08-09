@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 function safeParseJson(input: string | null) {
   if (!input) return null;
@@ -51,6 +52,10 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: history });
   } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      // No DB on Vercel SQLite — return empty history instead of 500.
+      return NextResponse.json({ success: true, data: [], persistence: false });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
@@ -88,6 +93,12 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'History storage unavailable', code: 'DB_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

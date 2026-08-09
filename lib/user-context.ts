@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/lib/prisma';
-import { isPrismaMissingTableError } from '@/lib/prisma-errors';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 export interface PersistentUserContextSnapshot {
   userId: string;
@@ -57,8 +57,11 @@ export async function getUserContextSnapshot(userId: string): Promise<Persistent
       where: { userId },
     });
   } catch (error) {
-    if (isPrismaMissingTableError(error)) {
-      console.warn('[UserContext] Database tables missing; run `npm run prisma:push`.');
+    if (isPrismaStoreUnavailableError(error)) {
+      console.warn(
+        '[UserContext] Database unavailable (expected on Vercel without Postgres); continuing without context.',
+        error instanceof Error ? error.message.slice(0, 120) : error
+      );
       return null;
     }
     throw error;
@@ -171,8 +174,8 @@ export async function upsertUserContextSnapshot(input: UserContextInput): Promis
       update: updateData,
     });
   } catch (error) {
-    if (isPrismaMissingTableError(error)) {
-      console.warn('[UserContext] Database tables missing; skipping context upsert.');
+    if (isPrismaStoreUnavailableError(error)) {
+      console.warn('[UserContext] Database unavailable; skipping context upsert.');
       return {
         userId: input.userId,
         situation: input.situation?.trim() || '',

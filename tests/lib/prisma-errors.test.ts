@@ -19,4 +19,11 @@ describe('prisma-errors', () => {
     expect(isPrismaDelegateUnavailableError(error)).toBe(true);
     expect(isPrismaStoreUnavailableError(error)).toBe(true);
   });
+
+  it('detects SQLite file-open failures (Vercel serverless)', () => {
+    const error = new Error(
+      'Error querying the database: Error code 14: Unable to open the database file'
+    );
+    expect(isPrismaStoreUnavailableError(error)).toBe(true);
+  });
 });

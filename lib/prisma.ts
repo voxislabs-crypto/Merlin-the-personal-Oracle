@@ -2,6 +2,14 @@ import 'server-only';
 
 import { PrismaClient } from '@prisma/client';
 
+// Prisma schema requires DATABASE_URL. Local: file SQLite. Vercel: must be Postgres (Neon)
+// or an ephemeral path — SQLite under /tmp is not durable and many APIs soft-fail without DB.
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.VERCEL
+    ? 'file:/tmp/merlin-ephemeral.db'
+    : 'file:./dev.db';
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
