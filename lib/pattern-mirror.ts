@@ -89,16 +89,53 @@ export async function logInteractionEvent(params: {
   }
 }
 
-const EMPTY_MIRROR = {
+export type PatternMirrorTrend = {
+  pattern: string;
+  label: string;
+  count: number;
+  previousCount: number;
+  delta: number;
+  status: PatternTrendStatus;
+};
+
+export type PatternMirrorDominant = {
+  pattern: string;
+  label: string;
+  count: number;
+  trendStatus: PatternTrendStatus;
+  delta: number;
+  summary: string;
+};
+
+export type PatternMirrorTimelineItem = {
+  id: string;
+  type: string;
+  pattern: string | null;
+  label: string;
+  content: string | null;
+  createdAt: string;
+  feedbackSignal: string | null;
+};
+
+export type PatternMirrorResult = {
+  dominant: PatternMirrorDominant | null;
+  mirrorInsight: MirrorInsight | null;
+  frequency: Array<{ pattern: string; label: string; count: number }>;
+  recentTimeline: PatternMirrorTimelineItem[];
+  trends: PatternMirrorTrend[];
+  totalEvents: number;
+};
+
+const EMPTY_MIRROR: PatternMirrorResult = {
   dominant: null,
   mirrorInsight: null,
-  frequency: [] as Array<{ pattern: string; label: string; count: number }>,
-  recentTimeline: [] as unknown[],
-  trends: [] as unknown[],
+  frequency: [],
+  recentTimeline: [],
+  trends: [],
   totalEvents: 0,
 };
 
-export async function getPatternMirror(userId: string) {
+export async function getPatternMirror(userId: string): Promise<PatternMirrorResult> {
   let events;
 
   try {
