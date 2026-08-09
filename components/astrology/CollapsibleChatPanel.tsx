@@ -3,7 +3,24 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
-import { Send, Loader2, ChevronLeft, ChevronRight, X, Volume2, Trash2, Play, Pause, Eye, Sparkles, Square } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Volume2,
+  Trash2,
+  Play,
+  Pause,
+  Eye,
+  Sparkles,
+  Square,
+  Check,
+  BookmarkPlus,
+  Circle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
@@ -112,6 +129,11 @@ export function CollapsibleChatPanel({
   const [progression, setProgression] = useState<{ arcPath?: string; arcLevel?: number; arcXp?: number; interactionCount?: number } | null>(null);
   const [activeDraftLabel, setActiveDraftLabel] = useState<string | null>(null);
   const [oracleQuota, setOracleQuota] = useState<OracleQuotaSnapshot | null>(null);
+  /** Tactic lines the user pinned to Quest Log (title → true) */
+  const [pinnedTactics, setPinnedTactics] = useState<Record<string, true>>({});
+  /** Tactic lines the user marked done this session */
+  const [doneTactics, setDoneTactics] = useState<Record<string, true>>({});
+  const [tacticFlash, setTacticFlash] = useState<string | null>(null);
   const preferencesSyncEnabled = Boolean(userId && userId !== 'anonymous');
   const { preferences, persistPreferences } = useOraclePreferences({ enabled: preferencesSyncEnabled });
   // Use parent-controlled value if provided, else internal state
@@ -499,30 +521,50 @@ export function CollapsibleChatPanel({
     }
   };
 
-  // Save a tactic as a quest to localStorage
-  const saveTacticAsQuest = (tactic: string) => {
+  // Save a tactic as a quest to localStorage (with visible feedback)
+  const saveTacticAsQuest = useCallback((tactic: string) => {
     const QUEST_KEY = 'merlin_quests';
     try {
-      const existing = JSON.parse(localStorage.getItem(QUEST_KEY) || '[]');
-      const alreadyExists = existing.some((q: any) => q.title === tactic);
-      if (alreadyExists) return;
-      const newQuest = {
-        id: `quest_chat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        title: tactic,
-        description: 'Suggested by Merlin in your Oracle Chat session.',
-        category: 'spirit',
-        difficulty: 1,
-        xp: 50,
-        cosmicSource: 'Oracle Chat',
-        completed: false,
-      };
-      localStorage.setItem(QUEST_KEY, JSON.stringify([...existing, newQuest]));
-      // Fire a storage event so QuestLog can react without a page reload
+      const existing = JSON.parse(localStorage.getItem(QUEST_KEY) || '[]') as Array<{
+        title?: string;
+      }>;
+      const alreadyExists = existing.some((q) => q.title === tactic);
+      if (!alreadyExists) {
+        const newQuest = {
+          id: `quest_chat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title: tactic,
+          description: 'Pinned from Oracle chat — a move Merlin suggested.',
+          category: 'spirit',
+          difficulty: 1,
+          xp: 50,
+          cosmicSource: 'Oracle Chat',
+          completed: false,
+        };
+        localStorage.setItem(QUEST_KEY, JSON.stringify([...existing, newQuest]));
+      }
+      setPinnedTactics((prev) => ({ ...prev, [tactic]: true }));
+      setTacticFlash(tactic);
+      window.setTimeout(() => {
+        setTacticFlash((cur) => (cur === tactic ? null : cur));
+      }, 1800);
+      // Same-tab listeners (Quest Log) — StorageEvent alone only fires across tabs.
+      window.dispatchEvent(new CustomEvent('merlin:quests-updated', { detail: { key: QUEST_KEY } }));
       window.dispatchEvent(new StorageEvent('storage', { key: QUEST_KEY }));
     } catch {
-      // ignore
+      // ignore storage failures
     }
-  };
+  }, []);
+
+  const toggleTacticDone = useCallback((tactic: string) => {
+    setDoneTactics((prev) => {
+      if (prev[tactic]) {
+        const next = { ...prev };
+        delete next[tactic];
+        return next;
+      }
+      return { ...prev, [tactic]: true };
+    });
+  }, []);
 
   // Load chat history on mount
   useEffect(() => {
@@ -636,6 +678,15 @@ export function CollapsibleChatPanel({
 
       setMessages((prev) => [...prev, assistantMessage]);
       setStreamingContent('');
+      // Open moves/extras by default so users don't miss actionable rows.
+      if (
+        (streamResult.tactics && streamResult.tactics.length > 0) ||
+        streamResult.forecast ||
+        streamResult.mirrorInsight ||
+        streamResult.level
+      ) {
+        setExpandedMessageId(assistantMessage.id);
+      }
 
       // Refresh free-tier remaining after a successful paid-or-free send.
       const nextQuota = await fetchOracleQuota();
@@ -970,12 +1021,25 @@ export function CollapsibleChatPanel({
                       onClick={() =>
                         setExpandedMessageId(extrasOpen ? null : msg.id)
                       }
-                      className="text-[11px] font-medium text-slate-400 hover:text-slate-200"
+                      className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-left text-[11px] font-medium text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200"
+                      aria-expanded={extrasOpen}
                     >
-                      {extrasOpen ? 'Hide extras' : 'Show extras (moves · timing)'}
+                      <span>
+                        {extrasOpen
+                          ? 'Hide moves & timing'
+                          : 'Show moves & timing'}
+                        {msg.tactics && msg.tactics.length > 0
+                          ? ` · ${msg.tactics.length} move${msg.tactics.length === 1 ? '' : 's'}`
+                          : ''}
+                      </span>
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 shrink-0 transition-transform ${
+                          extrasOpen ? 'rotate-180' : ''
+                        }`}
+                      />
                     </button>
                     {extrasOpen ? (
-                      <div className="mt-2 space-y-2 text-xs text-slate-300">
+                      <div className="mt-2 space-y-3 text-xs text-slate-300">
                         {msg.mirrorInsight ? (
                           <div className="rounded-md border border-rose-400/20 bg-rose-950/30 px-2 py-1.5">
                             <p className="mb-0.5 text-[10px] uppercase tracking-wide text-rose-300/80">
@@ -985,22 +1049,79 @@ export function CollapsibleChatPanel({
                           </div>
                         ) : null}
                         {msg.tactics && msg.tactics.length > 0 ? (
-                          <ul className="space-y-1">
-                            {msg.tactics.map((tactic: string, i: number) => (
-                              <li key={i} className="flex gap-1.5">
-                                <span className="text-sky-400">→</span>
-                                <span className="flex-1">{tactic}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => saveTacticAsQuest(tactic)}
-                                  className="text-amber-400/80 hover:text-amber-300"
-                                  title="Save to Quest Log"
-                                >
-                                  📜
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-300/80">
+                              Today&apos;s moves
+                            </p>
+                            <ul className="space-y-2">
+                              {msg.tactics.map((tactic: string, i: number) => {
+                                const isDone = Boolean(doneTactics[tactic]);
+                                const isPinned = Boolean(pinnedTactics[tactic]);
+                                const justPinned = tacticFlash === tactic;
+                                return (
+                                  <li
+                                    key={`${msg.id}-tactic-${i}`}
+                                    className={`flex items-start gap-2 rounded-lg border px-2 py-2 ${
+                                      isDone
+                                        ? 'border-emerald-400/25 bg-emerald-500/10'
+                                        : 'border-slate-700/70 bg-slate-950/50'
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleTacticDone(tactic)}
+                                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition ${
+                                        isDone
+                                          ? 'border-emerald-400/60 bg-emerald-500/25 text-emerald-100'
+                                          : 'border-slate-500/70 bg-slate-900 text-slate-400 hover:border-sky-400/50 hover:text-sky-200'
+                                      }`}
+                                      title={isDone ? 'Mark not done' : 'Mark done'}
+                                      aria-pressed={isDone}
+                                      aria-label={isDone ? 'Mark move not done' : 'Mark move done'}
+                                    >
+                                      {isDone ? (
+                                        <Check className="h-3 w-3" />
+                                      ) : (
+                                        <Circle className="h-3 w-3 opacity-40" />
+                                      )}
+                                    </button>
+                                    <span
+                                      className={`min-w-0 flex-1 leading-relaxed ${
+                                        isDone ? 'text-slate-400 line-through' : 'text-slate-100'
+                                      }`}
+                                    >
+                                      {tactic}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => saveTacticAsQuest(tactic)}
+                                      className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${
+                                        isPinned || justPinned
+                                          ? 'border-amber-400/45 bg-amber-500/20 text-amber-100'
+                                          : 'border-slate-600/70 bg-slate-900 text-slate-300 hover:border-amber-400/40 hover:text-amber-100'
+                                      }`}
+                                      title="Pin this move to your Quest Log"
+                                    >
+                                      {isPinned || justPinned ? (
+                                        <>
+                                          <Check className="h-3 w-3" />
+                                          Pinned
+                                        </>
+                                      ) : (
+                                        <>
+                                          <BookmarkPlus className="h-3 w-3" />
+                                          Pin
+                                        </>
+                                      )}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <p className="text-[10px] text-slate-500">
+                              Check off what you&apos;ll do · Pin saves to Quest Log on the dashboard
+                            </p>
+                          </div>
                         ) : null}
                         {msg.forecast ? (
                           <p>

@@ -567,19 +567,22 @@ export function OracleChat({
                   </motion.div>
                 )}
 
-                {/* Tactics */}
+                {/* Tactics — full sentences only (extraction fixed server-side) */}
                 {msg.tactics && msg.tactics.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     className="mt-3 pt-3 border-t border-purple-500/20"
                   >
-                    <p className="text-xs font-semibold text-purple-300 mb-2">⚡ Tactical Moves:</p>
-                    <ul className="space-y-1 text-xs text-purple-200">
+                    <p className="mb-2 text-xs font-semibold text-purple-300">Today&apos;s moves</p>
+                    <ul className="space-y-1.5 text-xs text-purple-100">
                       {msg.tactics.map((tactic: string, i: number) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-purple-400">→</span>
-                          <span>{tactic}</span>
+                        <li
+                          key={i}
+                          className="flex gap-2 rounded-md border border-purple-500/20 bg-purple-950/30 px-2 py-1.5"
+                        >
+                          <span className="shrink-0 text-purple-400">→</span>
+                          <span className="leading-relaxed">{tactic}</span>
                         </li>
                       ))}
                     </ul>

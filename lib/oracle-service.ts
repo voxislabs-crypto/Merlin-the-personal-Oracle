@@ -841,8 +841,21 @@ ${recentContext || "[First session — introduce yourself briefly as Merlin if n
 }
 
 
+const IMPERATIVE_START =
+  /^(Do|Try|Consider|Spend|Call|Write|Take|Make|Start|Focus|Choose|Set|Keep|Give|Ask|Show|Practice|Reach|Record|Ship|Finish|Stop|Pick|Build|Send|Book|Schedule)\b/i;
+
+function cleanTacticLine(raw: string): string {
+  return raw
+    .replace(/^[\s\-*•→–—]+/, '')
+    .replace(/[.!?]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
- * Generate tactical suggestions based on chart context
+ * Generate tactical suggestions based on chart context.
+ * Uses word-boundary / sentence extraction — never mid-word matches
+ * (old regex matched "call" inside "practically" → "cally and…").
  */
 export function generateTacticalSuggestions(
   response: string,
@@ -851,36 +864,50 @@ export function generateTacticalSuggestions(
 ): string[] {
   void context;
   const tactics: string[] = [];
+  const seen = new Set<string>();
 
-  // Check if response mentions action/doing
-  if (response.toLowerCase().includes('do') || response.toLowerCase().includes('action')) {
-    // Extract action items from response (look for "do", "try", "consider")
-    const actionPattern = /(?:do|try|consider|spend|call|reach|reach out|write|record)[\s\w]*[.!?]/gi;
-    const matches = response.match(actionPattern);
-    if (matches) {
-      tactics.push(
-        ...matches
-          .slice(0, 3)
-          .map(m => m.replace(/[.!?]$/, '').trim())
-          .filter(t => t.length > 5)
-      );
+  const pushUnique = (raw: string) => {
+    const line = cleanTacticLine(raw);
+    if (line.length < 12 || line.length > 160) return;
+    const key = line.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    tactics.push(line);
+  };
+
+  // 1) Explicit bullets / numbered steps from Merlin's reply
+  for (const line of response.split(/\r?\n/)) {
+    if (/^\s*(?:[-*•→]|\d+[.)])\s+\S/.test(line)) {
+      pushUnique(line);
     }
   }
 
-  // If no explicit tactics found, generate generic ones based on chart
+  // 2) Imperative sentences (Do / Try / Take one step…)
+  const sentences = response.match(/[A-Za-z][^.!?\n]{10,140}[.!?]/g) || [];
+  for (const sentence of sentences) {
+    if (IMPERATIVE_START.test(sentence.trim())) {
+      pushUnique(sentence);
+    }
+  }
+
+  // 3) Fallback: one clear chart-grounded move (not mid-word scrapes)
+  if (tactics.length === 0 && chart?.planets?.length) {
+    if (chart.planets.find((p: any) => p.name === 'Mars')) {
+      pushUnique('Take one bold action today — small is fine, stuck is not');
+    }
+    if (chart.planets.find((p: any) => p.name === 'Venus')) {
+      pushUnique('Reach one person who matters and say the true thing');
+    }
+    if (chart.planets.find((p: any) => p.name === 'Saturn')) {
+      pushUnique('Finish one open loop before you open another');
+    }
+  }
+
   if (tactics.length === 0) {
-    if (chart?.planets?.find((p: any) => p.name === 'Mars')) {
-      tactics.push('Channel Mars energy: take one bold action today');
-    }
-    if (chart?.planets?.find((p: any) => p.name === 'Venus')) {
-      tactics.push('Honor Venus: connect with someone who matters');
-    }
-    if (chart?.planets?.find((p: any) => p.name === 'Saturn')) {
-      tactics.push('Build systems: one small discipline compounds');
-    }
+    pushUnique('Name one next move for the next 24 hours and do only that');
   }
 
-  return tactics.slice(0, 5);
+  return tactics.slice(0, 4);
 }
 
 /**

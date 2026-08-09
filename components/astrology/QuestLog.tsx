@@ -49,12 +49,17 @@ export default function QuestLog({ enabled, chartData, transits, forecast, mbtiT
     };
     loadFromStorage();
 
-    // Listen for storage events fired when chat saves a tactic as a quest
+    // Cross-tab storage + same-tab custom event when Oracle pins a move
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) loadFromStorage();
     };
+    const onLocalPin = () => loadFromStorage();
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener('merlin:quests-updated', onLocalPin as EventListener);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('merlin:quests-updated', onLocalPin as EventListener);
+    };
   }, []);
 
   const persistQuests = (updated: Quest[]) => {
