@@ -3823,6 +3823,7 @@ export default function UnifiedDashboard() {
                                       strictMeter,
                                       saveToHistory: true,
                                       polishMode: prophecyPolishMode,
+                                      regenerate: true,
                                     }).then(() => {
                                       loadHistory();
                                     });

@@ -54,6 +54,9 @@ interface ProphecyRequest {
   strictMeter?: boolean;
   saveToHistory?: boolean;
   polishMode?: ProphecyPolishMode;
+  /** When true (or seedSalt set), force a new variant of the reading */
+  regenerate?: boolean;
+  seedSalt?: string | number;
 }
 
 export async function POST(request: Request) {
@@ -66,6 +69,8 @@ export async function POST(request: Request) {
       strictMeter = false,
       saveToHistory = false,
       polishMode = 'engine',
+      regenerate = false,
+      seedSalt: seedSaltRaw,
     } = body || {};
     const { userId } = await auth();
 
@@ -88,7 +93,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const data = generateProphecy({ birthChart, style, era, strictMeter });
+    // Fresh entropy on regenerate so the engine does not replay the same chart-locked seed.
+    const seedSalt =
+      seedSaltRaw !== undefined && seedSaltRaw !== null && String(seedSaltRaw).length > 0
+        ? seedSaltRaw
+        : regenerate
+          ? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+          : '';
+
+    const data = generateProphecy({ birthChart, style, era, strictMeter, seedSalt });
 
     let polishedBy: 'engine' | 'groq' = 'engine';
     if (polishMode === 'groq') {
@@ -97,6 +110,8 @@ export async function POST(request: Request) {
         style,
         era,
         strictMeter,
+        // Higher temperature on regenerate so polish also diverges
+        temperature: regenerate || seedSalt ? 0.85 : 0.45,
       });
       if (polished?.prophecy) {
         data.prophecy = polished.prophecy;
@@ -120,6 +135,8 @@ export async function POST(request: Request) {
           strictMeter,
           polishMode,
           polishedBy,
+          seedSalt: String(seedSalt || ''),
+          regenerate: Boolean(regenerate || seedSalt),
           prophecy: data.prophecy,
           signals: data.signals,
           meter: data.meter,
@@ -128,7 +145,10 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, data: { ...data, polishedBy } });
+    return NextResponse.json({
+      success: true,
+      data: { ...data, polishedBy, seedSalt: seedSalt || undefined },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });

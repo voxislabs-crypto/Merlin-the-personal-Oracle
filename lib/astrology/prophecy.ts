@@ -150,7 +150,7 @@ function createOmen(seed: number, values: Record<string, string>, era: ProphecyE
 
 function buildSonnet(seed: number, values: Record<string, string>, strictMeter: boolean): string {
   if (strictMeter) {
-    return buildStrictSonnet(values);
+    return buildStrictSonnet(values, seed);
   }
 
   const rA = pick(TEMPLATES.sonnetRhymes.A, seed + 1);
@@ -184,24 +184,58 @@ function buildSonnet(seed: number, values: Record<string, string>, strictMeter: 
   return lines.join('\n');
 }
 
-function buildStrictSonnet(values: Record<string, string>): string {
+function buildStrictSonnet(values: Record<string, string>, seed = 0): string {
+  // Seeded alternates so regenerate still produces a new reading under strict meter.
+  const l1 = pick(
+    [
+      `When ${values.deity} names your ${values.planet}, rise with light,`,
+      `When ${values.deity} calls your ${values.planet}, stand in light,`,
+      `As ${values.deity} marks your ${values.planet}, take to light,`,
+    ],
+    seed + 11
+  );
+  const l5 = pick(
+    [
+      `Yet ${values.shadowDeity} waits where pride begins to guide,`,
+      `But ${values.shadowDeity} stands where haste begins to guide,`,
+      `Still ${values.shadowDeity} waits where ego pulls the guide,`,
+    ],
+    seed + 12
+  );
+  const l9 = pick(
+    [
+      `At dawn, keep oath with one deliberate, useful fire,`,
+      `At dawn, keep faith with one deliberate, useful fire,`,
+      `At dawn, keep pace with one deliberate, chosen fire,`,
+    ],
+    seed + 13
+  );
+  const l13 = pick(
+    [
+      `Greatness is not a storm that strikes the passive soul,`,
+      `Greatness is not a gift that finds the idle soul,`,
+      `Greatness is not a wind that crowns the drifting soul,`,
+    ],
+    seed + 14
+  );
+
   const lines = [
-    `When ${values.deity} names your ${values.planet}, rise with light,`,
+    l1,
     `In ${values.sign}'s house your labor asks for form and flame,`,
     `A gate appears for those who practice before night,`,
     `And crowns are worn by those who can sustain their name,`,
 
-    `Yet ${values.shadowDeity} waits where pride begins to guide,`,
+    l5,
     `One rushed decision bends a season out of line,`,
     `Stand still one breath, then choose the path you can abide,`,
     `For patient craft can turn a warning into sign,`,
 
-    `At dawn, keep oath with one deliberate, useful fire,`,
+    l9,
     `At dusk, record what fear attempted to decree,`,
     `By acts repeated, fate becomes a trained desire,`,
     `And what was read above grows lived in destiny,`,
 
-    `Greatness is not a storm that strikes the passive soul,`,
+    l13,
     `It crowns the one whose practiced virtues hold control.`,
   ];
 
@@ -248,8 +282,19 @@ export function generateProphecy(params: {
   style?: ProphecyStyle;
   era?: ProphecyEra;
   strictMeter?: boolean;
+  /**
+   * Extra entropy so Regenerate produces a new reading.
+   * Without this, the same chart always yields the same omen/sonnet.
+   */
+  seedSalt?: string | number;
 }): ProphecyResult {
-  const { birthChart, style = 'omen', era = 'babylonian', strictMeter = false } = params;
+  const {
+    birthChart,
+    style = 'omen',
+    era = 'babylonian',
+    strictMeter = false,
+    seedSalt = '',
+  } = params;
 
   const blessingPlanet = pickPlanet(birthChart, ['Jupiter', 'Sun', 'Venus', 'Moon'], 'Jupiter');
   const challengePlanet = pickPlanet(birthChart, ['Saturn', 'Mars', 'Moon'], 'Saturn');
@@ -257,7 +302,7 @@ export function generateProphecy(params: {
   const sign = blessingPlanet.sign || 'Aries';
   const challengeSign = challengePlanet.sign || 'Capricorn';
 
-  const seedInput = `${blessingPlanet.name}:${sign}:${challengePlanet.name}:${challengeSign}:${birthChart.jd || 0}`;
+  const seedInput = `${blessingPlanet.name}:${sign}:${challengePlanet.name}:${challengeSign}:${birthChart.jd || 0}:${style}:${era}:${seedSalt}`;
   const seed = sumCharCodes(seedInput);
 
   const values = {
@@ -276,7 +321,7 @@ export function generateProphecy(params: {
   const meter = style === 'sonnet' ? scoreIambicApproximation(prophecy) : undefined;
   const refinedProphecy =
     style === 'sonnet' && strictMeter && meter && meter.score < 70
-      ? buildStrictSonnet(values)
+      ? buildStrictSonnet(values, seed + 99)
       : prophecy;
   const refinedMeter = style === 'sonnet' ? scoreIambicApproximation(refinedProphecy) : undefined;
 

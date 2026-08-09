@@ -11,8 +11,10 @@ export async function polishProphecyWithGroq(params: {
   style: ProphecyStyle;
   era: ProphecyEra;
   strictMeter?: boolean;
+  /** Higher on regenerate so polished text diverges */
+  temperature?: number;
 }): Promise<{ prophecy: string; model: string } | null> {
-  const { prophecy, style, era, strictMeter = false } = params;
+  const { prophecy, style, era, strictMeter = false, temperature = 0.45 } = params;
 
   if (!GROQ_API_KEY) {
     return null;
@@ -52,7 +54,7 @@ export async function polishProphecyWithGroq(params: {
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        temperature: 0.45,
+        temperature: Math.min(1.2, Math.max(0.2, temperature)),
         max_tokens: style === 'sonnet' ? 800 : 260,
         messages: [
           { role: 'system', content: systemPrompt },

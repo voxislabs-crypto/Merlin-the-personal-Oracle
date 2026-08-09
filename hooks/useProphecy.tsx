@@ -57,6 +57,9 @@ export function useProphecy() {
     strictMeter?: boolean;
     saveToHistory?: boolean;
     polishMode?: ProphecyPolishMode;
+    /** Force a new variant (Regenerate button) */
+    regenerate?: boolean;
+    seedSalt?: string | number;
   }): Promise<ProphecyData | null> => {
     setLoading(true);
     setError(null);
@@ -65,7 +68,16 @@ export function useProphecy() {
       const response = await fetch('/api/prophecy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          ...params,
+          // Client-side salt so back-to-back regenerates never collide
+          seedSalt:
+            params.seedSalt ??
+            (params.regenerate
+              ? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+              : undefined),
+          regenerate: params.regenerate,
+        }),
       });
 
       const result = await response.json();
