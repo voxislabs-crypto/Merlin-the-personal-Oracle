@@ -39,6 +39,8 @@ import {
 } from '@/lib/oracle-chat-client';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
+import { OracleRichText } from '@/components/astrology/OracleRichText';
+import { ORACLE_SEVERITY_SHELL, scoreOracleSeverity } from '@/lib/oracle-rich-text';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -972,6 +974,9 @@ export function CollapsibleChatPanel({
         {messages.map((msg: Message) => {
           const extrasOpen = expandedMessageId === msg.id;
           const showExtras = hasMessageExtras(msg);
+          const severity =
+            msg.role === 'assistant' ? scoreOracleSeverity(msg.content) : 'neutral';
+          const severityShell = ORACLE_SEVERITY_SHELL[severity];
           return (
             <motion.div
               key={msg.id}
@@ -981,18 +986,31 @@ export function CollapsibleChatPanel({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed ${
+                className={`rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed shadow-sm ${
                   minimal ? 'max-w-[96%]' : 'max-w-[92%] sm:max-w-sm'
                 } ${
                   msg.role === 'user'
                     ? 'border border-violet-500/35 bg-violet-600/35 text-violet-50'
-                    : 'border border-slate-700/80 bg-slate-900 text-slate-100 shadow-sm'
+                    : severityShell.bubble
                 }`}
               >
-                <div className="flex items-start gap-2">
-                  <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-slate-100">
-                    {msg.content}
+                {msg.role === 'assistant' && severityShell.label ? (
+                  <p
+                    className={`mb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] ${severityShell.accent}`}
+                  >
+                    {severityShell.label}
                   </p>
+                ) : null}
+                <div className="flex items-start gap-2">
+                  {msg.role === 'assistant' ? (
+                    <p className={`min-w-0 flex-1 ${severityShell.text}`}>
+                      <OracleRichText text={msg.content} />
+                    </p>
+                  ) : (
+                    <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-violet-50">
+                      {msg.content}
+                    </p>
+                  )}
                   {msg.role === 'assistant' ? (
                     <button
                       type="button"
@@ -1146,16 +1164,28 @@ export function CollapsibleChatPanel({
 
         {streamingContent ? (
           <div className="flex justify-start">
-            <div
-              className={`rounded-2xl border border-slate-700/80 bg-slate-900 px-3.5 py-2.5 text-[15px] text-slate-100 ${
-                minimal ? 'max-w-[96%]' : 'max-w-[92%] sm:max-w-sm'
-              }`}
-            >
-              <p className="whitespace-pre-wrap leading-relaxed">
-                {streamingContent}
-                <span className="animate-pulse text-sky-300">▌</span>
-              </p>
-            </div>
+            {(() => {
+              const streamSeverity = scoreOracleSeverity(streamingContent);
+              const streamShell = ORACLE_SEVERITY_SHELL[streamSeverity];
+              return (
+                <div
+                  className={`rounded-2xl px-3.5 py-2.5 text-[15px] shadow-sm ${
+                    minimal ? 'max-w-[96%]' : 'max-w-[92%] sm:max-w-sm'
+                  } ${streamShell.bubble}`}
+                >
+                  {streamShell.label ? (
+                    <p
+                      className={`mb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] ${streamShell.accent}`}
+                    >
+                      {streamShell.label}
+                    </p>
+                  ) : null}
+                  <p className={`leading-relaxed ${streamShell.text}`}>
+                    <OracleRichText text={streamingContent} streaming />
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         ) : null}
 

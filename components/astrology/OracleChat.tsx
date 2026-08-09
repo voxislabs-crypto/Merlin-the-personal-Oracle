@@ -18,6 +18,8 @@ import {
   type OracleQuotaSnapshot,
 } from '@/lib/oracle-chat-client';
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
+import { OracleRichText } from '@/components/astrology/OracleRichText';
+import { ORACLE_SEVERITY_SHELL, scoreOracleSeverity } from '@/lib/oracle-rich-text';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -511,7 +513,11 @@ export function OracleChat({
             </motion.div>
           )}
 
-          {messages.map((msg: Message, idx: number) => (
+          {messages.map((msg: Message, idx: number) => {
+            const severity =
+              msg.role === 'assistant' ? scoreOracleSeverity(msg.content) : 'neutral';
+            const severityShell = ORACLE_SEVERITY_SHELL[severity];
+            return (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 10 }}
@@ -523,12 +529,27 @@ export function OracleChat({
                 className={`max-w-2xl rounded-lg px-4 py-3 ${
                   msg.role === 'user'
                     ? 'bg-purple-600/40 text-purple-100 border border-purple-500/30'
-                    : 'bg-slate-800/50 text-slate-100 border border-purple-500/20'
+                    : severityShell.bubble
                 }`}
               >
+                {msg.role === 'assistant' && severityShell.label ? (
+                  <p
+                    className={`mb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] ${severityShell.accent}`}
+                  >
+                    {severityShell.label}
+                  </p>
+                ) : null}
                 {/* Main message with TTS button */}
                 <div className="flex gap-3 items-start justify-between">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap flex-1">{msg.content}</p>
+                  {msg.role === 'assistant' ? (
+                    <p className={`text-sm leading-relaxed flex-1 ${severityShell.text}`}>
+                      <OracleRichText text={msg.content} />
+                    </p>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap flex-1">
+                      {msg.content}
+                    </p>
+                  )}
                   
                   {/* TTS Button - only for assistant messages */}
                   {msg.role === 'assistant' && (
@@ -667,7 +688,8 @@ export function OracleChat({
                 </p>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
 
           {/* Streaming content */}
           {streamingContent && (
@@ -676,12 +698,24 @@ export function OracleChat({
               animate={{ opacity: 1, y: 0 }}
               className="flex justify-start"
             >
-              <div className="max-w-2xl rounded-lg px-4 py-3 bg-slate-800/50 text-slate-100 border border-purple-500/20">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {streamingContent}
-                  <span className="animate-pulse">▌</span>
-                </p>
-              </div>
+              {(() => {
+                const streamSeverity = scoreOracleSeverity(streamingContent);
+                const streamShell = ORACLE_SEVERITY_SHELL[streamSeverity];
+                return (
+                  <div className={`max-w-2xl rounded-lg px-4 py-3 ${streamShell.bubble}`}>
+                    {streamShell.label ? (
+                      <p
+                        className={`mb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] ${streamShell.accent}`}
+                      >
+                        {streamShell.label}
+                      </p>
+                    ) : null}
+                    <p className={`text-sm leading-relaxed ${streamShell.text}`}>
+                      <OracleRichText text={streamingContent} streaming />
+                    </p>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
 
