@@ -80,14 +80,12 @@ export async function logInteractionEvent(params: {
       },
     });
   } catch (error) {
-    if (isPrismaStoreUnavailableError(error)) {
-      console.warn(
-        '[PatternMirror] Database unavailable; skipped interaction log.',
-        error instanceof Error ? error.message.slice(0, 120) : error
-      );
-      return null;
-    }
-    throw error;
+    // Never throw — prophecy / dashboard analytics must not 500 when DB is down.
+    console.warn(
+      '[PatternMirror] Skipped interaction log (DB unavailable or write failed).',
+      error instanceof Error ? error.message.slice(0, 160) : error
+    );
+    return null;
   }
 }
 

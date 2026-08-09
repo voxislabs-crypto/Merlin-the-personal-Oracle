@@ -4,6 +4,7 @@ import type { BirthChartData } from '@/types/astrology';
 import { generateProphecy, type ProphecyEra, type ProphecyStyle } from '@/lib/astrology/prophecy';
 import { logInteractionEvent } from '@/lib/pattern-mirror';
 import { polishProphecyWithGroq, type ProphecyPolishMode } from '@/lib/prophecy-polish';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 function estimateSyllables(input: string): number {
   const word = input.toLowerCase().replace(/[^a-z]/g, '');
@@ -101,48 +102,70 @@ export async function POST(request: Request) {
           ? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
           : '';
 
-    const data = generateProphecy({ birthChart, style, era, strictMeter, seedSalt });
+    let data;
+    try {
+      data = generateProphecy({ birthChart, style, era, strictMeter, seedSalt });
+    } catch (genError) {
+      console.error('[Prophecy] Engine failed:', genError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: genError instanceof Error ? genError.message : 'Prophecy engine failed',
+        },
+        { status: 500 }
+      );
+    }
 
     let polishedBy: 'engine' | 'groq' = 'engine';
     if (polishMode === 'groq') {
-      const polished = await polishProphecyWithGroq({
-        prophecy: data.prophecy,
-        style,
-        era,
-        strictMeter,
-        // Higher temperature on regenerate so polish also diverges
-        temperature: regenerate || seedSalt ? 0.85 : 0.45,
-      });
-      if (polished?.prophecy) {
-        data.prophecy = polished.prophecy;
-        if (style === 'sonnet') {
-          // Recalculate meter score against polished sonnet text.
-          data.meter = scoreSonnetMeter(polished.prophecy);
+      try {
+        const polished = await polishProphecyWithGroq({
+          prophecy: data.prophecy,
+          style,
+          era,
+          strictMeter,
+          // Higher temperature on regenerate so polish also diverges
+          temperature: regenerate || seedSalt ? 0.85 : 0.45,
+        });
+        if (polished?.prophecy) {
+          data.prophecy = polished.prophecy;
+          if (style === 'sonnet') {
+            // Recalculate meter score against polished sonnet text.
+            data.meter = scoreSonnetMeter(polished.prophecy);
+          }
+          polishedBy = 'groq';
         }
-        polishedBy = 'groq';
+      } catch (polishError) {
+        // Polish is optional — keep engine text.
+        console.warn('[Prophecy] Polish failed; using engine text.', polishError);
       }
     }
 
+    // History is best-effort. Never fail the prophecy response when DB is down.
     if (saveToHistory && userId) {
-      await logInteractionEvent({
-        userId,
-        type: 'prophecy_generation',
-        content: data.title,
-        feedbackSignal: 'open',
-        metadata: {
-          style: data.style,
-          era: data.era,
-          strictMeter,
-          polishMode,
-          polishedBy,
-          seedSalt: String(seedSalt || ''),
-          regenerate: Boolean(regenerate || seedSalt),
-          prophecy: data.prophecy,
-          signals: data.signals,
-          meter: data.meter,
-          generatedAt: new Date().toISOString(),
-        },
-      });
+      try {
+        await logInteractionEvent({
+          userId,
+          type: 'prophecy_generation',
+          content: data.title,
+          feedbackSignal: 'open',
+          metadata: {
+            style: data.style,
+            era: data.era,
+            strictMeter,
+            polishMode,
+            polishedBy,
+            seedSalt: String(seedSalt || ''),
+            regenerate: Boolean(regenerate || seedSalt),
+            prophecy: data.prophecy,
+            signals: data.signals,
+            meter: data.meter,
+            generatedAt: new Date().toISOString(),
+          },
+        });
+      } catch (historyError) {
+        console.warn('[Prophecy] History save skipped:', historyError);
+      }
     }
 
     return NextResponse.json({
@@ -150,6 +173,14 @@ export async function POST(request: Request) {
       data: { ...data, polishedBy, seedSalt: seedSalt || undefined },
     });
   } catch (error) {
+    // Auth or request parse failures, etc.
+    if (isPrismaStoreUnavailableError(error)) {
+      return NextResponse.json(
+        { success: false, error: 'Storage temporarily unavailable', code: 'DB_UNAVAILABLE' },
+        { status: 503 }
+      );
+    }
+    console.error('[Prophecy] Unhandled error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

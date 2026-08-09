@@ -143,24 +143,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing eventName' }, { status: 400 });
     }
 
-    await logInteractionEvent({
-      userId: targetUserId,
-      type: 'dashboard_event',
-      content: eventName,
-      metadata: {
-        source: 'dashboard',
-        eventName,
-        detail: detail || {},
-      },
-    });
+    try {
+      await logInteractionEvent({
+        userId: targetUserId,
+        type: 'dashboard_event',
+        content: eventName,
+        metadata: {
+          source: 'dashboard',
+          eventName,
+          detail: detail || {},
+        },
+      });
+    } catch (logError) {
+      // Analytics only — never 500 the dashboard for telemetry.
+      console.warn('[DashboardEvents] Log skipped:', logError);
+      return NextResponse.json({ success: true, persistence: false });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (isPrismaStoreUnavailableError(error)) {
-      // Analytics only — never block the dashboard
-      return NextResponse.json({ success: true, persistence: false });
-    }
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    // Analytics only — never block the product UI.
+    console.warn('[DashboardEvents] POST soft-failed:', error);
+    return NextResponse.json({ success: true, persistence: false });
   }
 }

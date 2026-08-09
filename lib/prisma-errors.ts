@@ -5,8 +5,21 @@
  */
 
 function errorText(error: unknown): string {
-  if (error instanceof Error) return `${error.name} ${error.message}`;
-  return String(error ?? '');
+  if (!error) return '';
+  if (error instanceof Error) {
+    const anyErr = error as Error & { code?: string; meta?: unknown; cause?: unknown };
+    const parts = [anyErr.name, anyErr.message, anyErr.code, String(anyErr.meta ?? '')];
+    if (anyErr.cause) parts.push(errorText(anyErr.cause));
+    return parts.join(' ');
+  }
+  if (typeof error === 'object') {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
 }
 
 export function isPrismaMissingTableError(error: unknown): boolean {
@@ -34,6 +47,15 @@ export function isPrismaDelegateUnavailableError(error: unknown): boolean {
 /** SQLite can't open on Vercel, connection refused, missing DATABASE_URL, etc. */
 export function isPrismaConnectionError(error: unknown): boolean {
   const message = errorText(error).toLowerCase();
+  const code =
+    error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: string }).code || '')
+      : '';
+
+  if (['P1001', 'P1003', 'P1017', 'P1000', 'P1010', 'P2010', 'P2024'].includes(code)) {
+    return true;
+  }
+
   return (
     message.includes('unable to open the database file') ||
     message.includes('error code 14') ||
@@ -49,7 +71,11 @@ export function isPrismaConnectionError(error: unknown): boolean {
     message.includes('no such file or directory') ||
     message.includes('readonly database') ||
     message.includes('attempt to write a readonly database') ||
-    message.includes('the table main.') && message.includes('does not exist')
+    message.includes('the url must start with the protocol `file:`') ||
+    message.includes('error validating datasource') ||
+    message.includes('error querying the database') ||
+    message.includes('invalid `prisma.') ||
+    message.includes('timed out fetching a new connection')
   );
 }
 
