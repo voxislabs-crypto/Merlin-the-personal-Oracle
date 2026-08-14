@@ -491,12 +491,11 @@ export function TodayWeatherBrief({
                       : 'Relatively clear'
                 : undefined,
               elevatedDisruption: risk?.elevatedDisruption,
-              confidence: risk?.confidence,
+              confidence: moveConfidence ?? risk?.confidence,
               story,
               why: whyToday || whyLine,
               move: todayMove,
               driver: risk?.topDrivers?.[0]?.label || driverLabel || undefined,
-              confidence: moveConfidence,
             }}
           />
           {selfChips.length ? (
