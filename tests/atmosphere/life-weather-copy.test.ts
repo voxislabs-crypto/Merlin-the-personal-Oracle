@@ -190,7 +190,48 @@ describe('buildTodayMove', () => {
       } as LifeRiskPacket,
     });
     expect(move).not.toMatch(/cosmic/i);
-    expect(move.toLowerCase()).toMatch(/work|priority|focus/);
+    expect(move.toLowerCase()).toMatch(/work|priority|focus|draft|deliverable|meeting/);
+  });
+
+  it('rejects the stuck generic placeholder', () => {
+    const move = buildTodayMove({
+      intensity: 48,
+      date: '2026-08-12',
+      transitDo: 'One reversible step only — talk, draft, or scout before you commit.',
+    });
+    expect(move).not.toMatch(/talk, draft, or scout/i);
+    expect(move).not.toMatch(/one reversible step only/i);
+    expect(move.length).toBeGreaterThan(12);
+  });
+
+  it('rotates fallback copy by calendar date', () => {
+    const a = buildTodayMove({ intensity: 48, date: '2026-08-12' });
+    const b = buildTodayMove({ intensity: 48, date: '2026-08-13' });
+    const c = buildTodayMove({ intensity: 48, date: '2026-08-14' });
+    const unique = new Set([a, b, c]);
+    expect(unique.size).toBeGreaterThan(1);
+  });
+
+  it('prefers a moon transit do over a generic first lookup row', () => {
+    const move = buildTodayMove({
+      intensity: 48,
+      date: '2026-08-12',
+      transitLookup: [
+        {
+          transit_aspect: 'Saturn square Sun',
+          do: ['One reversible step only — talk, draft, or scout before you commit.'],
+        },
+        {
+          transit_aspect: 'Moon square Mars',
+          do: [
+            'Name the feeling in one sentence before you reply or decide.',
+            'Keep the hardest conversation under ten minutes; leave the rest.',
+            'Protect a quiet hour — mood is louder than the facts today.',
+          ],
+        },
+      ],
+    });
+    expect(move).toMatch(/feeling|conversation|quiet hour/i);
   });
 });
 
@@ -210,12 +251,34 @@ describe('buildLifeWeatherBrief', () => {
     expect(brief.move).not.toMatch(/cosmic energies/i);
   });
 
-  it('uses concrete transit do as the move when present', () => {
+  it('uses concrete transit do as the move when no parseable facts exist', () => {
     const brief = buildLifeWeatherBrief({
-      packet: mockPacket({ intensity: 40 }),
+      packet: mockPacket({
+        intensity: 40,
+        dominantDriver: {
+          label: 'Even pressure',
+          rationale: 'Nothing loud.',
+          source: 'fallback',
+        },
+        risk: undefined as never,
+      }),
       transitDo: 'Send the draft, skip the argument.',
     });
     expect(brief.move).toBe('Send the draft, skip the argument.');
+    expect(brief.whyToday).toBeUndefined();
+  });
+
+  it('synthesizes a fact-backed move when transits are present', () => {
+    const brief = buildLifeWeatherBrief({
+      packet: mockPacket(),
+      date: '2026-08-13',
+    });
+    expect(brief.themeLabel).toBeTruthy();
+    expect(brief.whyToday?.toLowerCase()).toMatch(/heat|pressure|weather|lane|restraint/);
+    expect(brief.whyToday).not.toMatch(/square|opposition/i);
+    expect(brief.watchFor).toBeTruthy();
+    expect(brief.moveConfidence).toBeGreaterThan(20);
+    expect(brief.move).not.toMatch(/one reversible step only/i);
   });
 
   it('rejects horoscope fluff for story and move', () => {
@@ -256,7 +319,8 @@ describe('buildLifeWeatherBrief', () => {
 
     expect(brief.story).not.toMatch(/High life-friction window/i);
     expect(brief.story.toLowerCase()).toMatch(/elevated|bandwidth|work|sky|pressure|emotional/);
-    expect(brief.move).toBe('Walk before you reply.');
+    expect(brief.move.length).toBeGreaterThan(8);
+    expect(brief.whyToday?.toLowerCase()).toMatch(/restraint|duty|heat|pressure|weather|lane/);
     expect(brief.why.toLowerCase()).toMatch(/friction|pressure|work|mood|conflict/);
   });
 });

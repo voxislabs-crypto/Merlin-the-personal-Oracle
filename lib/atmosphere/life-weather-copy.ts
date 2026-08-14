@@ -8,8 +8,11 @@
  */
 
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { isGenericTransitDo } from '@/lib/transit-lookup';
 import { applyMerlinVoicePass, failsMerlinVoiceTest } from '@/lib/voice/merlin-voice';
 import type { AtmospherePacket, LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
+import { composeTodayOracle } from '@/lib/atmosphere/today-oracle';
+import type { TodayMoveMemory, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 
 export interface LifeWeatherBriefCopy {
   /** One or two sentences: how life feels today */
@@ -20,6 +23,24 @@ export interface LifeWeatherBriefCopy {
   move: string;
   eyebrow: string;
   askLabel: string;
+  /** Oracle synthesis: why this move is tied to today's facts */
+  whyToday?: string;
+  usuallyBrings?: string;
+  navigate?: string;
+  watchFor?: string;
+  supportingSignals?: Array<{ id: string; label: string; hint: string; polarity?: string }>;
+  chartConfidence?: number;
+  readConfidence?: number;
+  chartConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
+  readConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
+  moveConfidence?: number;
+  confidenceLabel?: 'High' | 'Steady' | 'Tentative';
+  mixedSignals?: boolean;
+  themeLabel?: string;
+  themeId?: TodayThemeId;
+  leadFactKey?: string;
+  heldFromYesterday?: boolean;
+  weatherPrinciple?: string;
 }
 
 function firstSentence(text: string, maxLen = 220): string {
@@ -349,17 +370,225 @@ function hotDomainKeys(risk?: LifeRiskPacket | null): LifeRiskDomain[] {
   );
 }
 
-/** One concrete move — domain-aware, never fluff. */
+/** True when a move is fluff, empty, or the stuck generic placeholder. */
+export function isGenericTodayMove(text: string | null | undefined): boolean {
+  const t = (text || '').trim();
+  if (!t) return true;
+  if (isGenericTransitDo(t)) return true;
+  if (isFluffyLifeWeatherCopy(t)) return true;
+  return false;
+}
+
+export function hashSalt(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+export function pickDatedLine(lines: readonly string[], salt: string): string {
+  const usable = lines.map((s) => s.trim()).filter((s) => s && !isGenericTodayMove(s));
+  if (!usable.length) return '';
+  return usable[hashSalt(salt) % usable.length];
+}
+
+export interface TransitDoSource {
+  transit_aspect?: string;
+  do?: string[];
+  orb?: string;
+  score?: number;
+  adjustedScore?: number;
+}
+
+const PERSONAL_LEAD = ['moon', 'mercury', 'sun', 'venus', 'mars'];
+
+function transitLeadPlanet(aspect?: string): string {
+  return (aspect || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
+}
+
+function orbNumber(orb?: string): number {
+  if (!orb) return 99;
+  const match = orb.match(/[\d.]+/);
+  return match ? Number.parseFloat(match[0]) : 99;
+}
+
+/**
+ * Prefer a Moon / personal-planet transit (they change daily), then rotate
+ * among that transit's specific do-lines by calendar date.
+ */
+export function pickDailyTransitDo(
+  transits: TransitDoSource[] | null | undefined,
+  date?: string | null,
+): string | null {
+  if (!transits?.length) return null;
+  const dated = date || 'today';
+
+  const ranked = [...transits].sort((a, b) => {
+    const pa = PERSONAL_LEAD.indexOf(transitLeadPlanet(a.transit_aspect));
+    const pb = PERSONAL_LEAD.indexOf(transitLeadPlanet(b.transit_aspect));
+    const ra = pa === -1 ? 50 : pa;
+    const rb = pb === -1 ? 50 : pb;
+    if (ra !== rb) return ra - rb;
+    const oa = orbNumber(a.orb);
+    const ob = orbNumber(b.orb);
+    if (oa !== ob) return oa - ob;
+    return (b.adjustedScore ?? b.score ?? 0) - (a.adjustedScore ?? a.score ?? 0);
+  });
+
+  for (const transit of ranked) {
+    const picked = pickDatedLine(transit.do || [], `${dated}:${transit.transit_aspect || ''}`);
+    if (picked) return picked;
+  }
+  return null;
+}
+
+type MoveBand = 'storm' | 'elevated' | 'mixed' | 'calm';
+
+function moveBand(intensity: number): MoveBand {
+  if (intensity >= 75) return 'storm';
+  if (intensity >= 55) return 'elevated';
+  if (intensity >= 40) return 'mixed';
+  return 'calm';
+}
+
+const DATED_FALLBACKS: Record<MoveBand, Partial<Record<LifeRiskDomain | 'default', string[]>>> = {
+  storm: {
+    career: [
+      'Protect focus. Defer non-critical meetings and decisions until the pressure eases.',
+      'One work deliverable only. Park the rest until the spike passes.',
+      'Cancel the optional meeting. Finish the one thing that is actually due.',
+    ],
+    love: [
+      'Keep hard talks short and specific. Skip the pile-on argument.',
+      'Name one feeling, then stop. Do not audit the whole relationship.',
+      'If it is hot, walk first. Come back with one sentence.',
+    ],
+    money: [
+      'No big money moves today. Confirm numbers twice before you send.',
+      'Review the bill or the ask. Do not authorize anything new.',
+      'Freeze the cart. Recheck in the morning.',
+    ],
+    health: [
+      'Cut the day short if you can. Sleep and food beat heroics.',
+      'Stop at good enough. Water, food, earlier night.',
+      'Protect the body: shorter list, real break, no extra reps.',
+    ],
+    family: [
+      'Lower the household load. One calm ask beats a full confrontation.',
+      'Handle the one practical thing. Leave the history lesson.',
+      'Take a chore off someone instead of a debate.',
+    ],
+    self: [
+      'Protect bandwidth. Delay non-essential decisions until the pressure eases.',
+      'Shrink the plate. One next hour, not the whole identity question.',
+      'Quiet first. Then one reversible move.',
+    ],
+    default: [
+      'Protect bandwidth. Delay non-essential decisions until the pressure eases.',
+      'Shrink the plate. One reversible move, then reassess.',
+      'Handle the next hour well. Leave the life rewrite.',
+    ],
+  },
+  elevated: {
+    career: [
+      'One work priority only. Leave slack for a mid-afternoon reset.',
+      'Ship the draft. Do not open a second front.',
+      'Block ninety focused minutes. Then stop.',
+    ],
+    love: [
+      'Say the one clear thing. Do not stack three issues into one talk.',
+      'One honest check-in. Leave the summit for a calmer day.',
+      'Ask the real question. Skip the scorekeeping.',
+    ],
+    family: [
+      'Say the one clear thing. Do not stack three issues into one talk.',
+      'Handle one household item together. Leave the archive.',
+      'One calm ask. No pile-on after dinner.',
+    ],
+    money: [
+      'Review, don’t commit. Sleep on any spend over your comfort line.',
+      'Check the number twice. Decide tomorrow if it is still yes.',
+      'Move money only if it is already planned. No new bets.',
+    ],
+    health: [
+      'Guard energy: shorter list, real break, earlier night.',
+      'Eat a real meal before the next push.',
+      'Walk or stretch once. Then cut the list.',
+    ],
+    default: [
+      'One clear priority only. Leave room to adjust by evening.',
+      'Do the next useful inch. Leave the rest labeled for tomorrow.',
+      'Pick one lane and stay in it until dinner.',
+    ],
+  },
+  mixed: {
+    career: [
+      'Ship one reversible work step — draft, scout, or schedule — before you lock a big call.',
+      'Send the update. Leave the strategy rewrite.',
+      'Book the next conversation. Do not decide the whole quarter.',
+    ],
+    love: [
+      'Make one honest check-in. Keep it concrete, not a full relationship summit.',
+      'Say the preference out loud. Leave the five-year talk.',
+      'Offer one specific plan, not a mood.',
+    ],
+    default: [
+      'Take one useful step you can undo — a draft, a question, a scout.',
+      'Move the ball one square. Do not flip the board.',
+      'Choose the option that still works if tomorrow disagrees.',
+    ],
+  },
+  calm: {
+    career: [
+      'Use the calm: finish one real work item and stop there.',
+      'Close a loop you have been carrying. Then leave the desk.',
+      'Ship the small thing while the lane is open.',
+    ],
+    love: [
+      'Use the calm: one thoughtful message or plan, then leave space.',
+      'Send the kind, specific note you have been meaning to send.',
+      'Make the simple plan. Do not overbuild it.',
+    ],
+    family: [
+      'Use the calm: one thoughtful message or plan, then leave space.',
+      'Do the small kindness at home without a speech.',
+      'Share the plan for the week in one paragraph.',
+    ],
+    default: [
+      'Use the calm: finish one meaningful thing and leave the rest for later.',
+      'While it is easy, send or ship the thing you have been sitting on.',
+      'Complete one real item. Protect the leftover quiet.',
+    ],
+  },
+};
+
+function datedFallbackMove(intensity: number, primary: LifeRiskDomain | undefined, date?: string | null): string {
+  const band = moveBand(intensity);
+  const table = DATED_FALLBACKS[band];
+  const lines = (primary && table[primary]) || table.default || DATED_FALLBACKS.mixed.default!;
+  const salt = `${date || 'today'}:${band}:${primary || 'default'}`;
+  return pickDatedLine(lines, salt) || lines[0];
+}
+
+/** One concrete move — domain-aware, never fluff, rotates by date when templates are used. */
 export function buildTodayMove(options: {
   intensity: number;
   risk?: LifeRiskPacket | null;
   transitDo?: string | null;
+  transitLookup?: TransitDoSource[] | null;
   forecastAdvice?: string | null;
   predictiveMove?: string | null;
   domainsPhrase?: string;
+  date?: string | null;
 }): string {
+  const datedTransitDo =
+    pickDailyTransitDo(options.transitLookup, options.date) ||
+    (isGenericTodayMove(options.transitDo) ? null : options.transitDo?.trim());
+
   const candidates = [
-    options.transitDo,
+    datedTransitDo,
     options.forecastAdvice,
     options.predictiveMove,
     options.risk?.move,
@@ -367,68 +596,14 @@ export function buildTodayMove(options: {
 
   for (const c of candidates) {
     const t = (c || '').trim();
-    if (!t || isFluffyLifeWeatherCopy(t)) continue;
+    if (!t || isGenericTodayMove(t)) continue;
     // Prefer short actionable lines
     if (t.length > 160) return voiceSafe(firstSentence(t, 140));
     return voiceSafe(t);
   }
 
   const hot = hotDomainKeys(options.risk);
-  const primary = hot[0];
-  const intensity = options.intensity;
-
-  if (intensity >= 75) {
-    if (primary === 'career') {
-      return 'Protect focus. Defer non-critical meetings and decisions until the pressure eases.';
-    }
-    if (primary === 'love') {
-      return 'Keep hard talks short and specific. Skip the pile-on argument.';
-    }
-    if (primary === 'money') {
-      return 'No big money moves today. Confirm numbers twice before you send.';
-    }
-    if (primary === 'health') {
-      return 'Cut the day short if you can. Sleep and food beat heroics.';
-    }
-    if (primary === 'family') {
-      return 'Lower the household load. One calm ask beats a full confrontation.';
-    }
-    return 'Protect bandwidth. Delay non-essential decisions until the pressure eases.';
-  }
-
-  if (intensity >= 55) {
-    if (primary === 'career') {
-      return 'One work priority only. Leave slack for a mid-afternoon reset.';
-    }
-    if (primary === 'love' || primary === 'family') {
-      return 'Say the one clear thing. Do not stack three issues into one talk.';
-    }
-    if (primary === 'money') {
-      return 'Review, don’t commit. Sleep on any spend over your comfort line.';
-    }
-    if (primary === 'health') {
-      return 'Guard energy: shorter list, real break, earlier night.';
-    }
-    return 'One clear priority only. Leave room to adjust by evening.';
-  }
-
-  if (intensity >= 40) {
-    if (primary === 'career') {
-      return 'Ship one reversible work step — draft, scout, or schedule — before you lock a big call.';
-    }
-    if (primary === 'love') {
-      return 'Make one honest check-in. Keep it concrete, not a full relationship summit.';
-    }
-    return 'Move on one reversible step — talk, draft, or scout — before you commit hard.';
-  }
-
-  if (primary === 'career') {
-    return 'Use the calm: finish one real work item and stop there.';
-  }
-  if (primary === 'love' || primary === 'family') {
-    return 'Use the calm: one thoughtful message or plan, then leave space.';
-  }
-  return 'Use the calm: finish one meaningful thing and leave the rest for later.';
+  return voiceSafe(datedFallbackMove(options.intensity, hot[0], options.date));
 }
 
 // Note: fallback moves above already pass Merlin Test (human stakes + action).
@@ -438,7 +613,11 @@ export interface BuildLifeWeatherBriefInput {
   forecastSummary?: string | null;
   forecastAdvice?: string | null;
   transitDo?: string | null;
+  transitLookup?: TransitDoSource[] | null;
   predictiveMove?: string | null;
+  date?: string | null;
+  moveMemory?: TodayMoveMemory | null;
+  mbtiType?: string | null;
   loading?: boolean;
   premiumLocked?: boolean;
   errorMessage?: string | null;
@@ -513,14 +692,50 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     horizonNote,
   });
 
-  const move = buildTodayMove({
-    intensity,
-    risk: risk ?? null,
-    transitDo: input.transitDo,
-    forecastAdvice: input.forecastAdvice,
-    predictiveMove: input.predictiveMove,
-    domainsPhrase: domains,
+  const date = input.date || packet?.date || null;
+  const oracle = composeTodayOracle({
+    date,
+    packet,
+    transitLookup: input.transitLookup,
+    memory: input.moveMemory ?? null,
+    mbtiType: input.mbtiType,
   });
 
-  return { story, why, move, eyebrow, askLabel };
+  const move =
+    oracle?.move ||
+    buildTodayMove({
+      intensity,
+      risk: risk ?? null,
+      transitDo: input.transitDo,
+      transitLookup: input.transitLookup,
+      forecastAdvice: input.forecastAdvice,
+      predictiveMove: input.predictiveMove,
+      domainsPhrase: domains,
+      date,
+    });
+
+  return {
+    story,
+    why,
+    move,
+    eyebrow,
+    askLabel,
+    whyToday: oracle?.whyToday,
+    usuallyBrings: oracle?.usuallyBrings,
+    navigate: oracle?.navigate,
+    watchFor: oracle?.watchFor,
+    supportingSignals: oracle?.supportingSignals,
+    chartConfidence: oracle?.chartConfidence,
+    readConfidence: oracle?.readConfidence,
+    chartConfidenceLabel: oracle?.chartConfidenceLabel,
+    readConfidenceLabel: oracle?.readConfidenceLabel,
+    moveConfidence: oracle?.confidence,
+    confidenceLabel: oracle?.confidenceLabel,
+    mixedSignals: oracle?.mixedSignals,
+    themeLabel: oracle?.themeLabel,
+    themeId: oracle?.themeId,
+    leadFactKey: oracle?.leadFactKey,
+    heldFromYesterday: oracle?.heldFromYesterday,
+    weatherPrinciple: oracle?.principle,
+  };
 }

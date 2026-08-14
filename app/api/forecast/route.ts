@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     );
     const forecast = getTodaysForecast(natalChart, forecastDate);
 
-    // Enrich with TRANSIT_LOOKUP (28-aspect library) + day_rating + mbti_overlay
+    // Enrich with transit interpretations (hand-authored + composed) + day_rating + mbti_overlay
     let enrichedFields: Record<string, unknown> = {};
     try {
       const [birthDateStr, birthTimeStr] = [birthDate as string, (birthTime as string) || '12:00'];

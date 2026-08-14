@@ -51,6 +51,14 @@ export {
 export { buildAtmosphereConfluenceSignals, computeAtmosphereConfluence } from '@/lib/atmosphere/confluence';
 export { resolveDominantDriver } from '@/lib/atmosphere/headline';
 export {
+  composeTodayOracle,
+  gatherTodayFacts,
+  mergeFactsIntoThemes,
+  selectThemeWithNovelty,
+  type TodayOracleBrief,
+  type TodayMoveMemory,
+} from '@/lib/atmosphere/today-oracle';
+export {
   buildFeltStory,
   buildLifeWeatherBrief,
   buildTodayMove,
@@ -58,10 +66,13 @@ export {
   formatWhyLine,
   frictionLeadForWhy,
   isFluffyLifeWeatherCopy,
+  isGenericTodayMove,
   looksLikeTechnicalTransit,
+  pickDailyTransitDo,
   resolveWhyDomains,
   type BuildLifeWeatherBriefInput,
   type LifeWeatherBriefCopy,
+  type TransitDoSource,
   type WhyDriverPill,
 } from '@/lib/atmosphere/life-weather-copy';
 export {

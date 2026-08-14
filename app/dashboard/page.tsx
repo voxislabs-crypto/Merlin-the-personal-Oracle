@@ -76,6 +76,7 @@ import {
   resolveLegacyCosmicWeatherIntensity,
 } from '@/lib/atmosphere';
 import { useAtmosphereJournal } from '@/hooks/useAtmosphereJournal';
+import { useTodayMoveMemory } from '@/hooks/useTodayMoveMemory';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { clearSubscriptionTierClientCache } from '@/lib/subscription-tier-client';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
@@ -331,6 +332,7 @@ export default function UnifiedDashboard() {
     setOptIn: setJournalOptIn,
     setText: setJournalText,
   } = useAtmosphereJournal(forecast?.date);
+  const { memory: todayMoveMemory, remember: rememberTodayMove } = useTodayMoveMemory(userId || undefined);
   const { mbtiType, dualOverlay, loading: personalityLoading, applyChartPersonality } = usePersonality();
   const atmosphereEngineEnabled = isAtmosphereEngineV1Enabled({
     premium: featureFlags.premiumInsights,
@@ -1947,7 +1949,6 @@ export default function UnifiedDashboard() {
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
-    const transitDo = forecast?.transitLookup?.[0]?.do?.[0];
     const summary =
       (typeof forecast?.summary_mbti_adjusted === 'string' && forecast.summary_mbti_adjusted) ||
       (typeof forecast?.summary === 'string' && forecast.summary) ||
@@ -1956,7 +1957,10 @@ export default function UnifiedDashboard() {
       packet: activeAtmospherePacket,
       forecastSummary: summary,
       forecastAdvice: typeof forecast?.advice === 'string' ? forecast.advice : null,
-      transitDo: typeof transitDo === 'string' ? transitDo : null,
+      transitLookup: forecast?.transitLookup,
+      date: forecast?.date || activeAtmospherePacket?.date || null,
+      moveMemory: todayMoveMemory,
+      mbtiType: dualOverlay?.firmware?.mbtiType || mbtiType || null,
       // Week-horizon predictive moves only after feeds settle
       predictiveMove:
         !todayWeatherStillLoading && predictiveActionHint
@@ -1970,11 +1974,34 @@ export default function UnifiedDashboard() {
     });
   }, [
     activeAtmospherePacket,
+    dualOverlay?.firmware?.mbtiType,
     featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     forecast,
     forecastError?.message,
+    mbtiType,
     predictiveActionHint,
+    todayMoveMemory,
+    todayWeatherStillLoading,
+  ]);
+
+  React.useEffect(() => {
+    if (todayWeatherStillLoading || !lifeWeatherBrief.themeId || !lifeWeatherBrief.move) return;
+    const date = forecast?.date || activeAtmospherePacket?.date;
+    if (!date) return;
+    rememberTodayMove({
+      date,
+      themeId: lifeWeatherBrief.themeId,
+      move: lifeWeatherBrief.move,
+      factKey: lifeWeatherBrief.leadFactKey || lifeWeatherBrief.themeId,
+    });
+  }, [
+    activeAtmospherePacket?.date,
+    forecast?.date,
+    lifeWeatherBrief.leadFactKey,
+    lifeWeatherBrief.move,
+    lifeWeatherBrief.themeId,
+    rememberTodayMove,
     todayWeatherStillLoading,
   ]);
 
@@ -2650,6 +2677,21 @@ export default function UnifiedDashboard() {
                     story={cosmicStoryText}
                     whyLine={cosmicWeatherHeadlineForUi}
                     todayMove={cosmicStoryMove}
+                    whyToday={lifeWeatherBrief.whyToday}
+                    usuallyBrings={lifeWeatherBrief.usuallyBrings}
+                    navigate={lifeWeatherBrief.navigate}
+                    watchFor={lifeWeatherBrief.watchFor}
+                    supportingSignals={lifeWeatherBrief.supportingSignals}
+                    chartConfidence={lifeWeatherBrief.chartConfidence}
+                    readConfidence={lifeWeatherBrief.readConfidence}
+                    chartConfidenceLabel={lifeWeatherBrief.chartConfidenceLabel}
+                    readConfidenceLabel={lifeWeatherBrief.readConfidenceLabel}
+                    moveConfidence={lifeWeatherBrief.moveConfidence}
+                    confidenceLabel={lifeWeatherBrief.confidenceLabel}
+                    mixedSignals={lifeWeatherBrief.mixedSignals}
+                    themeLabel={lifeWeatherBrief.themeLabel}
+                    heldFromYesterday={lifeWeatherBrief.heldFromYesterday}
+                    weatherPrinciple={lifeWeatherBrief.weatherPrinciple}
                     driverLabel={
                       todayWeatherStillLoading
                         ? null

@@ -55,6 +55,9 @@ export interface DailyForecast {
     do?: string[];
     dont?: string[];
     transit_aspect?: string;
+    orb?: string;
+    score?: number;
+    adjustedScore?: number;
   }>;
 }
 

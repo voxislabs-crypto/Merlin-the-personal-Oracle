@@ -639,31 +639,34 @@ function buildConversationPrompts(
 }
 
 function generateDailyAdvice(
-  sunSign: string,
+  _sunSign: string,
   moonPhase: string,
   day_rating: DailyForecast['day_rating']
 ): string {
   const ratingAdvice: Record<string, string> = {
-    'Very Positive':    'Act boldly—cosmic winds are behind you. Initiate, reach out, and create.',
-    'Positive':         'Lean into the constructive energy. Make one meaningful move forward.',
-    'Neutral':          'Observe before acting. Quiet days often carry the seeds of big growth.',
-    'Challenging':      'Pace yourself. Rest, reassess, and respond rather than react.',
-    'Very Challenging': 'Simplify your agenda. Be extra gentle with yourself and others.',
+    'Very Positive':    'Start the conversation or ship the thing you have been sitting on.',
+    'Positive':         'Make one meaningful move forward before the afternoon fades.',
+    'Neutral':          'Scout first. Draft, ask, or schedule — do not lock a big call.',
+    'Challenging':      'Cut the list in half. Reply after a pause, not in the spike.',
+    'Very Challenging': 'Protect bandwidth. Food, sleep, and one decision only.',
+    green:              'Start the conversation or ship the thing you have been sitting on.',
+    yellow:             'Scout first. Draft, ask, or schedule — do not lock a big call.',
+    red:                'Protect bandwidth. Food, sleep, and one decision only.',
   };
 
   const phaseAdvice: Record<string, string> = {
-    'New Moon':         'Set a clear intention for the month ahead.',
-    'Waxing Crescent':  'Take the first step on something that matters.',
-    'First Quarter':    'Commit to a decision and take decisive action.',
-    'Waxing Gibbous':   'Refine your approach—you\'re close to a breakthrough.',
-    'Full Moon':        'Release what no longer serves you; celebrate what you\'ve built.',
-    'Waning Gibbous':   'Share your wisdom; teach or give back today.',
-    'Last Quarter':     'Clear old obligations and create space for what\'s next.',
-    'Waning Crescent':  'Rest, restore, and surrender to the quiet before the new cycle.',
+    'New Moon':         'Write one intention and take a ten-minute first step.',
+    'Waxing Crescent':  'Take the first real step on something that already matters.',
+    'First Quarter':    'Commit to one decision and act on a slice of it today.',
+    'Waxing Gibbous':   'Refine the approach — finish the almost-done piece.',
+    'Full Moon':        'Close or release one loop. Do not open a new saga.',
+    'Waning Gibbous':   'Share one useful thing you already know. Keep it specific.',
+    'Last Quarter':     'Clear one old obligation so something new has room.',
+    'Waning Crescent':  'Rest on purpose. Protect the quiet before the next cycle.',
   };
 
-  const rLine = ratingAdvice[day_rating || 'Neutral'] || 'Trust the moment.';
-  const pLine = phaseAdvice[moonPhase] || 'Stay present.';
+  const rLine = ratingAdvice[day_rating || 'Neutral'] || 'Pick one useful next step and stop there.';
+  const pLine = phaseAdvice[moonPhase] || 'Keep today specific.';
 
-  return `As a ${sunSign}, the cosmic prescription for today: ${rLine} ${pLine}`;
+  return `${rLine} ${pLine}`;
 }

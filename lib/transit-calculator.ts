@@ -1,4 +1,9 @@
-import { TRANSIT_LOOKUP, getDayRating, type TransitInterpretation } from "./transit-lookup"
+import {
+  formatTransitAspectKey,
+  getDayRating,
+  resolveTransitInterpretation,
+  type TransitInterpretation,
+} from "./transit-lookup"
 import { type MBTIType } from "./mbti-system"
 import { toJulianDay, getPlanetPositions, type PlanetPositions } from "./swiss-ephemeris-core"
 import { detectAspects, type DetectedAspect } from "./aspect-detection"
@@ -118,8 +123,8 @@ async function calculateDailyTransits(date: Date, birthData: BirthData, userId?:
 
     const transits: Transit[] = await Promise.all(
       aspectsDetected.map(async (aspect) => {
-        const aspectKey = `${aspect.planet1} ${aspect.aspect.toLowerCase()} ${aspect.planet2}`
-        const interpretation = TRANSIT_LOOKUP[aspectKey] || TRANSIT_LOOKUP[aspect.aspect.toLowerCase()]
+        const aspectKey = formatTransitAspectKey(aspect.planet1, aspect.aspect, aspect.planet2)
+        const interpretation = resolveTransitInterpretation(aspectKey)
 
         let resonanceStats: ResonanceStats | undefined
         let adjustedScore = aspect.score || 0
@@ -142,10 +147,10 @@ async function calculateDailyTransits(date: Date, birthData: BirthData, userId?:
         return {
           transit_aspect: aspectKey,
           orb: `${Math.abs(aspect.orb).toFixed(2)}°`,
-          effect: interpretation?.effect || "neutral",
-          interpretation: interpretation?.interpretation || "Transit energy present",
-          do: interpretation?.do || ["One reversible step only — talk, draft, or scout before you commit."],
-          dont: interpretation?.dont || ["Force a permanent decision while the signal is unclear"],
+          effect: interpretation.effect,
+          interpretation: interpretation.interpretation,
+          do: interpretation.do,
+          dont: interpretation.dont,
           score: aspect.score,
           resonanceStats,
           adjustedScore,
@@ -167,18 +172,7 @@ function calculateMockTransits(date: Date, userId?: string): Transit[] {
   const selectedTransits = MOCK_TRANSITS.sort(() => Math.random() - 0.5).slice(0, numTransits)
 
   return selectedTransits.map((mockTransit) => {
-    const interpretation = TRANSIT_LOOKUP[mockTransit.aspect]
-    if (!interpretation) {
-      return {
-        transit_aspect: mockTransit.aspect,
-        orb: mockTransit.orb,
-        effect: "neutral" as const,
-        interpretation: "Transit interpretation not available",
-        do: ["One reversible step only — talk, draft, or scout before you commit."],
-        dont: ["Force a permanent decision while the signal is unclear"],
-      }
-    }
-
+    const interpretation = resolveTransitInterpretation(mockTransit.aspect)
     return {
       transit_aspect: mockTransit.aspect,
       orb: mockTransit.orb,

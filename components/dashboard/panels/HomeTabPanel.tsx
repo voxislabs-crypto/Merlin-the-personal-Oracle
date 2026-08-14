@@ -40,6 +40,21 @@ interface HomeTabPanelProps {
   story: string;
   whyLine?: string;
   todayMove?: string;
+  whyToday?: string;
+  usuallyBrings?: string;
+  navigate?: string;
+  watchFor?: string;
+  supportingSignals?: Array<{ id: string; label: string; hint: string; polarity?: string }>;
+  chartConfidence?: number;
+  readConfidence?: number;
+  chartConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
+  readConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
+  moveConfidence?: number;
+  confidenceLabel?: 'High' | 'Steady' | 'Tentative';
+  mixedSignals?: boolean;
+  themeLabel?: string;
+  heldFromYesterday?: boolean;
+  weatherPrinciple?: string;
   /** Dominant transit/driver label for Why pills */
   driverLabel?: string | null;
   mbtiType?: string;
@@ -129,6 +144,21 @@ export function HomeTabPanel({
   story,
   whyLine,
   todayMove,
+  whyToday,
+  usuallyBrings,
+  navigate,
+  watchFor,
+  supportingSignals,
+  chartConfidence,
+  readConfidence,
+  chartConfidenceLabel,
+  readConfidenceLabel,
+  moveConfidence,
+  confidenceLabel,
+  mixedSignals,
+  themeLabel,
+  heldFromYesterday,
+  weatherPrinciple,
   driverLabel = null,
   mbtiType,
   moonPhase,
@@ -205,6 +235,21 @@ export function HomeTabPanel({
           story={story}
           whyLine={whyLine}
           todayMove={todayMove}
+          whyToday={whyToday}
+          usuallyBrings={usuallyBrings}
+          navigate={navigate}
+          watchFor={watchFor}
+          supportingSignals={supportingSignals}
+          chartConfidence={chartConfidence}
+          readConfidence={readConfidence}
+          chartConfidenceLabel={chartConfidenceLabel}
+          readConfidenceLabel={readConfidenceLabel}
+          moveConfidence={moveConfidence}
+          confidenceLabel={confidenceLabel}
+          mixedSignals={mixedSignals}
+          themeLabel={themeLabel}
+          heldFromYesterday={heldFromYesterday}
+          weatherPrinciple={weatherPrinciple}
           driverLabel={driverLabel}
           moonPhase={moonPhase}
           moonSign={moonSign}
