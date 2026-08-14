@@ -18,6 +18,7 @@ import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { resonanceDB } from '@/lib/resonance-database';
 import { getUserContextSnapshot } from '@/lib/user-context';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -203,11 +204,16 @@ export async function POST(request: Request) {
     }
 
     if (userId) {
-      await resonanceDB.ensureUser({
-        userId,
-        mbtiType,
-        createdAt: new Date(),
-      });
+      try {
+        await resonanceDB.ensureUser({
+          userId,
+          mbtiType,
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        if (!isPrismaStoreUnavailableError(error)) throw error;
+        console.warn('[Transits] Resonance user upsert skipped — store unavailable.');
+      }
     }
 
     const userContext = userId ? await getUserContextSnapshot(userId) : null;

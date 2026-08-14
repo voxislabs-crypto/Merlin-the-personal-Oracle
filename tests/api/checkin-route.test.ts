@@ -85,4 +85,21 @@ describe('checkin route POST', () => {
       })
     );
   });
+
+  it('soft-fails when Prisma cannot open the store', async () => {
+    (prisma.userInteractionEvent.create as jest.Mock).mockRejectedValueOnce(
+      new Error('Unable to open the database file\nSqliteError: Error code 14: Unable to open the database file'),
+    );
+
+    const request = {
+      json: async () => ({ mood: 6, stress: 4, energy: 7 }),
+    } as unknown as Request;
+
+    const response = await POST(request);
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data.persistence).toBe(false);
+  });
 });

@@ -73,21 +73,32 @@ class ResonanceDatabase {
   }
 
   async ensureUser(user: User): Promise<void> {
-    await prisma.resonanceUser.upsert({
-      where: { userId: user.userId },
-      create: {
-        userId: user.userId,
-        mbtiType: user.mbtiType,
-        enneagramType: user.enneagramType,
-        big5Json: serializeBig5(user.big5),
-        createdAt: user.createdAt,
-      },
-      update: {
-        mbtiType: user.mbtiType ?? undefined,
-        enneagramType: user.enneagramType ?? undefined,
-        big5Json: user.big5 ? serializeBig5(user.big5) : undefined,
-      },
-    });
+    try {
+      await prisma.resonanceUser.upsert({
+        where: { userId: user.userId },
+        create: {
+          userId: user.userId,
+          mbtiType: user.mbtiType,
+          enneagramType: user.enneagramType,
+          big5Json: serializeBig5(user.big5),
+          createdAt: user.createdAt,
+        },
+        update: {
+          mbtiType: user.mbtiType ?? undefined,
+          enneagramType: user.enneagramType ?? undefined,
+          big5Json: user.big5 ? serializeBig5(user.big5) : undefined,
+        },
+      });
+    } catch (error) {
+      if (isPrismaStoreUnavailableError(error)) {
+        console.warn(
+          '[Resonance] ensureUser skipped — store unavailable.',
+          error instanceof Error ? error.message.slice(0, 120) : error,
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   async getPersonalResonance(userId: string, aspectId: string, theme: string): Promise<PersonalResonance | null> {

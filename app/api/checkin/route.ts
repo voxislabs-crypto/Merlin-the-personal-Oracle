@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
 import { prisma } from '@/lib/prisma';
+import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 
 const DOMAIN_KEYS = ['love', 'career', 'money', 'family', 'health', 'self'] as const;
 
@@ -68,37 +69,63 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Invalid timestamp' }, { status: 400 });
     }
 
-    const event = await prisma.userInteractionEvent.create({
-      data: {
-        userId: targetUserId,
-        type: 'checkin_entry',
-        content: body.notes?.slice(0, 280) || 'checkin',
-        metadataJson: JSON.stringify({
-          mood: body.mood,
-          stress: body.stress,
-          energy: body.energy,
-          confidence: body.confidence ?? null,
-          domains,
-          notes: body.notes || null,
-          source: 'dashboard_checkin',
-        }),
-        createdAt,
-      },
-      select: {
-        id: true,
-        createdAt: true,
-      },
-    });
+    try {
+      const event = await prisma.userInteractionEvent.create({
+        data: {
+          userId: targetUserId,
+          type: 'checkin_entry',
+          content: body.notes?.slice(0, 280) || 'checkin',
+          metadataJson: JSON.stringify({
+            mood: body.mood,
+            stress: body.stress,
+            energy: body.energy,
+            confidence: body.confidence ?? null,
+            domains,
+            notes: body.notes || null,
+            source: 'dashboard_checkin',
+          }),
+          createdAt,
+        },
+        select: {
+          id: true,
+          createdAt: true,
+        },
+      });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: event.id,
-        userId: targetUserId,
-        createdAt: event.createdAt.toISOString(),
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: event.id,
+          userId: targetUserId,
+          createdAt: event.createdAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      if (isPrismaStoreUnavailableError(error)) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            id: `ephemeral-${createdAt.getTime()}`,
+            userId: targetUserId,
+            createdAt: createdAt.toISOString(),
+            persistence: false,
+          },
+        });
+      }
+      throw error;
+    }
   } catch (error) {
+    if (isPrismaStoreUnavailableError(error)) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: `ephemeral-${Date.now()}`,
+          userId: null,
+          createdAt: new Date().toISOString(),
+          persistence: false,
+        },
+      });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
