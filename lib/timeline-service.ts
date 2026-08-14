@@ -42,22 +42,6 @@ export interface Timeline {
   keyThemes: string[]; // Overarching life themes
 }
 
-// Major aspect orbs for transits
-const MAJOR_ASPECTS = {
-  'Saturn Return': { years: 29.5, intensity: 'major' },
-  'Uranus Opposition': { years: 42, intensity: 'major' },
-  'Chiron Return': { years: 50, intensity: 'major' },
-};
-
-// Planetary cycle patterns (simplified)
-const PLANET_CYCLES = {
-  'Mercury Retrograde': { frequency: 'every 3-4 months', duration: 'weeks' },
-  'Venus Retrograde': { frequency: 'every 19 months', duration: 'weeks' },
-  'Mars Retrograde': { frequency: 'every 26 months', duration: 'weeks' },
-  'Saturn Transit': { frequency: '2.5 years per sign' },
-  'Jupiter Transit': { frequency: '13 months per sign' },
-};
-
 /**
  * Generate a narrative-driven timeline for the next 12-24 months
  * Based on major transits, progressions, and life cycles
@@ -133,7 +117,7 @@ function generateTimelinePhases(
     const majorEvents = generatePhaseEvents(birthChart, phaseStart, phaseEnd);
 
     // Determine phase theme based on major events
-    const theme = derivePhaseTheme(majorEvents, birthChart);
+    const theme = derivePhaseTheme(majorEvents);
     const lifeTheme = deriveLifeTheme(majorEvents);
 
     // Generate narrative for phase
@@ -201,7 +185,7 @@ function generatePhaseEvents(
         planet.name,
         isHard
       ),
-      lifeArea: getLifeAreaForPlanet(planet.name, randomAspect.aspect),
+      lifeArea: getLifeAreaForPlanet(planet.name),
       guidance: generateEventGuidance(
         triggeringPlanet,
         randomAspect.aspect,
@@ -235,7 +219,7 @@ function generatePhaseEvents(
 /**
  * Derive the overall theme for a phase based on events
  */
-function derivePhaseTheme(events: TimelineEvent[], birthChart: BirthChartData): string {
+function derivePhaseTheme(events: TimelineEvent[]): string {
   if (events.length === 0) return 'Consolidation & Integration';
 
   const majorCount = events.filter(e => e.intensity === 'major').length;
@@ -326,7 +310,7 @@ function generateEventGuidance(
 /**
  * Determine life area affected by planet
  */
-function getLifeAreaForPlanet(planet: string, aspect: string): string {
+function getLifeAreaForPlanet(planet: string): string {
   const mapping: Record<string, string> = {
     Sun: 'core identity',
     Moon: 'emotional cycles',

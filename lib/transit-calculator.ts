@@ -5,8 +5,8 @@ import {
   type TransitInterpretation,
 } from "./transit-lookup"
 import { type MBTIType } from "./mbti-system"
-import { toJulianDay, getPlanetPositions, type PlanetPositions } from "./swiss-ephemeris-core"
-import { detectAspects, type DetectedAspect } from "./aspect-detection"
+import { getPlanetPositions, type PlanetPositions } from "./swiss-ephemeris-core"
+import { type DetectedAspect } from "./aspect-detection"
 import { assignPrimaryAndSecondaryThemes } from "./theme-assignment"
 import { applyMBTIOverlay } from "./mbti-overlay"
 import { resonanceDB } from "./resonance-database"
@@ -100,22 +100,6 @@ function detectTransitAspects(currentPlanets: PlanetPositions, natalPlanets: Pla
 
 async function calculateDailyTransits(date: Date, birthData: BirthData, userId?: string): Promise<Transit[]> {
   try {
-    const currentJD = toJulianDay(
-      date.getFullYear(),
-      date.getMonth() + 1,
-      date.getDate(),
-      12, // noon
-      0,
-    )
-
-    const natalJD = toJulianDay(
-      birthData.date.getFullYear(),
-      birthData.date.getMonth() + 1,
-      birthData.date.getDate(),
-      birthData.date.getHours(),
-      birthData.date.getMinutes(),
-    )
-
     const currentPlanets = await getPlanetPositions(date)
     const natalPlanets = await getPlanetPositions(birthData.date)
 
@@ -161,11 +145,11 @@ async function calculateDailyTransits(date: Date, birthData: BirthData, userId?:
     return transits.sort((a, b) => (b.adjustedScore || 0) - (a.adjustedScore || 0)).slice(0, 5)
   } catch (error) {
     console.error("Error calculating real transits:", error)
-    return calculateMockTransits(date, userId)
+    return calculateMockTransits(date)
   }
 }
 
-function calculateMockTransits(date: Date, userId?: string): Transit[] {
+function calculateMockTransits(date: Date): Transit[] {
   const dayOfMonth = date.getDate()
   const numTransits = Math.min(3, Math.max(1, (dayOfMonth % 4) + 1))
 
@@ -192,7 +176,7 @@ export async function generateDailyForecast(
 ): Promise<DailyForecast> {
   const transits = birthData
     ? await calculateDailyTransits(date, birthData, userId)
-    : calculateMockTransits(date, userId)
+    : calculateMockTransits(date)
 
   const effects = transits.map((t) => t.effect)
   const dayRating = getDayRating(effects)
