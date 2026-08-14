@@ -8,6 +8,11 @@ import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import { lifeRiskLevelPresentation } from '@/lib/atmosphere/life-risk';
 import type { LifeRiskLevel, LifeRiskPacket, LifeRiskWindow } from '@/lib/atmosphere/types';
 import { cn } from '@/lib/utils';
+import {
+  addCalendarDays,
+  getLocalCalendarDate,
+  resolveWindowCalendarDate,
+} from '@/lib/datetime/local-calendar';
 
 function formatPeak(peakAt?: string, daysToPeak?: number): string {
   if (typeof daysToPeak === 'number' && Number.isFinite(daysToPeak)) {
@@ -21,23 +26,12 @@ function formatPeak(peakAt?: string, daysToPeak?: number): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function dateKeyFromIso(iso?: string): string | null {
-  if (!iso) return null;
-  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso.slice(0, 10);
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function localToday(): string {
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  return getLocalCalendarDate();
 }
 
 function addDaysIso(iso: string, days: number): string {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return addCalendarDays(iso, days);
 }
 
 function frictionBarClass(friction: number): string {
@@ -70,29 +64,7 @@ function buildFrictionDaySeries(
   const byDate = new Map<string, { friction: number; labels: Set<string> }>();
 
   for (const w of windows) {
-    // Prefer explicit calendar dates; fall back to daysToPeak offset from today
-    let key =
-      dateKeyFromIso(w.peakAt) ||
-      dateKeyFromIso(w.startsAt) ||
-      dateKeyFromIso(w.endsAt);
-
-    // peakAt like "2026-08-05T12:00:00.000Z" — slice is fine, but also handle Date parse shift
-    if (!key && w.peakAt) {
-      const d = new Date(w.peakAt);
-      if (!Number.isNaN(d.getTime())) {
-        // Use UTC date for Z timestamps so we don't shift a day west of UTC
-        if (String(w.peakAt).endsWith('Z') || String(w.peakAt).includes('+00:00')) {
-          key = d.toISOString().slice(0, 10);
-        } else {
-          key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        }
-      }
-    }
-
-    if (!key && typeof w.daysToPeak === 'number' && Number.isFinite(w.daysToPeak)) {
-      key = addDaysIso(today, Math.max(0, Math.round(w.daysToPeak)));
-    }
-
+    const key = resolveWindowCalendarDate(w, today);
     if (!key) continue;
     const prev = byDate.get(key) || { friction: 0, labels: new Set<string>() };
     prev.friction = Math.max(prev.friction, w.friction || 0);
@@ -324,8 +296,7 @@ function uniqueDrivers(windows: LifeRiskWindow[]): Array<{ label: string; fricti
   const map = new Map<string, { friction: number; dates: Set<string> }>();
   for (const w of windows) {
     const key = w.label || 'Unknown';
-    const date =
-      dateKeyFromIso(w.peakAt) || dateKeyFromIso(w.startsAt) || '';
+    const date = resolveWindowCalendarDate(w, localToday()) || '';
     const prev = map.get(key) || { friction: 0, dates: new Set<string>() };
     prev.friction = Math.max(prev.friction, w.friction || 0);
     if (date) prev.dates.add(date);

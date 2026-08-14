@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, mbtiType, daysAhead = 30, timezoneOffset } = body;
+    const { birthDate, birthTime, lat, lon, mbtiType, daysAhead = 30, timezoneOffset, clientDate } = body;
 
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       Number(lon ?? 0),
       { useGrok: false, houseSystem: `storms-${safeDaysAhead}`, tone: "direct" }
     );
-    const cacheKey = `storms:v2:${cacheHash}:${mbtiType || "none"}`;
+    const cacheKey = `storms:v3:${cacheHash}:${mbtiType || "none"}:${typeof clientDate === 'string' ? clientDate : 'server'}`;
     const cached = serverCache.get<{ cachedAt: number; data: any }>(cacheKey);
     if (cached && Date.now() - cached.cachedAt < TTL_24H_MS) {
       return NextResponse.json({
@@ -125,7 +125,8 @@ export async function POST(request: Request) {
     const stormsReport = predictStorms(
       natalChart,
       safeDaysAhead,
-      mbtiType as MBTIType | undefined
+      mbtiType as MBTIType | undefined,
+      { clientDate: typeof clientDate === 'string' ? clientDate : undefined },
     );
 
     serverCache.set(cacheKey, { cachedAt: Date.now(), data: stormsReport });

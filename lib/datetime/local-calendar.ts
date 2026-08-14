@@ -11,6 +11,56 @@ export function getLocalCalendarDate(now = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Add whole days to a YYYY-MM-DD calendar date without UTC shift. */
+export function addCalendarDays(dateStr: string, days: number): string {
+  const base = calendarDateToLocalNoon(dateStr);
+  base.setDate(base.getDate() + days);
+  return getLocalCalendarDate(base);
+}
+
+/**
+ * Calendar day for a timestamp.
+ * Bare / naive YYYY-MM-DD[THH:mm:ss] keeps the written date (local-noon convention).
+ * Zoned ISO (Z / offset) converts to the *local* calendar — never slice the UTC date.
+ */
+export function calendarDateFromInstant(value?: string | null): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const naive = raw.match(/^(\d{4}-\d{2}-\d{2})T[\d:.]+$/);
+  if (naive && !/[zZ]|[+-]\d{2}:\d{2}$/.test(raw)) return naive[1];
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return getLocalCalendarDate(d);
+}
+
+/**
+ * Map a friction/support window onto the user's local horizon.
+ * "Peaking now" (daysToPeak <= 0) always lands on local today, even if peakAt is UTC tomorrow.
+ */
+export function resolveWindowCalendarDate(
+  window: {
+    peakAt?: string;
+    startsAt?: string;
+    endsAt?: string;
+    daysToPeak?: number;
+  },
+  today: string,
+): string | null {
+  if (typeof window.daysToPeak === 'number' && Number.isFinite(window.daysToPeak) && window.daysToPeak <= 0) {
+    return today;
+  }
+  return (
+    calendarDateFromInstant(window.peakAt) ||
+    calendarDateFromInstant(window.startsAt) ||
+    calendarDateFromInstant(window.endsAt) ||
+    (typeof window.daysToPeak === 'number' && Number.isFinite(window.daysToPeak)
+      ? addCalendarDays(today, Math.round(window.daysToPeak))
+      : null)
+  );
+}
+
 export function isValidCalendarDate(value?: string | null): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }

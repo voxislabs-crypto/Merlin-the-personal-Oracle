@@ -1,9 +1,12 @@
 import {
+  addCalendarDays,
+  calendarDateFromInstant,
   calendarDateToLocalNoon,
   getLocalCalendarDate,
   isValidCalendarDate,
   isWeatherDateStale,
   resolveForecastTargetDate,
+  resolveWindowCalendarDate,
 } from '@/lib/datetime/local-calendar';
 
 describe('local-calendar', () => {
@@ -35,5 +38,28 @@ describe('local-calendar', () => {
 
   it('formats local calendar date', () => {
     expect(getLocalCalendarDate(new Date(2026, 7, 6, 0, 30, 0))).toBe('2026-08-06');
+  });
+
+  it('does not slice UTC ISO strings as the calendar date', () => {
+    expect(calendarDateFromInstant('2026-08-13')).toBe('2026-08-13');
+    expect(calendarDateFromInstant('2026-08-13T12:00:00')).toBe('2026-08-13');
+    const local = calendarDateFromInstant('2026-08-14T04:00:00.000Z');
+    expect(local).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // US evening on the 13th is 04:00Z on the 14th — must not blindly become 08-14
+    expect(local).toBe(getLocalCalendarDate(new Date('2026-08-14T04:00:00.000Z')));
+  });
+
+  it('pins peaking-now windows to local today even if peakAt is UTC tomorrow', () => {
+    const today = '2026-08-13';
+    expect(
+      resolveWindowCalendarDate(
+        { peakAt: '2026-08-14T04:00:00.000Z', daysToPeak: 0 },
+        today,
+      ),
+    ).toBe('2026-08-13');
+    expect(
+      resolveWindowCalendarDate({ peakAt: '2026-08-16T12:00:00', daysToPeak: 3 }, today),
+    ).toBe('2026-08-16');
+    expect(addCalendarDays('2026-08-13', 1)).toBe('2026-08-14');
   });
 });

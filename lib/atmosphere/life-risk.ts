@@ -6,6 +6,7 @@
  */
 
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { isValidCalendarDate } from '@/lib/datetime/local-calendar';
 import type {
   AtmosphereConfluence,
   AtmosphereForecastInput,
@@ -344,7 +345,19 @@ function toWindowFromEvent(event: AtmospherePredictiveEventInput): LifeRiskWindo
   };
 }
 
-function toWindowFromStorm(storm: AtmosphereStormInput, index: number): LifeRiskWindow {
+function calendarDaysBetween(fromDate: string, toDate: string): number {
+  const [fy, fm, fd] = fromDate.split('-').map(Number);
+  const [ty, tm, td] = toDate.split('-').map(Number);
+  const from = Date.UTC(fy, fm - 1, fd);
+  const to = Date.UTC(ty, tm - 1, td);
+  return Math.round((to - from) / (24 * 60 * 60 * 1000));
+}
+
+function toWindowFromStorm(
+  storm: AtmosphereStormInput,
+  index: number,
+  asOfDate?: string,
+): LifeRiskWindow {
   // Graduated friction — never intensityScore * 10 (that forced 100s)
   let friction =
     typeof storm.intensityScore === 'number'
@@ -365,14 +378,14 @@ function toWindowFromStorm(storm: AtmosphereStormInput, index: number): LifeRisk
   // Local noon ISO without Z — avoids UTC day-shift when charting by calendar date
   const peakAt = storm.date ? `${storm.date}T12:00:00` : undefined;
 
-  // daysToPeak from storm date vs today (local)
+  // daysToPeak vs the packet's calendar day — never the server UTC clock
   let daysToPeak: number | undefined;
   if (storm.date && /^\d{4}-\d{2}-\d{2}$/.test(storm.date)) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const [y, m, d] = storm.date.split('-').map(Number);
-    const target = new Date(y, m - 1, d);
-    daysToPeak = Math.round((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+    const asOf =
+      asOfDate && isValidCalendarDate(asOfDate)
+        ? asOfDate
+        : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    daysToPeak = calendarDaysBetween(asOf, storm.date);
   }
 
   // Peak days score fuller; far-out building days slightly lower so the chart isn't flat
@@ -492,7 +505,7 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
   const eventWindows = events
     .map(toWindowFromEvent)
     .filter((w): w is LifeRiskWindow => Boolean(w));
-  const stormWindows = storms.map(toWindowFromStorm);
+  const stormWindows = storms.map((storm, index) => toWindowFromStorm(storm, index, input.date));
   const windows = [...eventWindows, ...stormWindows]
     .sort((a, b) => {
       // Friction first, then by peak timing

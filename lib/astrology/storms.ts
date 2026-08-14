@@ -6,6 +6,12 @@ import { MBTIType } from "@/shared/schema";
 import mbtiStormResponses from "@/data/mbti-storm-responses.json";
 import { getSweph } from '@/lib/sweph-runtime';
 import {
+  addCalendarDays,
+  calendarDateToLocalNoon,
+  isValidCalendarDate,
+  resolveForecastTargetDate,
+} from '@/lib/datetime/local-calendar';
+import {
   enrichStorms,
   groupStormsByCategory,
   STORM_CATEGORY_META,
@@ -542,10 +548,6 @@ function normalizeAngle(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
 
-function toLocalDateString(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
 function getJulianDay(sweph: any, momentUtc: Date): number {
   const y = momentUtc.getUTCFullYear();
   const m = momentUtc.getUTCMonth() + 1;
@@ -788,7 +790,8 @@ export function detectWeeklyStorms(
 export function predictStorms(
   birthChart: BirthChartData,
   daysAhead = 7,
-  mbtiType?: MBTIType
+  mbtiType?: MBTIType,
+  options?: { clientDate?: string | null },
 ): StormsReport {
   const natalPositions = birthChart.positions ?? birthChart.planets ?? [];
 
@@ -813,18 +816,19 @@ export function predictStorms(
   const now = new Date();
   const seedPositions = calculatePlanetsForMoment(now);
 
-  const today = new Date();
+  const startDate = resolveForecastTargetDate(
+    isValidCalendarDate(options?.clientDate) ? options?.clientDate : undefined,
+    now,
+  );
 
   for (let i = 0; i < daysAhead; i++) {
-    const targetDate = new Date(today);
-    targetDate.setDate(targetDate.getDate() + i);
-    const dateString = toLocalDateString(targetDate);
+    const dateString = addCalendarDays(startDate, i);
+    const targetDate = calendarDateToLocalNoon(dateString);
     const dayName = DAY_NAMES[targetDate.getDay()];
     dayNames.push(dayName);
 
-    // Keep current clock-time precision for each day ahead (not rounded to midnight)
-    const targetMoment = new Date(now);
-    targetMoment.setDate(now.getDate() + i);
+    // Sample this calendar day at local noon so date labels match the user's clock
+    const targetMoment = calendarDateToLocalNoon(dateString);
 
     let transitPositions = calculatePlanetsForMoment(targetMoment);
     if (transitPositions.length === 0 && seedPositions.length > 0) {

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { BirthData } from "@/components/astrology/BirthChartCalculator";
+import { getLocalCalendarDate } from "@/lib/datetime/local-calendar";
 import { MBTIType } from "@/shared/schema";
 import {
   enrichStorms,
@@ -97,7 +98,8 @@ export function useStorms() {
   const [error, setError] = useState<Error | null>(null);
 
   const buildCacheKey = (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 30) => {
-    return `merlin_storms_v2_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}`;
+    const day = typeof window !== 'undefined' ? getLocalCalendarDate() : 'ssr';
+    return `merlin_storms_v3_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}_${day}`;
   };
 
   const calculateStorms = useCallback(
@@ -105,6 +107,7 @@ export function useStorms() {
       setLoading(true);
       setError(null);
       const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
+      const clientDate = getLocalCalendarDate();
 
       try {
         const cacheKey = buildCacheKey(birthData, mbtiType, daysAhead);
@@ -134,6 +137,7 @@ export function useStorms() {
             lat: birthData.latitude,
             lon: birthData.longitude,
             timezoneOffset: timezoneOffsetHours,
+            clientDate,
             mbtiType: mbtiType ?? null,
             daysAhead,
           }),

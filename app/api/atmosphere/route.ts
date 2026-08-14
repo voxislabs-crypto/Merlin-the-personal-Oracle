@@ -230,7 +230,11 @@ export async function POST(request: Request) {
         windowDays,
       }),
       Promise.resolve(getTodaysForecast(natalChart, targetDate)),
-      Promise.resolve(predictStorms(natalChart, Math.min(Number(windowDays) || 30, 45), parsedMbti)),
+      Promise.resolve(
+        predictStorms(natalChart, Math.min(Number(windowDays) || 30, 45), parsedMbti, {
+          clientDate: targetDate,
+        }),
+      ),
     ]);
 
     const emptyResonanceProfile: Awaited<ReturnType<typeof getResonanceWeightsProfile>> = {
