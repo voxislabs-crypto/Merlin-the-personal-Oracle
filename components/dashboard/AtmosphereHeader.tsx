@@ -44,7 +44,7 @@ export interface AtmosphereHeaderProps {
   variant?: AtmosphereHeaderVariant;
   loading?: boolean;
   barLabel?: string;
-  /** First name for "Good evening, Kai" */
+  /** First name for "Good evening, Kao" */
   firstName?: string | null;
   /** Life-risk packet for domain strip + risk % */
   risk?: LifeRiskPacket | null;

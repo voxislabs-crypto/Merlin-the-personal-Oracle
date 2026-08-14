@@ -1,6 +1,6 @@
 /**
  * Resolve a short display first name from a Clerk user for greetings.
- * "Kai" in docs/examples is illustrative only — never hardcode a name in UI.
+ * "Kao" in docs/examples is illustrative only — never hardcode a name in UI.
  */
 
 export type ClerkNameSource = {

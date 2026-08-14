@@ -37,7 +37,7 @@ describe('domain-strip', () => {
   it('builds time-of-day greeting', () => {
     const morning = new Date('2026-08-05T09:00:00');
     expect(timeOfDayGreeting(morning)).toBe('morning');
-    expect(buildPersonalGreeting('Kai', morning)).toBe('Good morning, Kai');
+    expect(buildPersonalGreeting('Kao', morning)).toBe('Good morning, Kao');
     expect(buildPersonalGreeting(null, morning)).toBe('Good morning');
   });
 });

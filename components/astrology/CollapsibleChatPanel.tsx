@@ -20,6 +20,8 @@ import {
   Check,
   BookmarkPlus,
   Circle,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
@@ -41,6 +43,7 @@ import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 import { OracleRichText } from '@/components/astrology/OracleRichText';
 import { ORACLE_SEVERITY_SHELL, scoreOracleSeverity } from '@/lib/oracle-rich-text';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -144,6 +147,8 @@ export function CollapsibleChatPanel({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  /** Text already in the box when mic starts — speech appends after it */
+  const voiceBaseInputRef = useRef('');
   const { sendOracleMessage } = useOracleChatStream();
   const freeQuotaExhausted =
     oracleQuota?.limit != null && (oracleQuota.remaining ?? 0) <= 0;
@@ -151,6 +156,26 @@ export function CollapsibleChatPanel({
     oracleQuota?.limit != null
       ? `${Math.max(0, oracleQuota.remaining ?? 0)} of ${oracleQuota.limit} free messages left today`
       : null;
+
+  const handleVoiceTranscript = useCallback((transcript: string) => {
+    const base = voiceBaseInputRef.current.trim();
+    const spoken = transcript.trim();
+    if (!spoken) {
+      setInput(base);
+      return;
+    }
+    setInput(base ? `${base} ${spoken}` : spoken);
+  }, []);
+
+  const {
+    isListening,
+    isSupported: micSupported,
+    errorMessage: micError,
+    start: startListening,
+    stop: stopListening,
+  } = useSpeechRecognition({
+    onTranscript: handleVoiceTranscript,
+  });
   
   // Create a ref to the global audio element for VoiceAvatar visualization
   const globalAudioRef = useRef<HTMLAudioElement | null>(
@@ -610,10 +635,39 @@ export function CollapsibleChatPanel({
     }
   }, [messages, isSpeaking]);
 
+  const handleMicClick = useCallback(() => {
+    if (isLoading || freeQuotaExhausted) return;
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    // Pause Merlin TTS so the mic doesn't fight speaker audio
+    if (playingMessageId || isSpeaking || isPaused || isTTSLoading) {
+      stopCurrentSpeech();
+    }
+    voiceBaseInputRef.current = input;
+    startListening();
+  }, [
+    freeQuotaExhausted,
+    input,
+    isListening,
+    isLoading,
+    isPaused,
+    isSpeaking,
+    isTTSLoading,
+    playingMessageId,
+    startListening,
+    stopCurrentSpeech,
+    stopListening,
+  ]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim() || isLoading || freeQuotaExhausted) return;
 
+    if (isListening) {
+      stopListening();
+    }
     if (playingMessageId || isSpeaking || isPaused || isTTSLoading) {
       stopCurrentSpeech();
     }
@@ -629,6 +683,7 @@ export function CollapsibleChatPanel({
     setMessages((prev: Message[]) => [...prev, userMessage]);
     onUserMessageSent?.(userMessage.content);
     setInput('');
+    voiceBaseInputRef.current = '';
     setActiveDraftLabel(null);
     setIsLoading(true);
     setStreamingContent('');
@@ -1237,21 +1292,56 @@ export function CollapsibleChatPanel({
             </button>
           </div>
         ) : null}
+        {micError ? (
+          <p className="text-[11px] text-rose-300/90" role="status">
+            {micError}
+          </p>
+        ) : isListening ? (
+          <p className="text-[11px] text-sky-300/90" role="status">
+            Listening… tap the mic when you&apos;re done
+          </p>
+        ) : null}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-            placeholder={freeQuotaExhausted ? 'Daily free limit reached' : 'Ask Merlin…'}
+            placeholder={
+              freeQuotaExhausted
+                ? 'Daily free limit reached'
+                : isListening
+                  ? 'Listening…'
+                  : 'Ask Merlin…'
+            }
             disabled={isLoading || freeQuotaExhausted}
             className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500/50 focus:outline-none disabled:opacity-50"
+            aria-label="Message Merlin"
           />
+          {micSupported ? (
+            <Button
+              type="button"
+              onClick={handleMicClick}
+              disabled={isLoading || freeQuotaExhausted}
+              className={`shrink-0 rounded-xl px-3 ${
+                isListening
+                  ? 'bg-rose-600 text-white hover:bg-rose-500 animate-pulse'
+                  : 'bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-600'
+              }`}
+              size="sm"
+              title={isListening ? 'Stop listening' : 'Speak to Merlin'}
+              aria-label={isListening ? 'Stop listening' : 'Speak to Merlin'}
+              aria-pressed={isListening}
+            >
+              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+            </Button>
+          ) : null}
           <Button
             type="submit"
             disabled={!input.trim() || isLoading || freeQuotaExhausted}
             className="shrink-0 rounded-xl bg-sky-600 px-3 text-white hover:bg-sky-500"
             size="sm"
+            aria-label="Send message"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </Button>

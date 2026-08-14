@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles } from 'lucide-react';
+import { Send, Loader2, ChevronDown, X, Volume2, VolumeX, Eye, Sparkles, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceAvatar } from '@/components/astrology/VoiceAvatar';
@@ -20,6 +20,7 @@ import {
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 import { OracleRichText } from '@/components/astrology/OracleRichText';
 import { ORACLE_SEVERITY_SHELL, scoreOracleSeverity } from '@/lib/oracle-rich-text';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -77,6 +78,8 @@ export function OracleChat({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  /** Text already in the box when mic starts — speech appends after it */
+  const voiceBaseInputRef = useRef('');
   const { sendOracleMessage } = useOracleChatStream();
   const freeQuotaExhausted =
     oracleQuota?.limit != null && (oracleQuota.remaining ?? 0) <= 0;
@@ -84,6 +87,43 @@ export function OracleChat({
     oracleQuota?.limit != null
       ? `${Math.max(0, oracleQuota.remaining ?? 0)} of ${oracleQuota.limit} free messages left today`
       : null;
+
+  const handleVoiceTranscript = useCallback((transcript: string) => {
+    const base = voiceBaseInputRef.current.trim();
+    const spoken = transcript.trim();
+    if (!spoken) {
+      setInput(base);
+      return;
+    }
+    setInput(base ? `${base} ${spoken}` : spoken);
+  }, []);
+
+  const {
+    isListening,
+    isSupported: micSupported,
+    errorMessage: micError,
+    start: startListening,
+    stop: stopListening,
+  } = useSpeechRecognition({
+    onTranscript: handleVoiceTranscript,
+  });
+
+  const handleMicClick = useCallback(() => {
+    if (isLoading || freeQuotaExhausted) return;
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    // Stop TTS playback so the mic has a clean channel
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setIsSpeaking(false);
+      setPlayingMessageId(null);
+    }
+    voiceBaseInputRef.current = input;
+    startListening();
+  }, [freeQuotaExhausted, input, isListening, isLoading, startListening, stopListening]);
 
   // Check if user is near the bottom of the chat
   const checkIfNearBottom = useCallback(() => {
@@ -265,6 +305,10 @@ export function OracleChat({
     e.preventDefault();
     if (!input.trim() || isLoading || freeQuotaExhausted) return;
 
+    if (isListening) {
+      stopListening();
+    }
+
     const questionText = input;
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -275,6 +319,7 @@ export function OracleChat({
 
     setMessages((prev: Message[]) => [...prev, userMessage]);
     setInput('');
+    voiceBaseInputRef.current = '';
     setIsLoading(true);
     setStreamingContent('');
     setIsNearBottom(true); // Force scroll on new user message
@@ -781,21 +826,56 @@ export function OracleChat({
             )}
           </div>
         ) : null}
+        {micError ? (
+          <p className="text-[11px] text-rose-300/90" role="status">
+            {micError}
+          </p>
+        ) : isListening ? (
+          <p className="text-[11px] text-purple-300/90" role="status">
+            Listening… tap the mic when you&apos;re done
+          </p>
+        ) : null}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-            placeholder={freeQuotaExhausted ? 'Daily free limit reached' : 'Ask your question...'}
+            placeholder={
+              freeQuotaExhausted
+                ? 'Daily free limit reached'
+                : isListening
+                  ? 'Listening…'
+                  : 'Ask your question...'
+            }
             disabled={isLoading || freeQuotaExhausted}
             className="flex-1 bg-slate-800/50 border border-purple-500/30 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/60 disabled:opacity-50"
+            aria-label="Message Merlin"
           />
+          {micSupported ? (
+            <Button
+              type="button"
+              onClick={handleMicClick}
+              disabled={isLoading || freeQuotaExhausted}
+              className={
+                isListening
+                  ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                  : 'bg-slate-700 hover:bg-slate-600 text-slate-100 border border-purple-500/30'
+              }
+              size="sm"
+              title={isListening ? 'Stop listening' : 'Speak to Merlin'}
+              aria-label={isListening ? 'Stop listening' : 'Speak to Merlin'}
+              aria-pressed={isListening}
+            >
+              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+            </Button>
+          ) : null}
           <Button
             type="submit"
             disabled={!input.trim() || isLoading || freeQuotaExhausted}
             className="bg-purple-600 hover:bg-purple-700 text-white"
             size="sm"
+            aria-label="Send message"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </Button>
