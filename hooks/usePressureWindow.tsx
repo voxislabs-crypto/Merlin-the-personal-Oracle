@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 import type { AtmospherePatternProfile } from '@/lib/atmosphere/pattern-types';
 import type { ExplainabilityPacket } from '@/types/astrology';
 
@@ -87,6 +88,7 @@ export function usePressureWindow() {
             lat: birthData.latitude,
             lon: birthData.longitude,
             timezoneOffset: timezoneOffsetHours,
+            clientDate: getLocalCalendarDate(),
             mbtiType: options?.mbtiType,
             userId: options?.userId,
             windowDays: options?.windowDays ?? 30,

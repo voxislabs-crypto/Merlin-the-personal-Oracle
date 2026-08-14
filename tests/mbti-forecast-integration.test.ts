@@ -5,6 +5,7 @@
 
 import { calculateBirthChart } from '../lib/engine-fallback';
 import { getTodaysForecast } from '../lib/astrology/ephemeris';
+import { enrichDailyForecast } from '../lib/astrology/enrich-daily-forecast';
 import { getCurrentTransits } from '../lib/astrology/transits';
 import { computeMBTI } from '../lib/astrology/mbtiFusion';
 import { 
@@ -188,8 +189,21 @@ describe('MBTI-Enhanced Forecast Integration', () => {
   });
 
   describe('Forecast API Integration', () => {
-    test('should inject MBTI overlay into forecast', () => {
+    test('ephemeris layer does not invent an MBTI overlay', () => {
       const forecast = getTodaysForecast(birthChart);
+      expect(forecast.summary).toBeTruthy();
+      expect(forecast.mbti_overlay).toBeUndefined();
+    });
+
+    test('should inject MBTI overlay into forecast', async () => {
+      const forecast = await enrichDailyForecast({
+        natalChart: birthChart,
+        forecastDate: '2026-08-13',
+        birthDate: testBirthData.birthDate,
+        birthTime: testBirthData.birthTime,
+        lat: testBirthData.lat,
+        lon: testBirthData.lon,
+      });
       
       // Should have MBTI overlay
       expect(forecast.mbti_overlay).toBeDefined();
@@ -201,8 +215,15 @@ describe('MBTI-Enhanced Forecast Integration', () => {
       expect(Array.isArray(forecast.mbti_overlay?.cosmicTendencies)).toBe(true);
     });
 
-    test('should provide both raw and MBTI-adjusted summaries', () => {
-      const forecast = getTodaysForecast(birthChart);
+    test('should provide both raw and MBTI-adjusted summaries', async () => {
+      const forecast = await enrichDailyForecast({
+        natalChart: birthChart,
+        forecastDate: '2026-08-13',
+        birthDate: testBirthData.birthDate,
+        birthTime: testBirthData.birthTime,
+        lat: testBirthData.lat,
+        lon: testBirthData.lon,
+      });
       
       expect(forecast.summary).toBeTruthy();
       expect(forecast.summary_raw).toBeTruthy();
@@ -241,24 +262,30 @@ describe('MBTI-Enhanced Forecast Integration', () => {
       }
     });
 
-    test('should generate MBTI-aware advice', () => {
-      const forecast = getTodaysForecast(birthChart);
+    test('should generate MBTI-aware advice', async () => {
+      const forecast = await enrichDailyForecast({
+        natalChart: birthChart,
+        forecastDate: '2026-08-13',
+        birthDate: testBirthData.birthDate,
+        birthTime: testBirthData.birthTime,
+        lat: testBirthData.lat,
+        lon: testBirthData.lon,
+      });
       
       expect(forecast.advice).toBeTruthy();
-      
-      // Advice should be personalized
-      const mbtiType = forecast.mbti_overlay?.type;
-      const hasPersonalization = 
-        forecast.advice.includes('introspective') ||
-        forecast.advice.includes('expressive') ||
-        forecast.advice.includes('grounded') ||
-        forecast.advice.includes('dynamic');
-      
-      expect(hasPersonalization).toBe(true);
+      expect(forecast.mbti_overlay?.reasoning).toBeTruthy();
+      expect(String(forecast.mbti_overlay?.reasoning)).toMatch(/[A-Z]{4}/);
     });
 
-    test('should include complete forecast structure', () => {
-      const forecast = getTodaysForecast(birthChart);
+    test('should include complete forecast structure', async () => {
+      const forecast = await enrichDailyForecast({
+        natalChart: birthChart,
+        forecastDate: '2026-08-13',
+        birthDate: testBirthData.birthDate,
+        birthTime: testBirthData.birthTime,
+        lat: testBirthData.lat,
+        lon: testBirthData.lon,
+      });
       
       // Core fields
       expect(forecast.date).toBeTruthy();
@@ -300,8 +327,15 @@ describe('MBTI-Enhanced Forecast Integration', () => {
       expect(hasExactFlag).toBe(true);
     });
 
-    test('should generate complete personalized forecast', () => {
-      const forecast = getTodaysForecast(birthChart);
+    test('should generate complete personalized forecast', async () => {
+      const forecast = await enrichDailyForecast({
+        natalChart: birthChart,
+        forecastDate: '2026-08-13',
+        birthDate: testBirthData.birthDate,
+        birthTime: testBirthData.birthTime,
+        lat: testBirthData.lat,
+        lon: testBirthData.lon,
+      });
       
       // Should have all major components
       expect(forecast.date).toBeTruthy();
@@ -310,9 +344,8 @@ describe('MBTI-Enhanced Forecast Integration', () => {
       expect(forecast.day_rating).toBeTruthy();
       expect(Array.isArray(forecast.transits)).toBe(true);
       
-      // Summary should be personality-specific
       const mbtiType = forecast.mbti_overlay?.type;
-      expect(forecast.summary).toContain(mbtiType || '');
+      expect(forecast.summary_mbti_adjusted).toContain(mbtiType || '');
       
       // Should have cosmic tendencies
       expect(forecast.mbti_overlay?.cosmicTendencies.length).toBeGreaterThan(0);

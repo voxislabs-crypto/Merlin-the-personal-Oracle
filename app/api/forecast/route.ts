@@ -1,27 +1,10 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
-import { getTodaysForecast, realignSummaryToDayRating } from '@/lib/astrology/ephemeris';
-import { generateDailyForecast } from '@/lib/transit-calculator';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
-import { sanitizeCopyText } from '@/lib/safety/copy-safety';
-import {
-  calendarDateToLocalNoon,
-  resolveForecastTargetDate,
-} from '@/lib/datetime/local-calendar';
-import type { MBTIType } from '@/lib/mbti-system';
-
-const VALID_MBTI_TYPES = new Set<string>([
-  'INFJ', 'INFP', 'INTJ', 'INTP', 'ISFJ', 'ISFP', 'ISTJ', 'ISTP',
-  'ENFJ', 'ENFP', 'ENTJ', 'ENTP', 'ESFJ', 'ESFP', 'ESTJ', 'ESTP',
-]);
-
-function parseMbtiType(value: unknown): MBTIType | undefined {
-  if (typeof value !== 'string') return undefined;
-  const normalized = value.toUpperCase();
-  return VALID_MBTI_TYPES.has(normalized) ? (normalized as MBTIType) : undefined;
-}
+import { resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
+import { enrichDailyForecast } from '@/lib/astrology/enrich-daily-forecast';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -47,39 +30,6 @@ function normalizeUtcBirth(
     .padStart(2, '0')}`;
 
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
-}
-
-type SanitizableForecastOutput = {
-  summary?: unknown;
-  advice?: unknown;
-  transits?: unknown;
-  planetaryHighlights?: unknown;
-};
-
-function sanitizeForecastOutput<T extends SanitizableForecastOutput>(input: T): T {
-  const output: T = { ...input };
-
-  if (typeof output.summary === 'string') {
-    output.summary = sanitizeCopyText(output.summary);
-  }
-
-  if (typeof output.advice === 'string') {
-    output.advice = sanitizeCopyText(output.advice);
-  }
-
-  if (Array.isArray(output.transits)) {
-    output.transits = output.transits.map((entry) =>
-      typeof entry === 'string' ? sanitizeCopyText(entry) : entry
-    );
-  }
-
-  if (Array.isArray(output.planetaryHighlights)) {
-    output.planetaryHighlights = output.planetaryHighlights.map((entry) =>
-      typeof entry === 'string' ? sanitizeCopyText(entry) : entry
-    );
-  }
-
-  return output;
 }
 
 export async function POST(request: Request) {
@@ -143,49 +93,20 @@ export async function POST(request: Request) {
     const forecastDate = resolveForecastTargetDate(
       typeof clientDate === 'string' ? clientDate : undefined,
     );
-    const forecast = getTodaysForecast(natalChart, forecastDate);
-
-    // Enrich with transit interpretations (hand-authored + composed) + day_rating + mbti_overlay
-    let enrichedFields: Record<string, unknown> = {};
-    try {
-      const [birthDateStr, birthTimeStr] = [birthDate as string, (birthTime as string) || '12:00'];
-      const [y, mo, d] = birthDateStr.split('-').map(Number);
-      const [h, m] = birthTimeStr.split(':').map(Number);
-      const birthDateObj = new Date(Date.UTC(y, mo - 1, d, h || 12, m || 0));
-      // Same local day as the ephemeris forecast — not bare server `new Date()`
-      const transitAsOf = calendarDateToLocalNoon(forecastDate);
-      const tcForecast = await generateDailyForecast(
-        transitAsOf,
-        { date: birthDateObj, location: { latitude: lat || 0, longitude: lon || 0 } },
-        parseMbtiType(mbtiType),
-        typeof userId === 'string' ? userId : undefined,
-      );
-      enrichedFields = {
-        day_rating: tcForecast.day_rating,           // "green" | "yellow" | "red"
-        mbti_overlay: tcForecast.mbti_overlay,       // per-type guidance
-        primaryTheme: tcForecast.primaryTheme,       // e.g. "transformation"
-        secondaryThemes: tcForecast.secondaryThemes, // supporting themes
-        transitLookup: tcForecast.transits,          // full 28-aspect transits with do/don't
-      };
-      if (tcForecast.day_rating && forecast.summary) {
-        const natalSunSign =
-          forecast.sunSign ||
-          natalChart.positions?.find((p) => p.name === 'Sun')?.sign ||
-          natalChart.planets?.find((p) => p.name === 'Sun')?.sign ||
-          'Unknown';
-        enrichedFields.summary = realignSummaryToDayRating(
-          forecast.summary,
-          tcForecast.day_rating,
-          natalSunSign
-        );
-      }
-      console.log('[Forecast] Transit-lookup enriched with', tcForecast.transits.length, 'aspects');
-    } catch (tcErr) {
-      console.warn('[Forecast] Transit-lookup enrichment skipped:', tcErr instanceof Error ? tcErr.message : tcErr);
-    }
-
+    const safeForecast = {
+      ...(await enrichDailyForecast({
+        natalChart,
+        forecastDate,
+        birthDate,
+        birthTime,
+        lat,
+        lon,
+        mbtiType,
+        userId: typeof userId === 'string' ? userId : undefined,
+      })),
+      timezoneOffsetHours: appliedOffsetHours,
+    };
     console.log('Successfully generated forecast');
-    const safeForecast = sanitizeForecastOutput({ ...forecast, ...enrichedFields, timezoneOffsetHours: appliedOffsetHours });
     return NextResponse.json({
       success: true,
       source,

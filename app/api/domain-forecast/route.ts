@@ -7,6 +7,7 @@ import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
 import type { BirthChartData, DomainScore } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
+import { addCalendarDays, resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
 
 function normalizeUtcBirth(birthDate: string, birthTime: string, timezoneOffset?: number) {
   if (typeof timezoneOffset !== 'number' || Number.isNaN(timezoneOffset)) {
@@ -30,14 +31,11 @@ function normalizeUtcBirth(birthDate: string, birthTime: string, timezoneOffset?
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
 }
 
-function buildDailyDomainSeries(days: number, baseline: DomainScore[]) {
-  return Array.from({ length: days }).map((_, idx) => {
-    const date = new Date(Date.now() + idx * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    return {
-      date,
-      domains: baseline,
-    };
-  });
+function buildDailyDomainSeries(days: number, baseline: DomainScore[], startDate: string) {
+  return Array.from({ length: days }).map((_, idx) => ({
+    date: addCalendarDays(startDate, idx),
+    domains: baseline,
+  }));
 }
 
 export async function POST(request: Request) {
@@ -55,7 +53,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, windowDays = 7 } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, windowDays = 7, clientDate } = body;
 
     if (!birthDate || !birthTime) {
       return NextResponse.json({ success: false, error: 'Missing birth date or time' }, { status: 400 });
@@ -121,7 +119,11 @@ export async function POST(request: Request) {
         generatedAt: new Date().toISOString(),
         windowDays,
         domains: explainability.domainScores,
-        daily: buildDailyDomainSeries(windowDays, explainability.domainScores),
+        daily: buildDailyDomainSeries(
+          windowDays,
+          explainability.domainScores,
+          resolveForecastTargetDate(typeof clientDate === 'string' ? clientDate : undefined),
+        ),
       },
     });
   } catch (error) {

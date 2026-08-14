@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { BirthChart } from '@/components/astrology/BirthChart';
@@ -10,7 +11,6 @@ import { DailyForecast } from '@/components/astrology/DailyForecast';
 import { ActiveTransits } from '@/components/astrology/ActiveTransits';
 import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
 import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
-import { WeeklyCalendar } from '@/components/astrology/WeeklyCalendar';
 import { StormsAndNavigations } from '@/components/astrology/StormsAndNavigations';
 import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
@@ -27,10 +27,20 @@ import { ChartIdentityBrief } from '@/components/dashboard/ChartIdentityBrief';
 import { ForecastDetailsSection } from '@/components/dashboard/ForecastDetailsSection';
 import { HomeTabPanel } from '@/components/dashboard/panels/HomeTabPanel';
 import { NumerologyTabPanel } from '@/components/dashboard/panels/NumerologyTabPanel';
+
+const ForecastTabPanel = dynamic(
+  () =>
+    import('@/components/dashboard/panels/ForecastTabPanel').then((mod) => mod.ForecastTabPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-48 animate-pulse rounded-2xl border border-white/10 bg-slate-900/40" />
+    ),
+  },
+);
 import { WeatherShell } from '@/components/dashboard/shells/WeatherShell';
 import { SelfShell } from '@/components/dashboard/shells/SelfShell';
 import { TodayWeatherBrief } from '@/components/dashboard/TodayWeatherBrief';
-import { LifeRiskRadar } from '@/components/dashboard/LifeRiskRadar';
 import { ActiveStorylinePanel } from '@/components/dashboard/ActiveStorylinePanel';
 import {
   WheelDetailTabs,
@@ -51,7 +61,7 @@ import { IdentityPatternCard } from '@/components/astrology/IdentityPatternCard'
 import { ProgressPathCard } from '@/components/astrology/ProgressPathCard';
 import { DailyOraclePulse } from '@/components/astrology/DailyOraclePulse';
 import { PatternMirrorPanel } from '@/components/astrology/PatternMirrorPanel';
-import QuestLog from '@/components/astrology/QuestLog';
+
 import { DeepDivePanel } from '@/components/DeepDivePanel';
 import { useInterpretations } from '@/hooks/useInterpretations';
 import { useForecast } from '@/hooks/useForecast';
@@ -317,7 +327,7 @@ export default function UnifiedDashboard() {
     calculateDomainForecast,
   } = useDomainForecast();
   const { lifeArc, loading: lifeArcLoading, calculateLifeArc } = useLifeArc();
-  const { weeklyForecast, loading: weeklyLoading, calculateWeeklyForecast } = useWeeklyForecast();
+  const { weeklyForecast, loading: weeklyLoading, error: weeklyError, calculateWeeklyForecast } = useWeeklyForecast();
   const { stormsReport, loading: stormsLoading, calculateStorms } = useStorms();
   const { returnsPacket, loading: returnsLoading, calculateReturns } = useReturns();
   const {
@@ -3238,137 +3248,44 @@ export default function UnifiedDashboard() {
                 ) : null}
 
                 {dashboardTab === 'forecast' ? (
-                  <WeatherShell className="space-y-5">
-                    {/* 1. Transit impact radar — score first, story second */}
-                    <div ref={storySectionRef}>
-                      <LifeRiskRadar
-                        risk={activeAtmospherePacket?.risk}
-                        loading={
-                          (forecastLoading || atmosphereLoading) &&
-                          !activeAtmospherePacket?.risk
-                        }
-                        onAskAboutRisk={() => {
-                          const risk = activeAtmospherePacket?.risk;
-                          const driver = risk?.topDrivers?.[0]?.label;
-                          const peak = risk?.nextFrictionPeak?.label;
-                          queueAskContext(
-                            'Transit risk',
-                            risk
-                              ? `Score-first read: level ${risk.level}, friction ${risk.overallFriction}/100, elevatedDisruption=${risk.elevatedDisruption}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
-                              : 'What hard transit windows should I prepare for this week, and is life friction elevated for my chart?',
-                          );
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDashboardTab('home')}
-                        className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"
-                      >
-                        ← Back to Today
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAskAboutToday}
-                        className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
-                      >
-                        Ask Merlin about the horizon
-                      </button>
-                    </div>
-
-                    {/* 2. Storms + week timeline — primary operational detail */}
-                    <div className="overflow-hidden rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-950/30 via-slate-950/55 to-slate-950/60 shadow-lg shadow-rose-950/20 backdrop-blur-md">
-                      <button
-                        type="button"
-                        onClick={() => setForecastRadarOpen((o) => !o)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-900/50"
-                        aria-expanded={forecastRadarOpen}
-                      >
-                        <div>
-                          <p className="text-[10px] uppercase tracking-[0.22em] text-rose-300/70">
-                            Operational
-                          </p>
-                          <p className="text-sm font-semibold text-slate-200">
-                            Storm detail &amp; 7-day timeline
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Challenging windows, prep, day-by-day scan
-                          </p>
-                        </div>
-                        <span className="text-xs font-medium text-slate-400">
-                          {forecastRadarOpen ? 'Hide' : 'Show'}
-                        </span>
-                      </button>
-                      {forecastRadarOpen ? (
-                        <div className="space-y-5 border-t border-white/5 px-4 pb-5 pt-4">
-                          <div
-                            ref={stormSectionRef}
-                            className="rounded-xl border border-rose-400/25 bg-rose-950/20 p-4"
-                          >
-                            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <h3 className="text-sm font-semibold text-rose-200">Storm radar</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">
-                                  Hard-aspect pressure windows tied to your chart.
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  queueAskContext(
-                                    'Storm Radar',
-                                    'What pressure windows should I prepare for in the next two weeks, and how should I respond?',
-                                  )
-                                }
-                                className="rounded-full border border-rose-300/35 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20"
-                              >
-                                Ask about storms
-                              </button>
-                            </div>
-                            <StormsAndNavigations
-                              report={stormsReport}
-                              loading={stormsLoading}
-                              mbtiType={mbtiType ?? undefined}
-                              selectedDate={horizonSelectedDate}
-                              onSelectedDateChange={setHorizonSelectedDate}
-                            />
-                          </div>
-
-                          {modulePreferences.weeklyForecast ? (
-                            <div
-                              ref={weeklySectionRef}
-                              className="rounded-xl border border-amber-500/15 bg-slate-900/40 p-4"
-                            >
-                              <h3 className="text-sm font-semibold text-amber-200 mb-3">
-                                7-day timeline
-                              </h3>
-                              <p className="mb-3 text-xs text-slate-500">
-                                Linked to the storm date picker above — click a day in either place.
-                              </p>
-                              <WeeklyCalendar
-                                week={weeklyForecast?.week || []}
-                                loading={weeklyLoading}
-                                selectedDate={horizonSelectedDate}
-                                onSelectDate={setHorizonSelectedDate}
-                              />
-                              <div className="mt-4">
-                                <QuestLog
-                                  enabled={questLogEnabled}
-                                  chartData={chartData}
-                                  transits={transits}
-                                  forecast={forecast}
-                                  mbtiType={mbtiType || undefined}
-                                  userId={userId || undefined}
-                                />
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-
+                  <ForecastTabPanel
+                    storySectionRef={storySectionRef}
+                    stormSectionRef={stormSectionRef}
+                    weeklySectionRef={weeklySectionRef}
+                    risk={activeAtmospherePacket?.risk}
+                    riskLoading={
+                      (forecastLoading || atmosphereLoading) && !activeAtmospherePacket?.risk
+                    }
+                    onAskAboutRisk={() => {
+                      const risk = activeAtmospherePacket?.risk;
+                      const driver = risk?.topDrivers?.[0]?.label;
+                      const peak = risk?.nextFrictionPeak?.label;
+                      queueAskContext(
+                        'Transit risk',
+                        risk
+                          ? `Score-first read: level ${risk.level}, friction ${risk.overallFriction}/100, elevatedDisruption=${risk.elevatedDisruption}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
+                          : 'What hard transit windows should I prepare for this week, and is life friction elevated for my chart?',
+                      );
+                    }}
+                    onBackToToday={() => setDashboardTab('home')}
+                    onAskAboutHorizon={handleAskAboutToday}
+                    forecastRadarOpen={forecastRadarOpen}
+                    onForecastRadarOpenChange={setForecastRadarOpen}
+                    stormsReport={stormsReport}
+                    stormsLoading={stormsLoading}
+                    mbtiType={mbtiType ?? undefined}
+                    horizonSelectedDate={horizonSelectedDate}
+                    onHorizonSelectedDateChange={setHorizonSelectedDate}
+                    showWeeklyForecast={modulePreferences.weeklyForecast}
+                    weeklyForecast={weeklyForecast}
+                    weeklyLoading={weeklyLoading}
+                    weeklyError={weeklyError}
+                    questLogEnabled={questLogEnabled}
+                    chartData={chartData}
+                    transits={transits}
+                    forecast={forecast}
+                    userId={userId || undefined}
+                  >
                     {/* 3. Narrative / storyline — demoted (optional depth) */}
                     {(interpretations?.confluence?.length ||
                       interpretations?.transitWindows?.length ||
@@ -4025,7 +3942,7 @@ export default function UnifiedDashboard() {
                         </div>
                       ) : null}
                     </div>
-                  </WeatherShell>
+                  </ForecastTabPanel>
                 ) : null}
               </motion.div>
               </div>

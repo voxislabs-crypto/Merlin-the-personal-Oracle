@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon } = body;
+    const { birthDate, birthTime, lat, lon, clientDate } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -53,8 +53,9 @@ export async function POST(request: Request) {
       ) as BirthChartData;
     }
 
-    // Generate weekly whispers
-    const weeklyForecast = getWeeklyWhispers(natalChart);
+    const weeklyForecast = getWeeklyWhispers(natalChart, {
+      clientDate: typeof clientDate === 'string' ? clientDate : undefined,
+    });
 
     console.log('[Weekly] Successfully generated weekly forecast');
     return NextResponse.json({

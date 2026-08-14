@@ -3,6 +3,11 @@ import "server-only";
 import { calculateBirthChart } from '../engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '../engine-fallback';
 import { BirthChartData, PlanetPosition } from '../../types/astrology';
+import {
+  addCalendarDays,
+  calendarDateToLocalNoon,
+  resolveForecastTargetDate,
+} from '@/lib/datetime/local-calendar';
 
 export interface DayWhisper {
   day: string; // "Monday", "Tuesday", etc.
@@ -20,22 +25,21 @@ export interface WeeklyForecast {
  * Generate transit-based whispers for the week ahead
  * Each day gets one line. No fluff. Just the compass.
  */
-export function getWeeklyWhispers(birthChart: BirthChartData): WeeklyForecast {
+export function getWeeklyWhispers(
+  birthChart: BirthChartData,
+  options?: { clientDate?: string | null },
+): WeeklyForecast {
   const week: DayWhisper[] = [];
-  const today = new Date();
-  
+  const todayStr = resolveForecastTargetDate(options?.clientDate);
   // Start 3 days before today, so today is always centered
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 3);
+  const startDate = addCalendarDays(todayStr, -3);
   
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   
   for (let i = 0; i < 7; i++) {
-    const currentDay = new Date(startDate);
-    currentDay.setDate(currentDay.getDate() + i);
-    
+    const dateString = addCalendarDays(startDate, i);
+    const currentDay = calendarDateToLocalNoon(dateString);
     const dayName = dayNames[currentDay.getDay()];
-    const dateString = currentDay.toISOString().split('T')[0];
     
     // Calculate transit chart for this day (with fallback)
     let transitChart: BirthChartData;
@@ -66,13 +70,10 @@ export function getWeeklyWhispers(birthChart: BirthChartData): WeeklyForecast {
     });
   }
   
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
-  
   return {
     week,
-    startDate: startDate.toISOString().split('T')[0],
-    endDate: endDate.toISOString().split('T')[0]
+    startDate,
+    endDate: addCalendarDays(startDate, 6),
   };
 }
 

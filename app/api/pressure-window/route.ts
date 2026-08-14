@@ -8,6 +8,7 @@ import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/a
 import { getAtmospherePatternProfile } from '@/lib/atmosphere/pattern-store.server';
 import type { BirthChartData, TransitDriver } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
+import { calendarDateToLocalNoon, resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
 
 function normalizeUtcBirth(birthDate: string, birthTime: string, timezoneOffset?: number) {
   if (typeof timezoneOffset !== 'number' || Number.isNaN(timezoneOffset)) {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, windowDays = 30 } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, windowDays = 30, clientDate } = body;
 
     if (!birthDate || !birthTime) {
       return NextResponse.json({ success: false, error: 'Missing birth date or time' }, { status: 400 });
@@ -81,12 +82,16 @@ export async function POST(request: Request) {
       console.warn('[PressureWindow] Swiss failed, using fallback:', error);
     }
 
+    const targetDate = resolveForecastTargetDate(
+      typeof clientDate === 'string' ? clientDate : undefined,
+    );
     const predictive = await buildPredictiveTransitBundle({
       natalPlanets: natalChart.positions || [],
       birthDate,
       mbtiType,
       userId,
       windowDays,
+      now: calendarDateToLocalNoon(targetDate),
     });
 
     const emptyResonanceProfile: Awaited<ReturnType<typeof getResonanceWeightsProfile>> = {

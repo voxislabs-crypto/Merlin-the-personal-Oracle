@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 import type { DomainScore } from '@/types/astrology';
 
 export interface DomainForecastData {
@@ -38,6 +39,7 @@ export function useDomainForecast() {
             lat: birthData.latitude,
             lon: birthData.longitude,
             timezoneOffset: timezoneOffsetHours,
+            clientDate: getLocalCalendarDate(),
             mbtiType: options?.mbtiType,
             userId: options?.userId,
             windowDays: options?.windowDays,

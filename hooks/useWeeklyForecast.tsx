@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 
 export interface DayWhisper {
   day: string;
@@ -24,6 +25,7 @@ export function useWeeklyForecast() {
       setError(null);
 
       try {
+        const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
         const response = await fetch('/api/weekly-forecast', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -31,7 +33,9 @@ export function useWeeklyForecast() {
             birthDate: birthData.date,
             birthTime: birthData.time,
             lat: birthData.latitude,
-            lon: birthData.longitude
+            lon: birthData.longitude,
+            timezoneOffset: timezoneOffsetHours,
+            clientDate: getLocalCalendarDate(),
           })
         });
 
