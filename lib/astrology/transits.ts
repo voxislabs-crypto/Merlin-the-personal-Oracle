@@ -97,6 +97,75 @@ export interface TransitMatch {
   tags?: string[];
 }
 
+const PERSONAL_POINTS = new Set(['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Ascendant', 'Rising']);
+
+const PLANET_TAGS: Record<string, string[]> = {
+  Sun: ['identity', 'vitality'],
+  Moon: ['mood', 'daily rhythms'],
+  Mercury: ['communication', 'decisions'],
+  Venus: ['relationships', 'values'],
+  Mars: ['drive', 'initiative'],
+  Jupiter: ['growth', 'expansion'],
+  Saturn: ['structure', 'discipline', 'lesson'],
+  Uranus: ['disruption', 'breakthroughs'],
+  Neptune: ['intuition', 'release'],
+  Pluto: ['transformation', 'power'],
+};
+
+/**
+ * Lightweight enrichment tags for TransitMatch.
+ * Lunar-phase tags live here so the snapshot stays useful even when
+ * the UI prefers predictive.lunarTiming for the hero lunar read.
+ */
+export function buildTransitTags(params: {
+  transitingPlanet: string;
+  natalPlanet: string;
+  aspect: string;
+  orb: number;
+}): string[] {
+  const tags = new Set<string>();
+  const transiting = params.transitingPlanet;
+  const natal = params.natalPlanet;
+  const aspect = params.aspect;
+  const orb = params.orb;
+
+  if (orb < 1) tags.add('exact');
+  if (orb < 1.5 && (transiting === 'Moon' || natal === 'Moon')) tags.add('tight moon');
+
+  const moonSun =
+    (transiting === 'Moon' && natal === 'Sun') || (transiting === 'Sun' && natal === 'Moon');
+  if (moonSun) {
+    tags.add('lunar cycle');
+    if (aspect === 'Conjunction') {
+      tags.add('new beginnings');
+      tags.add('planting seeds');
+    } else if (aspect === 'Opposition') {
+      tags.add('culmination');
+      tags.add('illumination');
+    } else if (aspect === 'Square') {
+      tags.add('growth');
+    } else {
+      tags.add('releasing');
+    }
+  }
+
+  for (const planet of [transiting, natal]) {
+    const extras = PLANET_TAGS[planet];
+    if (extras) extras.forEach((tag) => tags.add(tag));
+  }
+
+  return Array.from(tags);
+}
+
+function transitRank(match: TransitMatch): number {
+  let score = match.orb;
+  if (PERSONAL_POINTS.has(match.transitingPlanet) || PERSONAL_POINTS.has(match.natalPlanet)) {
+    score -= 1.25;
+  }
+  if (match.exact) score -= 0.75;
+  return score;
+}
+
 // Calculate planetary positions for a specific date/time using sweph
 const calculateCurrentPlanets = (asOfDate: Date = new Date()): PlanetPosition[] => {
   const sweph = getSweph();
@@ -207,11 +276,11 @@ export const getTransitsForDate = (
 
   const aspects: TransitMatch[] = [];
   const major = [
-    { type: 'Conjunction', angle: 0, orb: 10 },
-    { type: 'Sextile', angle: 60, orb: 6 },
-    { type: 'Square', angle: 90, orb: 8 },
-    { type: 'Trine', angle: 120, orb: 8 },
-    { type: 'Opposition', angle: 180, orb: 10 },
+    { type: 'Conjunction', angle: 0, orb: 8 },
+    { type: 'Sextile', angle: 60, orb: 4 },
+    { type: 'Square', angle: 90, orb: 6 },
+    { type: 'Trine', angle: 120, orb: 6 },
+    { type: 'Opposition', angle: 180, orb: 8 },
   ];
 
   // Compare current (transiting) positions with natal positions
@@ -247,6 +316,12 @@ export const getTransitsForDate = (
             exact: orbDiff < 1,
             shortDescription,
             description,
+            tags: buildTransitTags({
+              transitingPlanet: trans.name,
+              natalPlanet: natal.name,
+              aspect: asp.type,
+              orb: orbDiff,
+            }),
           };
           aspects.push(aspect);
           console.log(`[transits] Found: ${trans.name} ${asp.type} natal ${natal.name} (orb: ${orbDiff.toFixed(2)}°)`);
@@ -256,14 +331,17 @@ export const getTransitsForDate = (
     }
   }
 
+  aspects.sort((a, b) => transitRank(a) - transitRank(b));
   console.log(`[transits] Total transits found: ${aspects.length}`);
-
 
   return aspects;
 };
 
-export const getCurrentTransits = (natalPlanets: PlanetPosition[]): TransitMatch[] => {
-  return getTransitsForDate(natalPlanets, new Date());
+export const getCurrentTransits = (
+  natalPlanets: PlanetPosition[],
+  asOfDate: Date = new Date(),
+): TransitMatch[] => {
+  return getTransitsForDate(natalPlanets, asOfDate);
 };
 
 // getPlanetId and constants removed (no sweph)

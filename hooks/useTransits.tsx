@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 
 interface PredictiveLifeStage {
   id: string;
@@ -156,6 +157,7 @@ export interface TransitData {
     exact: boolean;
     shortDescription: string;
     description: string;
+    tags?: string[];
   }>;
   significant: Array<{
     transitingPlanet: string;
@@ -247,6 +249,7 @@ export function useTransits() {
           lat: birthData.latitude,
           lon: birthData.longitude,
           timezoneOffset: timezoneOffsetHours,
+          clientDate: getLocalCalendarDate(),
           mbtiType: options?.mbtiType,
           userId: options?.userId,
         })

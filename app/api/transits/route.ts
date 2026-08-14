@@ -19,6 +19,11 @@ import { resonanceDB } from '@/lib/resonance-database';
 import { getUserContextSnapshot } from '@/lib/user-context';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
+import {
+  calendarDateToLocalNoon,
+  isValidCalendarDate,
+  resolveForecastTargetDate,
+} from '@/lib/datetime/local-calendar';
 
 function normalizeUtcBirth(
   birthDate: string,
@@ -164,7 +169,7 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, mbtiType, userId, clientDate } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -229,12 +234,17 @@ export async function POST(request: Request) {
       },
     };
 
+    const asOfDate = calendarDateToLocalNoon(
+      resolveForecastTargetDate(isValidCalendarDate(clientDate) ? clientDate : undefined),
+    );
+
     const [transits, predictiveBase, resonance] = await Promise.all([
-      Promise.resolve(getCurrentTransits(natalChart.positions || [])),
+      Promise.resolve(getCurrentTransits(natalChart.positions || [], asOfDate)),
       buildPredictiveTransitBundle({
         natalPlanets: natalChart.positions || [],
         birthDate,
         mbtiType,
+        now: asOfDate,
         userId,
         userContext,
         windowDays: 7,
