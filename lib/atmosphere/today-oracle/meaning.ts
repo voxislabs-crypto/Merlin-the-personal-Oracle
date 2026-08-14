@@ -309,7 +309,10 @@ export function mergeFactsIntoThemes(facts: TransitFact[]): RankedTheme[] {
   }
 
   const ranked: RankedTheme[] = [];
-  for (const [id, themeFacts] of buckets) {
+  const bucketEntries = Array.from(buckets.entries());
+  for (let i = 0; i < bucketEntries.length; i += 1) {
+    const id = bucketEntries[i][0];
+    const themeFacts = bucketEntries[i][1];
     const spec = THEME_CATALOG[id];
     const score = themeFacts.reduce((sum, fact) => sum + factWeight(fact), 0);
     const domains: LifeRiskDomain[] = [];
