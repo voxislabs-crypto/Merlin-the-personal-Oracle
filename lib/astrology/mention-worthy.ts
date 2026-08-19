@@ -342,7 +342,7 @@ export function groupHorizonHits(
 
   const candidates: MentionCandidate[] = [];
 
-  for (const [eventId, list] of buckets) {
+  for (const [eventId, list] of Array.from(buckets.entries())) {
     const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
     const peak = [...sorted].sort((a, b) => a.orb - b.orb)[0];
     const todaySample = sorted.find((sample) => sample.date === today) || null;
@@ -647,7 +647,7 @@ export function buildThemeClusters(items: MentionWorthyItem[]): ThemeCluster[] {
   }
 
   const clusters: ThemeCluster[] = [];
-  for (const [, members] of grouped) {
+  for (const [, members] of Array.from(grouped.entries())) {
     if (members.length < 2) continue;
     const sorted = [...members].sort((a, b) => b.impact - a.impact);
     const impact = Math.min(

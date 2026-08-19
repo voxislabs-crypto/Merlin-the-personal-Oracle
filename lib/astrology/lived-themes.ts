@@ -457,7 +457,7 @@ export function extractLivedThemes(
 
   const themes: LivedTheme[] = [];
 
-  for (const [key, members] of buckets) {
+  for (const [key, members] of Array.from(buckets.entries())) {
     if (members.length === 0) continue;
     const sources = new Set(members.map((m) => m.signal.source));
     const named = nameTheme(members.map((m) => m.signal));
