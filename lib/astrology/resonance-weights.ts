@@ -89,6 +89,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Feedback here weights *symbolic families* (Saturn themes, Moon themes)
+ * for this person. It must never be treated as "this aspect caused a career event."
+ */
 function extractPlanets(value: string): string[] {
   return KNOWN_PLANETS.filter((planet) => value.includes(planet));
 }

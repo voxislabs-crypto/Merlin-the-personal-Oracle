@@ -95,6 +95,8 @@ export interface TransitMatch {
   shortDescription: string;
   description: string;
   tags?: string[];
+  retrograde?: boolean;
+  speed?: number;
 }
 
 const PERSONAL_POINTS = new Set(['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Ascendant', 'Rising']);
@@ -167,7 +169,7 @@ function transitRank(match: TransitMatch): number {
 }
 
 // Calculate planetary positions for a specific date/time using sweph
-const calculateCurrentPlanets = (asOfDate: Date = new Date()): PlanetPosition[] => {
+export const getTransitingPositions = (asOfDate: Date = new Date()): PlanetPosition[] => {
   const sweph = getSweph();
   if (!sweph) {
     console.warn("[transits] sweph not available, cannot calculate real transits");
@@ -224,6 +226,7 @@ const calculateCurrentPlanets = (asOfDate: Date = new Date()): PlanetPosition[] 
       const longitude = normalizeAngle(result.data[0]);
       const latitude = result.data[1];
       const distance = result.data[2];
+      const speed = typeof result.data[3] === 'number' ? result.data[3] : 0;
 
       // Get zodiac position
       const signs = [
@@ -240,6 +243,8 @@ const calculateCurrentPlanets = (asOfDate: Date = new Date()): PlanetPosition[] 
         longitude,
         latitude,
         distance,
+        speed,
+        retrograde: speed < 0,
         sign: signs[signIndex],
         degree,
         minute,
@@ -261,7 +266,7 @@ export const getTransitsForDate = (
   console.log(`[transits] Calculating transits vs natal chart for ${asOfDate.toISOString()}`);
   
   // Calculate where planets are RIGHT NOW
-  const currentPositions = calculateCurrentPlanets(asOfDate);
+  const currentPositions = getTransitingPositions(asOfDate);
   
   if (currentPositions.length === 0) {
     console.warn("[transits] No current positions calculated, cannot compute transits");
@@ -314,6 +319,8 @@ export const getTransitsForDate = (
             aspect: asp.type,
             orb: orbDiff,
             exact: orbDiff < 1,
+            retrograde: Boolean(trans.retrograde),
+            speed: trans.speed,
             shortDescription,
             description,
             tags: buildTransitTags({

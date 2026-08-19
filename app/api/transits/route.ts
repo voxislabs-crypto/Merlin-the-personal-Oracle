@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
-import { getCurrentTransits } from '@/lib/astrology/transits';
+import { getCurrentTransits, getTransitingPositions } from '@/lib/astrology/transits';
+import { detectHouseIngressHits, natalPointsForTransits } from '@/lib/astrology/natal-angles';
+import {
+  hitsFromMatches,
+  selectMentionWorthy,
+  toOracleTransit,
+} from '@/lib/astrology/mention-worthy';
+import {
+  extractLivedThemesFromMention,
+  signalsFromProgressions,
+  signalsFromSolarArc,
+} from '@/lib/astrology/lived-themes';
+import { withReflection } from '@/lib/astrology/meaning-synthesis';
+import { detectSolarArcHitsAtAge } from '@/lib/astrology/solar-arc';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import {
   detectConfluenceThemes,
@@ -20,6 +33,7 @@ import { getUserContextSnapshot } from '@/lib/user-context';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
 import {
+  calendarDateFromInstant,
   calendarDateToLocalNoon,
   isValidCalendarDate,
   resolveForecastTargetDate,
@@ -234,14 +248,15 @@ export async function POST(request: Request) {
       },
     };
 
-    const asOfDate = calendarDateToLocalNoon(
-      resolveForecastTargetDate(isValidCalendarDate(clientDate) ? clientDate : undefined),
-    );
+    const today = resolveForecastTargetDate(isValidCalendarDate(clientDate) ? clientDate : undefined);
+    const asOfDate = calendarDateToLocalNoon(today);
+
+    const natalPoints = natalPointsForTransits(natalChart);
 
     const [transits, predictiveBase, resonance] = await Promise.all([
-      Promise.resolve(getCurrentTransits(natalChart.positions || [], asOfDate)),
+      Promise.resolve(getCurrentTransits(natalPoints, asOfDate)),
       buildPredictiveTransitBundle({
-        natalPlanets: natalChart.positions || [],
+        natalPlanets: natalPoints,
         birthDate,
         mbtiType,
         now: asOfDate,
@@ -288,9 +303,60 @@ export async function POST(request: Request) {
       title: sanitizeCopyText(theme.title),
     }));
 
-    // Categorize transits by influence
-    const significantTransits = safeTransits.filter(t => t.exact || t.orb < 1.5);
-    const approachingTransits = safeTransits.filter(t => !t.exact && t.orb >= 1.5 && t.orb < 3);
+    // Mention-worthy: impact rank, not "smallest orb." Upcoming peaks
+    // come from the predictive scan we already paid for.
+    const ingressHits = detectHouseIngressHits(
+      getTransitingPositions(asOfDate),
+      natalChart.houses,
+      today,
+    );
+    const horizonHits = [
+      ...hitsFromMatches(safeTransits, today),
+      ...ingressHits,
+      ...predictiveEvents.flatMap((event) => {
+        const peakDate = calendarDateFromInstant(event.timing.peakAt);
+        if (!peakDate || peakDate === today) return [];
+        return [
+          {
+            transitingPlanet: event.transit.transitingPlanet,
+            natalPlanet: event.transit.natalPlanet,
+            aspect: event.transit.aspect,
+            orb: event.transit.orbAtPeak ?? event.transit.orb,
+            date: peakDate,
+          },
+        ];
+      }),
+    ];
+    const mentionWorthy = selectMentionWorthy(horizonHits, today);
+    const natalForThemes = {
+      planets: natalPoints,
+      houses: natalChart.houses,
+      aspects: natalChart.aspects,
+      ascendantSign: natalChart.ascendant?.sign,
+    };
+    const ageYears = Math.max(
+      0,
+      (asOfDate.getTime() - new Date(`${birthDate}T12:00:00`).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+    );
+    const solarArcHits = detectSolarArcHitsAtAge(
+      Object.fromEntries(natalPoints.map((p) => [p.name, p.longitude])),
+      ageYears,
+      Number(birthDate.slice(0, 4)),
+      1,
+    );
+    const livedThemes = withReflection(
+      extractLivedThemesFromMention(
+        mentionWorthy,
+        natalForThemes,
+        [
+          ...signalsFromSolarArc(solarArcHits),
+          ...signalsFromProgressions(natalPoints, ageYears),
+        ],
+        resonance.multipliers,
+      ),
+    );
+    const significantTransits = mentionWorthy.now.map(toOracleTransit);
+    const approachingTransits = mentionWorthy.upcoming.map(toOracleTransit);
     const calibrationProvenance = {
       feedbackCount: resonance.summary.feedbackCount,
       strongestPlanet: resonance.summary.strongestPlanet,
@@ -309,6 +375,8 @@ export async function POST(request: Request) {
         all: safeTransits,
         significant: significantTransits,
         approaching: approachingTransits,
+        mentionWorthy,
+        livedThemes,
         summary: {
           total: safeTransits.length,
           exact: significantTransits.length,

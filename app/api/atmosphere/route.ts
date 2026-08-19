@@ -11,6 +11,7 @@ import type {
   AtmosphereStormsInput,
 } from '@/lib/atmosphere/types';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
+import { natalPointsForTransits } from '@/lib/astrology/natal-angles';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
@@ -223,7 +224,7 @@ export async function POST(request: Request) {
 
     const [predictive, forecastBase, stormsReport] = await Promise.all([
       buildPredictiveTransitBundle({
-        natalPlanets: natalChart.positions || [],
+        natalPlanets: natalPointsForTransits(natalChart),
         birthDate,
         mbtiType: parsedMbti,
         userId: typeof userId === 'string' ? userId : undefined,

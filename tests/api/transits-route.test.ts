@@ -29,6 +29,8 @@ jest.mock('@/lib/engine-fallback', () => ({
 const getCurrentTransits = jest.fn();
 jest.mock('@/lib/astrology/transits', () => ({
   getCurrentTransits: (...args: unknown[]) => getCurrentTransits(...args),
+  getTransitingPositions: () => [],
+  getTransitsForDate: () => [],
 }));
 
 jest.mock('@/lib/astrology/predictive-transits', () => ({
@@ -133,6 +135,10 @@ describe('/api/transits POST', () => {
     expect(body.success).toBe(true);
     expect(body.data.all[0].tags).toEqual(expect.arrayContaining(['lunar cycle']));
     expect(body.data.summary.total).toBe(1);
+    expect(body.data.mentionWorthy.headline.label).toMatch(/Moon Conjunction natal Sun/);
+    expect(body.data.livedThemes.framing).toBe('symbolic-emphasis');
+    expect(Array.isArray(body.data.livedThemes.themes)).toBe(true);
+    expect(body.data.livedThemes.reflection?.framing).toBe('reflection');
     expect(getCurrentTransits).toHaveBeenCalled();
     const asOf = getCurrentTransits.mock.calls[0][1] as Date;
     expect(asOf.getFullYear()).toBe(2026);

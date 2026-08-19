@@ -500,21 +500,6 @@ function buildContextModifiers(context?: PersistentUserContextSnapshot | null): 
   };
 }
 
-function getMbtiModifier(mbtiType: string | undefined, natalPlanet: string): number {
-  if (!mbtiType || mbtiType.length !== 4) return 1;
-
-  const [energy, , decision, lifestyle] = mbtiType.split('');
-  let modifier = 1;
-
-  if (natalPlanet === 'Moon' && energy === 'I') modifier += 0.08;
-  if (natalPlanet === 'Moon' && decision === 'F') modifier += 0.06;
-  if (natalPlanet === 'Saturn' && lifestyle === 'J') modifier += 0.07;
-  if (natalPlanet === 'Uranus' && lifestyle === 'P') modifier += 0.05;
-  if (natalPlanet === 'Mercury' && decision === 'T') modifier += 0.04;
-
-  return clamp(modifier, 0.9, 1.15);
-}
-
 function buildMbtiLens(mbtiType: string | undefined, event: TransitMatch): PredictiveMbtiLens {
   if (!mbtiType || mbtiType.length !== 4) {
     return {
@@ -680,7 +665,8 @@ export async function buildPredictiveTransitBundle(params: {
     const transitingWeight = TRANSITING_PLANET_WEIGHT[currentSample.transit.transitingPlanet] || 0.7;
     const natalWeight = NATAL_POINT_WEIGHT[currentSample.transit.natalPlanet] || 0.8;
     const lifeStageBoost = hasActiveLifeStage ? 1.15 : 1;
-    const mbtiModifier = getMbtiModifier(mbtiType, currentSample.transit.natalPlanet);
+    // MBTI must not change the forecast. It only shapes navigation copy (mbtiLens).
+    const mbtiModifier = 1;
     const progressedMoonBoost = getProgressedMoonModifier(currentSample.transit, progressedMoon);
     const lunarTimingModifier = getLunarTimingModifier(currentSample.transit, lunarTiming);
     const confidence = clamp((0.75 + orbFactor * 0.25) * (lunarTiming.isVoidOfCourse ? 0.92 : 1), 0.68, 1);

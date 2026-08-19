@@ -9,6 +9,9 @@ import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import type { PersistentUserContextSnapshot } from '@/lib/user-context';
 import { MERLIN_VOICE_SYSTEM_BLOCK } from '@/lib/voice/merlin-voice';
 import oraclePhrases from '@/data/oracle-phrases.json';
+import type { MentionWorthySet } from '@/lib/astrology/mention-worthy';
+import type { LivedThemePacket } from '@/lib/astrology/lived-themes';
+import type { LivedMeaningPacket, ReflectionPacket } from '@/lib/astrology/meaning-synthesis';
 
 export interface OracleMessage {
   role: 'user' | 'assistant';
@@ -30,6 +33,8 @@ export interface TransitData {
   }>;
   significant: Array<any>;
   approaching: Array<any>;
+  mentionWorthy?: MentionWorthySet;
+  livedThemes?: LivedMeaningPacket;
   summary: {
     total: number;
     exact: number;
@@ -338,8 +343,112 @@ const TRANSIT_ASPECT_ACTION: Record<string, string> = {
  * Format current transits into readable context for oracle
  * Includes physical domain interpretation per transit
  */
+function formatReflectionContext(reflection: ReflectionPacket): string {
+  const interactions = reflection.interactions
+    .map((item) => `${item.themeA} × ${item.themeB} → ${item.interaction}`)
+    .join('; ');
+  const supporting = reflection.supportingThemes
+    .map((item) => `${item.theme} (${item.meaningDensity})`)
+    .join(' · ');
+
+  return `
+REFLECTION (THE STORYLINE — AUTHORITATIVE over isolated themes and transits):
+- Framing: one coherent symbolic story. NOT a forecast. No timeline, outcome, or event claims.
+- Meta-theme: ${reflection.metaTheme}
+- Theme: ${reflection.hierarchy.theme}
+- Subthemes: ${reflection.subThemes.join(', ')}
+- Core tension (speak this, not a plot): ${reflection.coreTension}
+- Developmental process: ${reflection.developmentalStage} · archetype for language only: ${reflection.archetype}
+- Meaning density ${reflection.meaningDensity} (strength × coherence ${reflection.themeCoherence}) · signal ${reflection.signalStrength} · interpretation confidence ${reflection.interpretationConfidence}%
+- Interior intensity ${reflection.internalIntensity} · external visibility ${reflection.externalVisibility} · persistence ${reflection.persistence}
+${interactions ? `- Theme interaction (often the real meaning): ${interactions}` : ''}
+${supporting ? `- Supporting currents: ${supporting}` : ''}
+- Reflective question (from the tension, not from an aspect): ${reflection.reflectivePrompt}
+- Use rule: Open with the tension. Ask the question. Do not announce a period, predict an event, or list transits unless asked. Archetype is diction, not destiny.
+  `.trim();
+}
+
+function formatLivedThemesContext(packet: LivedThemePacket | undefined): string {
+  if (!packet || packet.themes.length === 0) return '';
+
+  const reflection =
+    'reflection' in packet && packet.reflection
+      ? formatReflectionContext(packet.reflection as ReflectionPacket)
+      : '';
+
+  const themeLines = packet.themes.slice(0, 4).map((theme, index) => {
+    const contributors = theme.contributors.map((c) => c.label).join(' + ');
+    return `  ${index + 1}. ${theme.theme}
+     impact ${theme.impact} · pressure ${theme.pressure} · growth ${theme.growth} · instability ${theme.instability} · visibility ${theme.visibility}
+     signal ${theme.signalStrength} · interpretation confidence ${theme.interpretationConfidence}% · natal resonance ${theme.natalResonance} · tension ${theme.internalTension}
+     contributors: ${contributors}`;
+  });
+  const domains = Object.entries(packet.domains)
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => `${name} ${value}`)
+    .join(' · ');
+
+  return `
+${reflection ? `${reflection}\n\n` : ''}SYMBOLIC THEMES (supporting evidence under the storyline — do not lead with these):
+- Framing: areas of emphasis. NOT event prediction.
+- Top themes:
+${themeLines.join('\n')}
+${domains ? `- Life-area density: ${domains}` : ''}
+  `.trim();
+}
+
 function formatTransitsContext(transits: TransitData | undefined): string {
   if (!transits || transits.all.length === 0) return '';
+
+  const mention = transits.mentionWorthy;
+  if (mention && mention.mentioned.length > 0) {
+    const line = (item: (typeof mention.mentioned)[number]) => {
+      const when =
+        item.daysToPeak > 0
+          ? `peaks in ${item.daysToPeak}d`
+          : item.phase === 'releasing'
+            ? 'separating'
+            : 'active now';
+      const pass = item.pass
+        ? ` · ${item.pass.kind} pass (${item.pass.meaning})`
+        : '';
+      return `  • ${item.label} — ${item.orb.toFixed(1)}° · ${when} · impact ${item.impact}/100 · valence ${item.valence} · certainty ${item.certainty}%${pass}\n    why: ${item.why}`;
+    };
+    const headline = mention.headline ? line(mention.headline) : '  (none)';
+    const now = mention.now
+      .filter((item) => item.eventId !== mention.headline?.eventId)
+      .map(line)
+      .join('\n');
+    const upcoming = mention.upcoming
+      .filter((item) => item.eventId !== mention.headline?.eventId)
+      .map(line)
+      .join('\n');
+    const cluster = mention.headlineCluster
+      ? `  • ${mention.headlineCluster.theme} (natal ${mention.headlineCluster.target}) — strength ${mention.headlineCluster.strength} · valence ${mention.headlineCluster.valence} · certainty ${mention.headlineCluster.certainty}%\n    members: ${mention.headlineCluster.members.map((m) => m.label).join(' + ')}\n    ${mention.headlineCluster.why}`
+      : '';
+    const domains = mention.domains
+      ? Object.entries(mention.domains)
+          .filter(([, value]) => value > 0)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, value]) => `${name} ${value}`)
+          .join(' · ')
+      : '';
+
+    return `
+MENTION-WORTHY TRANSITS (AUTHORITATIVE for what to say out loud — do NOT list the rest):
+- ~${transits.summary.total} contacts are in detection orb. Only the ones below are worth a sentence.
+- Impact ≠ positivity. High impact + valence 0 is transformation, not "good" or "bad."
+- Humans experience THEMES (clusters on one natal point), not isolated aspects.
+${cluster ? `- Headline theme (lead with this, not aspect soup):\n${cluster}` : ''}
+- Headline contact:
+${headline}
+${now ? `- Also now:\n${now}` : '- Also now: none'}
+${upcoming ? `- Upcoming this week:\n${upcoming}` : '- Upcoming this week: none'}
+${domains ? `- Domain pressure: ${domains}` : ''}
+- Use rule: If a theme cluster exists, narrate the cluster. Mention at most one supporting now-hit and one upcoming peak. Include pass meaning when it is retrograde or final. Ignore Moon weather unless it is the headline. Soft outer-to-outer is background — do not mention. MBTI may change coping advice only — never the forecast itself.
+  `.trim();
+  }
 
   const exactTransits = transits.significant.slice(0, 6);
   const approachingTransits = transits.approaching.slice(0, 4);
@@ -721,6 +830,7 @@ ${mirrorInsight ? `- Confrontation note: ${mirrorInsight.message}` : ''}
 export function buildOracleSystemPrompt(context: OracleContext): string {
   const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
   const fullPlanetaryAnalysis = context.birthChart ? formatFullPlanetaryAnalysis(context.birthChart) : '';
+  const livedThemesContext = formatLivedThemesContext(context.transits?.livedThemes);
   const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
   const atmosphereContext = context.atmospherePacket
     ? formatAtmosphereContext(context.atmospherePacket)
@@ -809,12 +919,14 @@ F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitl
 ═══════════════════════════════════════
 DATA PRIORITY
 ═══════════════════════════════════════
-1. LIFE RISK packet (elevatedDisruption, friction, peaks, domains)
-2. STORM PLAYBOOK (category · when · confidence · steps)
-3. Active transits + daily forecast
-4. Personality / dual type (response style + blind spots)
-5. Persistent life context + pattern mirror
-6. Full chart analysis (depth on demand)
+1. REFLECTION packet (meta-theme, core tension, question — the storyline)
+2. SYMBOLIC THEMES (supporting currents under the storyline)
+3. LIFE RISK packet (elevatedDisruption, friction, peaks, domains)
+4. STORM PLAYBOOK (category · when · confidence · steps)
+5. Active transits as evidence under a theme (only if asked for the catalog)
+6. Personality / dual type (response style + blind spots)
+7. Persistent life context + pattern mirror
+8. Full chart analysis (depth on demand)
 
 ${appSight}
 
@@ -825,6 +937,7 @@ STANCE: ${stanceMode.toUpperCase()}
 - SOFT: honest, room to self-recognize; no cornering.
 - DIRECT: challenge avoidance when pattern evidence is strong; still respectful.
 
+${livedThemesContext ? `\n${livedThemesContext}` : ''}
 ${atmosphereContext ? `\n${atmosphereContext}` : ''}
 ${stormsContext ? `\n${stormsContext}` : ''}
 ${transitsContext ? `\n${transitsContext}` : ''}
@@ -939,11 +1052,15 @@ export function generateMicroForecast(
   };
 
   // If we have real transit data, use it!
-  if (transits && transits.significant.length > 0) {
+  const mentionList =
+    transits?.mentionWorthy?.mentioned?.length
+      ? transits.mentionWorthy.mentioned
+      : transits?.significant || [];
+  if (mentionList.length > 0) {
     const themes: string[] = [];
     
-    // Analyze significant transits for themes
-    transits.significant.slice(0, 3).forEach((t: any) => {
+    // Analyze mention-worthy transits for themes
+    mentionList.slice(0, 3).forEach((t: any) => {
       const transitPlanet = t.transitingPlanet;
       const aspect = t.aspect;
       const natalPlanet = t.natalPlanet;

@@ -10,7 +10,17 @@ import {
   OracleMessage,
   TransitData,
 } from '@/lib/oracle-service';
-import { getCurrentTransits } from '@/lib/astrology/transits';
+import { getCurrentTransits, getTransitsForDate, getTransitingPositions } from '@/lib/astrology/transits';
+import { detectHouseIngressHits } from '@/lib/astrology/natal-angles';
+import {
+  collectHorizonHits,
+  selectMentionWorthy,
+  toOracleTransit,
+} from '@/lib/astrology/mention-worthy';
+import { extractLivedThemesFromMention } from '@/lib/astrology/lived-themes';
+import { withReflection } from '@/lib/astrology/meaning-synthesis';
+import { natalPointsForTransits } from '@/lib/astrology/natal-angles';
+import { calendarDateToLocalNoon, getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { detectWeeklyStorms } from '@/lib/astrology/storms';
 import { getMBTIDual } from '@/lib/personality/fusion';
@@ -174,30 +184,54 @@ export async function POST(request: NextRequest) {
     let stormsReport;
     
     // Support both .planets (BirthChartData) and .positions (legacy) field names
-    const natalPlanets = birthChart?.planets || birthChart?.positions || [];
+    const natalPlanets = natalPointsForTransits(birthChart || {});
     
     if (natalPlanets.length > 0) {
       try {
         console.log('[Oracle Chat] Calculating current transits for chart awareness');
-        // Get current transits
-        const transitMatches = getCurrentTransits(natalPlanets);
-        
-        // Categorize transits
-        const significant = transitMatches.filter((t: any) => t.exact || t.orb < 1.5);
-        const approaching = transitMatches.filter((t: any) => !t.exact && t.orb >= 1.5 && t.orb < 3);
-        
+        const asOf = new Date();
+        const today = getLocalCalendarDate(asOf);
+        const transitMatches = getCurrentTransits(natalPlanets, asOf);
+        const horizonHits = [
+          ...collectHorizonHits(
+            (date) => getTransitsForDate(natalPlanets, calendarDateToLocalNoon(date)),
+            today,
+            7,
+          ),
+          ...detectHouseIngressHits(
+            getTransitingPositions(asOf),
+            birthChart?.houses,
+            today,
+          ),
+        ];
+        const mentionWorthy = selectMentionWorthy(horizonHits, today);
+        const livedThemes = withReflection(
+          extractLivedThemesFromMention(mentionWorthy, {
+            planets: natalPlanets,
+            houses: birthChart?.houses,
+            aspects: birthChart?.aspects,
+            ascendantSign: birthChart?.ascendant?.sign,
+          }),
+        );
+        const significant = mentionWorthy.now.map(toOracleTransit);
+        const approaching = mentionWorthy.upcoming.map(toOracleTransit);
+
         transits = {
           all: transitMatches,
           significant,
           approaching,
+          mentionWorthy,
+          livedThemes,
           summary: {
             total: transitMatches.length,
             exact: significant.length,
-            approaching: approaching.length
-          }
+            approaching: approaching.length,
+          },
         };
-        
-        console.log(`[Oracle Chat] Found ${transits.summary.total} transits (${transits.summary.exact} exact, ${transits.summary.approaching} approaching)`);
+
+        console.log(
+          `[Oracle Chat] ${transits.summary.total} in-orb; mentioning ${mentionWorthy.mentioned.length} (headline=${mentionWorthy.headline?.label || 'none'})`,
+        );
         
         // Get today's forecast — ensure planets field is populated for the forecast engine
         const chartForForecast = { ...birthChart, planets: natalPlanets };
