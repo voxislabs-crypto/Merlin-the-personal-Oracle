@@ -35,6 +35,7 @@ describe('derivePersonalityFromChart', () => {
 
     expect(result).not.toBeNull();
     expect(result?.mbtiType).toMatch(/^[EI][SN][TF][JP]$/);
+    expect(result?.mbtiType).toBe(result?.dualOverlay.firmware.mbtiType);
     expect(result?.dualOverlay.hardware.mbtiType).toMatch(/^[EI][SN][TF][JP]$/);
     expect(result?.dualOverlay.firmware.mbtiType).toMatch(/^[EI][SN][TF][JP]$/);
     expect(result?.dualOverlay.hardware.description.length).toBeGreaterThan(10);

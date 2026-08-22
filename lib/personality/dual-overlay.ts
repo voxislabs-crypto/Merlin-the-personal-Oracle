@@ -124,7 +124,7 @@ export function derivePersonalityFromChart(chart: BirthChartData): DerivedPerson
 
   const mbtiDual = getMBTIDual(normalizedChart);
   const dualOverlay = buildDualOverlay(normalizedChart, mbtiDual);
-  const mbtiType = (mbtiDual.type || dualOverlay.finalType) as MBTIType;
+  const mbtiType = (dualOverlay.firmware.mbtiType || mbtiDual.firmware.type) as MBTIType;
 
   return { mbtiType, dualOverlay };
 }

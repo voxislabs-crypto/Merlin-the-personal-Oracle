@@ -167,10 +167,11 @@ export function ChartIdentityBrief({
                 <p className="mt-2 text-base font-semibold leading-snug tracking-tight text-white md:text-lg">
                   {edgeBody}
                 </p>
-                {finalType ? (
+                {core ? (
                   <p className="mt-2 text-xs text-amber-200/65">
-                    Integrated type for weather tone:{' '}
-                    <span className="font-semibold text-amber-100">{finalType}</span>
+                    Weather reads your chart type:{' '}
+                    <span className="font-semibold text-amber-100">{core}</span>
+                    {finalType && finalType !== core ? ` · integrated ${finalType}` : ''}
                   </p>
                 ) : null}
                 {onAskPersonality ? (

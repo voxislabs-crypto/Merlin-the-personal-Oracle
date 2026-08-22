@@ -3,7 +3,11 @@
  * @see docs/TWO_PILLARS.md
  */
 
-export { buildIdentityPacket, type BuildIdentityPacketInput } from '@/lib/self/identity-packet';
+export {
+  buildIdentityPacket,
+  resolveSelfMbtiType,
+  type BuildIdentityPacketInput,
+} from '@/lib/self/identity-packet';
 export {
   buildOperatingSystemProfile,
   type BuildOperatingSystemInput,

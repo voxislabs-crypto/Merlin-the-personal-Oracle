@@ -1,4 +1,4 @@
-import { buildIdentityPacket } from '@/lib/self';
+import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 
 describe('buildIdentityPacket', () => {
   it('builds a Self pillar packet with placements and MBTI', () => {
@@ -41,6 +41,20 @@ describe('buildIdentityPacket', () => {
 
     expect(packet.headline).toMatch(/The Bridge/);
     expect(packet.provenance.confidenceSource).toBe('identity_pack');
+  });
+
+  it('resolves weather MBTI from Self core, not a hardcoded INFJ', () => {
+    expect(
+      resolveSelfMbtiType({
+        dualOverlay: {
+          firmware: { mbtiType: 'ENTP' },
+          hardware: { mbtiType: 'ESTP' },
+          finalType: 'INFJ',
+        },
+        mbtiType: 'INFJ',
+      }),
+    ).toBe('ENTP');
+    expect(resolveSelfMbtiType({})).toBeUndefined();
   });
 
   it('falls back when only empty inputs are given', () => {

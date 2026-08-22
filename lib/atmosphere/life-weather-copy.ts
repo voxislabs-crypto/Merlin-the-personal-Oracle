@@ -12,6 +12,7 @@ import { isGenericTransitDo } from '@/lib/transit-lookup';
 import { applyMerlinVoicePass, failsMerlinVoiceTest } from '@/lib/voice/merlin-voice';
 import type { AtmospherePacket, LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
 import { composeTodayOracle } from '@/lib/atmosphere/today-oracle';
+import { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
 import type { TodayMoveMemory, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 
 export interface LifeWeatherBriefCopy {
@@ -56,6 +57,9 @@ function firstSentence(text: string, maxLen = 220): string {
 const SUN_SIGN_ADDRESS_RE =
   /\b(today|you)[,\s]+(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b/i;
 
+/** Chart-guessed type dumped into weather: "As an INFJ, today's transits…" */
+const MBTI_ADDRESS_RE = /^as an? [IE][NS][TF][JP]\b[,:]?\s*/i;
+
 /**
  * Rejects copy that fails Merlin voice (docs/MERLIN_VOICE.md).
  * Prefer human stakes over horoscope filler.
@@ -65,6 +69,9 @@ export function isFluffyLifeWeatherCopy(text: string | null | undefined): boolea
   if (!t) return true;
   if (failsMerlinVoiceTest(t)) return true;
   if (SUN_SIGN_ADDRESS_RE.test(t) && /pace yourself|stay flexible|protect your energy/i.test(t)) {
+    return true;
+  }
+  if (MBTI_ADDRESS_RE.test(t)) {
     return true;
   }
   if (/^stay (mindful|present|open|grounded)\b/i.test(t) && t.length < 48) return true;
@@ -304,13 +311,41 @@ export function formatWhyLine(options: {
  * How the day feels — memorable life texture, not documentation.
  * Same meaning as pressure bands; richer weather metaphor + lived detail.
  */
+function personalityFeltBeat(mbtiType: string, intensity: number): string {
+  const frame = personalityFrame(mbtiType);
+  const article = /^[AEIOU]/i.test(mbtiType) ? 'an' : 'a';
+  if (intensity >= 60) {
+    if (frame === 'intuition') {
+      return ` As ${article} ${mbtiType}, trust the body-level no before you talk yourself into pushing.`;
+    }
+    if (frame === 'structure') {
+      return ` As ${article} ${mbtiType}, name one criterion, then take the next inch.`;
+    }
+    if (frame === 'action') {
+      return ` As ${article} ${mbtiType}, move the task for ten minutes, then reassess.`;
+    }
+    return ` As ${article} ${mbtiType}, keep one other person in the loop without handing them the day.`;
+  }
+  if (frame === 'intuition') {
+    return ` As ${article} ${mbtiType}, follow the pull, then name it in one sentence so it stays real.`;
+  }
+  if (frame === 'structure') {
+    return ` As ${article} ${mbtiType}, put one useful opening on the calendar before it evaporates.`;
+  }
+  if (frame === 'action') {
+    return ` As ${article} ${mbtiType}, start while the energy is here — stop at one win.`;
+  }
+  return ` As ${article} ${mbtiType}, say the mixed weather out loud so no one has to guess.`;
+}
+
 export function buildFeltStory(options: {
   intensity: number;
   domains: string;
   driverWhy?: string | null;
   forecastSummary?: string | null;
+  mbtiType?: string | null;
 }): string {
-  const { intensity, domains, driverWhy, forecastSummary } = options;
+  const { intensity, domains, driverWhy, forecastSummary, mbtiType } = options;
   const d = domains && domains !== 'pace and energy' ? domains : '';
 
   let lead: string;
@@ -347,7 +382,11 @@ export function buildFeltStory(options: {
     }
   } else if (forecastSummary && !isFluffyLifeWeatherCopy(forecastSummary)) {
     let s = firstSentence(forecastSummary, 110);
-    s = s.replace(SUN_SIGN_ADDRESS_RE, 'today').replace(/\s+/g, ' ').trim();
+    s = s
+      .replace(MBTI_ADDRESS_RE, '')
+      .replace(SUN_SIGN_ADDRESS_RE, 'today')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (
       !isFluffyLifeWeatherCopy(s) &&
       s.length > 24 &&
@@ -357,7 +396,13 @@ export function buildFeltStory(options: {
     }
   }
 
-  return voiceSafe(`${lead} ${texture}${color}`.replace(/\s+/g, ' ').trim());
+  const selfType = (mbtiType || '').trim().toUpperCase();
+  const typeBeat =
+    /^[IE][NS][TF][JP]$/.test(selfType) && !MBTI_ADDRESS_RE.test(`${lead} ${texture}${color}`)
+      ? personalityFeltBeat(selfType, intensity)
+      : '';
+
+  return voiceSafe(`${lead} ${texture}${color}${typeBeat}`.replace(/\s+/g, ' ').trim());
 }
 
 function hotDomainKeys(risk?: LifeRiskPacket | null): LifeRiskDomain[] {
@@ -673,6 +718,7 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     driverWhy,
     // Only use forecast summary as optional color if it is not horoscope fluff
     forecastSummary: input.forecastSummary,
+    mbtiType: input.mbtiType,
   });
 
   const horizonNote =

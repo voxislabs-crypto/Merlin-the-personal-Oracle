@@ -28,6 +28,35 @@ export interface BuildIdentityPacketInput {
   weatherIntensity?: number | null;
 }
 
+function asMbtiType(value?: string | null): string | undefined {
+  if (!value || typeof value !== 'string') return undefined;
+  const type = value.trim().toUpperCase();
+  return /^[IE][NS][TF][JP]$/.test(type) ? type : undefined;
+}
+
+/**
+ * The type listed on Self → You (core / firmware from the chart calculator).
+ * Life weather and Oracle must use this — never a hardcoded INFJ fallback.
+ */
+export function resolveSelfMbtiType(input: {
+  identity?: { mbti?: { primary?: { type?: string }; secondary?: { type?: string } } } | null;
+  dualOverlay?: {
+    firmware?: { mbtiType?: string };
+    hardware?: { mbtiType?: string };
+    finalType?: string;
+  } | null;
+  mbtiType?: string | null;
+} = {}): string | undefined {
+  return (
+    asMbtiType(input.identity?.mbti?.primary?.type) ||
+    asMbtiType(input.dualOverlay?.firmware?.mbtiType) ||
+    asMbtiType(input.mbtiType) ||
+    asMbtiType(input.dualOverlay?.finalType) ||
+    asMbtiType(input.identity?.mbti?.secondary?.type) ||
+    asMbtiType(input.dualOverlay?.hardware?.mbtiType)
+  );
+}
+
 function cleanSign(value?: string | null): string | undefined {
   if (!value || typeof value !== 'string') return undefined;
   const trimmed = value.trim();

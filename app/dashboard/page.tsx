@@ -121,7 +121,7 @@ import {
 } from '@/lib/dashboard/module-preferences';
 import { getMBTITypeDescription, applyMBTIOverlay, type MBTIType } from '@/lib/mbti-overlay';
 import { globalAudioManager } from '@/lib/global-audio-manager';
-import { buildIdentityPacket } from '@/lib/self';
+import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
 
 
@@ -1960,7 +1960,6 @@ export default function UnifiedDashboard() {
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
     const summary =
-      (typeof forecast?.summary_mbti_adjusted === 'string' && forecast.summary_mbti_adjusted) ||
       (typeof forecast?.summary === 'string' && forecast.summary) ||
       null;
     return buildLifeWeatherBrief({
@@ -1970,7 +1969,7 @@ export default function UnifiedDashboard() {
       transitLookup: forecast?.transitLookup,
       date: forecast?.date || activeAtmospherePacket?.date || null,
       moveMemory: todayMoveMemory,
-      mbtiType: dualOverlay?.firmware?.mbtiType || mbtiType || null,
+      mbtiType: resolveSelfMbtiType({ dualOverlay, mbtiType }) || null,
       // Week-horizon predictive moves only after feeds settle
       predictiveMove:
         !todayWeatherStillLoading && predictiveActionHint

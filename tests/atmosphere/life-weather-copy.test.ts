@@ -60,6 +60,12 @@ function mockPacket(overrides: Partial<AtmospherePacket> = {}): AtmospherePacket
 }
 
 describe('isFluffyLifeWeatherCopy', () => {
+  it('rejects MBTI-addressed overlay copy', () => {
+    expect(
+      isFluffyLifeWeatherCopy("As an INFJ, today's deep transits speak directly to your soul."),
+    ).toBe(true);
+  });
+
   it('flags horoscope filler', () => {
     expect(isFluffyLifeWeatherCopy('Stay mindful of cosmic energies')).toBe(true);
     expect(
@@ -279,6 +285,17 @@ describe('buildLifeWeatherBrief', () => {
     expect(brief.watchFor).toBeTruthy();
     expect(brief.moveConfidence).toBeGreaterThan(20);
     expect(brief.move).not.toMatch(/one reversible step only/i);
+  });
+
+  it('uses the Self chart type in How it feels, not a leftover INFJ overlay', () => {
+    const brief = buildLifeWeatherBrief({
+      packet: mockPacket({ intensity: 48 }),
+      mbtiType: 'ENTP',
+      forecastSummary: "As an INFJ, today's deep transits speak directly to your soul.",
+    });
+
+    expect(brief.story).toMatch(/ENTP/);
+    expect(brief.story).not.toMatch(/INFJ/);
   });
 
   it('rejects horoscope fluff for story and move', () => {

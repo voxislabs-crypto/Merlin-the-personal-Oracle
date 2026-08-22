@@ -64,11 +64,18 @@ export interface EnrichDailyForecastInput {
   userId?: string | null;
 }
 
+export function resolveForecastOverlayType(
+  requestedMbti?: string | null,
+  computedType?: unknown
+): MBTIType | undefined {
+  return parseForecastMbtiType(requestedMbti) || parseForecastMbtiType(computedType);
+}
+
 export async function enrichDailyForecast(input: EnrichDailyForecastInput) {
   const forecast = getTodaysForecast(input.natalChart, input.forecastDate);
   const requestedMbti = parseForecastMbtiType(input.mbtiType);
   const computed = computeMBTI(input.natalChart);
-  const overlayType = (requestedMbti || parseForecastMbtiType(computed.type) || 'INFJ') as MBTIType;
+  const overlayType = resolveForecastOverlayType(requestedMbti, computed.type);
 
   let enriched: Record<string, unknown> = {};
   try {
@@ -86,23 +93,28 @@ export async function enrichDailyForecast(input: EnrichDailyForecastInput) {
       input.userId || undefined,
     );
 
-    const reasoning =
-      (requestedMbti && tcForecast.mbti_overlay?.[requestedMbti]?.translation) ||
-      getDetailedMBTITranslation(overlayType, [], tcForecast.primaryTheme ? [tcForecast.primaryTheme] : []);
+    const reasoning = overlayType
+      ? (requestedMbti && tcForecast.mbti_overlay?.[requestedMbti]?.translation) ||
+        getDetailedMBTITranslation(overlayType, [], tcForecast.primaryTheme ? [tcForecast.primaryTheme] : [])
+      : undefined;
 
     enriched = {
       day_rating: tcForecast.day_rating || forecast.day_rating,
       primaryTheme: tcForecast.primaryTheme,
       secondaryThemes: tcForecast.secondaryThemes,
       transitLookup: tcForecast.transits,
-      mbti_overlay: {
-        type: overlayType,
-        confidence: computed.confidence,
-        breakdown: computed.breakdown,
-        reasoning,
-        cosmicTendencies: getCosmicTendencies(overlayType),
-        ...(tcForecast.mbti_overlay || {}),
-      },
+      ...(overlayType
+        ? {
+            mbti_overlay: {
+              type: overlayType,
+              confidence: computed.confidence,
+              breakdown: computed.breakdown,
+              reasoning,
+              cosmicTendencies: getCosmicTendencies(overlayType),
+              ...(tcForecast.mbti_overlay || {}),
+            },
+          }
+        : {}),
       summary_raw: forecast.summary,
       summary_mbti_adjusted: reasoning,
     };
@@ -125,13 +137,17 @@ export async function enrichDailyForecast(input: EnrichDailyForecastInput) {
       error instanceof Error ? error.message : error,
     );
     enriched = {
-      mbti_overlay: {
-        type: overlayType,
-        confidence: computed.confidence,
-        breakdown: computed.breakdown,
-        reasoning: getDetailedMBTITranslation(overlayType, [], []),
-        cosmicTendencies: getCosmicTendencies(overlayType),
-      },
+      ...(overlayType
+        ? {
+            mbti_overlay: {
+              type: overlayType,
+              confidence: computed.confidence,
+              breakdown: computed.breakdown,
+              reasoning: getDetailedMBTITranslation(overlayType, [], []),
+              cosmicTendencies: getCosmicTendencies(overlayType),
+            },
+          }
+        : {}),
       summary_raw: forecast.summary,
       summary_mbti_adjusted: forecast.summary,
     };

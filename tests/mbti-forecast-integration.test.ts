@@ -5,7 +5,7 @@
 
 import { calculateBirthChart } from '../lib/engine-fallback';
 import { getTodaysForecast } from '../lib/astrology/ephemeris';
-import { enrichDailyForecast } from '../lib/astrology/enrich-daily-forecast';
+import { enrichDailyForecast, resolveForecastOverlayType } from '../lib/astrology/enrich-daily-forecast';
 import { getCurrentTransits } from '../lib/astrology/transits';
 import { computeMBTI } from '../lib/astrology/mbtiFusion';
 import { 
@@ -184,6 +184,12 @@ describe('MBTI-Enhanced Forecast Integration', () => {
   });
 
   describe('Forecast API Integration', () => {
+    test('does not invent INFJ when no type is known', () => {
+      expect(resolveForecastOverlayType(null, undefined)).toBeUndefined();
+      expect(resolveForecastOverlayType('not-a-type', '???')).toBeUndefined();
+      expect(resolveForecastOverlayType('ENTP', undefined)).toBe('ENTP');
+    });
+
     test('ephemeris layer does not invent an MBTI overlay', () => {
       const forecast = getTodaysForecast(birthChart);
       expect(forecast.summary).toBeTruthy();

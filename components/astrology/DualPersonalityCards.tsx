@@ -127,7 +127,8 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const flavor = useMemo(() => {
-    const type = finalType || 'INFJ';
+    if (!finalType) return null;
+    const type = finalType;
     const f = flavors[type as string];
     if (!f) return null;
     const keys = Object.keys(f);
@@ -140,7 +141,8 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
   // Always pick a shadow — stable per finalType, not transit-gated
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const shadowEntry = useMemo<ShadowEntry | null>(() => {
-    const type = finalType || 'INFJ';
+    if (!finalType) return null;
+    const type = finalType;
     const s = shadows[type as string];
     if (!s) return null;
     const keys = Object.keys(s);
