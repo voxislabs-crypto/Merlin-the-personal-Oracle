@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { DEFAULT_GROQ_MODEL, resolveGroqModel } from '@/lib/llm-config';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 
 export type AtmosphereRationaleProvider = 'openrouter' | 'ollama' | 'groq' | 'xai' | 'none';
@@ -62,7 +63,10 @@ export function getAtmosphereRationaleLlmConfig(): AtmosphereRationaleLlmConfig 
       provider,
       apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
       apiKey: process.env.GROQ_API_KEY || '',
-      model: process.env.ATMOSPHERE_RATIONALE_LLM_MODEL || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      model: resolveGroqModel(
+        process.env.ATMOSPHERE_RATIONALE_LLM_MODEL || process.env.GROQ_MODEL,
+        DEFAULT_GROQ_MODEL
+      ),
       timeoutMs,
     };
   }

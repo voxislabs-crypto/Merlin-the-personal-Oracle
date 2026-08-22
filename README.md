@@ -175,7 +175,7 @@ Auth is **Clerk**. Billing is **Stripe**.
 | Chart math | Swiss Ephemeris (`sweph` + files in `ephe/`), D3 wheel |
 | Data | Prisma · SQLite locally · Postgres (Neon) in production |
 | Auth / pay | Clerk, Stripe |
-| LLM | Groq by default (`llama-3.3-70b-versatile`); optional xAI |
+| LLM | Groq by default (`openai/gpt-oss-120b`); optional xAI |
 | Tests | Jest |
 | Host | Vercel |
 
@@ -248,7 +248,7 @@ npx prisma generate
 ```env
 LLM_PROVIDER=groq
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
 
 # Optional
 # LLM_PROVIDER=xai

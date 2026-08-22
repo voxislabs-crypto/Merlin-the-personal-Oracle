@@ -13,6 +13,33 @@ export interface LlmConfig {
   envKeyName: string;
 }
 
+/** Groq's recommended replacement after the 2026-08-16 Llama shutdown (free/developer). */
+export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
+export const DEFAULT_GROQ_FAST_MODEL = 'openai/gpt-oss-20b';
+
+/**
+ * Groq retired these IDs for free/developer tiers on 2026-08-16.
+ * Requests now 404 with "model not found".
+ * @see https://console.groq.com/docs/deprecations
+ */
+export const GROQ_MODEL_REPLACEMENTS: Record<string, string> = {
+  'llama-3.3-70b-versatile': DEFAULT_GROQ_MODEL,
+  'llama-3.1-70b-versatile': DEFAULT_GROQ_MODEL,
+  'llama3-70b-8192': DEFAULT_GROQ_MODEL,
+  'llama-3.1-8b-instant': DEFAULT_GROQ_FAST_MODEL,
+  'llama3-8b-8192': DEFAULT_GROQ_FAST_MODEL,
+};
+
+export function resolveGroqModel(model?: string | null, fallback = DEFAULT_GROQ_MODEL): string {
+  const requested = (model || fallback).trim();
+  const replacement = GROQ_MODEL_REPLACEMENTS[requested];
+  if (replacement && replacement !== requested) {
+    console.warn(`[LLM:groq] ${requested} was retired; using ${replacement}`);
+    return replacement;
+  }
+  return requested || fallback;
+}
+
 export function getLlmProvider(): LlmProvider {
   const raw = (process.env.LLM_PROVIDER || 'groq').toLowerCase();
   return raw === 'xai' ? 'xai' : 'groq';
@@ -41,7 +68,7 @@ export function getLlmConfig(): LlmConfig {
       process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions'
     ),
     apiKey: process.env.GROQ_API_KEY,
-    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+    model: resolveGroqModel(process.env.GROQ_MODEL, DEFAULT_GROQ_MODEL),
     envKeyName: 'GROQ_API_KEY',
   };
 }

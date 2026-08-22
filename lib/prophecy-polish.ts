@@ -1,8 +1,8 @@
 import type { ProphecyEra, ProphecyStyle } from '@/lib/astrology/prophecy';
+import { DEFAULT_GROQ_FAST_MODEL, resolveGroqModel } from '@/lib/llm-config';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_BASE = 'https://api.groq.com/openai/v1';
-const GROQ_MODEL = process.env.GROQ_PROPHECY_MODEL || process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
 export type ProphecyPolishMode = 'engine' | 'groq';
 
@@ -19,6 +19,11 @@ export async function polishProphecyWithGroq(params: {
   if (!GROQ_API_KEY) {
     return null;
   }
+
+  const groqModel = resolveGroqModel(
+    process.env.GROQ_PROPHECY_MODEL || process.env.GROQ_MODEL,
+    DEFAULT_GROQ_FAST_MODEL
+  );
 
   const styleInstructions =
     style === 'sonnet'
@@ -53,7 +58,7 @@ export async function polishProphecyWithGroq(params: {
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model: groqModel,
         temperature: Math.min(1.2, Math.max(0.2, temperature)),
         max_tokens: style === 'sonnet' ? 800 : 260,
         messages: [
@@ -75,7 +80,7 @@ export async function polishProphecyWithGroq(params: {
 
     return {
       prophecy: content.trim(),
-      model: GROQ_MODEL,
+      model: groqModel,
     };
   } catch {
     return null;
