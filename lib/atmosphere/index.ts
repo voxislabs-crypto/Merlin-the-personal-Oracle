@@ -11,6 +11,7 @@ export {
   resolveLegacyCosmicWeatherIntensity,
 } from '@/lib/atmosphere/legacy-intensity';
 export { isAtmosphereEngineV1Enabled, type AtmosphereEngineFlagOptions } from '@/lib/atmosphere/flags';
+export { computeDaySkyPressure, isSkyEventActiveOnDate } from '@/lib/atmosphere/global-pressure';
 export { normalizePredictiveIntensity, predictiveIntensityScore } from '@/lib/atmosphere/normalize';
 export { applyPatternPersonalization, applyPatternReadinessNudge } from '@/lib/atmosphere/pattern-personalization';
 export {

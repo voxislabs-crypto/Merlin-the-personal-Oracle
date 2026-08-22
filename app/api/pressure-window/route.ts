@@ -5,6 +5,7 @@ import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
+import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
 import { getAtmospherePatternProfile } from '@/lib/atmosphere/pattern-store.server';
 import type { BirthChartData, TransitDriver } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
@@ -130,13 +131,9 @@ export async function POST(request: Request) {
         .slice(0, 5),
     };
 
-    const globalPressure = sortedEvents.length
-      ? Math.round(sortedEvents.reduce((sum, event) => sum + event.scores.intensity, 0) / sortedEvents.length)
-      : 0;
-
-    const confidence = sortedEvents.length
-      ? Math.round(sortedEvents.reduce((sum, event) => sum + event.scores.confidence, 0) / sortedEvents.length)
-      : 0;
+    const dayPressure = computeDaySkyPressure(sortedEvents, targetDate);
+    const globalPressure = dayPressure.pressure ?? 0;
+    const confidence = dayPressure.confidence ?? 0;
 
     const packet = buildExplainabilityPacket({
       windowStartIso: new Date().toISOString(),

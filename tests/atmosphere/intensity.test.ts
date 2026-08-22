@@ -50,6 +50,42 @@ describe('atmosphere intensity', () => {
     expect(result.source).toBe('storm');
   });
 
+  it('uses a same-day storm, not the strongest hit later in the horizon', () => {
+    const result = resolveBaseIntensity({
+      date: '2026-08-22',
+      storms: {
+        storms: [
+          { intensity: 'severe', title: 'Pluto square Sun', date: '2026-09-10' },
+          { intensity: 'mild', title: 'Mars square Mercury', date: '2026-08-22' },
+        ],
+      },
+    });
+
+    expect(result.intensity).toBe(52);
+    expect(result.source).toBe('storm');
+  });
+
+  it('ignores a zero globalPressure so forecast/storm fallbacks can run', () => {
+    const result = resolveBaseIntensity({
+      explainability: {
+        globalPressure: 0,
+        confidence: 0,
+        topDrivers: [],
+        windowStartIso: '',
+        windowEndIso: '',
+        weightingBreakdown: {},
+        personalizationBreakdown: {},
+        domainScores: [],
+        archetypes: [],
+        safety: { grounding: [], caution: [], agency: [] },
+      },
+      forecast: { day_rating: 'yellow' },
+    });
+
+    expect(result.intensity).toBe(55);
+    expect(result.source).toBe('forecast');
+  });
+
   it('maps storm intensityScore to 0-100 scale', () => {
     const result = resolveBaseIntensity({
       storms: {

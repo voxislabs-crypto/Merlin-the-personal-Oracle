@@ -8,6 +8,7 @@ import type {
   ResolvedIntensity,
 } from '@/lib/atmosphere/types';
 import type { AtmospherePredictiveInput, AtmosphereStormInput } from '@/lib/atmosphere/types';
+import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
 import { normalizePredictiveIntensity } from '@/lib/atmosphere/normalize';
 import { clampIntensity } from '@/lib/atmosphere/tone';
 
@@ -15,16 +16,16 @@ const CHALLENGING_MOON_SIGNS = new Set(['Scorpio', 'Capricorn', 'Aquarius', 'Vir
 const SUPPORTIVE_MOON_SIGNS = new Set(['Taurus', 'Cancer', 'Pisces', 'Sagittarius', 'Leo']);
 
 export function resolveBaseIntensity(input: ComputeAtmosphereInput): ResolvedIntensity {
-  const pressureIntensity = intensityFromPressure(input);
-  if (pressureIntensity !== null) {
+  const pressure = intensityFromPressure(input);
+  if (pressure !== null) {
     return {
-      intensity: pressureIntensity,
+      intensity: pressure.intensity,
       source: 'pressure',
-      provenance: ['pressure-engine'],
+      provenance: pressure.provenance,
     };
   }
 
-  const stormIntensity = intensityFromStorm(input.storms?.storms?.[0]);
+  const stormIntensity = intensityFromStorm(pickStormForDay(input));
   if (stormIntensity !== null) {
     return {
       intensity: stormIntensity,
@@ -48,18 +49,59 @@ export function resolveBaseIntensity(input: ComputeAtmosphereInput): ResolvedInt
   };
 }
 
-function intensityFromPressure(input: ComputeAtmosphereInput): number | null {
-  const globalPressure = input.explainability?.globalPressure;
-  if (typeof globalPressure === 'number' && Number.isFinite(globalPressure)) {
-    return clampIntensity(globalPressure);
+function intensityFromPressure(
+  input: ComputeAtmosphereInput
+): { intensity: number; provenance: string[] } | null {
+  const day = computeDaySkyPressure(input.predictive?.events, input.date);
+  if (day.pressure !== null) {
+    return {
+      intensity: day.pressure,
+      provenance: ['pressure-engine', ...day.provenance],
+    };
   }
 
-  const topEventIntensity = normalizePredictiveIntensity(input.predictive?.events?.[0]?.scores?.intensity);
-  if (topEventIntensity !== null) {
-    return topEventIntensity;
+  const timedEvents = input.predictive?.events?.some(
+    (event) => event.timing?.startsAt || typeof event.timing?.daysToPeak === 'number'
+  );
+  // Window-mean globalPressure is not today's weather when we already know
+  // every timed event sits later in the horizon.
+  if (!timedEvents) {
+    const globalPressure = input.explainability?.globalPressure;
+    if (typeof globalPressure === 'number' && Number.isFinite(globalPressure) && globalPressure > 0) {
+      return {
+        intensity: clampIntensity(globalPressure),
+        provenance: ['pressure-engine'],
+      };
+    }
+
+    const topEventIntensity = normalizePredictiveIntensity(
+      input.predictive?.events?.[0]?.scores?.intensity
+    );
+    if (topEventIntensity !== null) {
+      return {
+        intensity: topEventIntensity,
+        provenance: ['pressure-engine'],
+      };
+    }
   }
 
   return null;
+}
+
+function pickStormForDay(input: ComputeAtmosphereInput): AtmosphereStormInput | undefined {
+  const storms = input.storms?.storms;
+  if (!storms?.length) return undefined;
+
+  const date = input.date;
+  const dated = storms.filter((storm) => typeof storm.date === 'string' && storm.date.length > 0);
+  if (date && dated.length) {
+    const today = dated.filter((storm) => storm.date === date);
+    if (!today.length) return undefined;
+    return [...today].sort((a, b) => (intensityFromStorm(b) ?? 0) - (intensityFromStorm(a) ?? 0))[0];
+  }
+
+  if (!dated.length) return storms[0];
+  return undefined;
 }
 
 function intensityFromStorm(storm?: AtmosphereStormInput): number | null {

@@ -7,7 +7,8 @@ import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
 import type { BirthChartData, DomainScore } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
-import { addCalendarDays, resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
+import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
+import { addCalendarDays, calendarDateToLocalNoon, resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
 
 function normalizeUtcBirth(birthDate: string, birthTime: string, timezoneOffset?: number) {
   if (typeof timezoneOffset !== 'number' || Number.isNaN(timezoneOffset)) {
@@ -76,12 +77,16 @@ export async function POST(request: Request) {
       console.warn('[DomainForecast] Swiss failed, using fallback:', error);
     }
 
+    const targetDate = resolveForecastTargetDate(
+      typeof clientDate === 'string' ? clientDate : undefined,
+    );
     const predictive = await buildPredictiveTransitBundle({
       natalPlanets: natalChart.positions || [],
       birthDate,
       mbtiType,
       userId,
       windowDays,
+      now: calendarDateToLocalNoon(targetDate),
     });
 
     const resonance = userId
@@ -95,14 +100,10 @@ export async function POST(request: Request) {
 
     const weightedEvents = applyPlanetResonanceWeights(predictive.events, resonance.multipliers);
     const sortedEvents = [...weightedEvents].sort((a, b) => b.scores.intensity - a.scores.intensity);
+    const dayPressure = computeDaySkyPressure(sortedEvents, targetDate);
 
-    const globalPressure = sortedEvents.length
-      ? Math.round(sortedEvents.reduce((sum, event) => sum + event.scores.intensity, 0) / sortedEvents.length)
-      : 0;
-
-    const confidence = sortedEvents.length
-      ? Math.round(sortedEvents.reduce((sum, event) => sum + event.scores.confidence, 0) / sortedEvents.length)
-      : 0;
+    const globalPressure = dayPressure.pressure ?? 0;
+    const confidence = dayPressure.confidence ?? 0;
 
     const explainability = buildExplainabilityPacket({
       windowStartIso: new Date().toISOString(),
@@ -122,7 +123,7 @@ export async function POST(request: Request) {
         daily: buildDailyDomainSeries(
           windowDays,
           explainability.domainScores,
-          resolveForecastTargetDate(typeof clientDate === 'string' ? clientDate : undefined),
+          targetDate,
         ),
       },
     });

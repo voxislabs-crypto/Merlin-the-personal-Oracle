@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { assembleAtmosphereInput } from '@/lib/atmosphere/assemble-input';
+import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
 import { getAtmospherePatternProfile } from '@/lib/atmosphere/pattern-store.server';
 import { enhanceAtmosphereRationale } from '@/lib/atmosphere/rationale-ai';
 import { computeAtmosphere } from '@/lib/atmosphere/compute';
@@ -229,6 +230,7 @@ export async function POST(request: Request) {
         mbtiType: parsedMbti,
         userId: typeof userId === 'string' ? userId : undefined,
         windowDays,
+        now: calendarDateToLocalNoon(targetDate),
       }),
       Promise.resolve(getTodaysForecast(natalChart, targetDate)),
       Promise.resolve(
@@ -265,16 +267,10 @@ export async function POST(request: Request) {
 
     const weightedEvents = applyPlanetResonanceWeights(predictive.events, resonance.multipliers);
     const sortedEvents = [...weightedEvents].sort((a, b) => b.scores.intensity - a.scores.intensity);
+    const dayPressure = computeDaySkyPressure(sortedEvents, targetDate);
 
-    const globalPressure = sortedEvents.length
-      ? Math.round(sortedEvents.reduce((sum, event) => sum + event.scores.intensity, 0) / sortedEvents.length)
-      : 0;
-
-    const confidence = sortedEvents.length
-      ? Math.round(
-          (sortedEvents.reduce((sum, event) => sum + event.scores.confidence, 0) / sortedEvents.length) * 100
-        )
-      : 0;
+    const globalPressure = dayPressure.pressure ?? 0;
+    const confidence = dayPressure.confidence ?? 0;
 
     const explainability = buildExplainabilityPacket({
       windowStartIso: new Date().toISOString(),
