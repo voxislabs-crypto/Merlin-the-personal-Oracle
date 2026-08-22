@@ -40,14 +40,15 @@ export function isSkyEventActiveOnDate(
   const timing = event.timing;
   if (!timing) return true;
 
+  const daysToPeak = timing.daysToPeak;
   const hasStart = Boolean(timing.startsAt);
-  const hasPeakDays = typeof timing.daysToPeak === 'number' && Number.isFinite(timing.daysToPeak);
+  const hasPeakDays = typeof daysToPeak === 'number' && Number.isFinite(daysToPeak);
   if (!hasStart && !hasPeakDays && !timing.phase) return true;
 
-  if (hasPeakDays && timing.daysToPeak <= 0) return true;
+  if (typeof daysToPeak === 'number' && Number.isFinite(daysToPeak) && daysToPeak <= 0) return true;
   if (timing.phase === 'peaking' || timing.phase === 'releasing') return true;
 
-  if (hasStart) {
+  if (timing.startsAt) {
     const startDay = calendarDateFromInstant(timing.startsAt);
     if (startDay && startDay <= today) return true;
   }
