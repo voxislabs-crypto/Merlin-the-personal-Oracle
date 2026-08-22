@@ -74,9 +74,11 @@ export function toStoredOracleChatMessage(message: {
   };
 }
 
-export function fromStoredOracleChatMessage(message: StoredOracleChatMessage): StoredOracleChatMessage & {
+export type HydratedOracleChatMessage = Omit<StoredOracleChatMessage, 'timestamp'> & {
   timestamp: Date;
-} {
+};
+
+export function fromStoredOracleChatMessage(message: StoredOracleChatMessage): HydratedOracleChatMessage {
   return {
     ...message,
     timestamp: new Date(message.timestamp),
