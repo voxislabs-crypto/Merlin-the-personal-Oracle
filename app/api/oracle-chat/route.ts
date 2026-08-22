@@ -34,6 +34,7 @@ import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import { getLlmConfig } from '@/lib/llm-config';
 import { consumeOracleQuota, oracleQuotaDeniedResponse } from '@/lib/oracle-quota';
+import { normalizeClientConversationHistory } from '@/lib/oracle-chat-memory';
 
 interface OracleChatRequest {
   question: string;
@@ -52,6 +53,31 @@ interface OracleChatRequest {
     mask?: string;
     final?: string;
   } | null;
+  conversationHistory?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp?: string;
+  }>;
+}
+
+function seedOracleMemoryFromClient(
+  userId: string,
+  clientHistory: OracleChatRequest['conversationHistory']
+) {
+  const incoming = normalizeClientConversationHistory(clientHistory);
+  if (!incoming.length) return;
+
+  const existing = oracleMemory.getHistory(userId);
+  if (existing.length >= incoming.length) return;
+
+  oracleMemory.clearHistory(userId);
+  for (const message of incoming) {
+    oracleMemory.addMessage(userId, {
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp ? new Date(message.timestamp) : new Date(),
+    });
+  }
 }
 
 function getOracleLlmConfig() {
@@ -78,7 +104,10 @@ export async function POST(request: NextRequest) {
       ancientLayer = false,
       atmospherePacket,
       dualPersonality,
+      conversationHistory: clientConversationHistory,
     } = body;
+
+    seedOracleMemoryFromClient(userId, clientConversationHistory);
 
     if (!question || question.trim().length === 0) {
       return NextResponse.json(

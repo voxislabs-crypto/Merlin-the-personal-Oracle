@@ -20,6 +20,12 @@ export interface OracleChatRequestPayload {
     mask?: string;
     final?: string;
   } | null;
+  /** Prior turns from the client so serverless memory can restore the thread. */
+  conversationHistory?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp?: string;
+  }>;
 }
 
 export interface OracleChatStreamResult {

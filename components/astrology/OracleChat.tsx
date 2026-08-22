@@ -21,6 +21,14 @@ import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 import { OracleRichText } from '@/components/astrology/OracleRichText';
 import { ORACLE_SEVERITY_SHELL, scoreOracleSeverity } from '@/lib/oracle-rich-text';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import {
+  clearOracleChatMessages,
+  fromStoredOracleChatMessage,
+  loadOracleChatMessages,
+  saveOracleChatMessages,
+  toOracleConversationHistory,
+  toStoredOracleChatMessage,
+} from '@/lib/oracle-chat-memory';
 
 const MERLIN_PORTRAIT_IMAGE = '/merlin-portrait-chatgpt.png';
 
@@ -56,6 +64,8 @@ export function OracleChat({
   onClose,
 }: OracleChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [chatHistoryReady, setChatHistoryReady] = useState(false);
+  const skipNextChatPersistRef = useRef(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -265,30 +275,50 @@ export function OracleChat({
     void persistPreferences({ clarityMode: next });
   };
 
-  // Fetch conversation history on mount
   useEffect(() => {
+    skipNextChatPersistRef.current = true;
+    const stored = loadOracleChatMessages(userId).map((row) => fromStoredOracleChatMessage(row));
+    setMessages(stored.length ? (stored as Message[]) : []);
+    setChatHistoryReady(true);
+
+    let cancelled = false;
     const fetchHistory = async () => {
       try {
         const response = await fetch(`/api/oracle-chat?userId=${userId}`);
-        if (response.ok) {
-          const data = await response.json();
-          const formattedMessages: Message[] = data.data.history.map(
-            (msg: any, idx: number) => ({
-              id: `${msg.role}-${idx}`,
-              role: msg.role,
-              content: msg.content,
-              timestamp: new Date(msg.timestamp),
-            })
-          );
-          setMessages(formattedMessages);
-        }
+        if (!response.ok || cancelled) return;
+        const data = await response.json();
+        const formattedMessages: Message[] = (data.data?.history || []).map(
+          (msg: { role: 'user' | 'assistant'; content: string; timestamp?: string }, idx: number) => ({
+            id: `${msg.role}-${idx}`,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp || Date.now()),
+          })
+        );
+        if (!formattedMessages.length) return;
+        setMessages((prev) => (prev.length >= formattedMessages.length ? prev : formattedMessages));
       } catch (error) {
         console.error('Failed to load history:', error);
       }
     };
 
-    fetchHistory();
+    void fetchHistory();
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
+
+  useEffect(() => {
+    if (!chatHistoryReady) return;
+    if (skipNextChatPersistRef.current) {
+      skipNextChatPersistRef.current = false;
+      return;
+    }
+    saveOracleChatMessages(
+      userId,
+      messages.map((message) => toStoredOracleChatMessage(message))
+    );
+  }, [chatHistoryReady, messages, userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -310,6 +340,7 @@ export function OracleChat({
     }
 
     const questionText = input;
+    const priorHistory = toOracleConversationHistory(messages);
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
@@ -343,6 +374,7 @@ export function OracleChat({
           oracleMode,
           includeLikelihood,
           ancientLayer,
+          conversationHistory: priorHistory,
         },
         (fullContent) => {
           setStreamingContent(fullContent);
@@ -410,6 +442,7 @@ export function OracleChat({
 
     try {
       await fetch(`/api/oracle-chat?userId=${userId}`, { method: 'DELETE' });
+      clearOracleChatMessages(userId);
       setMessages([]);
     } catch (error) {
       console.error('Failed to clear history:', error);
