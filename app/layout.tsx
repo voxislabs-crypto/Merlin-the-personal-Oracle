@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     default: 'Merlin — Personalized Life Weather',
     template: '%s | Merlin'
   },
-  description: 'Not a horoscope. A clear read on your day through the lens of who you are — life weather, one move, and Self identity underneath. Swiss Ephemeris precision. Monthly or lifetime.',
+  description: 'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
   keywords: [
     'personalized life weather',
     'life weather forecast',
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: 'Merlin Oracle',
     title: 'Merlin — Know how today feels for you',
-    description: 'Not a horoscope. Clarity on your day: intensity, storms, weekly radar, and one move — personal to your chart and dual personality.',
+    description: 'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
     images: [
       {
         url: '/og-image.svg',
@@ -75,7 +75,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Merlin — Personalized Life Weather',
-    description: 'How today feels for you — not a generic horoscope. Life weather, storm radar, real chart underneath.',
+    description: 'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
     images: ['/og-image.svg'],
     creator: '@merlinoracle',
   },
@@ -130,7 +130,7 @@ export default function RootLayout({
                   ratingValue: '4.9',
                   ratingCount: '247',
                 },
-                description: 'Personalized life weather for your birth chart — daily forecast, storm radar, and identity depth with Swiss Ephemeris precision.',
+                description: 'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
               }),
             }}
           />

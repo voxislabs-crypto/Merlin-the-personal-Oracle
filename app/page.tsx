@@ -115,8 +115,9 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.25 }}
             className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed mb-3"
           >
-            Not a horoscope. A clear read on your day — through the lens of who you are.
-            When friction is elevated, when it isn&apos;t, and one concrete move.
+            Merlin reads your real birth chart and tells you how the current planetary weather is
+            actually going to feel for you — including when storms are coming and what to do about
+            them.
           </motion.p>
 
           <motion.p
@@ -125,8 +126,8 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.32 }}
             className="text-sm md:text-base text-slate-400 max-w-xl mx-auto mb-8"
           >
-            Astrology is the engine. Clarity is the product. Chart + dual personality make every
-            forecast personal — Swiss Ephemeris precision, coach-level language.
+            Not a horoscope. Astrology is the engine. Clarity is the product — one personal forecast,
+            storm radar, and a concrete move.
           </motion.p>
 
           {/* Two-pillar preview */}
@@ -145,7 +146,7 @@ export default function Home() {
               </div>
               <p className="text-sm font-semibold text-sky-50">Today + storm radar</p>
               <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                Friction score, disruption risk, day chart, and a single high-leverage move.
+                How today feels for your chart, when storms are coming, and one high-leverage move.
               </p>
             </div>
             <div className="rounded-2xl border border-amber-500/30 bg-amber-950/25 p-4 backdrop-blur-sm">

@@ -8,7 +8,7 @@ const faqs = [
   {
     question: 'What is Merlin, in one sentence?',
     answer:
-      'Merlin is personalized life weather for your chart — how today feels, what’s building, and a clear move — with a full birth chart and dual MBTI underneath so every forecast is yours.',
+      'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
   },
   {
     question: 'How is this different from a free horoscope app?',
