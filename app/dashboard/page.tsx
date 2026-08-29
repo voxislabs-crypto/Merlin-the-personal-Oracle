@@ -1751,7 +1751,14 @@ export default function UnifiedDashboard() {
     ((chartData as any)?.metadata?.ephemeris as string | undefined) ||
     (((chartData as any)?.metadata?.calculationSource as string | undefined) === 'swiss-real' ? 'Swiss real' : undefined) ||
     (((chartData as any)?.metadata?.calculationSource as string | undefined) === 'mock-fallback' ? 'Mock' : undefined);
-  const moonSign = chartData?.planets?.find((p: any) => p.name === 'Moon')?.sign;
+  const natalBodies = (chartData?.planets?.length ? chartData.planets : chartData?.positions) || [];
+  const moonSign =
+    natalBodies.find((p) => p.name === 'Moon')?.sign ||
+    forecast?.moonSign;
+  const sunSign = natalBodies.find((p) => p.name === 'Sun')?.sign;
+  const risingSign =
+    chartData?.ascendant?.sign ||
+    natalBodies.find((p) => p.name === 'Ascendant' || p.name === 'Rising')?.sign;
 
   const lifeArcNarrative = lifeArc?.events?.length
     ? `From age ${lifeArc.events[0].age}, your path is marked by ${lifeArc.events
@@ -2117,9 +2124,6 @@ export default function UnifiedDashboard() {
       summary.split('. ').slice(0, 2).join('. ') + (summary.includes('.') ? '.' : '')
     );
   }, [activeTransitStoryline, interpretations?.chartSummary]);
-
-  const sunSign = chartData?.planets?.find((p) => p.name === 'Sun')?.sign;
-  const risingSign = chartData?.planets?.find((p) => p.name === 'Ascendant')?.sign;
 
   /** Self pillar contract — who is in this life weather. @see docs/TWO_PILLARS.md */
   const identityPacket = useMemo(

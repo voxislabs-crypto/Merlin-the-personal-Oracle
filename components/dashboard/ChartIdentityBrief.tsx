@@ -84,11 +84,11 @@ export function ChartIdentityBrief({
   retrogradeOverlay = false,
   onToggleRetrogradeOverlay,
 }: ChartIdentityBriefProps) {
-  const placements = [
-    sunSign ? `Sun ${sunSign}` : null,
-    moonSign ? `Moon ${moonSign}` : null,
-    risingSign ? `Rising ${risingSign}` : null,
-  ].filter(Boolean);
+  const natalPillars = [
+    { key: 'sun', label: 'Sun', value: sunSign, hint: 'who you are becoming' },
+    { key: 'moon', label: 'Moon', value: moonSign, hint: 'what you need' },
+    { key: 'rising', label: 'Rising', value: risingSign, hint: 'how you arrive' },
+  ];
 
   const core = (mbtiCore || mbtiType || '').toUpperCase() || undefined;
   const mask = (mbtiMask || '').toUpperCase() || undefined;
@@ -131,9 +131,6 @@ export function ChartIdentityBrief({
               <p className="mt-1 text-xs text-slate-400">
                 Stable self first — weather and storylines shift; this map doesn&apos;t.
               </p>
-              {placements.length ? (
-                <p className="mt-2 text-sm text-slate-300">{placements.join(' · ')}</p>
-              ) : null}
             </div>
           </div>
           {onAskMerlin ? (
@@ -146,6 +143,23 @@ export function ChartIdentityBrief({
               Explain my chart
             </button>
           ) : null}
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {natalPillars.map((pillar) => (
+            <div
+              key={pillar.key}
+              className="rounded-xl border border-amber-400/25 bg-black/25 px-2.5 py-2.5 sm:px-3.5"
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200/80">
+                {pillar.label}
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-amber-50 sm:text-base">
+                {pillar.value || '—'}
+              </p>
+              <p className="mt-0.5 hidden text-[10px] text-slate-500 sm:block">{pillar.hint}</p>
+            </div>
+          ))}
         </div>
 
         {/* Memorable synthesis — shareable takeaway */}
