@@ -1,64 +1,55 @@
-import { type MBTIType, type TypeConfig, typeConfigs } from "@shared/schema";
+/**
+ * Personality adapter — generation strategy, not a text filter.
+ *
+ * The ephemeris engine (calculateBirthChart / sweph) is untouched.
+ * This module decides voice: what to say, how, and how long.
+ *
+ * @deprecated String hacks (infuseMotivators / adjustTone / adjustStructure / slice-to-length)
+ * were removed. Use generateMessage for LLM voice, or adaptMessage for the deterministic writer.
+ */
 
-function infuseMotivators(text: string, motivators: string[]): string {
-  const insertIndex = Math.floor(text.length / 2);
-  const motivator = motivators[Math.floor(Math.random() * motivators.length)];
-  return (
-    text.slice(0, insertIndex) +
-    `, infused with ${motivator},` +
-    text.slice(insertIndex)
-  );
-}
+import type { MBTIType, TypeConfig } from '@shared/schema';
+import { typeConfigs } from '@shared/schema';
+import { classifyIntent } from '@/lib/personality/intent';
+import { fallbackWrite } from '@/lib/personality/fallback';
+import { buildVoiceProfile } from '@/lib/personality/profile';
+import { getPersonaSpec } from '@/lib/personality/persona-spec';
 
-function adjustTone(text: string, tone: TypeConfig["tone"]): string {
-  const toneAdjustments: Record<TypeConfig["tone"], (t: string) => string> = {
-    epic: (t) =>
-      t
-        .replace(/today/gi, "in this momentous era")
-        .replace(/celebrate/gi, "honor the eternal"),
-    action: (t) => t.toUpperCase() + "!",
-    logical: (t) => `Logically, ${t}.`,
-    empathetic: (t) => `I understand how ${t} feels.`,
-    adventurous: (t) => `Imagine ${t} as an epic quest!`,
-    structured: (t) => `Step 1: ${t}.`,
-    introspective: (t) => `Reflect on ${t}.`,
-    social: (t) => `Share ${t} with friends.`,
-  };
-  return toneAdjustments[tone](text);
-}
+export type { MBTIType, TypeConfig } from '@shared/schema';
+export { typeConfigs } from '@shared/schema';
 
-function adjustStructure(
-  text: string,
-  structure: TypeConfig["structure"],
-): string {
-  const structures: Record<TypeConfig["structure"], (t: string) => string> = {
-    bullets: (t) => `- ${t.split(". ").join("\n- ")}`,
-    paragraph: (t) => t,
-    questions: (t) => `What if ${t}? Have you considered?`,
-    commands: (t) => `Do this: ${t}. Now.`,
-  };
-  return structures[structure](text);
-}
+export {
+  buildVoiceProfile,
+  buildVoiceStrategyBlock,
+  clearVoiceProfileCache,
+} from '@/lib/personality/profile';
 
-export function adaptMessage(mbtiType: MBTIType, rawMessage: string): string {
-  const config = typeConfigs[mbtiType];
-  if (!config) {
-    throw new Error(`Unknown MBTI type: ${mbtiType}`);
-  }
-  let adapted = rawMessage;
-  adapted = infuseMotivators(adapted, config.motivators);
-  adapted = adjustTone(adapted, config.tone);
-  const targetLength = Math.floor(adapted.length * config.lengthMultiplier);
-  if (targetLength > adapted.length) {
-    adapted += " " + adapted.slice(0, targetLength - adapted.length);
-  } else {
-    adapted = adapted.slice(0, targetLength);
-  }
-  adapted = adjustStructure(adapted, config.structure);
-  adapted = `You know, deep down, ${adapted}`;
-  return adapted;
-}
+export { classifyIntent } from '@/lib/personality/intent';
+export { extractChartVoiceFacts, chartVoiceNotes } from '@/lib/personality/chart-source';
+export { getPersonaSpec, PERSONA_SPECS } from '@/lib/personality/persona-spec';
 
+/**
+ * Legacy TypeConfig view of the rich persona spec.
+ * Kept so older callers can still read tone / structure / motivators.
+ * Generation no longer uses these four fields.
+ */
 export function getTypeConfig(mbtiType: MBTIType): TypeConfig {
-  return typeConfigs[mbtiType];
+  const spec = getPersonaSpec(mbtiType);
+  const legacy = typeConfigs[mbtiType];
+  if (!spec) return legacy;
+  return {
+    ...legacy,
+    motivators: spec.overIndex.slice(0, 5),
+    lengthMultiplier: Number((spec.length.maxWords / 70).toFixed(2)),
+  };
+}
+
+/**
+ * Sync path: write in-voice from the persona without mangling the source sentence.
+ * Prefer generateMessage when an LLM is available (API / server).
+ */
+export function adaptMessage(mbtiType: MBTIType, rawMessage: string): string {
+  const profile = buildVoiceProfile({ coreType: mbtiType });
+  const intent = classifyIntent(rawMessage);
+  return fallbackWrite(profile, intent, rawMessage);
 }

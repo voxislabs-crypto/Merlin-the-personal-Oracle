@@ -369,6 +369,7 @@ export async function POST(request: NextRequest) {
       userContext,
       stormsReport,
       conversationHistory: history,
+      currentQuestion: question,
       userId,
       currentDate: new Date(),
       plainEnglish,
@@ -389,7 +390,8 @@ export async function POST(request: NextRequest) {
     };
     oracleMemory.addMessage(userId, userMessage);
 
-    // Build system prompt with live app sight
+    // One writer: VOICE STRATEGY is already in the system prompt.
+    // Do not wrap this stream in generateMessage — that would be a second model.
     const baseSystemPrompt = buildOracleSystemPrompt(context);
     const conversationalAddon = shouldSkipStructure(question)
       ? `\n\nEMOTIONAL CARE MODE: The user may be raw. Stay steady and intelligent. Lead with recognition of their state, then one grounding observation from live data if available, then one small reversible step. No percentages dump. No lectures.`

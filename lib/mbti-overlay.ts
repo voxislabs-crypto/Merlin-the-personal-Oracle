@@ -1,5 +1,8 @@
 // MBTI Overlay - Translates astrological themes into personality-specific language
 
+import { fallbackWrite } from '@/lib/personality/fallback'
+import { buildVoiceProfile } from '@/lib/personality/profile'
+
 export type MBTIType =
   | "INFJ"
   | "INFP"
@@ -86,40 +89,15 @@ const mbtiFilters: Record<string, Record<string, string>> = {
 }
 
 /**
- * Apply MBTI overlay to a theme
- * Returns personalized guidance string
+ * Apply MBTI overlay to a theme — in-voice navigation, not "As an INFJ…"
  */
 export function applyMBTIOverlay(theme: string, mbtiType: MBTIType): string {
-  const themeGuidance = mbtiFilters[theme]
-
-  if (!themeGuidance) {
-    return `As a ${mbtiType}, bring your unique strengths to this ${theme.toLowerCase()} situation.`
-  }
-
-  const guidance = themeGuidance[mbtiType]
-
-  if (!guidance) {
-    // Fallback based on cognitive functions
-    const isFe = ["ENFJ", "ESFJ", "INFJ", "ISFJ"].includes(mbtiType)
-    const isTe = ["ENTJ", "ESTJ", "INTJ", "ISTJ"].includes(mbtiType)
-    const isFi = ["ENFP", "ESFP", "INFP", "ISFP"].includes(mbtiType)
-    const isTi = ["ENTP", "ESTP", "INTP", "ISTP"].includes(mbtiType)
-
-    if (isFe) {
-      return `As a ${mbtiType}, consider how this ${theme.toLowerCase()} situation affects those around you. Your empathy is a strength.`
-    } else if (isTe) {
-      return `As a ${mbtiType}, organize this ${theme.toLowerCase()} challenge systematically. Your strategic thinking creates clarity.`
-    } else if (isFi) {
-      return `As a ${mbtiType}, honor your values in this ${theme.toLowerCase()} area. Authenticity guides your best decisions.`
-    } else if (isTi) {
-      return `As a ${mbtiType}, analyze this ${theme.toLowerCase()} situation logically. Understanding the mechanics reveals solutions.`
-    }
-  }
-
-  return (
-    guidance ||
-    `As a ${mbtiType}, apply your natural strengths to navigate this ${theme.toLowerCase()} theme with confidence.`
-  )
+  const profile = buildVoiceProfile({ coreType: mbtiType })
+  const tableLine = mbtiFilters[theme]?.[mbtiType]
+  const seed = tableLine
+    ? tableLine.replace(/^As an? [IE][NS][TF][JP],\s*/i, '')
+    : `Life theme in play: ${theme}. One navigation line. Do not address them by type code.`
+  return fallbackWrite(profile, 'instruction', seed)
 }
 
 /**

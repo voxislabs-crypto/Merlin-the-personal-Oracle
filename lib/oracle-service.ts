@@ -8,6 +8,8 @@ import { DailyForecast } from '@/lib/astrology/ephemeris';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import type { PersistentUserContextSnapshot } from '@/lib/user-context';
 import { MERLIN_VOICE_SYSTEM_BLOCK } from '@/lib/voice/merlin-voice';
+import { classifyIntent } from '@/lib/personality/intent';
+import { buildVoiceProfile, buildVoiceStrategyBlock } from '@/lib/personality/profile';
 import oraclePhrases from '@/data/oracle-phrases.json';
 import type { MentionWorthySet } from '@/lib/astrology/mention-worthy';
 import type { LivedThemePacket } from '@/lib/astrology/lived-themes';
@@ -77,6 +79,8 @@ export interface OracleContext {
     horizonDays?: number;
   };
   conversationHistory: OracleMessage[];
+  /** Latest user ask — used to pick voice intent before the model writes. */
+  currentQuestion?: string;
   userId?: string;
   currentDate?: Date;
   plainEnglish?: boolean; // "Clarity Mode" - strip astro jargon
@@ -850,20 +854,18 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
   const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
   const dual = context.dualPersonality;
-  const effectiveMbti =
-    dual?.final || dual?.core || context.mbtiType || chartMbti;
-  const dualLine =
-    dual?.core || dual?.mask
-      ? `
-DUAL PERSONALITY (how they are wired — use for empathy, not weather physics):
-- Core (inner operating system): ${dual.core || 'unknown'}
-- Mask (social presentation): ${dual.mask || 'unknown'}
-- Integrated type: ${dual.final || effectiveMbti || 'unknown'}
-- Rule: speak to Core for truth; acknowledge Mask when social friction is the topic. When Core ≠ Mask, name the split without shaming either layer.`
-      : '';
-  const mbtiLine = effectiveMbti
-    ? `\nPERSONALITY LENS: ${effectiveMbti}${dualLine}`
-    : dualLine;
+  const lastUserAsk =
+    context.currentQuestion ||
+    [...context.conversationHistory].reverse().find((m) => m.role === 'user')?.content ||
+    '';
+  const voiceProfile = buildVoiceProfile({
+    chart: context.birthChart,
+    coreType: dual?.core || context.mbtiType || chartMbti,
+    maskType: dual?.mask,
+  });
+  const voiceIntent = classifyIntent(lastUserAsk);
+  // One writer: this block is the voice. Do not run generateMessage on the stream.
+  const voiceStrategy = buildVoiceStrategyBlock(voiceProfile, voiceIntent);
 
   const languageRule = plainEnglish
     ? `LANGUAGE (Clarity ON):
@@ -944,7 +946,7 @@ ${transitsContext ? `\n${transitsContext}` : ''}
 ${forecastContext ? `\n${forecastContext}` : ''}
 ${chartContext}
 ${fullPlanetaryAnalysis ? `\n${fullPlanetaryAnalysis}` : ''}
-${mbtiLine}
+${voiceStrategy}
 ${timelineContext ? `\n${timelineContext}` : ''}
 ${userContextBlock ? `\n${userContextBlock}` : ''}
 ${patternMirrorBlock ? `\n${patternMirrorBlock}` : ''}
