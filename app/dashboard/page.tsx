@@ -349,7 +349,7 @@ export default function UnifiedDashboard() {
   } = useAtmosphereJournal(forecast?.date);
   const { memory: todayMoveMemory, remember: rememberTodayMove } = useTodayMoveMemory(userId || undefined);
   const { mbtiType, dualOverlay, loading: personalityLoading, applyChartPersonality } = usePersonality();
-  const { preferences: oraclePreferences } = useOraclePreferences({
+  const { preferences: oraclePreferences, persistPreferences } = useOraclePreferences({
     enabled: Boolean(userId),
   });
   const retrogradeOverlay = oraclePreferences.retrogradeOverlay;
@@ -2882,6 +2882,10 @@ export default function UnifiedDashboard() {
                         'Explain my Sun, Moon, and Rising in plain language and how they shape how I show up in today\'s life weather.',
                       )
                     }
+                    retrogradeOverlay={retrogradeOverlay}
+                    onToggleRetrogradeOverlay={() => {
+                      void persistPreferences({ retrogradeOverlay: !retrogradeOverlay });
+                    }}
                     onAskPersonality={() =>
                       queueAskContext(
                         'Personality type',

@@ -144,6 +144,7 @@ describe('MBTI Fusion', () => {
     expect(off.hardware.type).toBe(on.hardware.type);
     expect(off.firmware.breakdown.reasoning.intuition.join(' ')).not.toMatch(/Retrograde overlay/);
     expect(on.firmware.breakdown.reasoning.intuition.join(' ')).toMatch(/Retrograde overlay/);
+    expect(on.firmware.type).not.toBe(off.firmware.type);
   });
 
   test('keeps firmware as the listed core type (no INFJ letter-count override)', () => {

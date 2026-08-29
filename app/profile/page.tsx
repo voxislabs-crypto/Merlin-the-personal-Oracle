@@ -617,8 +617,8 @@ export default function ProfilePage() {
                 </p>
                 <p className="text-gray-400 text-sm">
                   {retrogradeOverlay
-                    ? 'Natal retrogrades nudge Core toward inner process (more N / I / F). Mask stays the public fireworks. A/B this with friends — off is the base engine.'
-                    : 'Retrogrades are ignored. Core uses the base Moon/Mercury vote only.'}
+                    ? 'Natal retrogrades rewrite Core toward inner process (more I / N / F / P). Mask stays the public face. Off is the base engine.'
+                    : 'Retrogrades are ignored. Core uses the base Moon/Mercury vote only. Turn on to A/B the Core type.'}
                 </p>
               </div>
               <button

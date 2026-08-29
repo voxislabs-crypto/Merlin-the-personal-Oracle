@@ -202,18 +202,24 @@ function writeLocalPreferences(next: Partial<OraclePreferences>): void {
 
 export function useOraclePreferences(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? false;
-  const [preferences, setPreferences] = useState<OraclePreferences>(DEFAULT_PREFERENCES);
+  const [preferences, setPreferences] = useState<OraclePreferences>(() => ({
+    ...DEFAULT_PREFERENCES,
+    ...normalizePreferences(readLocalPreferences()),
+  }));
 
   useEffect(() => {
-    const localPreferences = normalizePreferences(readLocalPreferences());
-    if (Object.keys(localPreferences).length === 0) {
-      return;
-    }
-
-    setPreferences((prev) => ({
-      ...prev,
-      ...localPreferences,
-    }));
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || !Object.values(LOCAL_STORAGE_KEYS).includes(event.key as (typeof LOCAL_STORAGE_KEYS)[keyof typeof LOCAL_STORAGE_KEYS])) {
+        return;
+      }
+      const localPreferences = normalizePreferences(readLocalPreferences());
+      setPreferences((prev) => ({
+        ...prev,
+        ...localPreferences,
+      }));
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   useEffect(() => {

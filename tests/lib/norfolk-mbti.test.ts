@@ -43,4 +43,27 @@ describe('Norfolk MBTI mask tuning', () => {
     expect(dual.firmware.type).toBe('INFJ');
     expect(dual.type).toBe('INFJ');
   });
+
+  it('retrograde overlay changes Core type when natal Rx planets exist', () => {
+    const chart = calculateBirthChart('1983-08-14', '16:21', 36.8468, -76.2855, {
+      includePatterns: false,
+      includeTransits: false,
+    });
+    const rx = (chart.planets || []).filter((p) => p.retrograde || (typeof p.speed === 'number' && p.speed < 0));
+    console.log(
+      'Rx planets:',
+      rx.map((p) => `${p.name} speed=${p.speed} rx=${p.retrograde}`),
+    );
+
+    const off = computeMBTIDual(chart);
+    const on = computeMBTIDual(chart, { retrogradeOverlay: true });
+    console.log('Overlay off:', off.firmware.type, off.firmware.breakdown);
+    console.log('Overlay on:', on.firmware.type, on.firmware.breakdown);
+
+    expect(on.hardware.type).toBe(off.hardware.type);
+    expect(rx.length).toBeGreaterThan(0);
+    expect(off.firmware.type).toBe('INFJ');
+    expect(on.firmware.type).toBe('INFP');
+    expect(on.firmware.breakdown.reasoning.judging.join(' ')).toMatch(/Retrograde overlay/);
+  });
 });

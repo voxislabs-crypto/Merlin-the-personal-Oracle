@@ -46,6 +46,9 @@ interface ChartIdentityBriefProps {
   onAskStoryline?: () => void;
   onAskStorylineTheme?: (title: string) => void;
   onAskStorylineWindow?: (title: string) => void;
+  /** Natal Rx overlay — Core only. Mask stays put. */
+  retrogradeOverlay?: boolean;
+  onToggleRetrogradeOverlay?: () => void;
 }
 
 function typeBlurb(type?: string): string | null {
@@ -78,6 +81,8 @@ export function ChartIdentityBrief({
   onAskStoryline,
   onAskStorylineTheme,
   onAskStorylineWindow,
+  retrogradeOverlay = false,
+  onToggleRetrogradeOverlay,
 }: ChartIdentityBriefProps) {
   const placements = [
     sunSign ? `Sun ${sunSign}` : null,
@@ -196,6 +201,21 @@ export function ChartIdentityBrief({
               <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">
                 Personality from your chart
               </p>
+              <div className="flex flex-wrap items-center gap-2">
+              {onToggleRetrogradeOverlay ? (
+                <button
+                  type="button"
+                  onClick={onToggleRetrogradeOverlay}
+                  aria-pressed={retrogradeOverlay}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    retrogradeOverlay
+                      ? 'border-indigo-300/50 bg-indigo-500/25 text-indigo-50'
+                      : 'border-white/15 bg-black/25 text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  {retrogradeOverlay ? 'Rx overlay on' : 'Rx overlay off'}
+                </button>
+              ) : null}
               {onAskPersonality ? (
                 <button
                   type="button"
@@ -206,6 +226,7 @@ export function ChartIdentityBrief({
                   Ask Merlin about my type
                 </button>
               ) : null}
+              </div>
             </div>
 
             <div
@@ -219,7 +240,7 @@ export function ChartIdentityBrief({
                     <Eye className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300/80">
-                        Core · inside
+                        Core · inside{retrogradeOverlay ? ' · Rx' : ''}
                       </p>
                       <p className="mt-0.5 text-lg font-bold text-violet-50">{core}</p>
                       {coreBlurb ? (

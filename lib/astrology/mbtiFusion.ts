@@ -136,10 +136,10 @@ function isNatalRetrograde(planet?: PlanetPosition): boolean {
   return false;
 }
 
-type RetrogradeBoost = { nBoost: number; iBoost: number; fBoost: number };
+type RetrogradeBoost = { nBoost: number; iBoost: number; fBoost: number; pBoost: number };
 
 function emptyBoost(): RetrogradeBoost {
-  return { nBoost: 0, iBoost: 0, fBoost: 0 };
+  return { nBoost: 0, iBoost: 0, fBoost: 0, pBoost: 0 };
 }
 
 function retrogradeBoostFor(planet?: PlanetPosition): RetrogradeBoost {
@@ -148,19 +148,19 @@ function retrogradeBoostFor(planet?: PlanetPosition): RetrogradeBoost {
   // Mean/true node is always retrograde — skip so the overlay isn't on for every chart.
   if (name.includes('node')) return emptyBoost();
   if (name === 'mercury' || name === 'venus') {
-    return { nBoost: 0.3, iBoost: 0.1, fBoost: 0 };
+    return { nBoost: 0.3, iBoost: 0.1, fBoost: 0.2, pBoost: 0.4 };
   }
   if (name === 'mars') {
-    return { nBoost: 0, iBoost: 0.3, fBoost: 0 };
+    return { nBoost: 0, iBoost: 0.3, fBoost: 0, pBoost: 0.25 };
   }
   if (name === 'neptune' || name === 'pluto' || name === 'uranus') {
-    return { nBoost: 0.4, iBoost: 0.1, fBoost: -0.15 };
+    return { nBoost: 0.4, iBoost: 0.1, fBoost: 0.2, pBoost: 0.35 };
   }
   if (name === 'jupiter') {
-    return { nBoost: 0.15, iBoost: 0.05, fBoost: 0 };
+    return { nBoost: 0.15, iBoost: 0.05, fBoost: 0, pBoost: 0.15 };
   }
   if (name === 'saturn') {
-    return { nBoost: 0, iBoost: 0.15, fBoost: 0.1 };
+    return { nBoost: 0, iBoost: 0.15, fBoost: 0, pBoost: 0 };
   }
   return emptyBoost();
 }
@@ -172,8 +172,15 @@ function sumRetrogradeBoosts(planets: Array<PlanetPosition | undefined>): Retrog
       nBoost: acc.nBoost + next.nBoost,
       iBoost: acc.iBoost + next.iBoost,
       fBoost: acc.fBoost + next.fBoost,
+      pBoost: acc.pBoost + next.pBoost,
     };
   }, emptyBoost());
+}
+
+export function listNatalRetrogrades(positions: PlanetPosition[] = []): string[] {
+  return positions
+    .filter((planet) => isNatalRetrograde(planet) && !planet.name.toLowerCase().includes('node'))
+    .map((planet) => planet.name);
 }
 
 export function computeMBTI(chart: BirthChartData, options?: MbtiFusionOptions): MBTIDetails {
@@ -533,9 +540,11 @@ function computeFirmwareLayer(params: {
     retrogradeOverlay = false,
   } = params;
 
-  const rxBoost = retrogradeOverlay
-    ? sumRetrogradeBoosts([mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto])
-    : emptyBoost();
+  const rxBodies = [mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto];
+  const rxBoost = retrogradeOverlay ? sumRetrogradeBoosts(rxBodies) : emptyBoost();
+  const rxNames = retrogradeOverlay
+    ? rxBodies.filter((p) => isNatalRetrograde(p) && !String(p?.name || '').toLowerCase().includes('node')).map((p) => p!.name)
+    : [];
 
   const extraversionReasons: string[] = [];
   const intuitionReasons: string[] = [];
@@ -566,6 +575,9 @@ function computeFirmwareLayer(params: {
   extraversionReasons.push(
     `Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → ${firmwareE_I}`
   );
+  if (rxNames.length) {
+    extraversionReasons.push(`Retrograde overlay using ${rxNames.join(', ')} Rx`);
+  }
   if (isMbtiDebugEnabled()) {
     console.log(
       `[MBTI E/I Firmware] Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → I-weight: ${iWeight.toFixed(2)} → ${firmwareE_I}`
@@ -688,7 +700,7 @@ function computeFirmwareLayer(params: {
   }
 
   if (rxBoost.fBoost) {
-    tScore += rxBoost.fBoost;
+    tScore -= rxBoost.fBoost;
     thinkingReasons.push('Retrograde overlay (inner values over outer performance)');
   }
   if (rxBoost.iBoost) {
@@ -757,6 +769,11 @@ function computeFirmwareLayer(params: {
       jScore += 0.4;
       judgingReasons.push(`North Node in ${northNode.sign} (purposeful soul direction, J)`);
     }
+  }
+
+  if (rxBoost.pBoost) {
+    jScore -= rxBoost.pBoost;
+    judgingReasons.push('Retrograde overlay (inner process stays open — P)');
   }
 
   const firmwareJ_P = jScore >= 0.4 ? 'J' : 'P';
