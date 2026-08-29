@@ -1989,9 +1989,14 @@ export default function UnifiedDashboard() {
 
   const liveDual = useMemo(() => {
     if (!chartData) return dualOverlay;
-    return (
-      derivePersonalityFromChart(chartData, { retrogradeOverlay })?.dualOverlay || dualOverlay
-    );
+    try {
+      return (
+        derivePersonalityFromChart(chartData, { retrogradeOverlay })?.dualOverlay || dualOverlay
+      );
+    } catch (error) {
+      console.warn('[dashboard] live dual personality failed:', error);
+      return dualOverlay;
+    }
   }, [chartData, dualOverlay, retrogradeOverlay]);
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
@@ -2413,9 +2418,7 @@ export default function UnifiedDashboard() {
           />
         </motion.div>
 
-            {chartData ? (
-              <DashboardExperienceTabs activeTab={dashboardTab} onTabChange={setDashboardTab} />
-            ) : null}
+            <DashboardExperienceTabs activeTab={dashboardTab} onTabChange={setDashboardTab} />
 
             {!chartData ? (
               <motion.div
