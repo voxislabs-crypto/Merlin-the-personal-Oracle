@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [oracleMode, setOracleMode] = useState<OracleMode>('auto');
   const [includeLikelihood, setIncludeLikelihood] = useState(true);
   const [ancientLayer, setAncientLayer] = useState(false);
+  const [retrogradeOverlay, setRetrogradeOverlay] = useState(false);
   const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
   const [syncMessage, setSyncMessage] = useState('');
   const { preferences, persistPreferences } = useOraclePreferences({ enabled: isLoaded && !!user });
@@ -37,6 +38,7 @@ export default function ProfilePage() {
     setIncludeLikelihood(preferences.includeLikelihood);
     setAncientLayer(preferences.ancientLayer);
     setProphecyPolishMode(preferences.prophecyPolishMode);
+    setRetrogradeOverlay(preferences.retrogradeOverlay);
   }, [preferences]);
 
   const persistOraclePreferences = async (next: Partial<{
@@ -49,6 +51,7 @@ export default function ProfilePage() {
     includeLikelihood: boolean;
     ancientLayer: boolean;
     prophecyPolishMode: ProphecyPolishMode;
+    retrogradeOverlay: boolean;
   }>) => {
     try {
       const { synced } = await persistPreferences(next);
@@ -121,6 +124,13 @@ export default function ProfilePage() {
     setAncientLayer(next);
     localStorage.setItem('merlin_ancient_layer', String(next));
     void persistOraclePreferences({ ancientLayer: next });
+  };
+
+  const toggleRetrogradeOverlay = () => {
+    const next = !retrogradeOverlay;
+    setRetrogradeOverlay(next);
+    localStorage.setItem('merlin_retrograde_overlay', String(next));
+    void persistOraclePreferences({ retrogradeOverlay: next });
   };
 
   const setReadingLens = (lens: 'modern' | 'ancient') => {
@@ -596,6 +606,30 @@ export default function ProfilePage() {
                 }`}
               >
                 {questLogEnabled ? 'Quests On' : 'Quests Off'}
+              </button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-white font-semibold mb-1 flex items-center gap-2">
+                  <Eye size={16} className="text-indigo-400" />
+                  Retrograde overlay
+                </p>
+                <p className="text-gray-400 text-sm">
+                  {retrogradeOverlay
+                    ? 'Natal retrogrades nudge Core toward inner process (more N / I / F). Mask stays the public fireworks. A/B this with friends — off is the base engine.'
+                    : 'Retrogrades are ignored. Core uses the base Moon/Mercury vote only.'}
+                </p>
+              </div>
+              <button
+                onClick={toggleRetrogradeOverlay}
+                className={`px-4 py-2 border rounded-lg font-semibold transition-all ${
+                  retrogradeOverlay
+                    ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-100 hover:bg-indigo-500/30'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/70'
+                }`}
+              >
+                {retrogradeOverlay ? 'Overlay On' : 'Overlay Off'}
               </button>
             </div>
           </div>

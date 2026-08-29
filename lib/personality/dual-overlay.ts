@@ -2,6 +2,7 @@ import type { BirthChartData, PlanetPosition } from '@/types/astrology';
 import type { MBTIType } from '@/lib/mbti-overlay';
 import type { MBTIBreakdown } from '@/lib/astrology/mbtiFusion';
 import { getMBTIDual } from '@/lib/personality/fusion';
+import type { MbtiFusionOptions } from '@/lib/astrology/mbtiFusion';
 
 export interface DualOverlayLayer {
   label: string;
@@ -110,7 +111,10 @@ export function buildDualOverlay(chart: BirthChartData, mbtiDual: ReturnType<typ
   };
 }
 
-export function derivePersonalityFromChart(chart: BirthChartData): DerivedPersonality | null {
+export function derivePersonalityFromChart(
+  chart: BirthChartData,
+  options?: MbtiFusionOptions
+): DerivedPersonality | null {
   const positions = chartPositions(chart);
   if (!positions.length || !chart.ascendant) {
     return null;
@@ -122,7 +126,7 @@ export function derivePersonalityFromChart(chart: BirthChartData): DerivedPerson
     planets: chart.planets ?? positions,
   };
 
-  const mbtiDual = getMBTIDual(normalizedChart);
+  const mbtiDual = getMBTIDual(normalizedChart, options);
   const dualOverlay = buildDualOverlay(normalizedChart, mbtiDual);
   const mbtiType = (dualOverlay.firmware.mbtiType || mbtiDual.firmware.type) as MBTIType;
 

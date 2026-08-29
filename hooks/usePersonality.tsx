@@ -3,6 +3,7 @@ import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { MBTIType } from '@/lib/mbti-overlay';
 import type { BirthChartData } from '@/types/astrology';
 import { derivePersonalityFromChart, type DualOverlay } from '@/lib/personality/dual-overlay';
+import type { MbtiFusionOptions } from '@/lib/astrology/mbtiFusion';
 
 export type { DualOverlay };
 
@@ -18,10 +19,13 @@ export function usePersonality() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const applyChartPersonality = useCallback((chartData: BirthChartData): MBTIType | null => {
+  const applyChartPersonality = useCallback((
+    chartData: BirthChartData,
+    options?: MbtiFusionOptions
+  ): MBTIType | null => {
     setError(null);
 
-    const derived = derivePersonalityFromChart(chartData);
+    const derived = derivePersonalityFromChart(chartData, options);
     if (!derived) {
       setMbtiType(null);
       setProfile(null);

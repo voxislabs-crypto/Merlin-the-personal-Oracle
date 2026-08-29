@@ -30,6 +30,11 @@ export interface MBTILayerResult {
   layer: 'hardware' | 'firmware';
 }
 
+export type MbtiFusionOptions = {
+  /** When true, natal retrogrades nudge Core (firmware) toward inner process. Mask is unchanged. */
+  retrogradeOverlay?: boolean;
+};
+
 export interface MBTIDetails {
   type: string; // Core type (firmware)
   confidence: number;
@@ -124,9 +129,56 @@ function hasAspect(
 /**
  * Compute MBTI type from birth chart data - SINGLE LAYER (kept for backwards compatibility)
  */
-export function computeMBTI(chart: BirthChartData): MBTIDetails {
+function isNatalRetrograde(planet?: PlanetPosition): boolean {
+  if (!planet) return false;
+  if (typeof planet.retrograde === 'boolean') return planet.retrograde;
+  if (typeof planet.speed === 'number' && Number.isFinite(planet.speed)) return planet.speed < 0;
+  return false;
+}
+
+type RetrogradeBoost = { nBoost: number; iBoost: number; fBoost: number };
+
+function emptyBoost(): RetrogradeBoost {
+  return { nBoost: 0, iBoost: 0, fBoost: 0 };
+}
+
+function retrogradeBoostFor(planet?: PlanetPosition): RetrogradeBoost {
+  if (!isNatalRetrograde(planet)) return emptyBoost();
+  const name = (planet?.name || '').toLowerCase();
+  // Mean/true node is always retrograde — skip so the overlay isn't on for every chart.
+  if (name.includes('node')) return emptyBoost();
+  if (name === 'mercury' || name === 'venus') {
+    return { nBoost: 0.3, iBoost: 0.1, fBoost: 0 };
+  }
+  if (name === 'mars') {
+    return { nBoost: 0, iBoost: 0.3, fBoost: 0 };
+  }
+  if (name === 'neptune' || name === 'pluto' || name === 'uranus') {
+    return { nBoost: 0.4, iBoost: 0.1, fBoost: -0.15 };
+  }
+  if (name === 'jupiter') {
+    return { nBoost: 0.15, iBoost: 0.05, fBoost: 0 };
+  }
+  if (name === 'saturn') {
+    return { nBoost: 0, iBoost: 0.15, fBoost: 0.1 };
+  }
+  return emptyBoost();
+}
+
+function sumRetrogradeBoosts(planets: Array<PlanetPosition | undefined>): RetrogradeBoost {
+  return planets.reduce<RetrogradeBoost>((acc, planet) => {
+    const next = retrogradeBoostFor(planet);
+    return {
+      nBoost: acc.nBoost + next.nBoost,
+      iBoost: acc.iBoost + next.iBoost,
+      fBoost: acc.fBoost + next.fBoost,
+    };
+  }, emptyBoost());
+}
+
+export function computeMBTI(chart: BirthChartData, options?: MbtiFusionOptions): MBTIDetails {
   // Use new dual-layer engine and return firmware as primary
-  const dualResult = computeMBTIDual(chart);
+  const dualResult = computeMBTIDual(chart, options);
   
   return {
     type: dualResult.firmware.type,
@@ -148,7 +200,7 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
  * Returns: { hardware: Mascot, firmware: InnerCore }
  * This is the preferred function for new implementations
  */
-export function computeMBTIDual(chart: BirthChartData): {
+export function computeMBTIDual(chart: BirthChartData, options?: MbtiFusionOptions): {
   hardware: MBTILayerResult;
   firmware: MBTILayerResult;
   type: string; // Core type (firmware) — same as Self → You
@@ -208,6 +260,7 @@ export function computeMBTIDual(chart: BirthChartData): {
     northNode,
     positions,
     chart,
+    retrogradeOverlay: Boolean(options?.retrogradeOverlay),
   });
 
   // Core type is firmware as scored — do not overwrite other types with INFJ.
@@ -461,6 +514,7 @@ function computeFirmwareLayer(params: {
   northNode?: PlanetPosition;
   positions: PlanetPosition[];
   chart: BirthChartData;
+  retrogradeOverlay?: boolean;
 }): MBTILayerResult {
   const {
     ascendant,
@@ -476,7 +530,12 @@ function computeFirmwareLayer(params: {
     northNode,
     positions,
     chart,
+    retrogradeOverlay = false,
   } = params;
+
+  const rxBoost = retrogradeOverlay
+    ? sumRetrogradeBoosts([mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto])
+    : emptyBoost();
 
   const extraversionReasons: string[] = [];
   const intuitionReasons: string[] = [];
@@ -500,7 +559,8 @@ function computeFirmwareLayer(params: {
     (moonVote === 'I' ? 0.35 : 0) +
     (ascVote === 'I' ? 0.25 : 0) +
     (sunVote === 'I' ? 0.2 : 0) +
-    (mercuryVote === 'I' ? 0.2 : 0);
+    (mercuryVote === 'I' ? 0.2 : 0) +
+    rxBoost.iBoost;
 
   const firmwareE_I = iWeight >= 0.5 ? 'I' : 'E';
   extraversionReasons.push(
@@ -573,6 +633,11 @@ function computeFirmwareLayer(params: {
     intuitionReasons.push('Moon in 8th house (depth perception)');
   }
 
+  if (rxBoost.nBoost) {
+    nScore += rxBoost.nBoost;
+    intuitionReasons.push('Retrograde overlay (inner processing, not outer show)');
+  }
+
   const firmwareS_N = nScore > 0.45 ? 'N' : 'S';
 
   // === T/F: Moon (values) + Mercury (how the inner mind decides) ===
@@ -620,6 +685,14 @@ function computeFirmwareLayer(params: {
   if (neptune && moon && hasAspect(neptune, 'Moon', ['conjunction', 'trine', 'sextile'], chart)) {
     tScore -= 0.25;
     thinkingReasons.push('Neptune–Moon (felt over formal logic)');
+  }
+
+  if (rxBoost.fBoost) {
+    tScore += rxBoost.fBoost;
+    thinkingReasons.push('Retrograde overlay (inner values over outer performance)');
+  }
+  if (rxBoost.iBoost) {
+    extraversionReasons.push('Retrograde overlay (energy turned inward)');
   }
 
   const firmwareT_F = tScore > 0.35 ? 'T' : 'F';

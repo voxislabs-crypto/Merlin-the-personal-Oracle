@@ -75,6 +75,7 @@ import { useReturns } from '@/hooks/useReturns';
 import { shouldShowAnnualBriefing } from '@/lib/astrology/returns-display';
 import { useCheckins } from '@/hooks/useCheckins';
 import { usePersonality } from '@/hooks/usePersonality';
+import { useOraclePreferences } from '@/hooks/useOraclePreferences';
 import { useAtmosphere } from '@/hooks/useAtmosphere';
 import {
   computeAtmosphereFromDashboardSources,
@@ -344,6 +345,10 @@ export default function UnifiedDashboard() {
   } = useAtmosphereJournal(forecast?.date);
   const { memory: todayMoveMemory, remember: rememberTodayMove } = useTodayMoveMemory(userId || undefined);
   const { mbtiType, dualOverlay, loading: personalityLoading, applyChartPersonality } = usePersonality();
+  const { preferences: oraclePreferences } = useOraclePreferences({
+    enabled: Boolean(userId),
+  });
+  const retrogradeOverlay = oraclePreferences.retrogradeOverlay;
   const atmosphereEngineEnabled = isAtmosphereEngineV1Enabled({
     premium: featureFlags.premiumInsights,
   });
@@ -1097,6 +1102,11 @@ export default function UnifiedDashboard() {
     user,
     userId,
   ]);
+
+  useEffect(() => {
+    if (!chartData) return;
+    applyChartPersonality(chartData, { retrogradeOverlay });
+  }, [applyChartPersonality, chartData, retrogradeOverlay]);
 
   // Keep local calendar day fresh (tab focus + midnight) so weather isn't stuck on yesterday
   useEffect(() => {

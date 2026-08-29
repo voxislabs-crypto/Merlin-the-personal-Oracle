@@ -128,6 +128,24 @@ describe('MBTI Fusion', () => {
     expect(dual.type).not.toBe('INFJ');
   });
 
+  test('retrograde overlay only changes firmware when enabled', () => {
+    const chart = {
+      ...intjChart,
+      positions: (intjChart.positions || []).map((planet) =>
+        planet.name === 'Venus' || planet.name === 'Neptune'
+          ? { ...planet, retrograde: true }
+          : planet
+      ),
+    } as BirthChartData;
+
+    const off = computeMBTIDual(chart);
+    const on = computeMBTIDual(chart, { retrogradeOverlay: true });
+
+    expect(off.hardware.type).toBe(on.hardware.type);
+    expect(off.firmware.breakdown.reasoning.intuition.join(' ')).not.toMatch(/Retrograde overlay/);
+    expect(on.firmware.breakdown.reasoning.intuition.join(' ')).toMatch(/Retrograde overlay/);
+  });
+
   test('keeps firmware as the listed core type (no INFJ letter-count override)', () => {
     const dual = computeMBTIDual(intjChart as BirthChartData);
     expect(dual.type).toBe(dual.firmware.type);

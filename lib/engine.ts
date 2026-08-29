@@ -217,7 +217,8 @@ export const calculateNatalPositions = (
 
   const positions = planets.map((planet) => {
     try {
-      const result = sweph.calc_ut(jd, planet.id, sweph.constants.SEFLG_SWIEPH);
+      const flags = (sweph.constants.SEFLG_SWIEPH || 2) | (sweph.constants.SEFLG_SPEED || 256);
+      const result = sweph.calc_ut(jd, planet.id, flags);
       console.log(`[engine] calc_ut for ${planet.name}: flag=${result.flag}, longitude=${result.data?.[0]}`);
       if (result.flag < 1) {
         console.error(`[engine] calc_ut failed for ${planet.name}: flag=${result.flag}`);
@@ -227,6 +228,7 @@ export const calculateNatalPositions = (
       const longitude = result.data[0];
       const latitude = result.data[1];
       const distance = result.data[2];
+      const speed = typeof result.data[3] === 'number' ? result.data[3] : 0;
       const normalized = normalizeAngle(longitude);
       const zodiac = getZodiacPosition(normalized);
 
@@ -235,6 +237,8 @@ export const calculateNatalPositions = (
         longitude: normalized,
         latitude,
         distance,
+        speed,
+        retrograde: speed < 0,
         ...zodiac,
       };
     } catch (planetError) {
@@ -272,12 +276,14 @@ const calculatePlanets = (jd: number): PlanetPosition[] => {
   ];
 
   return planets.map((planet) => {
-    const result = sweph.calc_ut(jd, planet.id, sweph.constants.SEFLG_SWIEPH);
+    const flags = (sweph.constants.SEFLG_SWIEPH || 2) | (sweph.constants.SEFLG_SPEED || 256);
+    const result = sweph.calc_ut(jd, planet.id, flags);
     if (result.flag < 1) throw new Error(`Failed ${planet.name}`);
 
     const longitude = result.data[0];
     const latitude = result.data[1];
     const distance = result.data[2];
+    const speed = typeof result.data[3] === 'number' ? result.data[3] : 0;
     const normalized = normalizeAngle(longitude);
     const zodiac = getZodiacPosition(normalized);
 
@@ -286,6 +292,8 @@ const calculatePlanets = (jd: number): PlanetPosition[] => {
       longitude: normalized,
       latitude,
       distance,
+      speed,
+      retrograde: speed < 0,
       ...zodiac,
     };
   });

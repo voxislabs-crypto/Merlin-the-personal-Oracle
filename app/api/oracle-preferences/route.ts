@@ -17,6 +17,7 @@ type OraclePreferences = {
   includeLikelihood?: boolean;
   ancientLayer?: boolean;
   prophecyPolishMode?: ProphecyPolishMode;
+  retrogradeOverlay?: boolean;
   updatedAt?: number;
 };
 
@@ -56,6 +57,9 @@ function sanitizePreferences(input: unknown): OraclePreferences {
   }
   if (typeof value.ancientLayer === 'boolean') {
     preferences.ancientLayer = value.ancientLayer;
+  }
+  if (typeof value.retrogradeOverlay === 'boolean') {
+    preferences.retrogradeOverlay = value.retrogradeOverlay;
   }
   if (value.prophecyPolishMode === 'engine' || value.prophecyPolishMode === 'groq') {
     preferences.prophecyPolishMode = value.prophecyPolishMode;

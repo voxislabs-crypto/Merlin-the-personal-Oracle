@@ -1,7 +1,7 @@
 // lib/personality/fusion.ts
 
 import { type MBTIType } from '@/shared/schema';
-import { computeMBTI, computeMBTIDual } from '@/lib/astrology/mbtiFusion';
+import { computeMBTI, computeMBTIDual, type MbtiFusionOptions } from '@/lib/astrology/mbtiFusion';
 import { isMbtiDebugEnabled } from '@/lib/debug';
 
 /**
@@ -34,13 +34,13 @@ export function getMBTI(chart: any): MBTIType {
  * Returns both Hardware (mask) and Firmware (inner core) with confidence scores
  * Preferred for modern implementations
  */
-export function getMBTIDual(chart: any) {
+export function getMBTIDual(chart: any, options?: MbtiFusionOptions) {
   try {
-    const result = computeMBTIDual(chart);
+    const result = computeMBTIDual(chart, options);
     if (isMbtiDebugEnabled()) {
       console.log('[getMBTIDual] Hardware:', result.hardware.type, `(${result.hardware.confidence}%)`);
       console.log('[getMBTIDual] Firmware:', result.firmware.type, `(${result.firmware.confidence}%)`);
-      console.log('[getMBTIDual] Final (with override):', result.type, `(${result.confidence}%)`);
+      console.log('[getMBTIDual] Core type:', result.type, `(${result.confidence}%)`);
     }
     return result;
   } catch (error) {

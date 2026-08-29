@@ -17,6 +17,7 @@ export type OraclePreferences = {
   includeLikelihood: boolean;
   ancientLayer: boolean;
   prophecyPolishMode: ProphecyPolishMode;
+  retrogradeOverlay: boolean;
 };
 
 const DEFAULT_PREFERENCES: OraclePreferences = {
@@ -29,6 +30,7 @@ const DEFAULT_PREFERENCES: OraclePreferences = {
   includeLikelihood: true,
   ancientLayer: false,
   prophecyPolishMode: 'engine',
+  retrogradeOverlay: false,
 };
 
 const LOCAL_STORAGE_KEYS = {
@@ -41,6 +43,7 @@ const LOCAL_STORAGE_KEYS = {
   includeLikelihood: 'merlin_include_likelihood',
   ancientLayer: 'merlin_ancient_layer',
   prophecyPolishMode: 'merlin_prophecy_polish_mode',
+  retrogradeOverlay: 'merlin_retrograde_overlay',
 } as const;
 
 function normalizePreferences(input: Partial<OraclePreferences> | unknown): Partial<OraclePreferences> {
@@ -79,6 +82,9 @@ function normalizePreferences(input: Partial<OraclePreferences> | unknown): Part
   }
   if (typeof value.ancientLayer === 'boolean') {
     preferences.ancientLayer = value.ancientLayer;
+  }
+  if (typeof value.retrogradeOverlay === 'boolean') {
+    preferences.retrogradeOverlay = value.retrogradeOverlay;
   }
   if (value.prophecyPolishMode === 'engine' || value.prophecyPolishMode === 'groq') {
     preferences.prophecyPolishMode = value.prophecyPolishMode;
@@ -139,6 +145,11 @@ function readLocalPreferences(): Partial<OraclePreferences> {
     preferences.ancientLayer = ancientLayer === 'true';
   }
 
+  const retrogradeOverlay = localStorage.getItem(LOCAL_STORAGE_KEYS.retrogradeOverlay);
+  if (retrogradeOverlay !== null) {
+    preferences.retrogradeOverlay = retrogradeOverlay === 'true';
+  }
+
   const prophecyPolishMode = localStorage.getItem(LOCAL_STORAGE_KEYS.prophecyPolishMode);
   if (prophecyPolishMode === 'engine' || prophecyPolishMode === 'groq') {
     preferences.prophecyPolishMode = prophecyPolishMode;
@@ -180,6 +191,9 @@ function writeLocalPreferences(next: Partial<OraclePreferences>): void {
   }
   if (typeof next.ancientLayer === 'boolean') {
     localStorage.setItem(LOCAL_STORAGE_KEYS.ancientLayer, String(next.ancientLayer));
+  }
+  if (typeof next.retrogradeOverlay === 'boolean') {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.retrogradeOverlay, String(next.retrogradeOverlay));
   }
   if (next.prophecyPolishMode === 'engine' || next.prophecyPolishMode === 'groq') {
     localStorage.setItem(LOCAL_STORAGE_KEYS.prophecyPolishMode, next.prophecyPolishMode);
