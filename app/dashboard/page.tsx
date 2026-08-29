@@ -128,6 +128,7 @@ import { getMBTITypeDescription, applyMBTIOverlay, type MBTIType } from '@/lib/m
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
+import { derivePersonalityFromChart } from '@/lib/personality/dual-overlay';
 
 
 const STORAGE_KEY = 'merlin_chart_data';
@@ -353,6 +354,8 @@ export default function UnifiedDashboard() {
     enabled: Boolean(userId),
   });
   const retrogradeOverlay = oraclePreferences.retrogradeOverlay;
+  const retrogradeOverlayRef = useRef(retrogradeOverlay);
+  retrogradeOverlayRef.current = retrogradeOverlay;
   const atmosphereEngineEnabled = isAtmosphereEngineV1Enabled({
     premium: featureFlags.premiumInsights,
   });
@@ -1046,7 +1049,9 @@ export default function UnifiedDashboard() {
         };
         setWheelData(wheel);
 
-        const derivedMbti = applyChartPersonality(chart);
+        const derivedMbti = applyChartPersonality(chart, {
+          retrogradeOverlay: retrogradeOverlayRef.current,
+        });
         const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
         const canFull = featureFlags.premiumInsights;
 
@@ -1171,7 +1176,9 @@ export default function UnifiedDashboard() {
       resetAtmosphere();
     }
 
-    const derivedMbti = applyChartPersonality(chartData);
+    const derivedMbti = applyChartPersonality(chartData, {
+      retrogradeOverlay: retrogradeOverlayRef.current,
+    });
 
     Promise.allSettled([
       canFull
@@ -1292,7 +1299,9 @@ export default function UnifiedDashboard() {
     setSelectedWheelPlanet(null);
     setSelectedWheelSign(null);
 
-    const derivedMbti = applyChartPersonality(data);
+    const derivedMbti = applyChartPersonality(data, {
+      retrogradeOverlay: retrogradeOverlayRef.current,
+    });
     const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
     const canFull = featureFlags.premiumInsights;
 
@@ -1971,6 +1980,13 @@ export default function UnifiedDashboard() {
       })()
     : null;
 
+  const liveDual = useMemo(() => {
+    if (!chartData) return dualOverlay;
+    return (
+      derivePersonalityFromChart(chartData, { retrogradeOverlay })?.dualOverlay || dualOverlay
+    );
+  }, [chartData, dualOverlay, retrogradeOverlay]);
+
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
     const summary =
@@ -1983,8 +1999,8 @@ export default function UnifiedDashboard() {
       transitLookup: forecast?.transitLookup,
       date: forecast?.date || activeAtmospherePacket?.date || null,
       moveMemory: todayMoveMemory,
-      mbtiType: resolveSelfMbtiType({ dualOverlay, mbtiType }) || null,
-      maskType: dualOverlay?.hardware?.mbtiType || null,
+      mbtiType: resolveSelfMbtiType({ dualOverlay: liveDual, mbtiType }) || null,
+      maskType: liveDual?.hardware?.mbtiType || null,
       // Week-horizon predictive moves only after feeds settle
       predictiveMove:
         !todayWeatherStillLoading && predictiveActionHint
@@ -1998,8 +2014,9 @@ export default function UnifiedDashboard() {
     });
   }, [
     activeAtmospherePacket,
-    dualOverlay?.firmware?.mbtiType,
-    dualOverlay?.hardware?.mbtiType,
+    liveDual,
+    liveDual?.firmware?.mbtiType,
+    liveDual?.hardware?.mbtiType,
     featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     forecast,
@@ -2112,27 +2129,27 @@ export default function UnifiedDashboard() {
         moonSign,
         risingSign,
         // Core (firmware) is primary for Self — mask is secondary presentation layer
-        mbtiType: dualOverlay?.firmware?.mbtiType || dualOverlay?.finalType || mbtiType || undefined,
-        mbtiPrimary: dualOverlay?.firmware
+        mbtiType: liveDual?.firmware?.mbtiType || liveDual?.finalType || mbtiType || undefined,
+        mbtiPrimary: liveDual?.firmware
           ? {
-              type: dualOverlay.firmware.mbtiType,
+              type: liveDual.firmware.mbtiType,
               role: 'primary',
               label: 'Core · who you are inside',
-              confidence: dualOverlay.firmware.confidence,
+              confidence: liveDual.firmware.confidence,
             }
           : undefined,
-        mbtiSecondary: dualOverlay?.hardware
+        mbtiSecondary: liveDual?.hardware
           ? {
-              type: dualOverlay.hardware.mbtiType,
+              type: liveDual.hardware.mbtiType,
               role: 'secondary',
               label: 'Mask · how you present',
-              confidence: dualOverlay.hardware.confidence,
+              confidence: liveDual.hardware.confidence,
             }
           : undefined,
-        mbtiBlendSummary: dualOverlay
-          ? dualOverlay.firmware?.mbtiType === dualOverlay.hardware?.mbtiType
-            ? `Aligned ${dualOverlay.firmware?.mbtiType || dualOverlay.finalType} inside and out`
-            : `Core ${dualOverlay.firmware?.mbtiType || '—'} · Mask ${dualOverlay.hardware?.mbtiType || '—'} → ${dualOverlay.finalType}`
+        mbtiBlendSummary: liveDual
+          ? liveDual.firmware?.mbtiType === liveDual.hardware?.mbtiType
+            ? `Aligned ${liveDual.firmware?.mbtiType || liveDual.finalType} inside and out`
+            : `Core ${liveDual.firmware?.mbtiType || '—'} · Mask ${liveDual.hardware?.mbtiType || '—'} → ${liveDual.finalType}`
           : undefined,
         archetypeName: identityPack?.archetypeName,
         patternSignature: identityPack?.patternSignature,
@@ -2142,7 +2159,7 @@ export default function UnifiedDashboard() {
           chartData?.houses?.length ||
             (chartData as { houseSystem?: { cusps?: number[] } } | null)?.houseSystem?.cusps?.length,
         ),
-        confidenceSource: dualOverlay ? 'dual_overlay' : mbtiType ? 'mbti_fusion' : 'chart_only',
+        confidenceSource: liveDual ? 'dual_overlay' : mbtiType ? 'mbti_fusion' : 'chart_only',
         // Soft tint only — OS stays stable; edge line can nod at weather
         weatherIntensity: activeAtmospherePacket?.intensity ?? null,
       }),
@@ -2151,7 +2168,7 @@ export default function UnifiedDashboard() {
       moonSign,
       risingSign,
       mbtiType,
-      dualOverlay,
+      liveDual,
       identityPack,
       chartData,
       activeAtmospherePacket?.intensity,
@@ -2161,8 +2178,8 @@ export default function UnifiedDashboard() {
   const selfIdentityHeadline = chartIdentityHeadline || identityPacket.headline;
 
   const personalityBlend = useMemo(
-    () => (dualOverlay ? buildBlendSynthesis(dualOverlay) : null),
-    [dualOverlay],
+    () => (liveDual ? buildBlendSynthesis(liveDual) : null),
+    [liveDual],
   );
 
   type WhisperMode = 'plain' | 'warm' | 'bullshit' | 'oracle';
@@ -2756,14 +2773,14 @@ export default function UnifiedDashboard() {
                     askLabel={lifeWeatherBrief.askLabel}
                     storyEyebrow={lifeWeatherBrief.eyebrow}
                     selfChips={[
-                      dualOverlay?.firmware?.mbtiType
-                        ? `Core ${dualOverlay.firmware.mbtiType}`
+                      liveDual?.firmware?.mbtiType
+                        ? `Core ${liveDual.firmware.mbtiType}`
                         : identityPacket.mbti.primary?.type
                           ? `Core ${identityPacket.mbti.primary.type}`
                           : undefined,
-                      dualOverlay?.hardware?.mbtiType &&
-                      dualOverlay.hardware.mbtiType !== dualOverlay.firmware?.mbtiType
-                        ? `Mask ${dualOverlay.hardware.mbtiType}`
+                      liveDual?.hardware?.mbtiType &&
+                      liveDual.hardware.mbtiType !== liveDual.firmware?.mbtiType
+                        ? `Mask ${liveDual.hardware.mbtiType}`
                         : undefined,
                       identityPacket.placements.sunSign
                         ? `Sun ${identityPacket.placements.sunSign}`
@@ -2848,10 +2865,10 @@ export default function UnifiedDashboard() {
                     sunSign={identityPacket.placements.sunSign || sunSign}
                     moonSign={identityPacket.placements.moonSign || moonSign}
                     risingSign={identityPacket.placements.risingSign || risingSign}
-                    mbtiType={identityPacket.mbti.primary?.type || dualOverlay?.firmware?.mbtiType || mbtiType || undefined}
-                    mbtiCore={dualOverlay?.firmware?.mbtiType || identityPacket.mbti.primary?.type}
-                    mbtiMask={dualOverlay?.hardware?.mbtiType || identityPacket.mbti.secondary?.type}
-                    mbtiFinal={dualOverlay?.finalType || mbtiType || undefined}
+                    mbtiType={identityPacket.mbti.primary?.type || liveDual?.firmware?.mbtiType || mbtiType || undefined}
+                    mbtiCore={liveDual?.firmware?.mbtiType || identityPacket.mbti.primary?.type}
+                    mbtiMask={liveDual?.hardware?.mbtiType || identityPacket.mbti.secondary?.type}
+                    mbtiFinal={liveDual?.finalType || mbtiType || undefined}
                     blendHeadline={personalityBlend?.headline}
                     blendSummary={
                       personalityBlend
@@ -2884,13 +2901,17 @@ export default function UnifiedDashboard() {
                     }
                     retrogradeOverlay={retrogradeOverlay}
                     onToggleRetrogradeOverlay={() => {
-                      void persistPreferences({ retrogradeOverlay: !retrogradeOverlay });
+                      const next = !retrogradeOverlay;
+                      void persistPreferences({ retrogradeOverlay: next });
+                      if (chartData) {
+                        applyChartPersonality(chartData, { retrogradeOverlay: next });
+                      }
                     }}
                     onAskPersonality={() =>
                       queueAskContext(
                         'Personality type',
-                        dualOverlay
-                          ? `I want to talk through my dual personality from the chart. Core (inner): ${dualOverlay.firmware?.mbtiType}. Mask (outer): ${dualOverlay.hardware?.mbtiType}. Integrated type: ${dualOverlay.finalType}. Explain what each type means, how they work together when they differ, how people might misread me, and how this should shape my life-weather guidance. Ask me if anything doesn't fit.`
+                        liveDual
+                          ? `I want to talk through my dual personality from the chart. Core (inner): ${liveDual.firmware?.mbtiType}. Mask (outer): ${liveDual.hardware?.mbtiType}. Integrated type: ${liveDual.finalType}. Explain what each type means, how they work together when they differ, how people might misread me, and how this should shape my life-weather guidance. Ask me if anything doesn't fit.`
                           : `Discuss my chart personality type (${mbtiType || 'unknown'}) — what it means, strengths, blind spots, and how it colors today's life weather. Ask me what feels true or off.`,
                       )
                     }
@@ -3107,11 +3128,11 @@ export default function UnifiedDashboard() {
                                     {selectedWheelPlanet ? (
                                       <PlanetPersonalityHint
                                         planetName={selectedWheelPlanet}
-                                        dualOverlay={dualOverlay}
+                                        dualOverlay={liveDual}
                                       />
                                     ) : null}
-                                    {dualOverlay ? (
-                                      <MBTIDualBreakdown dualOverlay={dualOverlay} />
+                                    {liveDual ? (
+                                      <MBTIDualBreakdown dualOverlay={liveDual} />
                                     ) : null}
                                   </div>
                                 ) : (
@@ -3678,8 +3699,8 @@ export default function UnifiedDashboard() {
                                       </button>
                                       . Dimension map below if you need it here.
                                     </p>
-                                    {dualOverlay ? (
-                                      <MBTIDualBreakdown dualOverlay={dualOverlay} />
+                                    {liveDual ? (
+                                      <MBTIDualBreakdown dualOverlay={liveDual} />
                                     ) : null}
                                   </div>
                                 )}
@@ -3993,8 +4014,8 @@ export default function UnifiedDashboard() {
                 userId={userId}
                 onUserMessageSent={handleChatUserMessageSent}
                 mbtiType={
-                  dualOverlay?.finalType ||
-                  dualOverlay?.firmware?.mbtiType ||
+                  liveDual?.finalType ||
+                  liveDual?.firmware?.mbtiType ||
                   mbtiType ||
                   undefined
                 }
@@ -4005,11 +4026,11 @@ export default function UnifiedDashboard() {
                 draftLabel={askDraftLabel}
                 atmospherePacket={activeAtmospherePacket}
                 dualPersonality={
-                  dualOverlay
+                  liveDual
                     ? {
-                        core: dualOverlay.firmware?.mbtiType,
-                        mask: dualOverlay.hardware?.mbtiType,
-                        final: dualOverlay.finalType,
+                        core: liveDual.firmware?.mbtiType,
+                        mask: liveDual.hardware?.mbtiType,
+                        final: liveDual.finalType,
                       }
                     : null
                 }

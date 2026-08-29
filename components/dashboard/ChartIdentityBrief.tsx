@@ -278,6 +278,13 @@ export function ChartIdentityBrief({
                 Mask and core agree — what people see matches your inner type ({core}).
               </p>
             ) : null}
+            {onToggleRetrogradeOverlay && core && mask && dual ? (
+              <p className="text-xs text-slate-400">
+                {retrogradeOverlay
+                  ? `Rx overlay is on — Core is ${core}. Mask ${mask} is the public face and does not change.`
+                  : `Base engine — Core is ${core}. Mask ${mask} stays put when you toggle Rx.`}
+              </p>
+            ) : null}
 
             {!dual && core && !mask ? (
               <p className="text-xs text-slate-400">
