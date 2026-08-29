@@ -31,7 +31,7 @@ export interface MBTILayerResult {
 }
 
 export interface MBTIDetails {
-  type: string; // Final type (firmware if override, else hardware)
+  type: string; // Core type (firmware)
   confidence: number;
   breakdown: {
     e_i: string;
@@ -151,7 +151,7 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
 export function computeMBTIDual(chart: BirthChartData): {
   hardware: MBTILayerResult;
   firmware: MBTILayerResult;
-  type: string; // Final merged type (firmware, with INFJ override from this function)
+  type: string; // Core type (firmware) — same as Self → You
   confidence: number;
 } {
   const { positions, houses, ascendant, mc } = chart;
@@ -210,71 +210,19 @@ export function computeMBTIDual(chart: BirthChartData): {
     chart,
   });
 
-  // ============================================================================
-  // INFJ Override: Multi-marker detection with tuned threshold
-  // INFJ = the Counselor — deep empathy, hidden insight, inner conviction
-  // Key astrological signature: Water Moon (esp. Scorpio) + N + F + J inner sense
-  // ============================================================================
-  let finalType = firmware.type;
-  let finalConfidence = firmware.confidence;
-
-  if (firmware.type === 'INFJ') {
-    // Already correctly identified — reinforce confidence
-    finalType = 'INFJ';
-    finalConfidence = Math.min(firmware.confidence + 5, 100);
-  } else {
-    // Score INFJ markers across both layers
-    let infjMarkers = 0;
-    const infjReasons: string[] = [];
-
-    // Tier 1 — Strong markers (each = 1 point)
-    if (firmware.breakdown.s_n === 'N') { infjMarkers++; infjReasons.push('N in firmware'); }
-    if (firmware.breakdown.t_f === 'F') { infjMarkers++; infjReasons.push('F in firmware'); }
-    if (firmware.breakdown.e_i === 'I') { infjMarkers++; infjReasons.push('I in firmware'); }
-    if (firmware.breakdown.j_p === 'J') { infjMarkers++; infjReasons.push('J in firmware'); }
-
-    // Tier 2 — Specific planetary signatures (each = 1 point)
-    if (moon && moon.sign.toLowerCase() === 'scorpio') {
-      infjMarkers += 2; // Scorpio Moon = definitive INFJ signature (double weight)
-      infjReasons.push('Moon in Scorpio (core INFJ marker)');
-    } else if (moon && getElement(moon.sign) === 'water') {
-      infjMarkers++;
-      infjReasons.push(`Moon in ${moon.sign} (water — empathic core)`);
-    }
-    if (neptune && neptune.house === 12) { infjMarkers++; infjReasons.push('Neptune in 12th'); }
-    if (moon && (moon.house === 8 || moon.house === 12)) { infjMarkers++; infjReasons.push(`Moon in ${moon.house}th house`); }
-    if (mercury && mercury.house === 12) { infjMarkers++; infjReasons.push('Mercury in 12th'); }
-
-    // Tier 3 — Supporting indicators (0.5 each, tracked separately)
-    let softMarkers = 0;
-    if (pluto && (pluto.house === 8 || pluto.house === 12)) softMarkers++;
-    if (neptune && (neptune.house === 1 || neptune.house === 9)) softMarkers++;
-    if (northNode && getElement(northNode.sign) === 'water') softMarkers++;
-    if (moon && getMode(moon.sign) === 'fixed') softMarkers++; // fixed moon = INFJ resolve
-    if (softMarkers >= 3) infjMarkers++; // 3+ soft markers = 1 hard marker
-
-    console.log(`[INFJ Override] markers: ${infjMarkers}, reasons: ${infjReasons.join(', ')}`);
-
-    // Threshold: 3 hard markers (lowered from 4) triggers INFJ override
-    if (infjMarkers >= 3) {
-      finalType = 'INFJ';
-      finalConfidence = Math.min(firmware.confidence + Math.min(infjMarkers * 3, 15), 100);
-    }
-  }
-
+  // Core type is firmware as scored — do not overwrite other types with INFJ.
   if (isMbtiDebugEnabled()) {
     console.log('=== MBTI Dual Layer Debug ===');
     console.log('Hardware (Mascot):', hardware.type, `(${hardware.confidence}%)`);
     console.log('Firmware (InnerCore):', firmware.type, `(${firmware.confidence}%)`);
-    console.log('Final override:', finalType);
     console.log('=============================');
   }
 
   return {
     hardware,
     firmware,
-    type: finalType,
-    confidence: finalConfidence,
+    type: firmware.type,
+    confidence: firmware.confidence,
   };
 }
 
@@ -535,194 +483,161 @@ function computeFirmwareLayer(params: {
   const thinkingReasons: string[] = [];
   const judgingReasons: string[] = [];
 
-  // === E/I: Introversion — Weight-based + Hard Locks ===
-  // Weights: Moon (35%), Ascendant (25%), Sun (20%), Mercury (20%)
-  // Hard lock: Scorpio Moon or Scorpio Ascendant → always 'I'
-  // Leo Sun special rule: E only when Moon AND Asc both vote E, otherwise I
-
-  // 12th house count needed here and in J/P section below
+  // === E/I: Moon 35%, Ascendant 25%, Sun 20%, Mercury 20% ===
+  // Water/earth vote I; fire/air vote E. No sign hard-locks (those overfit one chart).
   const twelfthHouseCount = positions.filter((p) => p.house === 12).length;
 
-  const moonSign_ei  = moon?.sign?.toLowerCase() ?? '';
-  const ascSign_ei   = ascendant?.sign?.toLowerCase() ?? '';
-  const sunSign_ei   = params.sun?.sign?.toLowerCase() ?? '';
+  const moonVote: 'I' | 'E' =
+    getElement(moon?.sign ?? '') === 'water' || getElement(moon?.sign ?? '') === 'earth' ? 'I' : 'E';
+  const ascVote: 'I' | 'E' =
+    getElement(ascendant?.sign ?? '') === 'water' || getElement(ascendant?.sign ?? '') === 'earth' ? 'I' : 'E';
+  const sunVote: 'I' | 'E' =
+    getElement(params.sun?.sign ?? '') === 'fire' || getElement(params.sun?.sign ?? '') === 'air' ? 'E' : 'I';
+  const mercuryVote: 'I' | 'E' =
+    getElement(mercury?.sign ?? '') === 'air' || getElement(mercury?.sign ?? '') === 'fire' ? 'E' : 'I';
 
-  let firmwareE_I: string;
+  const iWeight =
+    (moonVote === 'I' ? 0.35 : 0) +
+    (ascVote === 'I' ? 0.25 : 0) +
+    (sunVote === 'I' ? 0.2 : 0) +
+    (mercuryVote === 'I' ? 0.2 : 0);
 
-  if (moonSign_ei === 'scorpio' || ascSign_ei === 'scorpio') {
-    // Hard lock — water fixed signs with hidden depth are always introverted
-    firmwareE_I = 'I';
-    const lockSrc = moonSign_ei === 'scorpio' ? 'Scorpio Moon' : 'Scorpio Ascendant';
-    extraversionReasons.push(`HARD LOCK: ${lockSrc} → I (unconditional)`);
-    if (isMbtiDebugEnabled()) {
-      console.log(`[MBTI E/I Firmware] HARD LOCK: ${lockSrc} → I`);
-    }
-  } else {
-    // Weight-based vote from each point of light
-    const moonVote: 'I' | 'E' =
-      getElement(moon?.sign ?? '') === 'water' || getElement(moon?.sign ?? '') === 'earth' ? 'I' : 'E';
-    const ascVote: 'I' | 'E' =
-      getElement(ascendant?.sign ?? '') === 'water' || getElement(ascendant?.sign ?? '') === 'earth' ? 'I' : 'E';
-
-    // Leo Sun → 'E' only when Moon AND Asc both already vote E; otherwise default to 'I'
-    let sunVote: 'I' | 'E';
-    if (sunSign_ei === 'leo') {
-      sunVote = (moonVote === 'E' && ascVote === 'E') ? 'E' : 'I';
-    } else {
-      sunVote =
-        getElement(params.sun?.sign ?? '') === 'fire' || getElement(params.sun?.sign ?? '') === 'air' ? 'E' : 'I';
-    }
-
-    const mercuryVote: 'I' | 'E' =
-      getElement(mercury?.sign ?? '') === 'air' || getElement(mercury?.sign ?? '') === 'fire' ? 'E' : 'I';
-
-    const iWeight =
-      (moonVote    === 'I' ? 0.35 : 0) +
-      (ascVote     === 'I' ? 0.25 : 0) +
-      (sunVote     === 'I' ? 0.20 : 0) +
-      (mercuryVote === 'I' ? 0.20 : 0);
-
-    firmwareE_I = iWeight >= 0.50 ? 'I' : 'E';
-
+  const firmwareE_I = iWeight >= 0.5 ? 'I' : 'E';
+  extraversionReasons.push(
+    `Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → ${firmwareE_I}`
+  );
+  if (isMbtiDebugEnabled()) {
     console.log(
-      `[MBTI E/I Firmware] Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), ` +
-      `Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → I-weight: ${iWeight.toFixed(2)} → ${firmwareE_I}`
-    );
-    extraversionReasons.push(
-      `Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → ${firmwareE_I}`
+      `[MBTI E/I Firmware] Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → I-weight: ${iWeight.toFixed(2)} → ${firmwareE_I}`
     );
   }
 
-  // === S/N: Intuition (boosted for firmware core) ===
+  // === S/N: Moon + Mercury vote; N is not the default ===
   let nScore = 0;
 
-  // North Node = soul's direction (intuitive)
-  if (northNode) {
-    const nnElement = getElement(northNode.sign);
-    if (nnElement === "water") {
-      nScore += 1.5; // South Node = air/fire (needs water intuition)
-      intuitionReasons.push(`North Node in ${northNode.sign} (psychic growth)`);
-    } else if (nnElement === "air") {
-      nScore += 1.2;
-      intuitionReasons.push(`North Node in ${northNode.sign} (intellectual intuition)`);
-    }
-  }
-
-  // Moon in 8th house = hidden transformational depth (strong N for INFJ)
-  if (moon && moon.house === 8) {
-    nScore += 0.9;
-    intuitionReasons.push(`Moon in 8th house (hidden psychic depth)`);
-  }
-
-  // Moon in 4th house = roots-connected intuition
-  if (moon && moon.house === 4) {
-    nScore += 0.5;
-    intuitionReasons.push(`Moon in 4th house (ancestral intuition)`);
-  }
-
-  // Moon in Scorpio/Pisces = profound psychic capacity
-  if (moon) {
-    const moonSign = moon.sign.toLowerCase();
-    if (moonSign === "scorpio") {
-      nScore += 1.0;
-      intuitionReasons.push(`Moon in Scorpio (deep psychological intuition)`);
-    } else if (moonSign === "pisces") {
-      nScore += 1.2;
-      intuitionReasons.push(`Moon in Pisces (mystical intuition)`);
-    } else if (getElement(moon.sign) === "water") {
-      nScore += 0.8;
-      intuitionReasons.push(`Moon in ${moon.sign} (emotional intuition)`);
-    }
-  }
-
-  // Neptune prominent = mystical inner world
-  if (neptune && (neptune.house === 1 || neptune.house === 9 || neptune.house === 12)) {
-    nScore += 1.0;
-    intuitionReasons.push(`Neptune in ${neptune.house}th house (mystical)`);
-  }
-
-  // Mercury in 12th = unconscious knowledge
-  if (mercury && mercury.house === 12) {
-    nScore += 0.7;
-    intuitionReasons.push(`Mercury in 12th house (deep knowing)`);
-  }
-
-  // Pluto prominent = transformational insight
-  if (pluto && (pluto.house === 8 || pluto.house === 12)) {
-    nScore += 0.6;
-    intuitionReasons.push(`Pluto in ${pluto.house}th house (transformational insight)`);
-  }
-
-  const firmwareS_N = nScore > 0.6 ? "N" : "S";
-
-  // === T/F: Feeling (boosted for firmware core) ===
-  let tScore = 0;
-
-  // Moon in water = deep empathy, strong feeling
   if (moon) {
     const moonElement = getElement(moon.sign);
-    if (moonElement === "water") {
-      tScore -= 1.2; // Strongly feeling
-      // Don't add to thinking reasons
-    } else if (moonElement === "earth") {
-      tScore -= 0.4; // Earth moon = grounded feeling
-    } else if (moonElement === "air") {
-      tScore += 0.2; // Air moon = slight thinking tendency
-      thinkingReasons.push(`Moon in ${moon.sign} (air - detached)`);
+    const moonSign = moon.sign.toLowerCase();
+    if (moonSign === 'scorpio') {
+      nScore += 1.0;
+      intuitionReasons.push('Moon in Scorpio (psychological intuition)');
+    } else if (moonSign === 'pisces') {
+      nScore += 0.9;
+      intuitionReasons.push('Moon in Pisces (imaginal intuition)');
+    } else if (moonElement === 'water' || moonElement === 'air') {
+      nScore += 0.45;
+      intuitionReasons.push(`Moon in ${moon.sign} (${moonElement} — pattern-oriented)`);
+    } else if (moonElement === 'earth') {
+      nScore -= 0.55;
+      intuitionReasons.push(`Moon in ${moon.sign} (earth — concrete inner world)`);
+    } else if (moonElement === 'fire') {
+      nScore += 0.15;
+      intuitionReasons.push(`Moon in ${moon.sign} (fire — impressionistic)`);
     }
   }
 
-  // Neptune aspects to personal planets = compassion
-  if (neptune && mercury) {
-    if (
-      hasAspect(neptune, "Mercury", ["conjunction", "trine", "sextile"], chart)
-    ) {
-      tScore -= 0.5; // Intuitive compassion over logic
+  if (mercury) {
+    const mercuryElement = getElement(mercury.sign);
+    if (mercuryElement === 'air') {
+      nScore += 0.5;
+      intuitionReasons.push(`Mercury in ${mercury.sign} (abstract mind)`);
+    } else if (mercuryElement === 'fire') {
+      nScore += 0.25;
+      intuitionReasons.push(`Mercury in ${mercury.sign} (idea-forward mind)`);
+    } else if (mercuryElement === 'earth') {
+      nScore -= 0.25;
+      intuitionReasons.push(`Mercury in ${mercury.sign} (precise, sensing mind)`);
+    } else if (mercuryElement === 'water') {
+      nScore += 0.2;
+      intuitionReasons.push(`Mercury in ${mercury.sign} (felt knowing)`);
+    }
+    if (mercury.house === 9 || mercury.house === 11) {
+      nScore += 0.35;
+      intuitionReasons.push(`Mercury in ${mercury.house}th house (pattern/network lens)`);
     }
   }
 
-  if (neptune && moon) {
-    if (hasAspect(neptune, "Moon", ["conjunction", "trine", "sextile"], chart)) {
-      tScore -= 0.6; // Mystical emotional understanding
+  if (northNode) {
+    const nnElement = getElement(northNode.sign);
+    if (nnElement === 'air' || nnElement === 'water') {
+      nScore += 0.4;
+      intuitionReasons.push(`North Node in ${northNode.sign} (growth through pattern)`);
+    } else if (nnElement === 'earth') {
+      nScore -= 0.3;
+      intuitionReasons.push(`North Node in ${northNode.sign} (growth through the concrete)`);
     }
   }
 
-  // Pluto aspects = psychological depth, introspection (feeling tendency)
-  if (pluto && moon) {
-    if (hasAspect(pluto, "Moon", ["conjunction", "trine", "sextile"], chart)) {
+  if (moon && moon.house === 8) {
+    nScore += 0.35;
+    intuitionReasons.push('Moon in 8th house (depth perception)');
+  }
+
+  const firmwareS_N = nScore > 0.45 ? 'N' : 'S';
+
+  // === T/F: Moon (values) + Mercury (how the inner mind decides) ===
+  let tScore = 0;
+
+  if (moon) {
+    const moonElement = getElement(moon.sign);
+    if (moonElement === 'water') {
+      tScore -= 0.8;
+      thinkingReasons.push(`Moon in ${moon.sign} (water — felt values)`);
+    } else if (moonElement === 'air') {
+      tScore += 0.5;
+      thinkingReasons.push(`Moon in ${moon.sign} (air — detached values)`);
+    } else if (moonElement === 'fire') {
+      tScore += 0.1;
+      thinkingReasons.push(`Moon in ${moon.sign} (fire — heat over analysis)`);
+    } else if (moonElement === 'earth') {
+      tScore += 0.15;
+      thinkingReasons.push(`Moon in ${moon.sign} (earth — pragmatic values)`);
+    }
+  }
+
+  if (mercury) {
+    const mercuryElement = getElement(mercury.sign);
+    if (mercuryElement === 'air' || mercuryElement === 'earth') {
+      tScore += 0.55;
+      thinkingReasons.push(`Mercury in ${mercury.sign} (analytical inner mind)`);
+    } else if (mercuryElement === 'fire') {
+      tScore += 0.2;
+      thinkingReasons.push(`Mercury in ${mercury.sign} (decisive inner mind)`);
+    } else if (mercuryElement === 'water') {
       tScore -= 0.4;
+      thinkingReasons.push(`Mercury in ${mercury.sign} (empathic inner mind)`);
     }
   }
 
-  // Venus in water = values emotional connection
   if (venus) {
     const venusElement = getElement(venus.sign);
-    if (venusElement === "water") {
-      tScore -= 0.4;
+    if (venusElement === 'water') {
+      tScore -= 0.35;
+      thinkingReasons.push(`Venus in ${venus.sign} (relational values)`);
     }
   }
 
-  const firmwareT_F = tScore > 0.4 ? "T" : "F";
+  if (neptune && moon && hasAspect(neptune, 'Moon', ['conjunction', 'trine', 'sextile'], chart)) {
+    tScore -= 0.25;
+    thinkingReasons.push('Neptune–Moon (felt over formal logic)');
+  }
 
-  // === J/P: Judging vs Perceiving — inner commitment vs openness ===
-  // INFJ key insight: J comes from FIXED CONVICTION, not external structure.
-  // Fixed signs = deep inner commitment = J. Cardinal = initiating purpose = J.
-  // The old logic only penalized J, ignoring the most important signal.
+  const firmwareT_F = tScore > 0.35 ? 'T' : 'F';
+
+  // === J/P: inner close-the-loop vs keep-options-open ===
   let jScore = 0;
 
-  // Moon in Fixed sign = STRONGEST J indicator in firmware
-  // Fixed signs (Scorpio, Taurus, Leo, Aquarius) signal unwavering inner resolve
   if (moon) {
     const moonMode = getMode(moon.sign);
     if (moonMode === 'fixed') {
-      jScore += 1.2; // Fixed moon = deep inner commitment = J
-      judgingReasons.push(`Moon in ${moon.sign} (fixed — inner conviction, J)`);
+      jScore += 0.85;
+      judgingReasons.push(`Moon in ${moon.sign} (fixed — inner close-the-loop)`);
     } else if (moonMode === 'cardinal') {
-      jScore += 0.6; // Cardinal moon = purposeful inner drive = J
-      judgingReasons.push(`Moon in ${moon.sign} (cardinal — inner initiative, J)`);
+      jScore += 0.35;
+      judgingReasons.push(`Moon in ${moon.sign} (cardinal — inner initiative)`);
     } else if (moonMode === 'mutable') {
-      jScore -= 0.3; // Mutable moon = flexible inner world = P
-      judgingReasons.push(`Moon in ${moon.sign} (mutable — adaptable inner world)`);
+      jScore -= 0.55;
+      judgingReasons.push(`Moon in ${moon.sign} (mutable — keep options open)`);
     }
   }
 
@@ -747,8 +662,8 @@ function computeFirmwareLayer(params: {
   }
 
   // 12th house stellium = mutable/mystical but reduces J less severely than before
-  if (twelfthHouseCount >= 2) {
-    jScore -= 0.3; // (reduced from -0.6) – 12th house softens J but doesn't negate fixed moon
+  if (twelfthHouseCount >= 3) {
+    jScore -= 0.25;
     judgingReasons.push(`${twelfthHouseCount} planets in 12th house (fluid inner world)`);
   }
 
@@ -771,7 +686,7 @@ function computeFirmwareLayer(params: {
     }
   }
 
-  const firmwareJ_P = jScore > 0.0 ? 'J' : 'P';
+  const firmwareJ_P = jScore >= 0.4 ? 'J' : 'P';
 
   // Compute firmware MBTI type
   const firmwareType = `${firmwareE_I}${firmwareS_N}${firmwareT_F}${firmwareJ_P}`;

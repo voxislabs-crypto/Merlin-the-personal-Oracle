@@ -3,7 +3,7 @@
  * Validates MBTI calculation logic with known chart configurations
  */
 
-import { computeMBTI } from '../lib/astrology/mbtiFusion';
+import { computeMBTI, computeMBTIDual } from '../lib/astrology/mbtiFusion';
 import type { BirthChartData } from '../types/astrology';
 
 describe('MBTI Fusion', () => {
@@ -102,6 +102,35 @@ describe('MBTI Fusion', () => {
     expect(result.breakdown.j_p).toBe('P'); // Gemini Saturn (mutable)
     
     console.log('ENFP Test Result:', result);
+  });
+
+  test('does not overwrite INFP firmware as INFJ', () => {
+    const infpChart: Partial<BirthChartData> = {
+      positions: [
+        { name: 'Sun', sign: 'Pisces', longitude: 345, latitude: 0, distance: 1, degree: 15, minute: 0, house: 10 },
+        { name: 'Moon', sign: 'Pisces', longitude: 340, latitude: 0, distance: 1, degree: 10, minute: 0, house: 10 },
+        { name: 'Mercury', sign: 'Pisces', longitude: 350, latitude: 0, distance: 1, degree: 20, minute: 0, house: 10 },
+        { name: 'Venus', sign: 'Cancer', longitude: 105, latitude: 0, distance: 1, degree: 15, minute: 0, house: 2 },
+        { name: 'Mars', sign: 'Sagittarius', longitude: 255, latitude: 0, distance: 1, degree: 15, minute: 0, house: 7 },
+        { name: 'Saturn', sign: 'Gemini', longitude: 75, latitude: 0, distance: 1, degree: 15, minute: 0, house: 1 },
+        { name: 'Neptune', sign: 'Pisces', longitude: 345, latitude: 0, distance: 1, degree: 15, minute: 0, house: 10 },
+        { name: 'True Node', sign: 'Pisces', longitude: 340, latitude: 0, distance: 0, degree: 10, minute: 0, house: 10 },
+      ],
+      houses: [],
+      aspects: [],
+      ascendant: { longitude: 105, sign: 'Cancer', degree: 15, minute: 0 },
+      mc: { longitude: 15, sign: 'Aries', degree: 15, minute: 0 },
+    };
+
+    const dual = computeMBTIDual(infpChart as BirthChartData);
+    expect(dual.firmware.type).toBe('INFP');
+    expect(dual.type).toBe(dual.firmware.type);
+    expect(dual.type).not.toBe('INFJ');
+  });
+
+  test('keeps firmware as the listed core type (no INFJ letter-count override)', () => {
+    const dual = computeMBTIDual(intjChart as BirthChartData);
+    expect(dual.type).toBe(dual.firmware.type);
   });
 
   test('includes reasoning for each dimension', () => {
