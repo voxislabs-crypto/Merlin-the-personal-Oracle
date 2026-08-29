@@ -3,7 +3,7 @@
  * Computes TWO Myers-Briggs types from astrological birth chart:
  * 1. Hardware Mascot (mask) - Based on Rising + Sun + Mars + 1st/10th house
  * 2. Firmware Inner Core (real self) - Based on Moon + 12th house + Neptune/Pluto
- * 
+ *
  * Based on astrological-psychological correlations and empirical patterns
  */
 
@@ -30,7 +30,7 @@ export interface MBTILayerResult {
 }
 
 export interface MBTIDetails {
-  type: string; // Final type (firmware if override, else hardware)
+  type: string; // Final type = firmware (inner core); hardware is the mask
   confidence: number;
   breakdown: {
     e_i: string;
@@ -108,14 +108,14 @@ function hasAspect(
   chart: BirthChartData
 ): boolean {
   if (!chart.aspects) return false;
-  
+
   return chart.aspects.some((aspect) => {
     const isTarget =
       (aspect.planet1.name.toLowerCase() === planet.name.toLowerCase() &&
         aspect.planet2.name.toLowerCase() === targetName.toLowerCase()) ||
       (aspect.planet2.name.toLowerCase() === planet.name.toLowerCase() &&
         aspect.planet1.name.toLowerCase() === targetName.toLowerCase());
-    
+
     return isTarget && aspectTypes.includes(aspect.type.toLowerCase());
   });
 }
@@ -126,7 +126,7 @@ function hasAspect(
 export function computeMBTI(chart: BirthChartData): MBTIDetails {
   // Use new dual-layer engine and return firmware as primary
   const dualResult = computeMBTIDual(chart);
-  
+
   return {
     type: dualResult.firmware.type,
     confidence: dualResult.firmware.confidence,
@@ -146,15 +146,17 @@ export function computeMBTI(chart: BirthChartData): MBTIDetails {
  * Compute DUAL MBTI layers from birth chart data
  * Returns: { hardware: Mascot, firmware: InnerCore }
  * This is the preferred function for new implementations
+ *
+ * Final type = firmware.type. No override. Hardware is the mask; firmware is the core.
  */
 export function computeMBTIDual(chart: BirthChartData): {
   hardware: MBTILayerResult;
   firmware: MBTILayerResult;
-  type: string; // Final merged type (firmware, with INFJ override from this function)
+  type: string; // Final type = firmware (inner core)
   confidence: number;
 } {
   const { positions, houses, ascendant, mc } = chart;
-  
+
   // Find key planets
   const sun = findPlanet(positions, "Sun");
   const moon = findPlanet(positions, "Moon");
@@ -209,69 +211,20 @@ export function computeMBTIDual(chart: BirthChartData): {
     chart,
   });
 
-  // ============================================================================
-  // INFJ Override: Multi-marker detection with tuned threshold
-  // INFJ = the Counselor — deep empathy, hidden insight, inner conviction
-  // Key astrological signature: Water Moon (esp. Scorpio) + N + F + J inner sense
-  // ============================================================================
-  let finalType = firmware.type;
-  let finalConfidence = firmware.confidence;
-
-  if (firmware.type === 'INFJ') {
-    // Already correctly identified — reinforce confidence
-    finalType = 'INFJ';
-    finalConfidence = Math.min(firmware.confidence + 5, 100);
-  } else {
-    // Score INFJ markers across both layers
-    let infjMarkers = 0;
-    const infjReasons: string[] = [];
-
-    // Tier 1 — Strong markers (each = 1 point)
-    if (firmware.breakdown.s_n === 'N') { infjMarkers++; infjReasons.push('N in firmware'); }
-    if (firmware.breakdown.t_f === 'F') { infjMarkers++; infjReasons.push('F in firmware'); }
-    if (firmware.breakdown.e_i === 'I') { infjMarkers++; infjReasons.push('I in firmware'); }
-    if (firmware.breakdown.j_p === 'J') { infjMarkers++; infjReasons.push('J in firmware'); }
-
-    // Tier 2 — Specific planetary signatures (each = 1 point)
-    if (moon && moon.sign.toLowerCase() === 'scorpio') {
-      infjMarkers += 2; // Scorpio Moon = definitive INFJ signature (double weight)
-      infjReasons.push('Moon in Scorpio (core INFJ marker)');
-    } else if (moon && getElement(moon.sign) === 'water') {
-      infjMarkers++;
-      infjReasons.push(`Moon in ${moon.sign} (water — empathic core)`);
-    }
-    if (neptune && neptune.house === 12) { infjMarkers++; infjReasons.push('Neptune in 12th'); }
-    if (moon && (moon.house === 8 || moon.house === 12)) { infjMarkers++; infjReasons.push(`Moon in ${moon.house}th house`); }
-    if (mercury && mercury.house === 12) { infjMarkers++; infjReasons.push('Mercury in 12th'); }
-
-    // Tier 3 — Supporting indicators (0.5 each, tracked separately)
-    let softMarkers = 0;
-    if (pluto && (pluto.house === 8 || pluto.house === 12)) softMarkers++;
-    if (neptune && (neptune.house === 1 || neptune.house === 9)) softMarkers++;
-    if (northNode && getElement(northNode.sign) === 'water') softMarkers++;
-    if (moon && getMode(moon.sign) === 'fixed') softMarkers++; // fixed moon = INFJ resolve
-    if (softMarkers >= 3) infjMarkers++; // 3+ soft markers = 1 hard marker
-
-    console.log(`[INFJ Override] markers: ${infjMarkers}, reasons: ${infjReasons.join(', ')}`);
-
-    // Threshold: 3 hard markers (lowered from 4) triggers INFJ override
-    if (infjMarkers >= 3) {
-      finalType = 'INFJ';
-      finalConfidence = Math.min(firmware.confidence + Math.min(infjMarkers * 3, 15), 100);
-    }
-  }
-
+  // No override. Firmware (inner core) is the final type; hardware is the mask.
+  // Both layers are returned so the UI can show Core vs Mask without one
+  // privileged type hijacking the result.
   console.log('=== MBTI Dual Layer Debug ===');
   console.log('Hardware (Mascot):', hardware.type, `(${hardware.confidence}%)`);
   console.log('Firmware (InnerCore):', firmware.type, `(${firmware.confidence}%)`);
-  console.log('Final override:', finalType);
+  console.log('Final type (firmware):', firmware.type);
   console.log('=============================');
 
   return {
     hardware,
     firmware,
-    type: finalType,
-    confidence: finalConfidence,
+    type: firmware.type,
+    confidence: firmware.confidence,
   };
 }
 
