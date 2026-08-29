@@ -269,6 +269,24 @@ describe('composeTodayOracle', () => {
     expect(framed?.navigate.toLowerCase()).toMatch(/criterion|inch|calendar|structure|write/);
   });
 
+  it('puts Core vs Mask tension in How to navigate, not a second forecast', () => {
+    const base = composeTodayOracle({
+      date: '2026-08-13',
+      transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
+    });
+    const dual = composeTodayOracle({
+      date: '2026-08-13',
+      mbtiType: 'INFJ',
+      maskType: 'INTP',
+      transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
+    });
+    expect(dual?.themeId).toBe(base?.themeId);
+    expect(dual?.move).toBe(base?.move);
+    expect(dual?.navigate).toMatch(/INFJ/);
+    expect(dual?.navigate).toMatch(/INTP/);
+    expect(dual?.navigate.toLowerCase()).toMatch(/feel|proof/);
+  });
+
   it('reuses yesterday’s move when the theme still applies', () => {
     const brief = composeTodayOracle({
       date: '2026-08-13',

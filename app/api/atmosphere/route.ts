@@ -13,6 +13,7 @@ import type {
 } from '@/lib/atmosphere/types';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { natalPointsForTransits } from '@/lib/astrology/natal-angles';
+import { getMBTIDual } from '@/lib/personality/fusion';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
@@ -218,6 +219,9 @@ export async function POST(request: Request) {
     }
 
     const parsedMbti = parseMbtiType(mbtiType);
+    const dualMbti = getMBTIDual(natalChart);
+    const coreMbti = parsedMbti || parseMbtiType(dualMbti.firmware?.type);
+    const maskMbti = parseMbtiType(dualMbti.hardware?.type);
     // Always pin to client local day when provided; never silently use server UTC day
     const targetDate = resolveForecastTargetDate(
       typeof clientDate === 'string' ? clientDate : undefined,
@@ -227,7 +231,8 @@ export async function POST(request: Request) {
       buildPredictiveTransitBundle({
         natalPlanets: natalPointsForTransits(natalChart),
         birthDate,
-        mbtiType: parsedMbti,
+        mbtiType: coreMbti,
+        mbtiMask: maskMbti,
         userId: typeof userId === 'string' ? userId : undefined,
         windowDays,
         now: calendarDateToLocalNoon(targetDate),

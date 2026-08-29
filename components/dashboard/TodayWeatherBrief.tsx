@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Compass, Lightbulb, MessageCircle, Radio } from 'lucide-react';
 import ThumbsFeedback from '@/components/astrology/ThumbsFeedback';
@@ -15,6 +15,11 @@ import { StatusPanel } from '@/components/ui/status-panel';
 import { buildWhyDriverPills } from '@/lib/atmosphere/life-weather-copy';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
+import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
+import {
+  preservePriorWeatherWindow,
+  writeWeatherWindowSnapshot,
+} from '@/lib/atmosphere/window-land';
 
 /**
  * Day-one / daily hero: one move · intensity · why.
@@ -147,6 +152,20 @@ export function TodayWeatherBrief({
     () => buildWhyDriverPills(risk, driverLabel || risk?.topDrivers?.[0]?.label, 3),
     [risk, driverLabel],
   );
+
+  useEffect(() => {
+    if (loading || isError || isEmpty || !date || !todayMove) return;
+    preservePriorWeatherWindow(date, userId);
+    writeWeatherWindowSnapshot(
+      {
+        date,
+        move: todayMove,
+        themeLabel,
+        intensity,
+      },
+      userId,
+    );
+  }, [date, intensity, isEmpty, isError, loading, themeLabel, todayMove, userId]);
 
   if (loading) {
     return (
@@ -442,6 +461,8 @@ export function TodayWeatherBrief({
                 ) : null}
               </div>
             ) : null}
+
+            <YesterdayLandCheck userId={userId} today={date} />
           </div>
 
           <div className="pt-0.5">

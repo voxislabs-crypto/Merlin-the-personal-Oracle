@@ -166,9 +166,11 @@ function synthesizeNavigate(
   held: boolean,
   memory: TodayMoveMemory | null | undefined,
   frame: PersonalityFrame,
+  coreType?: string | null,
+  maskType?: string | null,
 ): { move: string; navigate: string } {
   const core = pickNavigate(primary, date, held, memory);
-  const closer = personalityCloser(frame, polarityForMix(close));
+  const closer = personalityCloser(frame, polarityForMix(close), { coreType, maskType });
   let navigate = core;
   if (close.length > 1 && close[1].polarity !== primary.polarity) {
     const second = close[1];
@@ -205,6 +207,7 @@ export function synthesizeTodayOracle(input: {
   held: boolean;
   memory?: TodayMoveMemory | null;
   mbtiType?: string | null;
+  maskType?: string | null;
   confluenceAligned?: boolean;
   tripleHit?: boolean;
 }): TodayOracleBrief {
@@ -228,6 +231,8 @@ export function synthesizeTodayOracle(input: {
     input.held,
     input.memory,
     frame,
+    input.mbtiType,
+    input.maskType,
   );
 
   return {

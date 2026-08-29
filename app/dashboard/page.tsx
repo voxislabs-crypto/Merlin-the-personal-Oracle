@@ -88,6 +88,10 @@ import {
 } from '@/lib/atmosphere';
 import { useAtmosphereJournal } from '@/hooks/useAtmosphereJournal';
 import { useTodayMoveMemory } from '@/hooks/useTodayMoveMemory';
+import {
+  preservePriorWeatherWindow,
+  writeWeatherWindowSnapshot,
+} from '@/lib/atmosphere/window-land';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { clearSubscriptionTierClientCache } from '@/lib/subscription-tier-client';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
@@ -1980,6 +1984,7 @@ export default function UnifiedDashboard() {
       date: forecast?.date || activeAtmospherePacket?.date || null,
       moveMemory: todayMoveMemory,
       mbtiType: resolveSelfMbtiType({ dualOverlay, mbtiType }) || null,
+      maskType: dualOverlay?.hardware?.mbtiType || null,
       // Week-horizon predictive moves only after feeds settle
       predictiveMove:
         !todayWeatherStillLoading && predictiveActionHint
@@ -1994,6 +1999,7 @@ export default function UnifiedDashboard() {
   }, [
     activeAtmospherePacket,
     dualOverlay?.firmware?.mbtiType,
+    dualOverlay?.hardware?.mbtiType,
     featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     forecast,
@@ -2008,6 +2014,16 @@ export default function UnifiedDashboard() {
     if (todayWeatherStillLoading || !lifeWeatherBrief.themeId || !lifeWeatherBrief.move) return;
     const date = forecast?.date || activeAtmospherePacket?.date;
     if (!date) return;
+    preservePriorWeatherWindow(date, userId || undefined);
+    writeWeatherWindowSnapshot(
+      {
+        date,
+        move: lifeWeatherBrief.move,
+        themeLabel: lifeWeatherBrief.themeLabel,
+        intensity: cosmicWeatherIntensity ?? activeAtmospherePacket?.intensity,
+      },
+      userId || undefined,
+    );
     rememberTodayMove({
       date,
       themeId: lifeWeatherBrief.themeId,
@@ -2016,12 +2032,16 @@ export default function UnifiedDashboard() {
     });
   }, [
     activeAtmospherePacket?.date,
+    activeAtmospherePacket?.intensity,
+    cosmicWeatherIntensity,
     forecast?.date,
     lifeWeatherBrief.leadFactKey,
     lifeWeatherBrief.move,
     lifeWeatherBrief.themeId,
+    lifeWeatherBrief.themeLabel,
     rememberTodayMove,
     todayWeatherStillLoading,
+    userId,
   ]);
 
   const cosmicStoryText = lifeWeatherBrief.story;

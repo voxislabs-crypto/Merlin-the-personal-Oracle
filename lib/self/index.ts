@@ -14,4 +14,10 @@ export {
   type OperatingSystemTrait,
 } from '@/lib/self/operating-system';
 export { buildEdgeTakeaway, type EdgeTakeaway } from '@/lib/self/edge-takeaway';
+export {
+  buildCoreMaskTension,
+  buildSelfMbtiLens,
+  type DualLayerLens,
+  type DualPolarity,
+} from '@/lib/self/dual-layer-lens';
 export type * from '@/lib/self/types';

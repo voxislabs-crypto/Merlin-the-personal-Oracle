@@ -298,6 +298,19 @@ describe('buildLifeWeatherBrief', () => {
     expect(brief.story).not.toMatch(/INFJ/);
   });
 
+  it('uses Core vs Mask tension in How it feels instead of a static type beat', () => {
+    const brief = buildLifeWeatherBrief({
+      packet: mockPacket({ intensity: 55 }),
+      mbtiType: 'INFJ',
+      maskType: 'INTP',
+    });
+
+    expect(brief.story).toMatch(/INFJ/);
+    expect(brief.story).toMatch(/INTP/);
+    expect(brief.story).not.toMatch(/As an INFJ/);
+    expect(brief.navigate || brief.move).toBeTruthy();
+  });
+
   it('rejects horoscope fluff for story and move', () => {
     const brief = buildLifeWeatherBrief({
       packet: mockPacket({ intensity: 35 }),

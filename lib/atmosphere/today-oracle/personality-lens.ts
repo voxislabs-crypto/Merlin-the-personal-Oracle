@@ -3,6 +3,8 @@
  * Structure / intuition / action / harmony only change how navigation is framed.
  */
 
+import { buildCoreMaskTension } from '@/lib/self/dual-layer-lens';
+
 export type PersonalityFrame = 'structure' | 'intuition' | 'action' | 'harmony';
 
 export function personalityFrame(mbtiType?: string | null): PersonalityFrame {
@@ -45,6 +47,9 @@ const CLOSERS: Record<PersonalityFrame, Record<'friction' | 'opening' | 'mixed',
 export function personalityCloser(
   frame: PersonalityFrame,
   polarity: 'friction' | 'opening' | 'mixed',
+  options?: { coreType?: string | null; maskType?: string | null },
 ): string {
+  const tension = buildCoreMaskTension(options?.coreType, options?.maskType, polarity);
+  if (tension) return tension;
   return CLOSERS[frame][polarity];
 }

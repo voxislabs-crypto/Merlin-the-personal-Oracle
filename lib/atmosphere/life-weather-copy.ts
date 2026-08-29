@@ -13,6 +13,7 @@ import { applyMerlinVoicePass, failsMerlinVoiceTest } from '@/lib/voice/merlin-v
 import type { AtmospherePacket, LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
 import { composeTodayOracle } from '@/lib/atmosphere/today-oracle';
 import { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
+import { buildCoreMaskTension } from '@/lib/self/dual-layer-lens';
 import type { TodayMoveMemory, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 
 export interface LifeWeatherBriefCopy {
@@ -311,7 +312,13 @@ export function formatWhyLine(options: {
  * How the day feels — memorable life texture, not documentation.
  * Same meaning as pressure bands; richer weather metaphor + lived detail.
  */
-function personalityFeltBeat(mbtiType: string, intensity: number): string {
+function personalityFeltBeat(mbtiType: string, intensity: number, maskType?: string | null): string {
+  const tension = buildCoreMaskTension(
+    mbtiType,
+    maskType,
+    intensity >= 60 ? 'friction' : intensity >= 40 ? 'mixed' : 'opening',
+  );
+  if (tension) return ` ${tension}`;
   const frame = personalityFrame(mbtiType);
   const article = /^[AEIOU]/i.test(mbtiType) ? 'an' : 'a';
   if (intensity >= 60) {
@@ -344,8 +351,9 @@ export function buildFeltStory(options: {
   driverWhy?: string | null;
   forecastSummary?: string | null;
   mbtiType?: string | null;
+  maskType?: string | null;
 }): string {
-  const { intensity, domains, driverWhy, forecastSummary, mbtiType } = options;
+  const { intensity, domains, driverWhy, forecastSummary, mbtiType, maskType } = options;
   const d = domains && domains !== 'pace and energy' ? domains : '';
 
   let lead: string;
@@ -399,7 +407,7 @@ export function buildFeltStory(options: {
   const selfType = (mbtiType || '').trim().toUpperCase();
   const typeBeat =
     /^[IE][NS][TF][JP]$/.test(selfType) && !MBTI_ADDRESS_RE.test(`${lead} ${texture}${color}`)
-      ? personalityFeltBeat(selfType, intensity)
+      ? personalityFeltBeat(selfType, intensity, maskType)
       : '';
 
   return voiceSafe(`${lead} ${texture}${color}${typeBeat}`.replace(/\s+/g, ' ').trim());
@@ -663,6 +671,7 @@ export interface BuildLifeWeatherBriefInput {
   date?: string | null;
   moveMemory?: TodayMoveMemory | null;
   mbtiType?: string | null;
+  maskType?: string | null;
   loading?: boolean;
   premiumLocked?: boolean;
   errorMessage?: string | null;
@@ -719,6 +728,7 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     // Only use forecast summary as optional color if it is not horoscope fluff
     forecastSummary: input.forecastSummary,
     mbtiType: input.mbtiType,
+    maskType: input.maskType,
   });
 
   const horizonNote =
@@ -745,6 +755,7 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     transitLookup: input.transitLookup,
     memory: input.moveMemory ?? null,
     mbtiType: input.mbtiType,
+    maskType: input.maskType,
   });
 
   const move =

@@ -37,6 +37,7 @@ export interface ComposeTodayOracleInput {
   transitLookup?: TodayFactTransitRow[] | null;
   memory?: TodayMoveMemory | null;
   mbtiType?: string | null;
+  maskType?: string | null;
 }
 
 export function composeTodayOracle(input: ComposeTodayOracleInput): TodayOracleBrief | null {
@@ -66,6 +67,7 @@ export function composeTodayOracle(input: ComposeTodayOracleInput): TodayOracleB
     held: selected.held,
     memory: input.memory,
     mbtiType: input.mbtiType,
+    maskType: input.maskType,
     confluenceAligned: input.packet?.confluence?.aligned,
     tripleHit: input.packet?.confluence?.tripleHit,
   });

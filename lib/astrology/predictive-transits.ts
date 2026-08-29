@@ -5,6 +5,7 @@ import { getTransitsForDate, TransitMatch } from '@/lib/astrology/transits';
 import { resonanceDB } from '@/lib/resonance-database';
 import { PersistentUserContextSnapshot } from '@/lib/user-context';
 import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
+import { buildSelfMbtiLens } from '@/lib/self/dual-layer-lens';
 
 export interface LifeStageTag {
   id: string;
@@ -500,39 +501,35 @@ function buildContextModifiers(context?: PersistentUserContextSnapshot | null): 
   };
 }
 
-function buildMbtiLens(mbtiType: string | undefined, event: TransitMatch): PredictiveMbtiLens {
+function buildMbtiLens(
+  mbtiType: string | undefined,
+  event: TransitMatch,
+  maskType?: string,
+): PredictiveMbtiLens {
+  const lens = buildSelfMbtiLens({ coreType: mbtiType, maskType });
   if (!mbtiType || mbtiType.length !== 4) {
     return {
-      likelyPattern: 'You may swing between overthinking and emotional reaction while this transit builds.',
-      blindSpot: 'Assuming urgency means certainty.',
-      bestMove24h: 'Name one concrete action, then execute before over-analysis returns.',
-      avoidNow: 'Major irreversible decisions made in an emotional spike.',
+      likelyPattern: lens.likelyPattern,
+      blindSpot: lens.blindSpot,
+      bestMove24h: lens.bestMove24h,
+      avoidNow: lens.avoidNow,
     };
   }
 
-  const [energy, perception, decision, lifestyle] = mbtiType.split('');
-
-  const likelyPattern =
-    energy === 'I'
-      ? 'You process internally first, then reveal conclusions once they feel complete.'
-      : 'You process out loud, using dialogue to test and sharpen your direction.';
-
-  const blindSpot =
-    decision === 'T'
-      ? 'Treating emotional signals as noise instead of data.'
-      : 'Smoothing tension too quickly before naming the real issue.';
-
-  const bestMove24h =
-    lifestyle === 'J'
-      ? 'Set one structured checkpoint today and make a deliberate call by then.'
-      : 'Run a low-risk experiment today and use the result to decide your next move.';
-
+  const perception = mbtiType[1];
   const avoidNow =
-    perception === 'N'
-      ? 'Escaping into future scenarios without finishing today’s hard conversation.'
-      : `Assuming the immediate facts are the whole story around ${event.natalPlanet}.`;
+    lens.tension
+      ? lens.avoidNow
+      : perception === 'N'
+        ? 'Escaping into future scenarios without finishing today’s hard conversation.'
+        : `Assuming the immediate facts are the whole story around ${event.natalPlanet}.`;
 
-  return { likelyPattern, blindSpot, bestMove24h, avoidNow };
+  return {
+    likelyPattern: lens.likelyPattern,
+    blindSpot: lens.blindSpot,
+    bestMove24h: lens.bestMove24h,
+    avoidNow,
+  };
 }
 
 function buildDomainImpacts(
@@ -604,6 +601,7 @@ export async function buildPredictiveTransitBundle(params: {
   natalPlanets: PlanetPosition[];
   birthDate: string;
   mbtiType?: string;
+  mbtiMask?: string;
   userId?: string;
   userContext?: PersistentUserContextSnapshot | null;
   windowDays?: number;
@@ -613,6 +611,7 @@ export async function buildPredictiveTransitBundle(params: {
     natalPlanets,
     birthDate,
     mbtiType,
+    mbtiMask,
     userId,
     userContext,
     windowDays = 7,
@@ -716,7 +715,7 @@ export async function buildPredictiveTransitBundle(params: {
     });
 
     const domains = buildDomainImpacts(currentSample.transit, intensity, contextModifiers, moonDomainBoosts);
-    const mbtiLens = buildMbtiLens(mbtiType, currentSample.transit);
+    const mbtiLens = buildMbtiLens(mbtiType, currentSample.transit, mbtiMask);
     const narrative = buildNarrative(currentSample.transit, phase, peakDay, contextModifiers, lunarTiming);
     const lunarSignals: string[] = [];
     if (lunarTiming.isVoidOfCourse) lunarSignals.push('moon void-of-course caution');
