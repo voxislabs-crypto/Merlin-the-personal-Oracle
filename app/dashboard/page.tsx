@@ -129,10 +129,13 @@ import { globalAudioManager } from '@/lib/global-audio-manager';
 import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
 import { derivePersonalityFromChart } from '@/lib/personality/dual-overlay';
+import {
+  clearChartSession,
+  readChartSession,
+  writeChartSession,
+} from '@/lib/dashboard/chart-session';
 
 
-const STORAGE_KEY = 'merlin_chart_data';
-const STORAGE_BIRTH_KEY = 'merlin_birth_data';
 const ONBOARDING_STORAGE_KEY = 'merlin_dashboard_onboarding_complete_v1';
 const DAILY_STREAK_LAST_KEY = 'merlin_daily_checkin_last';
 const DAILY_STREAK_COUNT_KEY = 'merlin_daily_checkin_count';
@@ -349,7 +352,7 @@ export default function UnifiedDashboard() {
     setText: setJournalText,
   } = useAtmosphereJournal(forecast?.date);
   const { memory: todayMoveMemory, remember: rememberTodayMove } = useTodayMoveMemory(userId || undefined);
-  const { mbtiType, dualOverlay, loading: personalityLoading, applyChartPersonality } = usePersonality();
+  const { mbtiType, dualOverlay, loading: personalityLoading, applyChartPersonality, reset: resetPersonality } = usePersonality();
   const { preferences: oraclePreferences, persistPreferences } = useOraclePreferences({
     enabled: Boolean(userId),
   });
@@ -996,15 +999,18 @@ export default function UnifiedDashboard() {
     };
   }, [isLoaded, userId]);
 
-  // Load persisted data on mount
   useEffect(() => {
-    if (!isLoaded || (user && !userId) || hasRestoredPersistedDataRef.current) return;
+    hasRestoredPersistedDataRef.current = false;
+  }, [userId]);
+
+  // Load persisted data per signed-in user — never a shared browser chart.
+  useEffect(() => {
+    if (!isLoaded || !userId || hasRestoredPersistedDataRef.current) return;
 
     hasRestoredPersistedDataRef.current = true;
 
     try {
-      const savedChart = localStorage.getItem(STORAGE_KEY);
-      const savedBirth = localStorage.getItem(STORAGE_BIRTH_KEY);
+      const { chartRaw: savedChart, birthRaw: savedBirth } = readChartSession(userId);
       
       if (savedChart && savedBirth) {
         const chart = JSON.parse(savedChart);
@@ -1015,8 +1021,7 @@ export default function UnifiedDashboard() {
                            chart?.metadata?.ephemeris === 'Mock');
         if (isMockData) {
           console.log('[Dashboard] Clearing stale mock data, forcing fresh calculation...');
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem(STORAGE_BIRTH_KEY);
+          clearChartSession(userId);
           return; // Skip loading cached data, let user recalculate
         }
         
@@ -1086,6 +1091,11 @@ export default function UnifiedDashboard() {
               })
             : Promise.resolve(null),
         ]).catch((e) => console.error('Error regenerating dashboard data:', e));
+      } else {
+        setChartData(null);
+        setBirthData(null);
+        setWheelData(null);
+        resetPersonality();
       }
     } catch (error) {
       console.error('Error loading persisted data:', error);
@@ -1108,7 +1118,7 @@ export default function UnifiedDashboard() {
     interpretMode,
     isLoaded,
     mbtiType,
-    user,
+    resetPersonality,
     userId,
   ]);
 
@@ -1262,10 +1272,10 @@ export default function UnifiedDashboard() {
     setBirthData(derived);
     setChartData(data);
 
-    // Persist to localStorage
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      localStorage.setItem(STORAGE_BIRTH_KEY, JSON.stringify(derived));
+      if (userId) {
+        writeChartSession(userId, JSON.stringify(data), JSON.stringify(derived));
+      }
     } catch (error) {
       console.error('Error persisting data:', error);
     }
@@ -1988,16 +1998,14 @@ export default function UnifiedDashboard() {
     : null;
 
   const liveDual = useMemo(() => {
-    if (!chartData) return dualOverlay;
+    if (!chartData) return null;
     try {
-      return (
-        derivePersonalityFromChart(chartData, { retrogradeOverlay })?.dualOverlay || dualOverlay
-      );
+      return derivePersonalityFromChart(chartData, { retrogradeOverlay })?.dualOverlay || null;
     } catch (error) {
       console.warn('[dashboard] live dual personality failed:', error);
-      return dualOverlay;
+      return null;
     }
-  }, [chartData, dualOverlay, retrogradeOverlay]);
+  }, [chartData, retrogradeOverlay]);
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
@@ -2895,6 +2903,13 @@ export default function UnifiedDashboard() {
                           }
                         : null)
                     }
+                    chartForLabel={
+                      birthData?.date
+                        ? `Natal chart · ${birthData.date}${
+                            birthData.time && birthData.time !== '12:00' ? ` · ${birthData.time}` : ''
+                          }`
+                        : null
+                    }
                     operatingSystem={identityPacket.operatingSystem}
                     activeStoryline={activeTransitStoryline}
                     storylineThemes={interpretations?.confluence || null}
@@ -3004,8 +3019,7 @@ export default function UnifiedDashboard() {
                           setSelectedWheelSign(null);
                           setDashboardTab('chart');
                           try {
-                            localStorage.removeItem(STORAGE_KEY);
-                            localStorage.removeItem(STORAGE_BIRTH_KEY);
+                            clearChartSession(userId);
                           } catch {
                             // ignore storage errors
                           }

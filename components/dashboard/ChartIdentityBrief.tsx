@@ -49,6 +49,8 @@ interface ChartIdentityBriefProps {
   /** Natal Rx overlay — Core only. Mask stays put. */
   retrogradeOverlay?: boolean;
   onToggleRetrogradeOverlay?: () => void;
+  /** Whose natal chart this is — date / place so a borrowed session is obvious */
+  chartForLabel?: string | null;
 }
 
 function typeBlurb(type?: string): string | null {
@@ -83,6 +85,7 @@ export function ChartIdentityBrief({
   onAskStorylineWindow,
   retrogradeOverlay = false,
   onToggleRetrogradeOverlay,
+  chartForLabel = null,
 }: ChartIdentityBriefProps) {
   const natalPillars = [
     { key: 'sun', label: 'Sun', value: sunSign, hint: 'who you are becoming' },
@@ -131,6 +134,9 @@ export function ChartIdentityBrief({
               <p className="mt-1 text-xs text-slate-400">
                 Stable self first — weather and storylines shift; this map doesn&apos;t.
               </p>
+              {chartForLabel ? (
+                <p className="mt-1 font-mono text-[11px] text-amber-200/80">{chartForLabel}</p>
+              ) : null}
             </div>
           </div>
           {onAskMerlin ? (
