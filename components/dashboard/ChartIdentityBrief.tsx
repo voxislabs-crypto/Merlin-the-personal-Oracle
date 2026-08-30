@@ -51,6 +51,10 @@ interface ChartIdentityBriefProps {
   onToggleRetrogradeOverlay?: () => void;
   /** Whose natal chart this is — date / place so a borrowed session is obvious */
   chartForLabel?: string | null;
+  /** Base-engine Core (overlay off) */
+  baseCoreType?: string | null;
+  /** Rx-overlay Core (overlay on) */
+  rxCoreType?: string | null;
 }
 
 function typeBlurb(type?: string): string | null {
@@ -86,6 +90,8 @@ export function ChartIdentityBrief({
   retrogradeOverlay = false,
   onToggleRetrogradeOverlay,
   chartForLabel = null,
+  baseCoreType = null,
+  rxCoreType = null,
 }: ChartIdentityBriefProps) {
   const natalPillars = [
     { key: 'sun', label: 'Sun', value: sunSign, hint: 'who you are becoming' },
@@ -300,9 +306,13 @@ export function ChartIdentityBrief({
             ) : null}
             {onToggleRetrogradeOverlay && core && mask && dual ? (
               <p className="text-xs text-slate-400">
-                {retrogradeOverlay
-                  ? `Rx overlay is on — Core is ${core}. Mask ${mask} is the public face and does not change.`
-                  : `Base engine — Core is ${core}. Mask ${mask} stays put when you toggle Rx.`}
+                {baseCoreType && rxCoreType && baseCoreType !== rxCoreType
+                  ? retrogradeOverlay
+                    ? `Rx overlay on — Core ${core} (base engine is ${baseCoreType}). Mask ${mask} does not change.`
+                    : `Base engine — Core ${core}. Turn Rx on to read Core as ${rxCoreType}. Mask ${mask} stays put.`
+                  : retrogradeOverlay
+                    ? `Rx overlay is on — Core is ${core}. Mask ${mask} does not change.`
+                    : `Base engine — Core is ${core}. Mask ${mask} stays put when you toggle Rx.`}
               </p>
             ) : null}
 

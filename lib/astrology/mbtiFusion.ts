@@ -96,12 +96,19 @@ function getMode(
   return modes[sign?.toLowerCase()];
 }
 
+export function resolveNatalPlanets(chart?: BirthChartData | null): PlanetPosition[] {
+  if (!chart) return [];
+  if (chart.positions?.length) return chart.positions;
+  if (chart.planets?.length) return chart.planets;
+  return [];
+}
+
 // Helper: Find planet by name
 function findPlanet(
-  positions: PlanetPosition[],
+  positions: PlanetPosition[] | undefined,
   name: string
 ): PlanetPosition | undefined {
-  return positions.find(
+  return positions?.find(
     (p) => p.name.toLowerCase() === name.toLowerCase()
   );
 }
@@ -213,7 +220,8 @@ export function computeMBTIDual(chart: BirthChartData, options?: MbtiFusionOptio
   type: string; // Core type (firmware) — same as Self → You
   confidence: number;
 } {
-  const { positions, houses, ascendant, mc } = chart;
+  const positions = resolveNatalPlanets(chart);
+  const { houses, ascendant, mc } = chart;
   
   // Find key planets
   const sun = findPlanet(positions, "Sun");

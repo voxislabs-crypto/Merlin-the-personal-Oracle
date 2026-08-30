@@ -128,6 +128,33 @@ describe('MBTI Fusion', () => {
     expect(dual.type).not.toBe('INFJ');
   });
 
+  test('uses planets when positions is an empty array (not ?? fallback)', () => {
+    const planets = [
+      { name: 'Sun', sign: 'Leo', longitude: 141, latitude: 0, distance: 1, degree: 21, minute: 0, house: 10 },
+      { name: 'Moon', sign: 'Scorpio', longitude: 221, latitude: 0, distance: 1, degree: 11, minute: 0, house: 1 },
+      { name: 'Mercury', sign: 'Virgo', longitude: 168, latitude: 0, distance: 1, degree: 18, minute: 0, house: 11 },
+    ];
+    const emptyPositions = computeMBTIDual({
+      positions: [],
+      planets,
+      houses: [],
+      aspects: [],
+      ascendant: { longitude: 210, sign: 'Scorpio', degree: 0, minute: 0 },
+      mc: { longitude: 120, sign: 'Leo', degree: 0, minute: 0 },
+    } as BirthChartData);
+    const fromPlanets = computeMBTIDual({
+      positions: planets,
+      planets,
+      houses: [],
+      aspects: [],
+      ascendant: { longitude: 210, sign: 'Scorpio', degree: 0, minute: 0 },
+      mc: { longitude: 120, sign: 'Leo', degree: 0, minute: 0 },
+    } as BirthChartData);
+
+    expect(emptyPositions.firmware.type).toBe(fromPlanets.firmware.type);
+    expect(emptyPositions.firmware.breakdown.j_p).toBe('J');
+  });
+
   test('Leo Sun is an E vote, not an I default when Moon and Asc are E', () => {
     const leoOutgoing: Partial<BirthChartData> = {
       positions: [

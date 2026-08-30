@@ -1997,15 +1997,22 @@ export default function UnifiedDashboard() {
       })()
     : null;
 
-  const liveDual = useMemo(() => {
-    if (!chartData) return null;
+  const personalityReads = useMemo(() => {
+    if (!chartData) return { base: null, rx: null, live: null };
     try {
-      return derivePersonalityFromChart(chartData, { retrogradeOverlay })?.dualOverlay || null;
+      const base = derivePersonalityFromChart(chartData, { retrogradeOverlay: false })?.dualOverlay || null;
+      const rx = derivePersonalityFromChart(chartData, { retrogradeOverlay: true })?.dualOverlay || null;
+      return {
+        base,
+        rx,
+        live: (retrogradeOverlay ? rx : base) || null,
+      };
     } catch (error) {
       console.warn('[dashboard] live dual personality failed:', error);
-      return null;
+      return { base: null, rx: null, live: null };
     }
   }, [chartData, retrogradeOverlay]);
+  const liveDual = personalityReads.live;
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
@@ -2454,7 +2461,7 @@ export default function UnifiedDashboard() {
                   compactMode={compactMode}
                   onCompactModeChange={setCompactMode}
                   premiumLocked={premiumLocked}
-                  mbtiType={mbtiType || undefined}
+                  mbtiType={liveDual?.firmware?.mbtiType || mbtiType || undefined}
                   modulePreferences={modulePreferences}
                   onModulePreferencesChange={setModulePreferences}
                 />
@@ -2910,6 +2917,8 @@ export default function UnifiedDashboard() {
                           }`
                         : null
                     }
+                    baseCoreType={personalityReads.base?.firmware?.mbtiType}
+                    rxCoreType={personalityReads.rx?.firmware?.mbtiType}
                     operatingSystem={identityPacket.operatingSystem}
                     activeStoryline={activeTransitStoryline}
                     storylineThemes={interpretations?.confluence || null}
