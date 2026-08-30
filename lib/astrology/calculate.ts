@@ -444,8 +444,10 @@ function calculatePlanetPositions(
       // Calculate position based on planet
       switch (planet.name) {
         case "Sun": {
-          // Heliocentric coordinates (Earth is at the opposite point)
-          lon = (180 + (jde % 360)) % 360;
+          // Low-precision mean longitude (Meeus-style), replaces the old
+          // placeholder `lon = (180 + (jde % 360)) % 360` which drifted ~180°.
+          const T = (jde - 2451545.0) / 36525.0;
+          lon = 280.46646 + 36000.76983 * T + 0.0003032 * T * T;
           break;
         }
 
