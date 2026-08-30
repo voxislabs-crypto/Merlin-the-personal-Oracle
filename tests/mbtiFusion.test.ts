@@ -128,6 +128,45 @@ describe('MBTI Fusion', () => {
     expect(dual.type).not.toBe('INFJ');
   });
 
+  test('Leo Sun is an E vote, not an I default when Moon and Asc are E', () => {
+    const leoOutgoing: Partial<BirthChartData> = {
+      positions: [
+        { name: 'Sun', sign: 'Leo', longitude: 135, latitude: 0, distance: 1, degree: 15, minute: 0, house: 10 },
+        { name: 'Moon', sign: 'Aries', longitude: 15, latitude: 0, distance: 1, degree: 15, minute: 0, house: 5 },
+        { name: 'Mercury', sign: 'Gemini', longitude: 75, latitude: 0, distance: 1, degree: 15, minute: 0, house: 9 },
+        { name: 'Venus', sign: 'Leo', longitude: 140, latitude: 0, distance: 1, degree: 20, minute: 0, house: 10 },
+        { name: 'Mars', sign: 'Sagittarius', longitude: 255, latitude: 0, distance: 1, degree: 15, minute: 0, house: 2 },
+      ],
+      houses: [],
+      aspects: [],
+      ascendant: { longitude: 75, sign: 'Gemini', degree: 15, minute: 0 },
+      mc: { longitude: 345, sign: 'Pisces', degree: 15, minute: 0 },
+    };
+
+    const dual = computeMBTIDual(leoOutgoing as BirthChartData);
+    expect(dual.firmware.breakdown.e_i).toBe('E');
+    expect(dual.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/Sun: E/);
+    expect(dual.firmware.breakdown.reasoning.extraversion.join(' ')).not.toMatch(/HARD LOCK|only when Moon AND Asc/);
+  });
+
+  test('Leo Sun E still loses to a stronger inner I pair (Moon + Asc)', () => {
+    const result = computeMBTIDual({
+      positions: [
+        { name: 'Sun', sign: 'Leo', longitude: 141, latitude: 0, distance: 1, degree: 21, minute: 0, house: 10 },
+        { name: 'Moon', sign: 'Scorpio', longitude: 221, latitude: 0, distance: 1, degree: 11, minute: 0, house: 1 },
+        { name: 'Mercury', sign: 'Virgo', longitude: 168, latitude: 0, distance: 1, degree: 18, minute: 0, house: 11 },
+      ],
+      houses: [],
+      aspects: [],
+      ascendant: { longitude: 210, sign: 'Scorpio', degree: 0, minute: 0 },
+      mc: { longitude: 120, sign: 'Leo', degree: 0, minute: 0 },
+    } as BirthChartData);
+
+    expect(result.firmware.breakdown.e_i).toBe('I');
+    expect(result.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/Sun: E/);
+    expect(result.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/I 0\.70 vs E 0\.30/);
+  });
+
   test('retrograde overlay only changes firmware when enabled', () => {
     const chart = {
       ...intjChart,

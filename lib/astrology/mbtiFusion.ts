@@ -551,8 +551,11 @@ function computeFirmwareLayer(params: {
   const thinkingReasons: string[] = [];
   const judgingReasons: string[] = [];
 
-  // === E/I: Moon 35%, Ascendant 25%, Sun 20%, Mercury 20% ===
-  // Water/earth vote I; fire/air vote E. No sign hard-locks (those overfit one chart).
+  // === E/I: head-to-head, not an I-threshold ===
+  // Moon 30% (inner), Sun 30% (identity), Asc 20%, Mercury 20%.
+  // No Scorpio hard-lock. No Leo-Sun "E only if Moon AND Asc vote E" — that
+  // made a Leo Sun vote I whenever the inner pair wasn't both E, so the Sun
+  // never actually counted. Ties follow the Sun, not a default I.
   const twelfthHouseCount = positions.filter((p) => p.house === 12).length;
 
   const moonVote: 'I' | 'E' =
@@ -564,23 +567,28 @@ function computeFirmwareLayer(params: {
   const mercuryVote: 'I' | 'E' =
     getElement(mercury?.sign ?? '') === 'air' || getElement(mercury?.sign ?? '') === 'fire' ? 'E' : 'I';
 
-  const iWeight =
-    (moonVote === 'I' ? 0.35 : 0) +
-    (ascVote === 'I' ? 0.25 : 0) +
-    (sunVote === 'I' ? 0.2 : 0) +
-    (mercuryVote === 'I' ? 0.2 : 0) +
-    rxBoost.iBoost;
+  const WEIGHTS = { moon: 0.3, sun: 0.3, asc: 0.2, mercury: 0.2 } as const;
+  const iBase =
+    (moonVote === 'I' ? WEIGHTS.moon : 0) +
+    (ascVote === 'I' ? WEIGHTS.asc : 0) +
+    (sunVote === 'I' ? WEIGHTS.sun : 0) +
+    (mercuryVote === 'I' ? WEIGHTS.mercury : 0);
+  const eBase = 1 - iBase;
+  const iScore = iBase + rxBoost.iBoost;
+  const eScore = eBase;
 
-  const firmwareE_I = iWeight >= 0.5 ? 'I' : 'E';
+  const firmwareE_I: 'I' | 'E' =
+    iScore > eScore ? 'I' : eScore > iScore ? 'E' : sunVote;
+
   extraversionReasons.push(
-    `Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → ${firmwareE_I}`
+    `Moon: ${moonVote} (30%), Sun: ${sunVote} (30%), Asc: ${ascVote} (20%), Mercury: ${mercuryVote} (20%) → I ${iScore.toFixed(2)} vs E ${eScore.toFixed(2)} → ${firmwareE_I}`
   );
   if (rxNames.length) {
     extraversionReasons.push(`Retrograde overlay using ${rxNames.join(', ')} Rx`);
   }
   if (isMbtiDebugEnabled()) {
     console.log(
-      `[MBTI E/I Firmware] Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → I-weight: ${iWeight.toFixed(2)} → ${firmwareE_I}`
+      `[MBTI E/I Firmware] Moon: ${moonVote} Sun: ${sunVote} Asc: ${ascVote} Mercury: ${mercuryVote} → I ${iScore.toFixed(2)} vs E ${eScore.toFixed(2)} → ${firmwareE_I}`
     );
   }
 

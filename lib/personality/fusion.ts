@@ -17,15 +17,8 @@ export function getMBTI(chart: any): MBTIType {
     }
     return result.type as MBTIType;
   } catch (error) {
-    console.error('[getMBTI] Error computing MBTI, using fallback:', error);
-    // Fallback to simple logic if sophisticated engine fails
-    const e_i = ['Aries', 'Leo', 'Sagittarius', 'Gemini', 'Libra', 'Aquarius'].some(s => 
-      chart.ascendant?.sign?.includes(s) || chart.sun?.sign?.includes(s)
-    ) ? 'E' : 'I';
-    const n_s = 'N'; // Default to intuition for safety
-    const f_t = 'F'; // Default to feeling for safety  
-    const j_p = ['Capricorn', 'Aries', 'Cancer', 'Libra'].includes(chart.ascendant?.sign) ? 'J' : 'P';
-    return (e_i + n_s + f_t + j_p) as MBTIType;
+    console.error('[getMBTI] Error computing MBTI:', error);
+    throw error;
   }
 }
 
@@ -44,22 +37,8 @@ export function getMBTIDual(chart: any, options?: MbtiFusionOptions) {
     }
     return result;
   } catch (error) {
-    console.error('[getMBTIDual] Error computing dual MBTI, using fallback:', error);
-    // Fallback: simple logic
-    const e_i = ['Aries', 'Leo', 'Sagittarius', 'Gemini', 'Libra', 'Aquarius'].some(s => 
-      chart.ascendant?.sign?.includes(s) || chart.sun?.sign?.includes(s)
-    ) ? 'E' : 'I';
-    const n_s = 'N';
-    const f_t = 'F';
-    const j_p = ['Capricorn', 'Aries', 'Cancer', 'Libra'].includes(chart.ascendant?.sign) ? 'J' : 'P';
-    const fallbackType = (e_i + n_s + f_t + j_p) as MBTIType;
-    
-    return {
-      hardware: { type: fallbackType, confidence: 50, breakdown: { e_i, s_n: n_s, t_f: f_t, j_p, reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'hardware' as const },
-      firmware: { type: fallbackType, confidence: 50, breakdown: { e_i, s_n: n_s, t_f: f_t, j_p, reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] } }, layer: 'firmware' as const },
-      type: fallbackType,
-      confidence: 50,
-    };
+    console.error('[getMBTIDual] Error computing dual MBTI:', error);
+    throw error;
   }
 }
 
