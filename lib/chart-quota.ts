@@ -6,7 +6,7 @@ import { getUserTier, type SubscriptionTier } from '@/lib/subscription-validatio
 /**
  * Hard lifetime cap on birth-chart calculations per account.
  * Stops one login from becoming a household chart factory.
- * Applies to free + paid (abuse vector is account sharing, not tier).
+ * Free and paid share this cap: 1 first natal + remaining rerolls.
  */
 export const MAX_CHARTS_PER_ACCOUNT = 3;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Compass, Eye, MessageCircle, Sparkles, Theater } from 'lucide-react';
+import { Compass, Eye, MessageCircle, RefreshCcw, Sparkles, Theater } from 'lucide-react';
 import { getMBTITypeDescription, type MBTIType } from '@/lib/mbti-overlay';
 import {
   ActiveStorylinePanel,
@@ -55,6 +55,9 @@ interface ChartIdentityBriefProps {
   baseCoreType?: string | null;
   /** Rx-overlay Core (overlay on) */
   rxCoreType?: string | null;
+  onRecalculateChart?: () => void;
+  recalculateDisabled?: boolean;
+  recalculateHint?: string | null;
 }
 
 function typeBlurb(type?: string): string | null {
@@ -92,6 +95,9 @@ export function ChartIdentityBrief({
   chartForLabel = null,
   baseCoreType = null,
   rxCoreType = null,
+  onRecalculateChart,
+  recalculateDisabled = false,
+  recalculateHint = null,
 }: ChartIdentityBriefProps) {
   const natalPillars = [
     { key: 'sun', label: 'Sun', value: sunSign, hint: 'who you are becoming' },
@@ -145,16 +151,30 @@ export function ChartIdentityBrief({
               ) : null}
             </div>
           </div>
-          {onAskMerlin ? (
-            <button
-              type="button"
-              onClick={onAskMerlin}
-              className="inline-flex items-center gap-2 self-start rounded-full border border-cyan-300/35 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Explain my chart
-            </button>
-          ) : null}
+          <div className="flex flex-col items-stretch gap-2 self-start sm:items-end">
+            {onAskMerlin ? (
+              <button
+                type="button"
+                onClick={onAskMerlin}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300/35 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/20"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Explain my chart
+              </button>
+            ) : null}
+            {onRecalculateChart ? (
+              <button
+                type="button"
+                onClick={onRecalculateChart}
+                disabled={recalculateDisabled}
+                title={recalculateHint || 'Enter a new birth date, time, or place'}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-400/35 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Recalculate chart
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2">

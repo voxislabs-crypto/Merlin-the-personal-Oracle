@@ -536,7 +536,7 @@ export function BirthChart({
                       <span className="font-mono font-semibold">
                         {chartQuota.remaining}/{chartQuota.limit}
                       </span>{' '}
-                      chart builds left on this account (includes first build + recalculates).
+                      chart builds left (first natal + rerolls). Free and paid share this cap.
                     </span>
                   )}
                 </div>

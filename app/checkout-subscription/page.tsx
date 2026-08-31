@@ -260,9 +260,9 @@ export default function CheckoutSubscriptionPage() {
                 <div className="mt-6 flex items-start gap-2 rounded-xl border border-sky-400/20 bg-sky-950/30 px-3 py-2.5 text-xs text-sky-100/90">
                   <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
                   <span>
-                    Chart rebuilds stay capped at <strong>3 per account</strong> (anti household
-                    sharing). Trial is about weather depth and Oracle — not infinite charts for
-                    the whole family.
+                    Chart rebuilds stay capped at <strong>3 per account</strong> for free and
+                    paid (first natal + rerolls). Trial is about weather depth and Oracle — not
+                    infinite charts for the whole family.
                   </span>
                 </div>
               </CardContent>

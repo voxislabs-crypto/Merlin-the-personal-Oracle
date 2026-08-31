@@ -2298,6 +2298,47 @@ export default function UnifiedDashboard() {
     }
   }, []);
 
+  const handleRecalculateChart = useCallback(() => {
+    if (chartQuota && chartQuota.remaining <= 0) {
+      toast({
+        title: 'Chart rebuild limit reached',
+        description: `This account allows ${chartQuota.limit} chart builds total (first natal + rerolls). Contact support for a legitimate birth-data fix.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const remaining =
+      chartQuota?.remaining != null
+        ? ` You have ${chartQuota.remaining} rebuild${chartQuota.remaining === 1 ? '' : 's'} left.`
+        : '';
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        `Recalculate with new birth data? Your current chart session will clear.${remaining}`,
+      )
+    ) {
+      return;
+    }
+
+    hasRestoredPersistedDataRef.current = true;
+    premiumHydrationKeyRef.current = null;
+    setChartData(null);
+    setWheelData(null);
+    setBirthData(null);
+    setSelectedWheelPlanet(null);
+    setSelectedWheelSign(null);
+    setDashboardTab('chart');
+    try {
+      clearChartSession(userId);
+    } catch {
+      // ignore storage errors
+    }
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, [chartQuota, toast, userId]);
+
   const handleWheelSignSelect = useCallback((name: ZodiacSignName | null) => {
     setSelectedWheelSign(name);
     if (name) {
@@ -2966,6 +3007,15 @@ export default function UnifiedDashboard() {
                         `What should I know about this timing window: ${title}? What peaks, what to do before/during/after, and what to avoid?`,
                       )
                     }
+                    onRecalculateChart={handleRecalculateChart}
+                    recalculateDisabled={Boolean(chartQuota && chartQuota.remaining <= 0)}
+                    recalculateHint={
+                      chartQuota && chartQuota.remaining <= 0
+                        ? 'Chart rebuild limit reached for this account'
+                        : chartQuota
+                          ? `${chartQuota.remaining} rebuild${chartQuota.remaining === 1 ? '' : 's'} left (first natal + rerolls)`
+                          : 'Enter a new birth date, time, or place'
+                    }
                   />
                 </div>
 
@@ -2990,52 +3040,12 @@ export default function UnifiedDashboard() {
                     <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
                       {chartQuota ? (
                         <p className="text-[10px] font-mono text-slate-500">
-                          {chartQuota.remaining}/{chartQuota.limit} rebuilds left
+                          {chartQuota.remaining}/{chartQuota.limit} builds left · first natal + rerolls
                         </p>
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (chartQuota && chartQuota.remaining <= 0) {
-                            toast({
-                              title: 'Chart rebuild limit reached',
-                              description: `This account allows ${chartQuota.limit} chart builds total (anti household sharing). Contact support for a legitimate birth-data fix.`,
-                              variant: 'destructive',
-                            });
-                            return;
-                          }
-
-                          const remaining =
-                            chartQuota?.remaining != null
-                              ? ` You have ${chartQuota.remaining} rebuild${chartQuota.remaining === 1 ? '' : 's'} left.`
-                              : '';
-                          if (
-                            typeof window !== 'undefined' &&
-                            !window.confirm(
-                              `Recalculate with new birth data? Your current chart session will clear.${remaining}`
-                            )
-                          ) {
-                            return;
-                          }
-
-                          // Allow BirthChart intake to mount again in the same slot.
-                          hasRestoredPersistedDataRef.current = true;
-                          premiumHydrationKeyRef.current = null;
-                          setChartData(null);
-                          setWheelData(null);
-                          setBirthData(null);
-                          setSelectedWheelPlanet(null);
-                          setSelectedWheelSign(null);
-                          setDashboardTab('chart');
-                          try {
-                            clearChartSession(userId);
-                          } catch {
-                            // ignore storage errors
-                          }
-                          requestAnimationFrame(() => {
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          });
-                        }}
+                        onClick={handleRecalculateChart}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={Boolean(chartQuota && chartQuota.remaining <= 0)}
                         title={
