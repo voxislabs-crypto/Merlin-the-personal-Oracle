@@ -1,9 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { MBTIType } from '@/lib/mbti-overlay';
-import type { BirthChartData } from '@/types/astrology';
-import { derivePersonalityFromChart, type DualOverlay } from '@/lib/personality/dual-overlay';
-import type { MbtiFusionOptions } from '@/lib/astrology/mbtiFusion';
+import type { DualOverlay } from '@/lib/personality/dual-overlay';
 
 export type { DualOverlay };
 
@@ -13,44 +11,24 @@ export interface PersonalityProfile {
   source?: 'swiss-real' | 'mock-fallback' | 'chart-derived';
 }
 
+export type PersonalityCalcOptions = {
+  retrogradeOverlay?: boolean;
+};
+
 export function usePersonality() {
   const [mbtiType, setMbtiType] = useState<MBTIType | null>(null);
   const [profile, setProfile] = useState<PersonalityProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
-  const applyChartPersonality = useCallback((
-    chartData: BirthChartData,
-    options?: MbtiFusionOptions
-  ): MBTIType | null => {
-    setError(null);
-
-    const derived = derivePersonalityFromChart(chartData, options);
-    if (!derived) {
-      setMbtiType(null);
-      setProfile(null);
-      return null;
-    }
-
-    setMbtiType(derived.mbtiType);
-    setProfile({
-      mbtiType: derived.mbtiType,
-      dualOverlay: derived.dualOverlay,
-      source: 'chart-derived',
-    });
-    return derived.mbtiType;
-  }, []);
+  const requestIdRef = useRef(0);
 
   const calculatePersonality = useCallback(
-    async (birthData: BirthData, chartData?: BirthChartData | null): Promise<MBTIType | null> => {
-      if (chartData) {
-        return applyChartPersonality(chartData);
-      }
+    async (birthData: BirthData, options?: PersonalityCalcOptions): Promise<MBTIType | null> => {
+      if (!birthData?.date || !birthData?.time) return null;
 
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       setError(null);
-      setMbtiType(null);
-      setProfile(null);
 
       const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
 
@@ -58,12 +36,14 @@ export function usePersonality() {
         const response = await fetch('/api/personality', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
           body: JSON.stringify({
             birthDate: birthData.date,
             birthTime: birthData.time,
             lat: birthData.latitude,
             lon: birthData.longitude,
             timezoneOffset: timezoneOffsetHours,
+            retrogradeOverlay: Boolean(options?.retrogradeOverlay),
           }),
         });
 
@@ -77,7 +57,9 @@ export function usePersonality() {
           throw new Error(result.error || 'Failed to derive personality');
         }
 
-        const nextMbti = (result.data.finalType || result.data.mbtiType) as MBTIType;
+        if (requestId !== requestIdRef.current) return null;
+
+        const nextMbti = (result.data.firmware || result.data.finalType || result.data.mbtiType) as MBTIType;
         setMbtiType(nextMbti);
         setProfile({
           mbtiType: nextMbti,
@@ -86,21 +68,26 @@ export function usePersonality() {
         });
         return nextMbti;
       } catch (err) {
+        if (requestId !== requestIdRef.current) return null;
         const nextError = err instanceof Error ? err : new Error('Unknown error');
         setError(nextError);
         console.error('Personality error:', nextError);
         return null;
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
-    [applyChartPersonality]
+    []
   );
 
   const reset = useCallback(() => {
+    requestIdRef.current += 1;
     setMbtiType(null);
     setProfile(null);
     setError(null);
+    setLoading(false);
   }, []);
 
   return {
@@ -110,7 +97,6 @@ export function usePersonality() {
     loading,
     error,
     calculatePersonality,
-    applyChartPersonality,
     reset,
   };
 }

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, retrogradeOverlay } = body;
     
     if (!birthDate || !birthTime) {
       return NextResponse.json(
@@ -101,8 +101,10 @@ export async function POST(request: Request) {
       ) as BirthChartData;
     }
 
-    // Derive dual-layer MBTI from chart
-    const mbtiDual = getMBTIDual(natalChart);
+    // Derive dual-layer MBTI from a freshly calculated natal, not client overlay cache.
+    const mbtiDual = getMBTIDual(natalChart, {
+      retrogradeOverlay: Boolean(retrogradeOverlay),
+    });
     const dualOverlay = buildDualOverlay(natalChart, mbtiDual);
 
     // Log results

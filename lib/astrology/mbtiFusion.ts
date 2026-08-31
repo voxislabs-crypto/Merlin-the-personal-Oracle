@@ -559,11 +559,9 @@ function computeFirmwareLayer(params: {
   const thinkingReasons: string[] = [];
   const judgingReasons: string[] = [];
 
-  // === E/I: head-to-head, not an I-threshold ===
-  // Moon 30% (inner), Sun 30% (identity), Asc 20%, Mercury 20%.
-  // No Scorpio hard-lock. No Leo-Sun "E only if Moon AND Asc vote E" — that
-  // made a Leo Sun vote I whenever the inner pair wasn't both E, so the Sun
-  // never actually counted. Ties follow the Sun, not a default I.
+  // === E/I: weighted vote only ===
+  // Moon 35%, Asc 25%, Sun 20%, Mercury 20%. Compare I vs E totals.
+  // No Scorpio hard-lock. No Leo-Sun "E only if Moon AND Asc vote E".
   const twelfthHouseCount = positions.filter((p) => p.house === 12).length;
 
   const moonVote: 'I' | 'E' =
@@ -575,7 +573,7 @@ function computeFirmwareLayer(params: {
   const mercuryVote: 'I' | 'E' =
     getElement(mercury?.sign ?? '') === 'air' || getElement(mercury?.sign ?? '') === 'fire' ? 'E' : 'I';
 
-  const WEIGHTS = { moon: 0.3, sun: 0.3, asc: 0.2, mercury: 0.2 } as const;
+  const WEIGHTS = { moon: 0.35, asc: 0.25, sun: 0.2, mercury: 0.2 } as const;
   const iBase =
     (moonVote === 'I' ? WEIGHTS.moon : 0) +
     (ascVote === 'I' ? WEIGHTS.asc : 0) +
@@ -585,11 +583,10 @@ function computeFirmwareLayer(params: {
   const iScore = iBase + rxBoost.iBoost;
   const eScore = eBase;
 
-  const firmwareE_I: 'I' | 'E' =
-    iScore > eScore ? 'I' : eScore > iScore ? 'E' : sunVote;
+  const firmwareE_I: 'I' | 'E' = iScore > eScore ? 'I' : 'E';
 
   extraversionReasons.push(
-    `Moon: ${moonVote} (30%), Sun: ${sunVote} (30%), Asc: ${ascVote} (20%), Mercury: ${mercuryVote} (20%) → I ${iScore.toFixed(2)} vs E ${eScore.toFixed(2)} → ${firmwareE_I}`
+    `Moon: ${moonVote} (35%), Asc: ${ascVote} (25%), Sun: ${sunVote} (20%), Mercury: ${mercuryVote} (20%) → I ${iScore.toFixed(2)} vs E ${eScore.toFixed(2)} → ${firmwareE_I}`
   );
   if (rxNames.length) {
     extraversionReasons.push(`Retrograde overlay using ${rxNames.join(', ')} Rx`);

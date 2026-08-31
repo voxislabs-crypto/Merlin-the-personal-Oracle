@@ -128,7 +128,6 @@ import { getMBTITypeDescription, applyMBTIOverlay, type MBTIType } from '@/lib/m
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
-import { derivePersonalityFromChart } from '@/lib/personality/dual-overlay';
 import {
   clearChartSession,
   readChartSession,
@@ -352,13 +351,11 @@ export default function UnifiedDashboard() {
     setText: setJournalText,
   } = useAtmosphereJournal(forecast?.date);
   const { memory: todayMoveMemory, remember: rememberTodayMove } = useTodayMoveMemory(userId || undefined);
-  const { mbtiType, dualOverlay, loading: personalityLoading, applyChartPersonality, reset: resetPersonality } = usePersonality();
+  const { mbtiType, dualOverlay, calculatePersonality, reset: resetPersonality } = usePersonality();
   const { preferences: oraclePreferences, persistPreferences } = useOraclePreferences({
     enabled: Boolean(userId),
   });
   const retrogradeOverlay = oraclePreferences.retrogradeOverlay;
-  const retrogradeOverlayRef = useRef(retrogradeOverlay);
-  retrogradeOverlayRef.current = retrogradeOverlay;
   const atmosphereEngineEnabled = isAtmosphereEngineV1Enabled({
     premium: featureFlags.premiumInsights,
   });
@@ -1054,9 +1051,7 @@ export default function UnifiedDashboard() {
         };
         setWheelData(wheel);
 
-        const derivedMbti = applyChartPersonality(chart, {
-          retrogradeOverlay: retrogradeOverlayRef.current,
-        });
+        const derivedMbti = mbtiType;
         const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
         const canFull = featureFlags.premiumInsights;
 
@@ -1105,7 +1100,6 @@ export default function UnifiedDashboard() {
     calculateForecast,
     calculateLifeArc,
     calculatePressureWindow,
-    applyChartPersonality,
     calculateStorms,
     calculateReturns,
     calculateTransits,
@@ -1123,9 +1117,9 @@ export default function UnifiedDashboard() {
   ]);
 
   useEffect(() => {
-    if (!chartData) return;
-    applyChartPersonality(chartData, { retrogradeOverlay });
-  }, [applyChartPersonality, chartData, retrogradeOverlay]);
+    if (!birthData?.date || !birthData?.time) return;
+    void calculatePersonality(birthData, { retrogradeOverlay });
+  }, [birthData, calculatePersonality, retrogradeOverlay]);
 
   // Keep local calendar day fresh (tab focus + midnight) so weather isn't stuck on yesterday
   useEffect(() => {
@@ -1186,9 +1180,7 @@ export default function UnifiedDashboard() {
       resetAtmosphere();
     }
 
-    const derivedMbti = applyChartPersonality(chartData, {
-      retrogradeOverlay: retrogradeOverlayRef.current,
-    });
+    const derivedMbti = mbtiType;
 
     Promise.allSettled([
       canFull
@@ -1232,7 +1224,6 @@ export default function UnifiedDashboard() {
         : Promise.resolve(null),
     ]).catch((error) => console.error('Error hydrating dashboard weather data:', error));
   }, [
-    applyChartPersonality,
     birthData,
     calculateDomainForecast,
     calculateForecast,
@@ -1309,9 +1300,7 @@ export default function UnifiedDashboard() {
     setSelectedWheelPlanet(null);
     setSelectedWheelSign(null);
 
-    const derivedMbti = applyChartPersonality(data, {
-      retrogradeOverlay: retrogradeOverlayRef.current,
-    });
+    const derivedMbti = mbtiType;
     const canToday = featureFlags.premiumInsights || featureFlags.freemiumToday;
     const canFull = featureFlags.premiumInsights;
 
@@ -1357,7 +1346,6 @@ export default function UnifiedDashboard() {
     calculatePressureWindow,
     calculateLifeArc,
     calculateWeeklyForecast,
-    applyChartPersonality,
     calculateStorms,
     calculateReturns,
     atmosphereEngineEnabled,
@@ -1997,22 +1985,7 @@ export default function UnifiedDashboard() {
       })()
     : null;
 
-  const personalityReads = useMemo(() => {
-    if (!chartData) return { base: null, rx: null, live: null };
-    try {
-      const base = derivePersonalityFromChart(chartData, { retrogradeOverlay: false })?.dualOverlay || null;
-      const rx = derivePersonalityFromChart(chartData, { retrogradeOverlay: true })?.dualOverlay || null;
-      return {
-        base,
-        rx,
-        live: (retrogradeOverlay ? rx : base) || null,
-      };
-    } catch (error) {
-      console.warn('[dashboard] live dual personality failed:', error);
-      return { base: null, rx: null, live: null };
-    }
-  }, [chartData, retrogradeOverlay]);
-  const liveDual = personalityReads.live;
+  const liveDual = dualOverlay;
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
@@ -2326,6 +2299,7 @@ export default function UnifiedDashboard() {
     setChartData(null);
     setWheelData(null);
     setBirthData(null);
+    resetPersonality();
     setSelectedWheelPlanet(null);
     setSelectedWheelSign(null);
     setDashboardTab('chart');
@@ -2337,7 +2311,7 @@ export default function UnifiedDashboard() {
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
-  }, [chartQuota, toast, userId]);
+  }, [chartQuota, resetPersonality, toast, userId]);
 
   const handleWheelSignSelect = useCallback((name: ZodiacSignName | null) => {
     setSelectedWheelSign(name);
@@ -2958,8 +2932,8 @@ export default function UnifiedDashboard() {
                           }`
                         : null
                     }
-                    baseCoreType={personalityReads.base?.firmware?.mbtiType}
-                    rxCoreType={personalityReads.rx?.firmware?.mbtiType}
+                    baseCoreType={null}
+                    rxCoreType={null}
                     operatingSystem={identityPacket.operatingSystem}
                     activeStoryline={activeTransitStoryline}
                     storylineThemes={interpretations?.confluence || null}
@@ -2973,11 +2947,7 @@ export default function UnifiedDashboard() {
                     }
                     retrogradeOverlay={retrogradeOverlay}
                     onToggleRetrogradeOverlay={() => {
-                      const next = !retrogradeOverlay;
-                      void persistPreferences({ retrogradeOverlay: next });
-                      if (chartData) {
-                        applyChartPersonality(chartData, { retrogradeOverlay: next });
-                      }
+                      void persistPreferences({ retrogradeOverlay: !retrogradeOverlay });
                     }}
                     onAskPersonality={() =>
                       queueAskContext(

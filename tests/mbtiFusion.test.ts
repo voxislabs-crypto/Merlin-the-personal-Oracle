@@ -172,11 +172,11 @@ describe('MBTI Fusion', () => {
 
     const dual = computeMBTIDual(leoOutgoing as BirthChartData);
     expect(dual.firmware.breakdown.e_i).toBe('E');
-    expect(dual.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/Sun: E/);
+    expect(dual.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/Sun: E \(20%\)/);
     expect(dual.firmware.breakdown.reasoning.extraversion.join(' ')).not.toMatch(/HARD LOCK|only when Moon AND Asc/);
   });
 
-  test('Leo Sun E still loses to a stronger inner I pair (Moon + Asc)', () => {
+  test('firmware E/I is Moon 35 / Asc 25 / Sun 20 / Mercury 20 with no Scorpio or Leo special case', () => {
     const result = computeMBTIDual({
       positions: [
         { name: 'Sun', sign: 'Leo', longitude: 141, latitude: 0, distance: 1, degree: 21, minute: 0, house: 10 },
@@ -189,9 +189,14 @@ describe('MBTI Fusion', () => {
       mc: { longitude: 120, sign: 'Leo', degree: 0, minute: 0 },
     } as BirthChartData);
 
+    const eiReason = result.firmware.breakdown.reasoning.extraversion.join(' ');
     expect(result.firmware.breakdown.e_i).toBe('I');
-    expect(result.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/Sun: E/);
-    expect(result.firmware.breakdown.reasoning.extraversion.join(' ')).toMatch(/I 0\.70 vs E 0\.30/);
+    expect(eiReason).toMatch(/Moon: I \(35%\)/);
+    expect(eiReason).toMatch(/Asc: I \(25%\)/);
+    expect(eiReason).toMatch(/Sun: E \(20%\)/);
+    expect(eiReason).toMatch(/Mercury: I \(20%\)/);
+    expect(eiReason).toMatch(/I 0\.80 vs E 0\.20/);
+    expect(eiReason).not.toMatch(/HARD LOCK|only when Moon AND Asc/);
   });
 
   test('retrograde overlay only changes firmware when enabled', () => {
