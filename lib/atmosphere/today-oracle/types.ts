@@ -82,4 +82,20 @@ export interface TodayOracleBrief {
   heldFromYesterday: boolean;
   factCount: number;
   principle: string;
+  /** "Uranus is squaring your Venus today. That's the … axis, not a mood swing." */
+  leadFact: string;
+  /** Why this chart — hit + lived collision + operational dual-layer */
+  chartWhy: string;
+  /** Dual-layer as a procedure, or null when core/mask match */
+  operationalTension: string | null;
+  /** What not to do — checkable, not poetic */
+  doNot: string;
+  /** One hook only this user would recognize */
+  personalHook: string | null;
+  /** Confidence as a decision, not scores for scores */
+  confidenceWhy: string;
+  /** Hot vs ignore domains */
+  domainJob: string;
+  /** Deadline baked into the move ("6pm", "noon") */
+  deadline: string;
 }

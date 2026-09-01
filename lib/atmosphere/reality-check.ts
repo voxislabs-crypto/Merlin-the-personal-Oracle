@@ -3,6 +3,11 @@ import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { clampIntensity } from '@/lib/atmosphere/tone';
 import type { AtmospherePatternInput } from '@/lib/atmosphere/pattern-types';
 import type { AtmosphereCalibrationInput } from '@/lib/atmosphere/types';
+import {
+  addCalendarDays,
+  calendarDateFromInstant,
+  getLocalCalendarDate,
+} from '@/lib/datetime/local-calendar';
 
 export const READINESS_MODIFIER_MIN = 0.7;
 export const READINESS_MODIFIER_MAX = 1.3;
@@ -81,6 +86,23 @@ export function getTodayCheckinEntry<T extends { createdAt: string; mood: number
       return isValidScale(entry.mood) && isValidScale(entry.stress) && isValidScale(entry.energy);
     }) ?? null
   );
+}
+
+export function getCheckinForCalendarDate<
+  T extends { createdAt: string; mood?: number | null; stress?: number | null; energy?: number | null; notes?: string | null },
+>(entries: T[], dateStr: string): T | null {
+  if (!dateStr) return null;
+  return (
+    entries.find((entry) => calendarDateFromInstant(entry.createdAt) === dateStr) ?? null
+  );
+}
+
+export function getYesterdayCheckinEntry<
+  T extends { createdAt: string; mood?: number | null; stress?: number | null; energy?: number | null; notes?: string | null },
+>(entries: T[], todayStr?: string | null): T | null {
+  const today = todayStr || getLocalCalendarDate();
+  const yesterday = addCalendarDays(today, -1);
+  return getCheckinForCalendarDate(entries, yesterday);
 }
 
 export function computeCheckinSentimentScore(checkin: AtmosphereCheckinInput): number {

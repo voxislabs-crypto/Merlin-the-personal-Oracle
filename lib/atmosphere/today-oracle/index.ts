@@ -10,6 +10,7 @@ import { gatherTodayFacts, type TodayFactTransitRow } from '@/lib/atmosphere/tod
 import { mergeFactsIntoThemes, selectCloseThemes } from '@/lib/atmosphere/today-oracle/meaning';
 import { selectThemeWithNovelty } from '@/lib/atmosphere/today-oracle/novelty';
 import { synthesizeTodayOracle } from '@/lib/atmosphere/today-oracle/synthesis';
+import type { CheckinSnapshot } from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { TodayMoveMemory, TodayOracleBrief } from '@/lib/atmosphere/today-oracle/types';
 
 export type { TransitFact, RankedTheme, TodayMoveMemory, TodayOracleBrief, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
@@ -38,6 +39,11 @@ export interface ComposeTodayOracleInput {
   memory?: TodayMoveMemory | null;
   mbtiType?: string | null;
   maskType?: string | null;
+  sunSign?: string | null;
+  moonSign?: string | null;
+  moonPhase?: string | null;
+  streak?: number | null;
+  yesterdayCheckin?: CheckinSnapshot | null;
 }
 
 export function composeTodayOracle(input: ComposeTodayOracleInput): TodayOracleBrief | null {
@@ -63,11 +69,19 @@ export function composeTodayOracle(input: ComposeTodayOracleInput): TodayOracleB
   return synthesizeTodayOracle({
     theme: selected.theme,
     closeThemes: closeWithPrimary,
+    allFacts: facts,
     date,
     held: selected.held,
     memory: input.memory,
     mbtiType: input.mbtiType,
     maskType: input.maskType,
+    sunSign: input.sunSign,
+    moonSign: input.moonSign || input.packet?.temporal?.lunarSign,
+    moonPhase: input.moonPhase || input.packet?.temporal?.lunarPhase,
+    streak: input.streak,
+    yesterdayCheckin: input.yesterdayCheckin,
+    intensity: input.packet?.intensity,
+    risk: input.packet?.risk,
     confluenceAligned: input.packet?.confluence?.aligned,
     tripleHit: input.packet?.confluence?.tripleHit,
   });

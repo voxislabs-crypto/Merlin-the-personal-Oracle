@@ -249,12 +249,12 @@ describe('buildLifeWeatherBrief', () => {
     });
 
     expect(brief.eyebrow).toMatch(/life weather/i);
-    expect(brief.story.toLowerCase()).toMatch(/sky|weather|bandwidth|doors|pressure|mixed|cooperative|elevated/);
+    expect(brief.leadFact).toMatch(/Mars is squaring your Moon/i);
     expect(brief.story).not.toMatch(/cosmic signals/i);
-    expect(brief.why.toLowerCase()).toMatch(/friction|pressure/);
-    expect(brief.why.toLowerCase()).toMatch(/mood|conflict/);
+    expect(brief.why.toLowerCase()).toMatch(/mars square moon|driven by/);
     expect(brief.move.length).toBeGreaterThan(8);
     expect(brief.move).not.toMatch(/cosmic energies/i);
+    expect(brief.leadFactDisplay).toMatch(/Mars square Moon/i);
   });
 
   it('uses concrete transit do as the move when no parseable facts exist', () => {
@@ -280,8 +280,8 @@ describe('buildLifeWeatherBrief', () => {
       date: '2026-08-13',
     });
     expect(brief.themeLabel).toBeTruthy();
-    expect(brief.whyToday?.toLowerCase()).toMatch(/heat|pressure|weather|lane|restraint/);
-    expect(brief.whyToday).not.toMatch(/square|opposition/i);
+    expect(brief.leadFact).toMatch(/Mars is squaring your Moon/i);
+    expect(brief.whyToday).toMatch(/Mars square Moon/i);
     expect(brief.watchFor).toBeTruthy();
     expect(brief.moveConfidence).toBeGreaterThan(20);
     expect(brief.move).not.toMatch(/one reversible step only/i);
@@ -294,8 +294,9 @@ describe('buildLifeWeatherBrief', () => {
       forecastSummary: "As an INFJ, today's deep transits speak directly to your soul.",
     });
 
-    expect(brief.story).toMatch(/ENTP/);
+    expect(brief.chartWhy || brief.story).toMatch(/ENTP/);
     expect(brief.story).not.toMatch(/INFJ/);
+    expect(brief.chartWhy).not.toMatch(/As an INFJ/);
   });
 
   it('uses Core vs Mask tension in How it feels instead of a static type beat', () => {
@@ -305,9 +306,10 @@ describe('buildLifeWeatherBrief', () => {
       maskType: 'INTP',
     });
 
-    expect(brief.story).toMatch(/INFJ/);
-    expect(brief.story).toMatch(/INTP/);
+    expect(brief.operationalTension || brief.chartWhy).toMatch(/INFJ/);
+    expect(brief.operationalTension || brief.chartWhy).toMatch(/INTP/);
     expect(brief.story).not.toMatch(/As an INFJ/);
+    expect(brief.operationalTension?.toLowerCase()).toMatch(/twenty minutes|one-sentence test|feel/);
     expect(brief.navigate || brief.move).toBeTruthy();
   });
 
@@ -319,8 +321,8 @@ describe('buildLifeWeatherBrief', () => {
       transitDo: 'Stay mindful of cosmic energies',
     });
 
-    expect(brief.story).not.toMatch(/cosmic|Leo/i);
-    expect(brief.story.toLowerCase()).toMatch(/cooperative|doors|sky|resistance|send/);
+    expect(brief.story).not.toMatch(/cosmic/i);
+    expect(brief.leadFact).toMatch(/Mars|Moon|squaring/i);
     expect(brief.move).not.toMatch(/cosmic energies/i);
     expect(brief.move.length).toBeGreaterThan(12);
   });
@@ -348,9 +350,9 @@ describe('buildLifeWeatherBrief', () => {
     });
 
     expect(brief.story).not.toMatch(/High life-friction window/i);
-    expect(brief.story.toLowerCase()).toMatch(/elevated|bandwidth|work|sky|pressure|emotional/);
+    expect(brief.leadFact || brief.story).toMatch(/Saturn|Moon|squaring/i);
     expect(brief.move.length).toBeGreaterThan(8);
-    expect(brief.whyToday?.toLowerCase()).toMatch(/restraint|duty|heat|pressure|weather|lane/);
-    expect(brief.why.toLowerCase()).toMatch(/friction|pressure|work|mood|conflict/);
+    expect(brief.whyToday).toMatch(/Saturn square Moon/i);
+    expect(brief.why.toLowerCase()).toMatch(/saturn|moon|driven|work|mood/);
   });
 });

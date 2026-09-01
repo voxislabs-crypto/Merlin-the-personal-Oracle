@@ -82,12 +82,14 @@ import {
   buildAtmosphereRenderedDetail,
   buildLifeWeatherBrief,
   getTodayCheckinEntry,
+  getYesterdayCheckinEntry,
   isAtmosphereEngineV1Enabled,
   resolveAtmosphereSourceEvent,
   resolveLegacyCosmicWeatherIntensity,
 } from '@/lib/atmosphere';
 import { useAtmosphereJournal } from '@/hooks/useAtmosphereJournal';
 import { useTodayMoveMemory } from '@/hooks/useTodayMoveMemory';
+import { useTodayBriefPolish } from '@/hooks/useTodayBriefPolish';
 import {
   preservePriorWeatherWindow,
   writeWeatherWindowSnapshot,
@@ -1771,6 +1773,10 @@ export default function UnifiedDashboard() {
     () => getTodayCheckinEntry(checkinEntries),
     [checkinEntries]
   );
+  const yesterdayCheckinEntry = React.useMemo(
+    () => getYesterdayCheckinEntry(checkinEntries, forecast?.date),
+    [checkinEntries, forecast?.date]
+  );
 
   const clientAtmospherePacket = React.useMemo(() => {
     if (!atmosphereEngineEnabled) return null;
@@ -2001,6 +2007,19 @@ export default function UnifiedDashboard() {
       moveMemory: todayMoveMemory,
       mbtiType: resolveSelfMbtiType({ dualOverlay: liveDual, mbtiType }) || null,
       maskType: liveDual?.hardware?.mbtiType || null,
+      sunSign: sunSign || null,
+      moonSign: forecast?.moonSign || moonSign || null,
+      moonPhase: forecast?.moonPhase || null,
+      streak: dailyCheckinStreak,
+      yesterdayCheckin: yesterdayCheckinEntry
+        ? {
+            mood: yesterdayCheckinEntry.mood,
+            stress: yesterdayCheckinEntry.stress,
+            energy: yesterdayCheckinEntry.energy,
+            notes: yesterdayCheckinEntry.notes,
+            createdAt: yesterdayCheckinEntry.createdAt,
+          }
+        : null,
       // Week-horizon predictive moves only after feeds settle
       predictiveMove:
         !todayWeatherStillLoading && predictiveActionHint
@@ -2023,6 +2042,10 @@ export default function UnifiedDashboard() {
     forecastError?.message,
     mbtiType,
     predictiveActionHint,
+    sunSign,
+    moonSign,
+    dailyCheckinStreak,
+    yesterdayCheckinEntry,
     todayMoveMemory,
     todayWeatherStillLoading,
   ]);
@@ -2061,7 +2084,34 @@ export default function UnifiedDashboard() {
     userId,
   ]);
 
-  const cosmicStoryText = lifeWeatherBrief.story;
+  const yesterdayRestless = Boolean(
+    yesterdayCheckinEntry &&
+      !/auto check-in/i.test(yesterdayCheckinEntry.notes || '') &&
+      ((yesterdayCheckinEntry.stress ?? 0) >= 7 ||
+        (yesterdayCheckinEntry.mood ?? 10) <= 4 ||
+        /restless|itch|urge|snap|anxious|wired/i.test(yesterdayCheckinEntry.notes || '')),
+  );
+  const todayBriefPolish = useTodayBriefPolish({
+    date: forecast?.date || activeAtmospherePacket?.date,
+    leadFact: lifeWeatherBrief.leadFact,
+    leadFactDisplay: lifeWeatherBrief.leadFactDisplay,
+    chartWhy: lifeWeatherBrief.chartWhy,
+    move: lifeWeatherBrief.move,
+    watchFor: lifeWeatherBrief.watchFor,
+    operationalTension: lifeWeatherBrief.operationalTension,
+    doNot: lifeWeatherBrief.doNot,
+    coreType: resolveSelfMbtiType({ dualOverlay: liveDual, mbtiType }) || null,
+    maskType: liveDual?.hardware?.mbtiType || null,
+    sunSign: sunSign || null,
+    moonSign: forecast?.moonSign || moonSign || null,
+    moonPhase: forecast?.moonPhase || null,
+    heldFromYesterday: lifeWeatherBrief.heldFromYesterday,
+    yesterdayRestless,
+    streak: dailyCheckinStreak,
+    loading: todayWeatherStillLoading,
+  });
+
+  const cosmicStoryText = todayBriefPolish?.chartWhy || lifeWeatherBrief.story;
   const cosmicWeatherHeadlineForUi = lifeWeatherBrief.why || cosmicWeatherHeadline;
   const cosmicStoryMove = lifeWeatherBrief.move;
   const cosmicStoryMbtiGuidance = React.useMemo(() => {
@@ -2773,8 +2823,18 @@ export default function UnifiedDashboard() {
                     whyToday={lifeWeatherBrief.whyToday}
                     usuallyBrings={lifeWeatherBrief.usuallyBrings}
                     navigate={lifeWeatherBrief.navigate}
-                    watchFor={lifeWeatherBrief.watchFor}
+                    watchFor={todayBriefPolish?.watchFor || lifeWeatherBrief.watchFor}
                     supportingSignals={lifeWeatherBrief.supportingSignals}
+                    leadFact={lifeWeatherBrief.leadFact}
+                    leadFactDisplay={lifeWeatherBrief.leadFactDisplay}
+                    chartWhy={todayBriefPolish?.chartWhy || lifeWeatherBrief.chartWhy}
+                    operationalTension={
+                      todayBriefPolish?.operationalTension ?? lifeWeatherBrief.operationalTension
+                    }
+                    doNot={lifeWeatherBrief.doNot}
+                    personalHook={lifeWeatherBrief.personalHook}
+                    confidenceWhy={lifeWeatherBrief.confidenceWhy}
+                    domainJob={lifeWeatherBrief.domainJob}
                     chartConfidence={lifeWeatherBrief.chartConfidence}
                     readConfidence={lifeWeatherBrief.readConfidence}
                     chartConfidenceLabel={lifeWeatherBrief.chartConfidenceLabel}

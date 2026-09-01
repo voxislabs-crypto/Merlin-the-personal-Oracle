@@ -123,7 +123,11 @@ export function AtmosphereHeader({
   const formattedDate = formatStoryDate(date);
   const greeting = showGreeting ? buildPersonalGreeting(firstName) : null;
   const domainItems =
-    variant === 'hero' ? buildDomainStripItems(risk, { max: 5, includeQuiet: true }) : [];
+    variant === 'hero'
+      ? buildDomainStripItems(risk, { max: 6, includeQuiet: false })
+          .filter((item) => item.trend === 'down' || item.friction >= 48)
+          .slice(0, 2)
+      : [];
   const riskPercent = variant === 'hero' ? resolveRiskPercent(risk, resolvedIntensity) : null;
 
   const feltLine = showFeltLine ? (

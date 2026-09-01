@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Compass, Lightbulb, MessageCircle, Radio } from 'lucide-react';
 import ThumbsFeedback from '@/components/astrology/ThumbsFeedback';
@@ -12,7 +12,6 @@ import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 import { StatusPanel } from '@/components/ui/status-panel';
-import { buildWhyDriverPills } from '@/lib/atmosphere/life-weather-copy';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
@@ -40,6 +39,14 @@ export interface TodayWeatherBriefProps {
   navigate?: string;
   watchFor?: string;
   supportingSignals?: Array<{ id: string; label: string; hint: string; polarity?: string }>;
+  leadFact?: string;
+  leadFactDisplay?: string;
+  chartWhy?: string;
+  operationalTension?: string | null;
+  doNot?: string;
+  personalHook?: string | null;
+  confidenceWhy?: string;
+  domainJob?: string;
   chartConfidence?: number;
   readConfidence?: number;
   chartConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
@@ -113,20 +120,21 @@ export function TodayWeatherBrief({
   whyLine,
   todayMove,
   whyToday,
-  usuallyBrings,
-  navigate,
   watchFor,
-  supportingSignals = [],
+  leadFact,
+  leadFactDisplay,
+  chartWhy,
+  doNot,
+  personalHook,
+  confidenceWhy,
+  domainJob,
   chartConfidence,
   readConfidence,
   chartConfidenceLabel,
   readConfidenceLabel,
   moveConfidence,
-  confidenceLabel,
-  mixedSignals = false,
   themeLabel,
   heldFromYesterday = false,
-  weatherPrinciple,
   driverLabel = null,
   moonPhase,
   moonSign,
@@ -148,11 +156,6 @@ export function TodayWeatherBrief({
   risk = null,
   firstName = null,
 }: TodayWeatherBriefProps) {
-  const whyPills = useMemo(
-    () => buildWhyDriverPills(risk, driverLabel || risk?.topDrivers?.[0]?.label, 3),
-    [risk, driverLabel],
-  );
-
   useEffect(() => {
     if (loading || isError || isEmpty || !date || !todayMove) return;
     preservePriorWeatherWindow(date, userId);
@@ -324,102 +327,92 @@ export function TodayWeatherBrief({
                 >
                   {todayMove}
                 </p>
-                {whyToday || usuallyBrings || watchFor || supportingSignals.length || typeof chartConfidence === 'number' || typeof moveConfidence === 'number' ? (
+                {leadFactDisplay || leadFact || chartWhy || whyToday || watchFor || doNot || personalHook || confidenceWhy || domainJob ? (
                   <dl className="mt-3 space-y-2.5 border-t border-white/10 pt-3">
-                    {whyToday ? (
+                    {leadFactDisplay ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-white/90">
+                          {leadFactDisplay}
+                        </span>
+                        {heldFromYesterday ? (
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
+                            Still applies
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {leadFact ? (
+                      <dd className="text-sm font-medium leading-snug text-white/90">{leadFact}</dd>
+                    ) : null}
+                    {chartWhy ? (
                       <div>
                         <dt className={`text-[10px] font-bold uppercase tracking-[0.22em] ${moveLabel}`}>
-                          Why today
+                          Why this chart
                         </dt>
-                        <dd className="mt-1 text-sm font-medium leading-snug text-white/85">
-                          {whyToday}
+                        <dd className="mt-1 text-sm font-medium leading-relaxed text-white/85">
+                          {chartWhy}
                         </dd>
                       </div>
                     ) : null}
-                    {usuallyBrings ? (
+                    {whyToday ? (
                       <div>
                         <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                          What this usually brings
+                          Driven by
                         </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{usuallyBrings}</dd>
-                      </div>
-                    ) : null}
-                    {navigate && navigate !== todayMove ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100/80">
-                          How to navigate
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-100/90">{navigate}</dd>
-                      </div>
-                    ) : null}
-                    {supportingSignals.length ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                          Supporting signals
-                        </dt>
-                        <dd className="mt-1.5">
-                          <ul className="flex flex-col gap-1.5">
-                            {supportingSignals.map((signal) => (
-                              <li key={signal.id} className="flex flex-wrap items-baseline gap-2">
-                                <span className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-[11px] font-semibold text-slate-100">
-                                  {signal.label}
-                                </span>
-                                <span className="text-xs text-slate-400">{signal.hint}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </dd>
+                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{whyToday}</dd>
                       </div>
                     ) : null}
                     {watchFor ? (
                       <div>
                         <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100/80">
-                          Watch for
+                          What to watch
                         </dt>
                         <dd className="mt-1 text-sm leading-snug text-slate-200/85">{watchFor}</dd>
                       </div>
                     ) : null}
-                    {typeof chartConfidence === 'number' || typeof readConfidence === 'number' || typeof moveConfidence === 'number' ? (
-                      <div className="space-y-1.5 pt-0.5">
+                    {doNot ? (
+                      <div>
+                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">
+                          What not to do
+                        </dt>
+                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{doNot}</dd>
+                      </div>
+                    ) : null}
+                    {personalHook ? (
+                      <div>
+                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100/80">
+                          For you
+                        </dt>
+                        <dd className="mt-1 text-sm leading-snug text-slate-100/90">{personalHook}</dd>
+                      </div>
+                    ) : null}
+                    {domainJob ? (
+                      <div>
+                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                          Where it lands
+                        </dt>
+                        <dd className="mt-1 text-sm leading-snug text-slate-300/90">{domainJob}</dd>
+                      </div>
+                    ) : null}
+                    {confidenceWhy ? (
+                      <div>
                         <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
                           Confidence
                         </dt>
-                        <dd className="flex flex-col gap-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {typeof chartConfidence === 'number' ? (
-                              <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-200">
-                                Chart {chartConfidenceLabel || 'Steady'} · {Math.round(chartConfidence)}%
-                              </span>
-                            ) : null}
-                            {typeof readConfidence === 'number' ? (
-                              <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-300">
-                                Read {readConfidenceLabel || 'Steady'} · {Math.round(readConfidence)}%
-                              </span>
-                            ) : typeof moveConfidence === 'number' ? (
-                              <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-200">
-                                {confidenceLabel || 'Steady'} · {Math.round(moveConfidence)}%
-                              </span>
-                            ) : null}
-                            {mixedSignals ? (
-                              <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-amber-100">
-                                Mixed signals
-                              </span>
-                            ) : null}
-                            {themeLabel && !supportingSignals.length ? (
-                              <span className="rounded-full border border-white/15 bg-black/25 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
-                                {themeLabel}
-                              </span>
-                            ) : null}
-                            {heldFromYesterday ? (
-                              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
-                                Still applies
-                              </span>
-                            ) : null}
-                          </div>
-                          {weatherPrinciple ? (
-                            <p className="text-[11px] italic leading-snug text-slate-500">{weatherPrinciple}</p>
-                          ) : null}
-                        </dd>
+                        <dd className="mt-1 text-sm leading-snug text-slate-300/90">{confidenceWhy}</dd>
+                      </div>
+                    ) : typeof chartConfidence === 'number' || typeof readConfidence === 'number' ? (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        {typeof chartConfidence === 'number' ? (
+                          <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-200">
+                            Chart {chartConfidenceLabel || 'Steady'} · {Math.round(chartConfidence)}%
+                          </span>
+                        ) : null}
+                        {typeof readConfidence === 'number' ? (
+                          <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-300">
+                            Read {readConfidenceLabel || 'Steady'} · {Math.round(readConfidence)}%
+                          </span>
+                        ) : null}
                       </div>
                     ) : null}
                   </dl>
@@ -428,42 +421,13 @@ export function TodayWeatherBrief({
             </motion.div>
           ) : null}
 
-          <div className="space-y-3 border-t border-white/10 pt-3">
-            <div>
-              <p className="mb-1 text-[10px] uppercase tracking-[0.28em] text-slate-500">
-                How it feels
-              </p>
+          {!chartWhy && story ? (
+            <div className="border-t border-white/10 pt-3">
               <p className="text-sm leading-relaxed text-slate-300/90 md:text-[15px]">{story}</p>
             </div>
+          ) : null}
 
-            {whyLine || whyPills.length ? (
-              <div>
-                <p className="mb-1.5 text-[10px] uppercase tracking-[0.28em] text-slate-500">Why</p>
-                {whyLine ? (
-                  <p className="text-sm leading-relaxed text-slate-400 md:text-[14px]">{whyLine}</p>
-                ) : null}
-                {whyPills.length ? (
-                  <ul className="mt-2.5 flex flex-col gap-2">
-                    {whyPills.map((pill) => (
-                      <li
-                        key={pill.id}
-                        className="flex flex-wrap items-start gap-2 sm:items-center"
-                      >
-                        <span className="inline-flex max-w-full shrink-0 items-center rounded-full border border-sky-400/35 bg-sky-500/15 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-sky-100">
-                          {pill.label}
-                        </span>
-                        <span className="min-w-0 text-xs leading-snug text-slate-400 sm:text-[13px]">
-                          {pill.hint}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-
-            <YesterdayLandCheck userId={userId} today={date} />
-          </div>
+          <YesterdayLandCheck userId={userId} today={date} />
 
           <div className="pt-0.5">
             <ThumbsFeedback
@@ -513,13 +477,13 @@ export function TodayWeatherBrief({
                 : undefined,
               elevatedDisruption: risk?.elevatedDisruption,
               confidence: moveConfidence ?? risk?.confidence,
-              story,
+              story: personalHook || chartWhy || story,
               why: whyToday || whyLine,
               move: todayMove,
-              driver: risk?.topDrivers?.[0]?.label || driverLabel || undefined,
+              driver: leadFactDisplay || risk?.topDrivers?.[0]?.label || driverLabel || undefined,
             }}
           />
-          {selfChips.length ? (
+          {!chartWhy && selfChips.length ? (
             <p className="text-xs text-slate-400 sm:ml-auto">{selfChips.join(' · ')}</p>
           ) : null}
         </div>

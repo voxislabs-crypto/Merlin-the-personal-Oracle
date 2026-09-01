@@ -45,6 +45,14 @@ interface HomeTabPanelProps {
   navigate?: string;
   watchFor?: string;
   supportingSignals?: Array<{ id: string; label: string; hint: string; polarity?: string }>;
+  leadFact?: string;
+  leadFactDisplay?: string;
+  chartWhy?: string;
+  operationalTension?: string | null;
+  doNot?: string;
+  personalHook?: string | null;
+  confidenceWhy?: string;
+  domainJob?: string;
   chartConfidence?: number;
   readConfidence?: number;
   chartConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
@@ -149,6 +157,14 @@ export function HomeTabPanel({
   navigate,
   watchFor,
   supportingSignals,
+  leadFact,
+  leadFactDisplay,
+  chartWhy,
+  operationalTension,
+  doNot,
+  personalHook,
+  confidenceWhy,
+  domainJob,
   chartConfidence,
   readConfidence,
   chartConfidenceLabel,
@@ -240,6 +256,14 @@ export function HomeTabPanel({
           navigate={navigate}
           watchFor={watchFor}
           supportingSignals={supportingSignals}
+          leadFact={leadFact}
+          leadFactDisplay={leadFactDisplay}
+          chartWhy={chartWhy}
+          operationalTension={operationalTension}
+          doNot={doNot}
+          personalHook={personalHook}
+          confidenceWhy={confidenceWhy}
+          domainJob={domainJob}
           chartConfidence={chartConfidence}
           readConfidence={readConfidence}
           chartConfidenceLabel={chartConfidenceLabel}

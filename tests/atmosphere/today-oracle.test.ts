@@ -185,20 +185,22 @@ describe('close themes', () => {
 });
 
 describe('composeTodayOracle', () => {
-  it('describes weather and navigation instead of aspect soup', () => {
+  it('leads with the actual chart hit and a human translation', () => {
     const brief = composeTodayOracle({
       date: '2026-08-13',
       transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
     });
     expect(brief).not.toBeNull();
-    expect(brief!.whyToday).not.toMatch(/square|opposition|trine|sextile|conjunct/i);
-    expect(brief!.whyToday.toLowerCase()).toMatch(/pressure|restraint|weather|lane/);
-    expect(brief!.usuallyBrings.toLowerCase()).toMatch(/mood|dut|isolat/);
-    expect(brief!.watchFor.length).toBeGreaterThan(8);
+    expect(brief!.leadFact).toMatch(/Moon is squaring your Saturn/i);
+    expect(brief!.leadFact.toLowerCase()).toMatch(/duty|limits|verdict|character/);
+    expect(brief!.whyToday).toMatch(/Moon square Saturn/i);
+    expect(brief!.move).toMatch(/by (noon|3pm|6pm)/i);
+    expect(brief!.watchFor).toMatch(/\d(am|pm)/i);
+    expect(brief!.doNot.length).toBeGreaterThan(8);
     expect(brief!.chartConfidence).toBeGreaterThan(50);
     expect(brief!.readConfidence).toBeGreaterThan(40);
     expect(brief!.move).not.toMatch(/one reversible step only/i);
-    expect(brief!.principle.toLowerCase()).toMatch(/weather/);
+    expect(brief!.confidenceWhy).toMatch(/%/);
   });
 
   it('splits chart confidence from interpretive confidence when signals mix', () => {
@@ -266,10 +268,11 @@ describe('composeTodayOracle', () => {
       transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
     });
     expect(framed?.themeId).toBe(base?.themeId);
-    expect(framed?.navigate.toLowerCase()).toMatch(/criterion|inch|calendar|structure|write/);
+    expect(framed?.leadFactDisplay).toBe(base?.leadFactDisplay);
+    expect(framed?.chartWhy).toMatch(/INTJ/);
   });
 
-  it('puts Core vs Mask tension in How to navigate, not a second forecast', () => {
+  it('puts Core vs Mask tension in the chart why as a procedure, not a slogan', () => {
     const base = composeTodayOracle({
       date: '2026-08-13',
       transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
@@ -282,9 +285,55 @@ describe('composeTodayOracle', () => {
     });
     expect(dual?.themeId).toBe(base?.themeId);
     expect(dual?.move).toBe(base?.move);
-    expect(dual?.navigate).toMatch(/INFJ/);
-    expect(dual?.navigate).toMatch(/INTP/);
-    expect(dual?.navigate.toLowerCase()).toMatch(/feel|proof/);
+    expect(dual?.operationalTension).toMatch(/INFJ/);
+    expect(dual?.operationalTension).toMatch(/INTP/);
+    expect(dual?.operationalTension?.toLowerCase()).toMatch(/twenty minutes|one-sentence test|feel/);
+    expect(dual?.chartWhy).toMatch(/INFJ/);
+  });
+
+  it('names the Venus hit and a 6pm constraint for Uranus square Venus', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-01',
+      sunSign: 'Leo',
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      moonSign: 'Taurus',
+      moonPhase: 'Waning Gibbous',
+      streak: 1,
+      transitLookup: [
+        { transit_aspect: 'Uranus square Venus', orb: '0.30°', score: 96 },
+        { transit_aspect: 'Jupiter square Moon', orb: '1.20°', score: 80 },
+      ],
+      packet: {
+        risk: {
+          domains: [
+            { name: 'love', label: 'Relationships', friction: 72, support: 20, hitCount: 2 },
+            { name: 'family', label: 'Home', friction: 64, support: 18, hitCount: 1 },
+            { name: 'career', label: 'Career', friction: 22, support: 40, hitCount: 0 },
+          ],
+          topDrivers: [
+            {
+              label: 'Uranus square Venus',
+              friction: 80,
+              kind: 'friction',
+              domains: ['love'],
+              source: 'transit',
+            },
+          ],
+        },
+      } as AtmospherePacket,
+    });
+    expect(brief?.leadFact).toMatch(/Uranus is squaring your Venus/i);
+    expect(brief?.leadFact.toLowerCase()).toMatch(/relationship|self-worth/);
+    expect(brief?.chartWhy).toMatch(/Leo/);
+    expect(brief?.chartWhy).toMatch(/INFP/);
+    expect(brief?.move).toMatch(/6pm/i);
+    expect(brief?.move.toLowerCase()).toMatch(/exit/);
+    expect(brief?.watchFor).toMatch(/4–7pm|4-7pm/i);
+    expect(brief?.doNot.toLowerCase()).toMatch(/rebuild|arrangement|square/);
+    expect(brief?.personalHook?.toLowerCase()).toMatch(/first return|constraint/);
+    expect(brief?.domainJob).toMatch(/Relationships/i);
+    expect(brief?.whyToday).toMatch(/Jupiter square Moon/i);
   });
 
   it('reuses yesterday’s move when the theme still applies', () => {

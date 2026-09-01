@@ -14,6 +14,7 @@ import type { AtmospherePacket, LifeRiskDomain, LifeRiskPacket } from '@/lib/atm
 import { composeTodayOracle } from '@/lib/atmosphere/today-oracle';
 import { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
 import { buildCoreMaskTension } from '@/lib/self/dual-layer-lens';
+import type { CheckinSnapshot } from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { TodayMoveMemory, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 
 export interface LifeWeatherBriefCopy {
@@ -41,8 +42,17 @@ export interface LifeWeatherBriefCopy {
   themeLabel?: string;
   themeId?: TodayThemeId;
   leadFactKey?: string;
+  leadFactDisplay?: string;
   heldFromYesterday?: boolean;
   weatherPrinciple?: string;
+  leadFact?: string;
+  chartWhy?: string;
+  operationalTension?: string | null;
+  doNot?: string;
+  personalHook?: string | null;
+  confidenceWhy?: string;
+  domainJob?: string;
+  deadline?: string;
 }
 
 function firstSentence(text: string, maxLen = 220): string {
@@ -672,6 +682,11 @@ export interface BuildLifeWeatherBriefInput {
   moveMemory?: TodayMoveMemory | null;
   mbtiType?: string | null;
   maskType?: string | null;
+  sunSign?: string | null;
+  moonSign?: string | null;
+  moonPhase?: string | null;
+  streak?: number | null;
+  yesterdayCheckin?: CheckinSnapshot | null;
   loading?: boolean;
   premiumLocked?: boolean;
   errorMessage?: string | null;
@@ -756,6 +771,11 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     memory: input.moveMemory ?? null,
     mbtiType: input.mbtiType,
     maskType: input.maskType,
+    sunSign: input.sunSign,
+    moonSign: input.moonSign,
+    moonPhase: input.moonPhase,
+    streak: input.streak,
+    yesterdayCheckin: input.yesterdayCheckin,
   });
 
   const move =
@@ -771,15 +791,18 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
       date,
     });
 
+  const personalStory = oracle?.chartWhy || oracle?.leadFact || story;
+  const personalWhy = oracle?.whyToday || why;
+
   return {
-    story,
-    why,
+    story: personalStory,
+    why: personalWhy,
     move,
     eyebrow,
     askLabel,
     whyToday: oracle?.whyToday,
-    usuallyBrings: oracle?.usuallyBrings,
-    navigate: oracle?.navigate,
+    usuallyBrings: oracle?.usuallyBrings || undefined,
+    navigate: oracle?.operationalTension || undefined,
     watchFor: oracle?.watchFor,
     supportingSignals: oracle?.supportingSignals,
     chartConfidence: oracle?.chartConfidence,
@@ -792,7 +815,16 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     themeLabel: oracle?.themeLabel,
     themeId: oracle?.themeId,
     leadFactKey: oracle?.leadFactKey,
+    leadFactDisplay: oracle?.leadFactDisplay,
     heldFromYesterday: oracle?.heldFromYesterday,
     weatherPrinciple: oracle?.principle,
+    leadFact: oracle?.leadFact,
+    chartWhy: oracle?.chartWhy,
+    operationalTension: oracle?.operationalTension,
+    doNot: oracle?.doNot,
+    personalHook: oracle?.personalHook,
+    confidenceWhy: oracle?.confidenceWhy,
+    domainJob: oracle?.domainJob,
+    deadline: oracle?.deadline,
   };
 }

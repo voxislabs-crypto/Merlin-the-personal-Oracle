@@ -45,7 +45,9 @@ export {
   computeIntensityGap,
   computeReadinessModifier,
   computeRealityCheck,
+  getCheckinForCalendarDate,
   getTodayCheckinEntry,
+  getYesterdayCheckinEntry,
   resolveGuidanceBranch,
   scoreJournalSentiment,
 } from '@/lib/atmosphere/reality-check';
