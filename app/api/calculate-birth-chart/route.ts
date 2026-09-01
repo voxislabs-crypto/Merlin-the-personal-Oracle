@@ -3,7 +3,12 @@ import { NextResponse } from 'next/server';
 import { calculateBirthChart as calculateSwissBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateFallbackBirthChart } from '@/lib/engine-fallback';
 import { getMBTIDual } from '@/lib/personality/fusion';
-import { consumeChartQuota, chartQuotaDeniedResponse } from '@/lib/chart-quota';
+import {
+  consumeChartQuota,
+  getChartQuotaStatus,
+  chartQuotaDeniedResponse,
+  natalFingerprintFromInput,
+} from '@/lib/chart-quota';
 
 type ChartSource = 'swiss-real' | 'mock-fallback';
 
@@ -49,7 +54,7 @@ function tagSourceMetadata(chartData: any, source: ChartSource, timezoneOffsetHo
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { birthDate, birthTime, lat, lon, timezoneOffset } = body;
+    const { birthDate, birthTime, lat, lon, timezoneOffset, purpose } = body;
     
     console.log('[API] Calculate birth chart request:', { birthDate, birthTime, lat, lon });
     
@@ -58,9 +63,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
     }
 
-    // Lifetime chart-build cap (anti household sharing) — consume before engine work.
-    const chartQuota = await consumeChartQuota();
-    if (!chartQuota.allowed) {
+    // Unique-natal cap (anti household sharing). Same birth data is free.
+    // Synastry partner charts are not a second household natal — don't consume a slot.
+    const isSynastry = purpose === 'synastry';
+    const fingerprint = natalFingerprintFromInput({ birthDate, birthTime, lat, lon });
+    const chartQuota = isSynastry
+      ? await getChartQuotaStatus()
+      : await consumeChartQuota(fingerprint);
+    if (!isSynastry && !chartQuota.allowed) {
+      const denied = chartQuotaDeniedResponse(chartQuota);
+      return NextResponse.json(denied.body, { status: denied.status });
+    }
+    if (isSynastry && chartQuota.code === 'CHART_AUTH_REQUIRED') {
       const denied = chartQuotaDeniedResponse(chartQuota);
       return NextResponse.json(denied.body, { status: denied.status });
     }

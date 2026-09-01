@@ -1698,6 +1698,7 @@ export default function UnifiedDashboard() {
           birthTime: relationshipForm.birthTime,
           lat: location.latitude,
           lon: location.longitude,
+          purpose: 'synastry',
         }),
       });
 
@@ -2322,23 +2323,14 @@ export default function UnifiedDashboard() {
   }, []);
 
   const handleRecalculateChart = useCallback(() => {
-    if (chartQuota && chartQuota.remaining <= 0) {
-      toast({
-        title: 'Chart rebuild limit reached',
-        description: `This account allows ${chartQuota.limit} chart builds total (first natal + rerolls). Contact support for a legitimate birth-data fix.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
     const remaining =
       chartQuota?.remaining != null
-        ? ` You have ${chartQuota.remaining} rebuild${chartQuota.remaining === 1 ? '' : 's'} left.`
+        ? ` Rebuilding this same natal is free. ${chartQuota.remaining} unique-natal slot${chartQuota.remaining === 1 ? '' : 's'} left.`
         : '';
     if (
       typeof window !== 'undefined' &&
       !window.confirm(
-        `Recalculate with new birth data? Your current chart session will clear.${remaining}`,
+        `Recalculate birth data? Your current chart session will clear.${remaining}`,
       )
     ) {
       return;
@@ -2361,7 +2353,7 @@ export default function UnifiedDashboard() {
     requestAnimationFrame(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
-  }, [chartQuota, resetPersonality, toast, userId]);
+  }, [chartQuota, resetPersonality, userId]);
 
   const handleWheelSignSelect = useCallback((name: ZodiacSignName | null) => {
     setSelectedWheelSign(name);
@@ -3038,13 +3030,11 @@ export default function UnifiedDashboard() {
                       )
                     }
                     onRecalculateChart={handleRecalculateChart}
-                    recalculateDisabled={Boolean(chartQuota && chartQuota.remaining <= 0)}
+                    recalculateDisabled={false}
                     recalculateHint={
-                      chartQuota && chartQuota.remaining <= 0
-                        ? 'Chart rebuild limit reached for this account'
-                        : chartQuota
-                          ? `${chartQuota.remaining} rebuild${chartQuota.remaining === 1 ? '' : 's'} left (first natal + rerolls)`
-                          : 'Enter a new birth date, time, or place'
+                      chartQuota
+                        ? `Rebuild your natal for free. ${chartQuota.remaining} unique-natal slot${chartQuota.remaining === 1 ? '' : 's'} left.`
+                        : 'Enter a new birth date, time, or place'
                     }
                   />
                 </div>
@@ -3070,19 +3060,14 @@ export default function UnifiedDashboard() {
                     <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
                       {chartQuota ? (
                         <p className="text-[10px] font-mono text-slate-500">
-                          {chartQuota.remaining}/{chartQuota.limit} builds left · first natal + rerolls
+                          {chartQuota.remaining}/{chartQuota.limit} unique natals left · own rebuilds free
                         </p>
                       ) : null}
                       <button
                         type="button"
                         onClick={handleRecalculateChart}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={Boolean(chartQuota && chartQuota.remaining <= 0)}
-                        title={
-                          chartQuota && chartQuota.remaining <= 0
-                            ? 'Chart rebuild limit reached for this account'
-                            : 'Enter new birth date, time, or place'
-                        }
+                        title="Rebuild this natal for free, or enter a correction"
                       >
                         <RefreshCcw className="h-3.5 w-3.5" />
                         Recalculate chart

@@ -16,6 +16,7 @@ export async function GET() {
         limit: quota.limit,
         used: quota.used,
         remaining: quota.remaining,
+        rebuildOwn: quota.rebuildOwn === true,
         code: quota.code,
         error: quota.error,
       },

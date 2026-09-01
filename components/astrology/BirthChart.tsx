@@ -101,11 +101,11 @@ export function BirthChart({
     limit: number;
     used: number;
     remaining: number;
+    rebuildOwn?: boolean;
   } | null>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
 
   const isStationBusy = loading || stationActive;
-  const chartQuotaExhausted = chartQuota != null && chartQuota.remaining <= 0;
 
   const handleStationFinished = useCallback(() => {
     const pending = pendingChartRef.current;
@@ -131,6 +131,7 @@ export function BirthChart({
             limit: data.quota.limit,
             used: data.quota.used,
             remaining: data.quota.remaining,
+            rebuildOwn: data.quota.rebuildOwn === true,
           });
         }
       } catch {
@@ -143,15 +144,6 @@ export function BirthChart({
   }, []);
 
   const calculateChart = async (data: BirthData) => {
-    if (chartQuotaExhausted) {
-      setError(
-        chartQuota
-          ? `This account has used all ${chartQuota.limit} chart builds.`
-          : 'Chart calculation limit reached for this account.'
-      );
-      return null;
-    }
-
     setLoading(true);
     setError(null);
     setStationActive(true);
@@ -332,7 +324,7 @@ export function BirthChart({
   const hasDate = Boolean(birthData.date);
   const hasTime = Boolean(birthData.time);
   const hasLocation = Boolean(selectedLocation || birthData.latitude);
-  const canSubmit = hasDate && hasTime && hasLocation && !isStationBusy && !chartQuotaExhausted;
+  const canSubmit = hasDate && hasTime && hasLocation && !isStationBusy;
   const signalReadyCount = [hasDate, hasTime, hasLocation].filter(Boolean).length;
 
   return (
@@ -517,39 +509,21 @@ export function BirthChart({
               </div>
 
               {chartQuota ? (
-                <div
-                  className={cn(
-                    'rounded-xl border px-3 py-2 text-xs',
-                    chartQuotaExhausted
-                      ? 'border-amber-400/40 bg-amber-500/10 text-amber-100'
-                      : 'border-sky-400/25 bg-sky-950/40 text-sky-100/90'
-                  )}
-                >
-                  {chartQuotaExhausted ? (
-                    <span>
-                      Chart rebuild limit reached ({chartQuota.limit} per account). This stops one
-                      login from covering a whole household. Contact support for a legitimate
-                      birth-data correction.
-                    </span>
-                  ) : (
-                    <span>
-                      <span className="font-mono font-semibold">
-                        {chartQuota.remaining}/{chartQuota.limit}
-                      </span>{' '}
-                      chart builds left (first natal + rerolls). Free and paid share this cap.
-                    </span>
-                  )}
+                <div className="rounded-xl border border-sky-400/25 bg-sky-950/40 px-3 py-2 text-xs text-sky-100/90">
+                  <span>
+                    Rebuilding <em>your</em> chart is free.{' '}
+                    <span className="font-mono font-semibold">
+                      {chartQuota.remaining}/{chartQuota.limit}
+                    </span>{' '}
+                    unique natal slots left — a different birth date uses a new slot.
+                  </span>
                 </div>
               ) : null}
 
               <div className="flex flex-col gap-3 border-t border-white/5 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-mono text-[11px] text-slate-500">
                   SIGNAL {signalReadyCount}/3
-                  {chartQuotaExhausted
-                    ? ' · LIMIT REACHED'
-                    : canSubmit
-                      ? ' · READY'
-                      : ' · AWAITING INPUT'}
+                  {canSubmit ? ' · READY' : ' · AWAITING INPUT'}
                 </p>
                 <Button
                   type="submit"
