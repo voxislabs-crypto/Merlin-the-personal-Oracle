@@ -44,11 +44,12 @@ describe('personal today copy', () => {
   });
 
   it('makes dual-layer a sequence with a timebox, not a slogan', () => {
-    const line = buildOperationalTension('INFP', 'INTP', 'relationships');
-    expect(line).toMatch(/INFP/);
-    expect(line).toMatch(/INTP/);
-    expect(line).toMatch(/twenty minutes/);
-    expect(line).toMatch(/If I change X/);
+    const line = buildOperationalTension('INFP', 'INTP', 'relationships', {
+      deadline: '6pm',
+      transitAxis: 'relationship and self-worth',
+    });
+    expect(line?.toLowerCase()).toMatch(/authenticit|feel|self-worth|logic/);
+    expect(line).not.toMatch(/\b(INFP|INTP)\b/);
     expect(line).not.toMatch(/Instinct \(INFP\) says feel it first/);
   });
 
@@ -88,7 +89,7 @@ describe('personal today copy', () => {
       mbtiType: 'INFP',
     });
     expect(lived).toMatch(/Leo Sun/);
-    expect(lived).toMatch(/INFP/);
+    expect(lived).not.toMatch(/\bINFP\b/);
     expect(lived.toLowerCase()).toMatch(/space|leave/);
   });
 

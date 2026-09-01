@@ -294,9 +294,10 @@ describe('buildLifeWeatherBrief', () => {
       forecastSummary: "As an INFJ, today's deep transits speak directly to your soul.",
     });
 
-    expect(brief.chartWhy || brief.story).toMatch(/ENTP/);
+    expect(brief.chartWhy || brief.story).toMatch(/physical|send|walk|start|meaning|freedom|test/i);
     expect(brief.story).not.toMatch(/INFJ/);
     expect(brief.chartWhy).not.toMatch(/As an INFJ/);
+    expect(brief.chartWhy).not.toMatch(/\bENTP\b/);
   });
 
   it('uses Core vs Mask tension in How it feels instead of a static type beat', () => {
@@ -306,10 +307,10 @@ describe('buildLifeWeatherBrief', () => {
       maskType: 'INTP',
     });
 
-    expect(brief.operationalTension || brief.chartWhy).toMatch(/INFJ/);
-    expect(brief.operationalTension || brief.chartWhy).toMatch(/INTP/);
+    expect(brief.operationalTension || brief.chartWhy).toMatch(/coherence|authenticit|feel|meaning|logic/i);
     expect(brief.story).not.toMatch(/As an INFJ/);
-    expect(brief.operationalTension?.toLowerCase()).toMatch(/twenty minutes|one-sentence test|feel/);
+    expect(`${brief.operationalTension} ${brief.chartWhy} ${brief.move}`).not.toMatch(/\b(INFJ|INTP)\b/);
+    expect(brief.move.toLowerCase()).toMatch(/pattern|sentence|value|feeling|analysis/);
     expect(brief.navigate || brief.move).toBeTruthy();
   });
 

@@ -38,16 +38,17 @@ The user already has a move, a watch-window, and a chart hit. Your job is the LI
 
 Return JSON only:
 {
-  "chartWhy": "2-4 sentences. Lead with the actual chart hit already given, then what it feels like for THIS sun + core/mask. If core and mask differ, make the dual-layer operational (a sequence with a timebox), not a slogan. Do not repeat the move. Do not write a weather report.",
-  "watchFor": "One checkable sentence: time window + trigger + consequence.",
-  "operationalTension": "One operational sequence, or null if core and mask are the same or missing."
+  "chartWhy": "2-4 sentences. Soothe the Core threat (what actually hurts). Translate the chart hit in the same breath. Do not repeat the move. Do not write a weather report. Do not print MBTI type labels.",
+  "watchFor": "One checkable sentence: time window + Mask failure mode.",
+  "operationalTension": "Why it matters for the Core, no type labels. Null if core and mask are the same."
 }
 
 Rules:
+- Core is what feels threatened. Mask is how it shows. Soothe Core, coach Mask.
 - Translate any planet/aspect in the same breath. Never leave jargon alone.
 - No fortunes. No "you will". No cosmic fluff.
 - No restating mixed weather / restlessness / "change one variable".
-- Do not dump MBTI as a badge ("As an INFP…"). Put the type in the sequence if at all.
+- Never print MBTI type codes (INFP, INTP, etc.) in the body. Use the maps, hide the labels.
 - Max 420 characters for chartWhy, 220 for watchFor, 280 for operationalTension.
 - If a field is already sharp, return it unchanged.`;
 

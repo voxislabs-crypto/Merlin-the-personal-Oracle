@@ -14,13 +14,14 @@ import {
   buildDrivenByLine,
   buildLeadFactLine,
   buildLivedCollision,
-  buildOperationalTension,
   buildPersonalHook,
   moveSizePhrase,
+  natalAxisPhrase,
   primaryDomains,
   quietDomains,
   type CheckinSnapshot,
 } from '@/lib/atmosphere/today-oracle/personal-copy';
+import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
 import type {
   RankedTheme,
   TodayMoveMemory,
@@ -153,15 +154,30 @@ export function synthesizeTodayOracle(input: {
   const leadFact = buildLeadFactLine(lead);
   const lived = buildLivedCollision(primary, ctx);
   const domainWord = domains[0] ? DOMAIN_PHRASE[domains[0]] || 'the situation' : 'the situation';
-  const operational = buildOperationalTension(input.mbtiType, input.maskType, domainWord);
   const constraint = buildConstraintMove(primary, allFacts, ctx, domains);
+  const transitAxis = natalAxisPhrase(lead?.natal) || domainWord;
+  const dual = composeDualLayerCard({
+    coreType: input.mbtiType,
+    maskType: input.maskType,
+    deadline: constraint.deadline,
+    transitAxis,
+    domain: domainWord,
+  });
+  const operational = dual && dual.source !== 'core-only' ? dual.why : null;
   const heldMove =
     input.held && input.memory?.move && input.memory.themeId === primary.id ? input.memory.move : null;
-  const move = heldMove || constraint.move;
+  const move = heldMove || dual?.move || constraint.move;
+  const watchFor = dual
+    ? `Watch for the ${constraint.watchWindow} window: ${dual.watchFor.replace(/^Watch for:\s*/i, '')}`.replace(
+        /\.\s*\./g,
+        '.',
+      )
+    : constraint.watchFor;
+  const doNot = dual?.avoid || constraint.doNot;
   const chartWhy = buildChartWhy({
     leadFact,
     lived,
-    operational,
+    operational: dual?.why || operational,
     facts: allFacts,
   });
   const drivenBy = buildDrivenByLine(allFacts, input.held);
@@ -180,7 +196,7 @@ export function synthesizeTodayOracle(input: {
     whyToday: applyMerlinVoicePass(drivenBy),
     usuallyBrings: '',
     navigate: operational ? applyMerlinVoicePass(operational) : applyMerlinVoicePass(move),
-    watchFor: applyMerlinVoicePass(constraint.watchFor),
+    watchFor: applyMerlinVoicePass(watchFor),
     supportingSignals: supportingSignals(close),
     chartConfidence,
     readConfidence,
@@ -200,7 +216,7 @@ export function synthesizeTodayOracle(input: {
     leadFact: applyMerlinVoicePass(leadFact),
     chartWhy: applyMerlinVoicePass(chartWhy),
     operationalTension: operational ? applyMerlinVoicePass(operational) : null,
-    doNot: applyMerlinVoicePass(constraint.doNot),
+    doNot: applyMerlinVoicePass(doNot),
     personalHook: personalHook ? applyMerlinVoicePass(personalHook) : null,
     confidenceWhy: applyMerlinVoicePass(confidenceWhy),
     domainJob: applyMerlinVoicePass(domainJob),

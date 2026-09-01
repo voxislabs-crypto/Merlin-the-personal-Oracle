@@ -20,4 +20,16 @@ export {
   type DualLayerLens,
   type DualPolarity,
 } from '@/lib/self/dual-layer-lens';
+export {
+  composeDualLayerCard,
+  containsMbtiLabel,
+  letterDiffs,
+  parseMbtiType,
+  stripMbtiLabels,
+  CORE_THREAT,
+  MASK_SYMPTOM,
+  NEAR_SPLITS,
+  type DualLayerCardCopy,
+  type MbtiType,
+} from '@/lib/self/dual-layer-maps';
 export type * from '@/lib/self/types';

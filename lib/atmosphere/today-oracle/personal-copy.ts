@@ -5,6 +5,7 @@
 
 import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
 import { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
+import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
 import type {
   RankedTheme,
   TodayThemeId,
@@ -165,6 +166,11 @@ export function planetShort(name: string): string {
   return PLANET_SHORT[name.toLowerCase()] || name.toLowerCase();
 }
 
+export function natalAxisPhrase(natal?: string | null): string {
+  if (!natal) return '';
+  return PLANET_AXIS[natal.toLowerCase()] || '';
+}
+
 /** One collapsed driver line. No second weather paragraph. */
 export function buildDrivenByLine(
   facts: TransitFact[],
@@ -246,11 +252,11 @@ function sunKey(sunSign?: string | null): string | null {
   return first || null;
 }
 
-function articleFor(type: string): 'a' | 'an' {
-  return /^[AEIOU]/i.test(type) ? 'an' : 'a';
+function articleFor(word: string): 'a' | 'an' {
+  return /^[AEIOU]/i.test(word) ? 'an' : 'a';
 }
 
-/** Lived collision that only this chart + type would recognize. */
+/** Lived collision from the chart. No type labels — dual-layer maps handle that job. */
 export function buildLivedCollision(
   theme: RankedTheme,
   ctx: PersonalCopyContext,
@@ -261,10 +267,6 @@ export function buildLivedCollision(
   const table = SUN_COLLISION[theme.id];
   const collision = sun && table ? table[sun] : undefined;
 
-  if (collision && hasType && sun) {
-    const sunLabel = titlePlanet(sun);
-    return `For ${articleFor(sunLabel)} ${sunLabel} Sun with ${articleFor(core)} ${core} core, that usually shows up as ${collision}`;
-  }
   if (collision && sun) {
     const sunLabel = titlePlanet(sun);
     return `For ${articleFor(sunLabel)} ${sunLabel} Sun, that usually shows up as ${collision}`;
@@ -272,66 +274,38 @@ export function buildLivedCollision(
   if (hasType) {
     const frame = personalityFrame(core);
     if (frame === 'intuition') {
-      return `With ${articleFor(core)} ${core} core, the body-level no arrives before the story you can defend.`;
+      return 'The body-level no arrives before the story you can defend.';
     }
     if (frame === 'structure') {
-      return `With ${articleFor(core)} ${core} core, the urge is to name a criterion and close the loop before the weather has finished speaking.`;
+      return 'The urge is to name a criterion and close the loop before the weather has finished speaking.';
     }
     if (frame === 'action') {
-      return `With ${articleFor(core)} ${core} core, the first move will want to be physical — a send, a walk, a start — before the meaning is clear.`;
+      return 'The first move will want to be physical — a send, a walk, a start — before the meaning is clear.';
     }
-    return `With ${articleFor(core)} ${core} core, the mix wants to be spoken so no one has to guess — including you.`;
+    return 'The mix wants to be spoken so no one has to guess — including you.';
   }
   return '';
 }
 
 /**
  * Dual layer as a procedure, not a slogan.
- * Types appear here once — not as a footer badge and again in the body.
+ * Weather card: soothe Core, coach Mask, never print type labels.
  */
 export function buildOperationalTension(
   coreType?: string | null,
   maskType?: string | null,
   domain = 'the situation',
+  options?: { deadline?: string | null; transitAxis?: string | null },
 ): string | null {
-  const core = (coreType || '').trim().toUpperCase();
-  const mask = (maskType || '').trim().toUpperCase();
-  if (!/^[IE][NS][TF][JP]$/.test(core) || !/^[IE][NS][TF][JP]$/.test(mask) || core === mask) {
-    return null;
-  }
-
-  const c = { e: core[0], n: core[1], t: core[2], j: core[3] };
-  const m = { e: mask[0], n: mask[1], t: mask[2], j: mask[3] };
-
-  if (c.t !== m.t) {
-    if (c.t === 'F' && m.t === 'T') {
-      return `Your ${core} core wants to feel the shift in ${domain} before acting. Your ${mask} mask wants a reason it can defend. Don't pick one. Give the core twenty minutes of quiet, then let the mask write the one-sentence test: "If I change X, what evidence would tell me it worked?"`;
-    }
-    return `Your ${core} core wants a clean model of ${domain}. Your ${mask} mask will soften it for the room. Don't outsource the call to charm. Write the model in one sentence, then decide what anyone else actually needs to hear.`;
-  }
-
-  if (c.e !== m.e) {
-    if (c.e === 'I' && m.e === 'E') {
-      return `Your ${core} core wants a beat before the show. The ${mask} mask wants to perform the answer. Give the inside twenty minutes. Then let the face say one sentence about ${domain} — not the whole speech.`;
-    }
-    return `You think out loud as ${core}; the ${mask} face looks reserved. Don't treat the silence as the decision on ${domain}. Say the working theory once, then stop collecting nods.`;
-  }
-
-  if (c.j !== m.j) {
-    if (c.j === 'J' && m.j === 'P') {
-      return `${core} core already wants the loop on ${domain} closed; the ${mask} mask looks flexible. If the call is made, stop collecting options. Write the exit ramp, then change one variable.`;
-    }
-    return `Inside (${core}) wants options on ${domain}; the ${mask} face looks decided. Leave one reversible exit and say so out loud so the room doesn't lock you in.`;
-  }
-
-  if (c.n !== m.n) {
-    if (c.n === 'N') {
-      return `The ${core} core sees the pattern in ${domain}; the ${mask} mask wants something concrete. Bring one hard example, then the insight — not the other way around.`;
-    }
-    return `The ${core} core wants the fact on the table; the ${mask} mask wants the bigger story of ${domain}. Lead with the fact. Save the theory for after the deadline.`;
-  }
-
-  return `You run ${core} inside and ${mask} to the world — pick which layer is driving ${domain} before you move.`;
+  const dual = composeDualLayerCard({
+    coreType,
+    maskType,
+    deadline: options?.deadline || '6pm',
+    transitAxis: options?.transitAxis || domain,
+    domain,
+  });
+  if (!dual || dual.source === 'core-only') return null;
+  return dual.why;
 }
 
 export interface ConstraintMove {

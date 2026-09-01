@@ -269,10 +269,11 @@ describe('composeTodayOracle', () => {
     });
     expect(framed?.themeId).toBe(base?.themeId);
     expect(framed?.leadFactDisplay).toBe(base?.leadFactDisplay);
-    expect(framed?.chartWhy).toMatch(/INTJ/);
+    expect(framed?.chartWhy.toLowerCase()).toMatch(/competence|experiment|system|criterion/);
+    expect(framed?.chartWhy).not.toMatch(/\bINTJ\b/);
   });
 
-  it('puts Core vs Mask tension in the chart why as a procedure, not a slogan', () => {
+  it('soothes Core and coaches Mask on the card without printing type labels', () => {
     const base = composeTodayOracle({
       date: '2026-08-13',
       transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
@@ -284,11 +285,13 @@ describe('composeTodayOracle', () => {
       transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
     });
     expect(dual?.themeId).toBe(base?.themeId);
-    expect(dual?.move).toBe(base?.move);
-    expect(dual?.operationalTension).toMatch(/INFJ/);
-    expect(dual?.operationalTension).toMatch(/INTP/);
-    expect(dual?.operationalTension?.toLowerCase()).toMatch(/twenty minutes|one-sentence test|feel/);
-    expect(dual?.chartWhy).toMatch(/INFJ/);
+    expect(dual?.leadFactDisplay).toBe(base?.leadFactDisplay);
+    expect(dual?.move.toLowerCase()).toMatch(/pattern|sentence|analysis|vision|feeling/);
+    expect(dual?.chartWhy.toLowerCase()).toMatch(/coherence|vision|duty|meaning/);
+    expect(dual?.watchFor.toLowerCase()).toMatch(/briefing|feeling|withdrawal|over-responsibility/);
+    expect(`${dual?.move} ${dual?.chartWhy} ${dual?.watchFor} ${dual?.doNot}`).not.toMatch(
+      /\b(INFJ|INTP)\b/,
+    );
   });
 
   it('names the Venus hit and a 6pm constraint for Uranus square Venus', () => {
@@ -326,14 +329,20 @@ describe('composeTodayOracle', () => {
     expect(brief?.leadFact).toMatch(/Uranus is squaring your Venus/i);
     expect(brief?.leadFact.toLowerCase()).toMatch(/relationship|self-worth/);
     expect(brief?.chartWhy).toMatch(/Leo/);
-    expect(brief?.chartWhy).toMatch(/INFP/);
+    expect(brief?.chartWhy).not.toMatch(/\b(INFP|INTP)\b/);
+    expect(brief?.chartWhy.toLowerCase()).toMatch(/authenticit|feel|self-worth/);
     expect(brief?.move).toMatch(/6pm/i);
-    expect(brief?.move.toLowerCase()).toMatch(/exit/);
+    expect(brief?.move.toLowerCase()).toMatch(/value/);
+    expect(brief?.move.toLowerCase()).toMatch(/sentence|test/);
     expect(brief?.watchFor).toMatch(/4–7pm|4-7pm/i);
-    expect(brief?.doNot.toLowerCase()).toMatch(/rebuild|arrangement|square/);
+    expect(brief?.watchFor.toLowerCase()).toMatch(/briefing|feeling/);
+    expect(brief?.doNot.toLowerCase()).toMatch(/explaining|proving you are fine|variable/);
     expect(brief?.personalHook?.toLowerCase()).toMatch(/first return|constraint/);
     expect(brief?.domainJob).toMatch(/Relationships/i);
     expect(brief?.whyToday).toMatch(/Jupiter square Moon/i);
+    expect(`${brief?.move} ${brief?.chartWhy} ${brief?.watchFor} ${brief?.doNot}`).not.toMatch(
+      /\b(INFP|INTP)\b/,
+    );
   });
 
   it('reuses yesterday’s move when the theme still applies', () => {

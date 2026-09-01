@@ -147,7 +147,6 @@ export function TodayWeatherBrief({
   onExploreSelf,
   askLabel = 'Ask Merlin about today',
   eyebrow = "Today's life weather",
-  selfChips = [],
   isError = false,
   onRetry,
   isEmpty = false,
@@ -483,9 +482,6 @@ export function TodayWeatherBrief({
               driver: leadFactDisplay || risk?.topDrivers?.[0]?.label || driverLabel || undefined,
             }}
           />
-          {!chartWhy && selfChips.length ? (
-            <p className="text-xs text-slate-400 sm:ml-auto">{selfChips.join(' · ')}</p>
-          ) : null}
         </div>
 
         <p className="text-center font-mono text-[10px] tracking-[0.2em] text-slate-500/80">
