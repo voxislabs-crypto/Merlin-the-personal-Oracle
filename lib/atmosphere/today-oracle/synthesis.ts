@@ -55,6 +55,32 @@ function bandLabel(score: number): TodayOracleBrief['confidenceLabel'] {
   return 'Tentative';
 }
 
+/** Old weather-card proverb — never the Today headline once Core/Mask has a real move. */
+export function isProverbWeatherMove(text: string | null | undefined): boolean {
+  const t = (text || '').trim();
+  if (!t) return false;
+  return /change one (visible )?variable/i.test(t) || /keep an exit ramp/i.test(t) || /not the whole life/i.test(t);
+}
+
+function pickTodayHeadline(options: {
+  dualMove?: string | null;
+  dualResolution?: string | null;
+  heldMove?: string | null;
+  constraintMove: string;
+  deadline: string;
+}): string {
+  const dualMove = (options.dualMove || '').trim();
+  const dualResolution = (options.dualResolution || '').trim();
+  if (dualMove && !isProverbWeatherMove(dualMove)) return dualMove;
+  if (dualResolution && !isProverbWeatherMove(dualResolution)) return dualResolution;
+  const held = (options.heldMove || '').trim();
+  if (held && !isProverbWeatherMove(held)) return held;
+  if (options.constraintMove && !isProverbWeatherMove(options.constraintMove)) {
+    return options.constraintMove;
+  }
+  return `Run one small test by ${options.deadline || '6pm'}, not a verdict.`;
+}
+
 /** Uncertainty from the sky data: orbs, fact count, whether we have tight hits. */
 export function chartConfidenceFromThemes(themes: RankedTheme[]): number {
   const facts = themes.flatMap((theme) => theme.facts);
@@ -166,7 +192,13 @@ export function synthesizeTodayOracle(input: {
   const operational = dual && dual.source !== 'core-only' ? dual.why : null;
   const heldMove =
     input.held && input.memory?.move && input.memory.themeId === primary.id ? input.memory.move : null;
-  const move = heldMove || dual?.move || constraint.move;
+  const move = pickTodayHeadline({
+    dualMove: dual?.move,
+    dualResolution: dual?.resolution,
+    heldMove,
+    constraintMove: constraint.move,
+    deadline: constraint.deadline,
+  });
   const watchFor = dual
     ? `Watch for the ${constraint.watchWindow} window: ${dual.watchFor.replace(/^Watch for:\s*/i, '')}`.replace(
         /\.\s*\./g,

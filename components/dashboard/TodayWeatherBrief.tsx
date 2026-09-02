@@ -419,12 +419,32 @@ export function TodayWeatherBrief({
                         <dd className="mt-1 text-sm leading-snug text-slate-200/85">{watchFor}</dd>
                       </div>
                     ) : null}
-                    {leadFactDisplay ? (
-                      <details className="group">
-                        <summary className="cursor-pointer list-none text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-300">
-                          Sky mechanic
-                        </summary>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {leadFactDisplay?.trim() ? (
+                      leadFact || whyToday ? (
+                        <details className="group">
+                          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-300">
+                            <span>Sky mechanic</span>
+                            <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold normal-case tracking-normal text-white/90">
+                              {leadFactDisplay}
+                            </span>
+                            {heldFromYesterday ? (
+                              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
+                                Still applies
+                              </span>
+                            ) : null}
+                          </summary>
+                          {leadFact ? (
+                            <p className="mt-1.5 text-xs leading-snug text-slate-400">{leadFact}</p>
+                          ) : null}
+                          {whyToday ? (
+                            <p className="mt-1 text-xs leading-snug text-slate-500">{whyToday}</p>
+                          ) : null}
+                        </details>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                            Sky mechanic
+                          </span>
                           <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-white/90">
                             {leadFactDisplay}
                           </span>
@@ -434,13 +454,7 @@ export function TodayWeatherBrief({
                             </span>
                           ) : null}
                         </div>
-                        {leadFact ? (
-                          <p className="mt-1.5 text-xs leading-snug text-slate-400">{leadFact}</p>
-                        ) : null}
-                        {whyToday ? (
-                          <p className="mt-1 text-xs leading-snug text-slate-500">{whyToday}</p>
-                        ) : null}
-                      </details>
+                      )
                     ) : null}
                     {confidenceWhy ? (
                       <div>

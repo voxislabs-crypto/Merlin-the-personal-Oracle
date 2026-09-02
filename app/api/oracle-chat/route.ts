@@ -33,6 +33,7 @@ import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/
 import {
   detectQueryMode,
   generateCasualResponse,
+  isIdentityDualQuestion,
   oracleMaxTokensForQuestion,
   shouldSkipStructure,
 } from '@/lib/chat-adapter';
@@ -652,40 +653,45 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          // After streaming complete, generate enhancements
-          const tactics = generateTacticalSuggestions(fullResponse, birthChart, context);
-          const forecast = generateMicroForecast(new Date(), birthChart, transits);
-          const level = identifyCurrentLevel(context);
+          // Identity deep-dives are the reading. Don't pin a sentence as a "move"
+          // or hang silent-temple garnish under a finished answer.
+          const skipGarnish = isIdentityDualQuestion(question);
+          if (!skipGarnish) {
+            const tactics = generateTacticalSuggestions(fullResponse, birthChart, context);
+            const forecast = generateMicroForecast(new Date(), birthChart, transits);
+            const level = identifyCurrentLevel(context);
 
-          // Send enhancements as separate JSON objects
-          controller.enqueue(
-            encoder.encode(
-              JSON.stringify({
-                type: 'tactics',
-                data: tactics,
-              }) + '\n'
-            )
-          );
+            if (tactics.length > 0) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    type: 'tactics',
+                    data: tactics,
+                  }) + '\n'
+                )
+              );
+            }
 
-          controller.enqueue(
-            encoder.encode(
-              JSON.stringify({
-                type: 'forecast',
-                data: forecast,
-              }) + '\n'
-            )
-          );
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'forecast',
+                  data: forecast,
+                }) + '\n'
+              )
+            );
 
-          controller.enqueue(
-            encoder.encode(
-              JSON.stringify({
-                type: 'level',
-                data: level,
-              }) + '\n'
-            )
-          );
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'level',
+                  data: level,
+                }) + '\n'
+              )
+            );
+          }
 
-          if (progression) {
+          if (progression && !skipGarnish) {
             controller.enqueue(
               encoder.encode(
                 JSON.stringify({

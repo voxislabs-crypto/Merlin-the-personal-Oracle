@@ -25,6 +25,8 @@ export interface ForecastTabPanelProps {
   stormsReport: StormsReport | null;
   stormsLoading?: boolean;
   mbtiType?: string;
+  coreType?: string;
+  maskType?: string;
   weeklyCharacter?: {
     title: string;
     strength: string;
@@ -61,6 +63,8 @@ export function ForecastTabPanel({
   stormsReport,
   stormsLoading,
   mbtiType,
+  coreType,
+  maskType,
   weeklyCharacter,
   horizonSelectedDate,
   onHorizonSelectedDateChange,
@@ -141,6 +145,8 @@ export function ForecastTabPanel({
                 report={stormsReport}
                 loading={stormsLoading}
                 mbtiType={mbtiType}
+                coreType={coreType}
+                maskType={maskType}
                 selectedDate={horizonSelectedDate}
                 onSelectedDateChange={onHorizonSelectedDateChange}
               />

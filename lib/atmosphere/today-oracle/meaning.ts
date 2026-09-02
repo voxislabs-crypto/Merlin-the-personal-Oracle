@@ -211,7 +211,7 @@ export const THEME_CATALOG: Record<TodayThemeId, ThemeSpec> = {
     usuallyBrings: 'Restlessness, a true preference, and the urge to detonate.',
     watch: 'Torching a bridge because restlessness showed up before dinner.',
     moves: [
-      'Change one variable, not the whole life. Keep an exit ramp.',
+      'Run one small test by 6pm, not a verdict.',
       'Try the new version as a 48-hour experiment.',
       'Name the restlessness. Do not quit in the spike.',
     ],

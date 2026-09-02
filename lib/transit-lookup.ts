@@ -147,6 +147,8 @@ export function isGenericTransitDo(text: string | null | undefined): boolean {
   if (t === GENERIC_TRANSIT_DO) return true
   if (/one reversible step only/i.test(t)) return true
   if (/talk,\s*draft,\s*or scout/i.test(t)) return true
+  if (/change one (visible )?variable/i.test(t)) return true
+  if (/keep an exit ramp/i.test(t)) return true
   return false
 }
 
@@ -352,7 +354,7 @@ const TRANSIT_PLANET_DO: Record<string, PlanetMoveBank> = {
   },
   uranus: {
     hard: [
-      "Change one variable, not the whole life. Keep an exit ramp.",
+      "Run one small test by 6pm, not a verdict.",
       "Name the restlessness. Do not torch a bridge before dinner.",
       "Try the new version as a 48-hour experiment.",
     ],

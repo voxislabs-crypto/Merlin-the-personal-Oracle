@@ -185,6 +185,38 @@ describe('close themes', () => {
 });
 
 describe('composeTodayOracle', () => {
+  it('uses the dual test-by-deadline as the headline, not the exit-ramp proverb', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-02',
+      transitLookup: [{ transit_aspect: 'Uranus square Venus', orb: '0.30°', score: 96 }],
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+    });
+    expect(brief).not.toBeNull();
+    expect(brief!.move.toLowerCase()).toMatch(/6pm|test|value|sentence/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
+    expect(brief!.resolution.toLowerCase()).toMatch(/test by 6pm/);
+  });
+
+  it("does not keep yesterday's proverb as the headline when dual copy exists", () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-02',
+      transitLookup: [{ transit_aspect: 'Uranus square Venus', orb: '0.30°', score: 96 }],
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      memory: {
+        date: '2026-09-01',
+        themeId: 'sudden-shift',
+        move: 'Change one variable, not the whole life. Keep an exit ramp.',
+        factKey: 'Uranus square Venus',
+      },
+    });
+    expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
+    expect(brief!.move.toLowerCase()).toMatch(/6pm|test|value|sentence/);
+  });
+
   it('leads with the actual chart hit and a human translation', () => {
     const brief = composeTodayOracle({
       date: '2026-08-13',

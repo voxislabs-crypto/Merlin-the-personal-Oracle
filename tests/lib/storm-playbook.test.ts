@@ -1,9 +1,12 @@
 import {
+  applyDualStormPlaybook,
   buildStormPlaybook,
   classifyStormCategory,
+  composeStormLead,
   computeStormConfidence,
   enrichStorms,
   groupStormsByCategory,
+  isGenericStormNav,
 } from '@/lib/astrology/storm-playbook';
 
 const baseStorm = {
@@ -96,5 +99,51 @@ describe('storm-playbook', () => {
       groups.financial.length +
       groups.health.length;
     expect(total).toBe(2);
+  });
+
+  it('does not treat the old slow-down proverb as a real move', () => {
+    expect(
+      isGenericStormNav(
+        'When this storm approaches, slow down. Reflect on what this area of life has been asking of you, and choose one deliberate action rather than reacting.',
+      ),
+    ).toBe(true);
+    expect(isGenericStormNav('Have one clear conversation — or none.')).toBe(false);
+  });
+
+  it('composes different Core/Mask leads for social vs health', () => {
+    const social = composeStormLead({
+      category: 'social',
+      coreType: 'INFP',
+      maskType: 'INTP',
+    });
+    const health = composeStormLead({
+      category: 'health',
+      coreType: 'INFP',
+      maskType: 'INTP',
+    });
+    expect(social?.lead).toBeTruthy();
+    expect(health?.lead).toBeTruthy();
+    expect(social?.lead).not.toBe(health?.lead);
+    expect(social?.lead.toLowerCase()).toMatch(/people|text|relationship|test/);
+    expect(health?.lead.toLowerCase()).toMatch(/sleep|depletion|food|body/);
+    expect(social?.lead.toLowerCase()).not.toMatch(/when this storm approaches/);
+    expect(health?.lead.toLowerCase()).not.toMatch(/when this storm approaches/);
+  });
+
+  it('replaces cached generic navigation with dual compose', () => {
+    const generic =
+      'When this storm approaches, slow down. Reflect on what this area of life has been asking of you, and choose one deliberate action rather than reacting.';
+    const patched = applyDualStormPlaybook(
+      {
+        ...baseStorm,
+        category: 'social' as const,
+        actionableSteps: [generic, 'Have one clear conversation — or none.'],
+        avoidSteps: ['Don’t process big relationship drama over text at peak hours.'],
+      },
+      'INFP',
+      'INTP',
+    );
+    expect(patched.actionableSteps[0].toLowerCase()).not.toMatch(/when this storm approaches/);
+    expect(patched.actionableSteps.some((s) => isGenericStormNav(s))).toBe(false);
   });
 });

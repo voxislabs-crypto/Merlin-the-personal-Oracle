@@ -3,6 +3,8 @@
  * Maps raw transit storms into: life category, confidence, when, actionable steps.
  */
 
+import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
+
 export type StormLifeCategory = 'social' | 'work' | 'financial' | 'health';
 
 export const STORM_CATEGORY_META: Record<
@@ -446,6 +448,115 @@ const CATEGORY_AVOID: Record<StormLifeCategory, string[]> = {
   ],
 };
 
+export const GENERIC_STORM_NAV_RE =
+  /when this storm approaches|slow down\. reflect on what this area|navigate with patience/i;
+
+export function isGenericStormNav(text: string | null | undefined): boolean {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  if (!t) return true;
+  return GENERIC_STORM_NAV_RE.test(t);
+}
+
+const STORM_DOMAIN: Record<StormLifeCategory, string> = {
+  social: 'relationships',
+  work: 'work',
+  financial: 'money',
+  health: 'body and energy',
+};
+
+/** Same Core/Mask compose rule as Today — category is the domain, not a costume. */
+export function composeStormLead(options: {
+  category: StormLifeCategory;
+  coreType?: string | null;
+  maskType?: string | null;
+  transitAxis?: string | null;
+  deadline?: string | null;
+}): { lead: string; avoid: string } | null {
+  const dual = composeDualLayerCard({
+    coreType: options.coreType,
+    maskType: options.maskType,
+    deadline: options.deadline || 'tonight',
+    domain: STORM_DOMAIN[options.category],
+    transitAxis: options.transitAxis,
+  });
+  if (!dual) return null;
+
+  const threatened = dual.threatened.replace(/\s+—.*$/, '').trim();
+  let lead: string;
+  switch (options.category) {
+    case 'social':
+      lead = `${dual.resolution} In this people window: ${dual.behaviorTell}`;
+      break;
+    case 'work':
+      lead = `${dual.resolution} Don't turn ${threatened} into a performance problem.`;
+      break;
+    case 'financial':
+      lead = `Sleep on the spend. ${dual.resolution} Don't buy a feeling of ${threatened}.`;
+      break;
+    case 'health':
+      lead = `Protect sleep and food first. ${dual.resolution} Depletion makes ${threatened} feel like an emergency.`;
+      break;
+    default:
+      lead = dual.resolution;
+  }
+
+  return {
+    lead: lead.replace(/\s+/g, ' ').trim(),
+    avoid: dual.avoid,
+  };
+}
+
+function uniqueLines(lines: string[], cap: number): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of lines) {
+    const s = raw.replace(/\s+/g, ' ').trim();
+    if (!s || isGenericStormNav(s)) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+/**
+ * Overlay Core/Mask compose onto an already-packaged storm.
+ * Safe on cached payloads that still carry the old generic "slow down" line.
+ */
+export function applyDualStormPlaybook<T extends StormLike & Partial<StormPlaybookFields>>(
+  storm: T,
+  coreType?: string | null,
+  maskType?: string | null,
+): T {
+  const category = storm.category || classifyStormCategory(storm).category;
+  const composed = composeStormLead({
+    category,
+    coreType,
+    maskType,
+    transitAxis: `${storm.transitingPlanet} to natal ${storm.natalPlanet}`,
+    deadline: 'tonight',
+  });
+  const existingSteps = [...(storm.actionableSteps || [])];
+  const existingAvoid = [...(storm.avoidSteps || [])];
+  if (!composed) {
+    return {
+      ...storm,
+      category,
+      actionableSteps: uniqueLines([...existingSteps, ...CATEGORY_DO_STEPS[category]], 4),
+      avoidSteps: uniqueLines([...existingAvoid, ...CATEGORY_AVOID[category]], 2),
+    };
+  }
+  return {
+    ...storm,
+    category,
+    navigation: composed.lead,
+    actionableSteps: uniqueLines([composed.lead, ...existingSteps], 4),
+    avoidSteps: uniqueLines([composed.avoid, ...existingAvoid], 2),
+  };
+}
+
 /**
  * Build 3–4 concrete navigate steps + 1–2 avoid lines.
  */
@@ -456,9 +567,9 @@ export function buildActionableSteps(
   const baseDo = [...CATEGORY_DO_STEPS[category]];
   const avoid = [...CATEGORY_AVOID[category]];
 
-  // Personalize with engine navigation (first sentence only)
+  // Personalize with engine navigation (first sentence only) — never the generic proverb.
   const nav = (storm.navigation || '').replace(/\s+/g, ' ').trim();
-  if (nav) {
+  if (nav && !isGenericStormNav(nav)) {
     const navLine = nav.match(/^(.+?[.!?])(?:\s|$)/)?.[1] || nav.slice(0, 140);
     if (navLine.length > 20) {
       baseDo.unshift(navLine);

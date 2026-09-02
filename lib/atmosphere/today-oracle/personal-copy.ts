@@ -413,10 +413,10 @@ export function buildConstraintMove(
 
   const move =
     theme.id === 'sudden-shift' || theme.id === 'relationship-value'
-      ? `Don't rewrite ${domainWord === 'relationships' ? 'the relationship' : `the ${domainWord}`}. Change one visible variable by ${deadline}: ${variables}. Write the exit ramp first: "If this spikes, I stop at ${exit}."`
+      ? `Run one small test by ${deadline}: ${variables}. If it spikes, stop at ${exit}.`
       : theme.polarity === 'opening'
-        ? `Use the open lane in ${domainWord} by ${deadline}: one reversible step only. Write the stop rule first: "If this expands past one yes, I stop at ${exit}."`
-        : `Don't rebuild ${rewrite}. Change one ${domainWord} variable by ${deadline}: ${variables}. Write the exit first: "If this spikes, I stop at ${exit}."`;
+        ? `Use the open lane in ${domainWord} by ${deadline}: one reversible step only. If it expands past one yes, stop at ${exit}.`
+        : `Don't rebuild ${rewrite}. Run one ${domainWord} test by ${deadline}: ${variables}. If it spikes, stop at ${exit}.`;
 
   const trigger =
     theme.id === 'sudden-shift'

@@ -51,6 +51,9 @@ describe('isGenericTransitDo', () => {
       isGenericTransitDo('One reversible step only — talk, draft, or scout before you commit.'),
     ).toBe(true);
     expect(isGenericTransitDo('Send the draft, skip the argument.')).toBe(false);
+    expect(
+      isGenericTransitDo('Change one variable, not the whole life. Keep an exit ramp.'),
+    ).toBe(true);
   });
 });
 

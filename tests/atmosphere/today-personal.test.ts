@@ -53,7 +53,7 @@ describe('personal today copy', () => {
     expect(line).not.toMatch(/Instinct \(INFP\) says feel it first/);
   });
 
-  it('builds a 6pm constraint with an exit ramp for relationship weather', () => {
+  it('builds a 6pm test, not the exit-ramp proverb, for relationship weather', () => {
     const move = buildConstraintMove(suddenShiftTheme(), [uranusVenus()], {
       date: '2026-09-01',
       held: false,
@@ -61,7 +61,9 @@ describe('personal today copy', () => {
       moonPhase: 'Waning Gibbous',
     }, ['love', 'family']);
     expect(move.move).toMatch(/6pm/);
-    expect(move.move.toLowerCase()).toMatch(/exit/);
+    expect(move.move.toLowerCase()).toMatch(/test/);
+    expect(move.move.toLowerCase()).not.toMatch(/change one variable/);
+    expect(move.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
     expect(move.watchFor).toMatch(/4–7pm/);
     expect(move.watchFor.toLowerCase()).toMatch(/waning taurus moon/);
     expect(move.doNot.toLowerCase()).toMatch(/rebuild/);

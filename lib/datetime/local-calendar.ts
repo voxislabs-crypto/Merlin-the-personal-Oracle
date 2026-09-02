@@ -100,3 +100,51 @@ export function msUntilNextLocalMidnight(now = new Date()): number {
   next.setHours(24, 0, 5, 0);
   return Math.max(1000, next.getTime() - now.getTime());
 }
+
+function clockToMinutes(hhmm: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec((hhmm || '').trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function minutesToClock(total: number): string {
+  const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hours = Math.floor(wrapped / 60);
+  const minutes = wrapped % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+/** Shift an HH:MM clock by whole hours (wraps 24h). */
+export function shiftClockHours(hhmm: string, offsetHours: number): string {
+  const minutes = clockToMinutes(hhmm);
+  if (minutes === null || !Number.isFinite(offsetHours)) return (hhmm || '').slice(0, 5);
+  return minutesToClock(minutes + Math.round(offsetHours * 60));
+}
+
+/**
+ * Natal clock for You-tab display.
+ * Engine stores UTC after timezone conversion; the user entered local civil time.
+ * Prefer the original intake time. If we only have UTC + offset, convert back.
+ */
+export function resolveDisplayBirthTime(options: {
+  storedTime?: string | null;
+  utcTime?: string | null;
+  inputTime?: string | null;
+  timezoneOffsetHours?: number | null;
+}): string {
+  const input = (options.inputTime || '').trim().slice(0, 5);
+  if (input && /^\d{1,2}:\d{2}$/.test(input)) {
+    const [h, m] = input.split(':');
+    return `${h.padStart(2, '0')}:${m}`;
+  }
+  const stored = (options.storedTime || '').trim().slice(0, 5);
+  const utc = (options.utcTime || '').trim().slice(0, 5);
+  const offset = options.timezoneOffsetHours;
+  if (typeof offset === 'number' && Number.isFinite(offset) && stored && stored === utc) {
+    return shiftClockHours(stored, offset);
+  }
+  return stored;
+}

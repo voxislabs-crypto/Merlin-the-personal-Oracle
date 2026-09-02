@@ -94,6 +94,7 @@ import {
   preservePriorWeatherWindow,
   writeWeatherWindowSnapshot,
 } from '@/lib/atmosphere/window-land';
+import { resolveDisplayBirthTime } from '@/lib/datetime/local-calendar';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { clearSubscriptionTierClientCache } from '@/lib/subscription-tier-client';
 import { useProphecy, type ProphecyEra, type ProphecyStyle } from '@/hooks/useProphecy';
@@ -732,7 +733,7 @@ export default function UnifiedDashboard() {
       }
       const result = await response.json();
       if (result?.success && result?.data) {
-        const pulseDate = result.data.date || clientDate;
+        const pulseDate = clientDate;
         dailyOracleDayRef.current = pulseDate;
         setDailyOracle({
           message: result.data.message,
@@ -1251,11 +1252,16 @@ export default function UnifiedDashboard() {
   ]);
 
   const handleChartCalculated = useCallback((data: BirthChartData) => {
-    // Derive birth data
+    // Derive birth data — keep the civil clock the user entered, not UTC used for Swiss.
     const possible = (data as any).birthData || (data as any).metadata || {};
+    const meta = (data as any).metadata || {};
     const derived: BirthData = {
-      date: (possible.birthDate as string) || (possible.date as string) || '',
-      time: (possible.birthTime as string) || (possible.time as string) || '12:00',
+      date: (meta.inputBirthDate as string) || (possible.birthDate as string) || (possible.date as string) || '',
+      time:
+        (meta.inputBirthTime as string) ||
+        (possible.birthTime as string) ||
+        (possible.time as string) ||
+        '12:00',
       latitude: (possible.coordinates?.lat as number) || (possible.latitude as number) || 0,
       longitude: (possible.coordinates?.lon as number) || (possible.longitude as number) || 0,
       houseSystem: 'Placidus',
@@ -1993,6 +1999,13 @@ export default function UnifiedDashboard() {
     : null;
 
   const liveDual = dualOverlay;
+  const natalClockLabel = resolveDisplayBirthTime({
+    storedTime: birthData?.time,
+    utcTime: (chartData as { birthData?: { birthTime?: string } } | null)?.birthData?.birthTime,
+    inputTime: (chartData as { metadata?: { inputBirthTime?: string } } | null)?.metadata?.inputBirthTime,
+    timezoneOffsetHours: (chartData as { metadata?: { timezoneOffsetHours?: number } } | null)
+      ?.metadata?.timezoneOffsetHours,
+  });
 
   /** P1 + P3: sharp three-beat life weather brief for Today (day-scoped only) */
   const lifeWeatherBrief = React.useMemo(() => {
@@ -2988,7 +3001,7 @@ export default function UnifiedDashboard() {
                     chartForLabel={
                       birthData?.date
                         ? `Natal chart · ${birthData.date}${
-                            birthData.time && birthData.time !== '12:00' ? ` · ${birthData.time}` : ''
+                            natalClockLabel && natalClockLabel !== '12:00' ? ` · ${natalClockLabel}` : ''
                           }`
                         : null
                     }
@@ -3391,6 +3404,8 @@ export default function UnifiedDashboard() {
                     stormsReport={stormsReport}
                     stormsLoading={stormsLoading}
                     mbtiType={mbtiType ?? undefined}
+                    coreType={liveDual?.firmware?.mbtiType || mbtiType || undefined}
+                    maskType={liveDual?.hardware?.mbtiType || undefined}
                     weeklyCharacter={lifeWeatherBrief.weeklyCharacter || null}
                     horizonSelectedDate={horizonSelectedDate}
                     onHorizonSelectedDateChange={setHorizonSelectedDate}
@@ -3779,6 +3794,8 @@ export default function UnifiedDashboard() {
                                       report={stormsReport}
                                       loading={stormsLoading}
                                       mbtiType={mbtiType ?? undefined}
+                                      coreType={liveDual?.firmware?.mbtiType || mbtiType || undefined}
+                                      maskType={liveDual?.hardware?.mbtiType || undefined}
                                       selectedDate={horizonSelectedDate}
                                       onSelectedDateChange={setHorizonSelectedDate}
                                     />

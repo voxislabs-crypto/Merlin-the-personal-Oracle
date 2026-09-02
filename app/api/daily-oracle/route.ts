@@ -230,7 +230,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        date: forecast.date || resolvedDay,
+        date: resolvedDay || forecast.date,
         message,
         dayRating: forecast.day_rating,
         path: context?.arcPath,

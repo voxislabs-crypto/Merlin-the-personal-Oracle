@@ -23,6 +23,7 @@ import {
   HorizonDateStrip,
 } from '@/components/dashboard/HorizonDateStrip';
 import {
+  applyDualStormPlaybook,
   STORM_CATEGORY_META,
   STORM_CATEGORY_ORDER,
   type StormLifeCategory,
@@ -33,6 +34,10 @@ interface StormsAndNavigationsProps {
   report: StormsReport | null;
   loading?: boolean;
   mbtiType?: string;
+  /** Core (firmware) — playbook moves soothe this */
+  coreType?: string;
+  /** Mask (hardware) — playbook moves coach this */
+  maskType?: string;
   /** Controlled date (YYYY-MM-DD) or 'all' — shared with timeline */
   selectedDate?: string;
   onSelectedDateChange?: (dateOrAll: string) => void;
@@ -423,6 +428,8 @@ export function StormsAndNavigations({
   report,
   loading,
   mbtiType,
+  coreType,
+  maskType,
   selectedDate: controlledDate,
   onSelectedDateChange,
   embedded = false,
@@ -436,7 +443,14 @@ export function StormsAndNavigations({
     else setInternalDate(value);
   };
 
-  const storms = report?.storms || [];
+  const core = coreType || mbtiType;
+  const storms = useMemo(
+    () =>
+      (report?.storms || []).map((storm) =>
+        applyDualStormPlaybook(storm, core, maskType || core),
+      ),
+    [core, maskType, report?.storms],
+  );
   const horizon = report?.horizonDays ?? 30;
 
   const dayMarkers = useMemo(

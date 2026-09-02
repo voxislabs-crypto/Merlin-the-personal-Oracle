@@ -486,7 +486,8 @@ const MBTI_NAVIGATION: Record<MBTIType, Record<string, string>> = {
 
 function getNavigation(mbtiType: MBTIType | undefined, lifeArea: string): string {
   if (!mbtiType) {
-    return `When this storm approaches, slow down. Reflect on what this area of life has been asking of you, and choose one deliberate action rather than reacting.`;
+    // Never emit the generic "slow down" proverb — playbook steps are category-specific.
+    return '';
   }
 
   const fromJson = (mbtiStormResponses as Record<string, { advice?: string }>)[mbtiType];

@@ -38,7 +38,12 @@ function normalizeUtcBirth(
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
 }
 
-function tagSourceMetadata(chartData: any, source: ChartSource, timezoneOffsetHours: number | null) {
+function tagSourceMetadata(
+  chartData: any,
+  source: ChartSource,
+  timezoneOffsetHours: number | null,
+  extras?: { inputBirthDate?: string; inputBirthTime?: string; utcBirthDate?: string; utcBirthTime?: string },
+) {
   return {
     ...chartData,
     metadata: {
@@ -46,6 +51,10 @@ function tagSourceMetadata(chartData: any, source: ChartSource, timezoneOffsetHo
       calculationSource: source,
       ephemeris: source === 'swiss-real' ? 'Swiss real' : 'Mock',
       timezoneOffsetHours,
+      ...(extras?.inputBirthDate ? { inputBirthDate: extras.inputBirthDate } : {}),
+      ...(extras?.inputBirthTime ? { inputBirthTime: extras.inputBirthTime } : {}),
+      ...(extras?.utcBirthDate ? { utcBirthDate: extras.utcBirthDate } : {}),
+      ...(extras?.utcBirthTime ? { utcBirthTime: extras.utcBirthTime } : {}),
     },
   };
 }
@@ -107,6 +116,13 @@ export async function POST(request: Request) {
       lon,
     });
 
+    const birthClockMeta = {
+      inputBirthDate: birthDate,
+      inputBirthTime: birthTime,
+      utcBirthDate,
+      utcBirthTime,
+    };
+
     // Prefer local Swiss Ephemeris engine
     try {
       console.log('[API] Attempting Swiss engine calculation...');
@@ -131,7 +147,7 @@ export async function POST(request: Request) {
       }
 
       console.log('[API] ✓ Swiss engine success, moonSign:', moonSign);
-      const taggedSwissData = tagSourceMetadata(swissData, 'swiss-real', appliedOffsetHours);
+      const taggedSwissData = tagSourceMetadata(swissData, 'swiss-real', appliedOffsetHours, birthClockMeta);
       const mbtiDual = getMBTIDual(taggedSwissData);
       return NextResponse.json({
         success: true,
@@ -159,7 +175,7 @@ export async function POST(request: Request) {
         const chartData = calculateFallbackBirthChart(utcBirthDate, utcBirthTime, lat, lon);
         const fallbackMoon = chartData?.positions?.find((p: any) => p.name === 'Moon')?.sign;
         console.log('[API] ✓ Fallback engine success, moonSign:', fallbackMoon);
-        const taggedFallbackData = tagSourceMetadata(chartData, 'mock-fallback', appliedOffsetHours);
+        const taggedFallbackData = tagSourceMetadata(chartData, 'mock-fallback', appliedOffsetHours, birthClockMeta);
         const mbtiDual = getMBTIDual(taggedFallbackData);
         return NextResponse.json({
           success: true,

@@ -5,8 +5,10 @@ import {
   getLocalCalendarDate,
   isValidCalendarDate,
   isWeatherDateStale,
+  resolveDisplayBirthTime,
   resolveForecastTargetDate,
   resolveWindowCalendarDate,
+  shiftClockHours,
 } from '@/lib/datetime/local-calendar';
 
 describe('local-calendar', () => {
@@ -61,5 +63,32 @@ describe('local-calendar', () => {
       resolveWindowCalendarDate({ peakAt: '2026-08-16T12:00:00', daysToPeak: 3 }, today),
     ).toBe('2026-08-16');
     expect(addCalendarDays('2026-08-13', 1)).toBe('2026-08-14');
+  });
+
+  it('converts a UTC natal clock back to the civil time the user entered', () => {
+    expect(shiftClockHours('17:21', -5)).toBe('12:21');
+    expect(shiftClockHours('16:21', -4)).toBe('12:21');
+    expect(
+      resolveDisplayBirthTime({
+        storedTime: '17:21',
+        utcTime: '17:21',
+        timezoneOffsetHours: -5,
+      }),
+    ).toBe('12:21');
+    expect(
+      resolveDisplayBirthTime({
+        storedTime: '17:21',
+        utcTime: '17:21',
+        inputTime: '12:21',
+        timezoneOffsetHours: -5,
+      }),
+    ).toBe('12:21');
+    expect(
+      resolveDisplayBirthTime({
+        storedTime: '12:21',
+        utcTime: '17:21',
+        timezoneOffsetHours: -5,
+      }),
+    ).toBe('12:21');
   });
 });
