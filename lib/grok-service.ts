@@ -1,7 +1,13 @@
 // lib/grok-service.ts - LLM-backed birth chart interpretations (Groq by default)
 import "server-only";
 import { PlanetPosition, Aspect } from '@/types/astrology';
-import { chatCompletion, getLlmConfig, isLlmConfigured } from '@/lib/llm-config';
+import {
+  buildChatCompletionBody,
+  chatCompletion,
+  extractChatDeltaText,
+  getLlmConfig,
+  isLlmConfigured,
+} from '@/lib/llm-config';
 import { serverCache, generateChartHash } from './cache-service';
 
 const llm = getLlmConfig();
@@ -174,22 +180,27 @@ export async function generateGrokInterpretationStream(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${cfg.apiKey}`,
       },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: [
+      body: JSON.stringify(
+        buildChatCompletionBody(
           {
-            role: 'system',
-            content: `You are Merlin — clarity coach. Be personal and precise in human language. No mystic filler. Return valid JSON.`,
+            model: cfg.model,
+            messages: [
+              {
+                role: 'system',
+                content: `You are Merlin — clarity coach. Be personal and precise in human language. No mystic filler. Return valid JSON.`,
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            temperature: 0.8,
+            maxTokens: 1800,
+            stream: true,
           },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.8,
-        max_tokens: 1800,
-        stream: true,
-      }),
+          cfg,
+        ),
+      ),
     });
 
     if (!response.ok) {
@@ -214,7 +225,7 @@ export async function generateGrokInterpretationStream(
 
           try {
             const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content || '';
+            const content = extractChatDeltaText(parsed);
             if (content) {
               fullResponse += content;
               onChunk(content);

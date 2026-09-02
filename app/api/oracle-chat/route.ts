@@ -32,7 +32,12 @@ import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/
 import { detectQueryMode, generateCasualResponse, shouldSkipStructure } from '@/lib/chat-adapter';
 import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
-import { getLlmConfig } from '@/lib/llm-config';
+import {
+  buildChatCompletionBody,
+  chatCompletion,
+  extractChatDeltaText,
+  getLlmConfig,
+} from '@/lib/llm-config';
 import { consumeOracleQuota, oracleQuotaDeniedResponse } from '@/lib/oracle-quota';
 import { normalizeClientConversationHistory } from '@/lib/oracle-chat-memory';
 
@@ -443,28 +448,34 @@ export async function POST(request: NextRequest) {
             `[Oracle Chat] Starting ${llmConfig.provider} stream for user: ${userId}, question: "${question.substring(0, 50)}..."`
           );
 
+          const llmMessages = [
+            {
+              role: 'system' as const,
+              content: systemPrompt,
+            },
+            ...messages.map((m) => ({
+              role: m.role,
+              content: m.content,
+            })),
+          ];
+
           const llmResponse = await fetch(llmConfig.apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${llmConfig.apiKey}`,
             },
-            body: JSON.stringify({
-              model: llmConfig.model,
-              messages: [
+            body: JSON.stringify(
+              buildChatCompletionBody(
                 {
-                  role: 'system',
-                  content: systemPrompt,
+                  messages: llmMessages,
+                  temperature: 0.72,
+                  maxTokens: 2200,
+                  stream: true,
                 },
-                ...messages.map(m => ({
-                  role: m.role,
-                  content: m.content,
-                })),
-              ],
-              temperature: 0.72,
-              max_tokens: 1800,
-              stream: true,
-            }),
+                llmConfig,
+              ),
+            ),
           });
 
           if (!llmResponse.ok) {
@@ -516,7 +527,7 @@ export async function POST(request: NextRequest) {
 
                 try {
                   const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content;
+                  const content = extractChatDeltaText(parsed);
                   if (content) {
                     fullResponse += content;
                     // Send streaming chunk to client
@@ -543,7 +554,7 @@ export async function POST(request: NextRequest) {
             if (data !== '[DONE]') {
               try {
                 const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
+                const content = extractChatDeltaText(parsed);
                 if (content) {
                   fullResponse += content;
                   controller.enqueue(
@@ -558,6 +569,35 @@ export async function POST(request: NextRequest) {
               } catch {
                 // Ignore trailing parse errors
               }
+            }
+          }
+
+          if (!fullResponse.trim()) {
+            console.warn(
+              `[Oracle] Empty stream from ${llmConfig.provider}/${llmConfig.model}; retrying without stream`,
+            );
+            try {
+              const fallback = await chatCompletion(
+                {
+                  messages: llmMessages,
+                  temperature: 0.72,
+                  maxTokens: 2200,
+                },
+                llmConfig,
+              );
+              if (fallback.trim()) {
+                fullResponse = fallback.trim();
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      type: 'chunk',
+                      content: fullResponse,
+                    }) + '\n'
+                  )
+                );
+              }
+            } catch (fallbackError) {
+              console.error('[Oracle] Non-stream fallback failed:', fallbackError);
             }
           }
 
