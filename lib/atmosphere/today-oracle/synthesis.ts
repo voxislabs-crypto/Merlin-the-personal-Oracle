@@ -15,7 +15,6 @@ import {
   buildLeadFactLine,
   buildLivedCollision,
   buildPersonalHook,
-  moveSizePhrase,
   natalAxisPhrase,
   primaryDomains,
   quietDomains,
@@ -219,7 +218,6 @@ export function synthesizeTodayOracle(input: {
     readConfidence,
     domains,
     held: input.held,
-    moveSize: moveSizePhrase(primary),
   });
   const domainJob = buildDomainJob(domains, quiet);
 

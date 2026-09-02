@@ -234,6 +234,9 @@ describe('composeTodayOracle', () => {
     expect(brief!.readConfidence).toBeGreaterThan(40);
     expect(brief!.move).not.toMatch(/one reversible step only/i);
     expect(brief!.confidenceWhy).toMatch(/%/);
+    expect(brief!.confidenceWhy.toLowerCase()).toMatch(/move above/);
+    expect(brief!.confidenceWhy.toLowerCase()).not.toMatch(/changing one variable/);
+    expect(brief!.confidenceWhy.toLowerCase()).not.toMatch(/exit ramp/);
   });
 
   it('splits chart confidence from interpretive confidence when signals mix', () => {

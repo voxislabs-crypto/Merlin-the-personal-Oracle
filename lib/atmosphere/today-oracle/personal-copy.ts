@@ -517,13 +517,12 @@ export function buildConfidenceWhy(options: {
   readConfidence: number;
   domains: LifeRiskDomain[];
   held: boolean;
-  moveSize: string;
 }): string {
   const domainBit = joinTwo(options.domains.map((d) => domainPhrase(d))) || 'today\'s friction';
   const held = options.held
     ? ' The "still applies" flag means yesterday\'s condition didn\'t break overnight — don\'t escalate.'
     : '';
-  return `${options.readConfidence}% that the ${domainBit} friction is the real weather. ${options.chartConfidence}% that ${options.moveSize} is the right size of move.${held}`;
+  return `${options.readConfidence}% that the ${domainBit} friction is the real weather. ${options.chartConfidence}% that the move above is the right size.${held}`;
 }
 
 export function buildDomainJob(
@@ -543,8 +542,4 @@ export function buildDomainJob(
   return `${hotBit} ${verb}. ${quietBit} ${quietVerb} stable enough to ignore today. Don't spend the caution budget there.`;
 }
 
-export function moveSizePhrase(theme: RankedTheme): string {
-  if (theme.id === 'sudden-shift' || theme.polarity === 'mixed') return 'changing one variable';
-  if (theme.polarity === 'opening') return 'one reversible yes';
-  return 'shrinking the plate to one move';
-}
+
