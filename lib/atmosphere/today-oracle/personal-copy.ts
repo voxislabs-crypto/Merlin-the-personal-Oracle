@@ -501,7 +501,7 @@ export function buildPersonalHook(
     return `You flagged restlessness yesterday. Today's ${themeLabel.toLowerCase()} is the same family of weather — don't escalate just because the calendar flipped.`;
   }
   if (ctx.held) {
-    return `Same condition as yesterday — still on. Don't escalate. Change one variable, then stop.`;
+    return `Same condition as yesterday — still on. Don't escalate. Keep today's test small.`;
   }
   if ((ctx.streak ?? 0) <= 1) {
     return `First return. Tomorrow's read gets sharper if you mark whether the ${deadline} constraint held.`;

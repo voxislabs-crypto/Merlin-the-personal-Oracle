@@ -23,7 +23,7 @@ export {
   CLOSE_THEME_RATIO,
 } from '@/lib/atmosphere/today-oracle/meaning';
 export { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
-export { WEATHER_PRINCIPLE } from '@/lib/atmosphere/today-oracle/synthesis';
+export { WEATHER_PRINCIPLE, isProverbWeatherMove } from '@/lib/atmosphere/today-oracle/synthesis';
 export {
   selectThemeWithNovelty,
   readTodayMoveMemory,

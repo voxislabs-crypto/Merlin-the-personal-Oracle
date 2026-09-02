@@ -11,9 +11,10 @@ import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { isGenericTransitDo } from '@/lib/transit-lookup';
 import { applyMerlinVoicePass, failsMerlinVoiceTest } from '@/lib/voice/merlin-voice';
 import type { AtmospherePacket, LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
-import { composeTodayOracle } from '@/lib/atmosphere/today-oracle';
+import { composeTodayOracle, isProverbWeatherMove } from '@/lib/atmosphere/today-oracle';
 import { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
 import { buildCoreMaskTension } from '@/lib/self/dual-layer-lens';
+import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
 import type { CheckinSnapshot } from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { TodayMoveMemory, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 
@@ -789,7 +790,7 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     yesterdayCheckin: input.yesterdayCheckin,
   });
 
-  const move =
+  let move =
     oracle?.move ||
     buildTodayMove({
       intensity,
@@ -801,6 +802,17 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
       domainsPhrase: domains,
       date,
     });
+
+  // If Core/Mask exist, the title is the compose move — never the exit-ramp proverb.
+  if (isProverbWeatherMove(move) || !move) {
+    const dualMove = composeDualLayerCard({
+      coreType: input.mbtiType,
+      maskType: input.maskType,
+      deadline: oracle?.deadline || '6pm',
+      domain: domains.split(' and ')[0] || domains,
+    })?.move;
+    move = dualMove || 'Take one reversible step today.';
+  }
 
   const personalStory = oracle?.whyThisPerson || oracle?.chartWhy || oracle?.leadFact || story;
   const personalWhy = oracle?.whyThisPerson || oracle?.whyToday || why;

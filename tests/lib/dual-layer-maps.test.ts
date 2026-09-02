@@ -87,5 +87,29 @@ describe('dual-layer maps', () => {
     expect(infp?.avoid).toBeTruthy();
     expect(infp?.weeklyCharacter?.title).toMatch(/Quiet Knower/);
     expect(infj?.weeklyCharacter?.title).toMatch(/Pattern Witness/);
+    expect(infp?.move.toLowerCase()).toMatch(/bond|value|test/);
+    expect(infj?.move.toLowerCase()).toMatch(/pattern|feeling|vision|analysis/);
+    const infpMoveSans = (infp?.move || '').replace(/\bINF[PJ]\b/g, '');
+    const infjMoveSans = (infj?.move || '').replace(/\bINF[PJ]\b/g, '');
+    expect(infpMoveSans).not.toBe(infjMoveSans);
+  });
+
+  it('changes the headline arena when the hot domain changes', () => {
+    const infpBond = composeDualLayerCard({
+      coreType: 'INFP',
+      maskType: 'INTP',
+      deadline: '6pm',
+      domain: 'relationships',
+    });
+    const infpHome = composeDualLayerCard({
+      coreType: 'INFP',
+      maskType: 'INTP',
+      deadline: '6pm',
+      domain: 'home life',
+    });
+    expect(infpBond?.move.toLowerCase()).toMatch(/bond/);
+    expect(infpHome?.move.toLowerCase()).toMatch(/home/);
+    expect(infpBond?.move).not.toBe(infpHome?.move);
+    expect(infpBond?.move.toLowerCase()).not.toMatch(/change one variable/);
   });
 });

@@ -194,6 +194,7 @@ describe('composeTodayOracle', () => {
     });
     expect(brief).not.toBeNull();
     expect(brief!.move.toLowerCase()).toMatch(/6pm|test|value|sentence/);
+    expect(brief!.move.toLowerCase()).toMatch(/bond|relationship|today/);
     expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
     expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
     expect(brief!.resolution.toLowerCase()).toMatch(/test by 6pm/);

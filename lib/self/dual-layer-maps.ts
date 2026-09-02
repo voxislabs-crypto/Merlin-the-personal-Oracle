@@ -448,7 +448,7 @@ export const NEAR_SPLITS: Record<string, NearSplitOverride> = {
     whyNot: 'a logic problem',
     watchFor: 'briefing the feeling instead of feeling it',
     avoid: 'proving you are fine by explaining the weather instead of changing one variable',
-    move: 'Pick one value that will not move today. By {deadline}, write the one-sentence test you can defend.',
+    move: 'By {deadline}, write the one-sentence test you can defend about {arena} — one value that will not move.',
   },
   'INTP>INFP': {
     tension: 'Logic vs identity',
@@ -647,8 +647,44 @@ function withDeadline(text: string, deadline: string): string {
   return `${t} by ${deadline}.`;
 }
 
-function fillDeadline(template: string, deadline: string): string {
-  return period(template.replace(/\{deadline\}/g, deadline || '6pm'));
+function arenaPhrase(domain: string): string {
+  const d = (domain || '').toLowerCase();
+  if (/relationship|bond|love/.test(d)) return 'this bond';
+  if (/home|family/.test(d)) return 'home';
+  if (/work|career/.test(d)) return 'work';
+  if (/money|resource/.test(d)) return 'money';
+  if (/body|energy|health/.test(d)) return 'your energy';
+  return 'today';
+}
+
+function fillMoveTemplate(template: string, deadline: string, arena: string): string {
+  return period(
+    template
+      .replace(/\{deadline\}/g, deadline || '6pm')
+      .replace(/\{arena\}/g, arena || 'today'),
+  );
+}
+
+function oneSentenceHeadline(
+  core: CoreThreatMap,
+  mask: MaskSymptomMap,
+  deadline: string,
+  arena: string,
+  nearMove?: string,
+  sequence?: GuidanceSequence,
+): string {
+  if (nearMove) return fillMoveTemplate(nearMove, deadline, arena);
+  const help = core.help.replace(/\.+$/, '');
+  const coach = mask.coach.replace(/\.+$/, '');
+  const helpTail = help.charAt(0).toLowerCase() + help.slice(1);
+  const coachTail = coach.charAt(0).toLowerCase() + coach.slice(1);
+  if (sequence === 'insight-then-step' || sequence === 'why-then-how' || sequence === 'feel-then-strategy') {
+    return `By ${deadline}, ${helpTail} — ${arena}.`;
+  }
+  if (sequence === 'feel-then-test') {
+    return `By ${deadline}, ${coachTail} about ${arena}.`;
+  }
+  return `By ${deadline}, ${coachTail} — ${arena}.`;
 }
 
 function sequenceMove(
@@ -851,9 +887,9 @@ export function composeDualLayerCard(input: ComposeDualLayerInput): DualLayerCar
     }
   }
 
-  const move = moveOverride
-    ? fillDeadline(moveOverride, deadline)
-    : sequenceMove(sequence, core, mask, deadline);
+  const domain = (input.domain || 'the day').trim();
+  const arena = arenaPhrase(domain);
+  const move = oneSentenceHeadline(core, mask, deadline, arena, moveOverride, sequence);
 
   const why = sootheWhy({
     core,
@@ -861,7 +897,6 @@ export function composeDualLayerCard(input: ComposeDualLayerInput): DualLayerCar
     transitAxis: input.transitAxis,
     whyNot,
   });
-  const domain = (input.domain || 'the day').trim();
   const tensionLine = tensionLineFor(sequence, tension, domain);
   const resolution = resolutionFor(sequence, deadline, core);
   const whyThisPerson = whyThisPersonLine(coreType, maskType, core, domain);
