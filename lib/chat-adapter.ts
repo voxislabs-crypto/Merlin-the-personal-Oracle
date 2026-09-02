@@ -109,3 +109,32 @@ export function shouldSkipStructure(question: string): boolean {
   ];
   return emotionalKeywords.some((kw) => question.toLowerCase().includes(kw));
 }
+
+const IDENTITY_DUAL_RE =
+  /\b(core|mask|mbti|dual[- ]?(type|personality|layer)|firmware|hardware|true[- ]self|inner (self|type)|misread me|how (do )?people (misread|see|read|meet) me|who am i|personality from the chart|two types|how they (work|differ)|integrated type)\b/i;
+
+const TYPE_CODE_RE = /\b(INFP|INFJ|INTP|INTJ|ENFP|ENFJ|ENTP|ENTJ|ISFP|ISFJ|ISTP|ISTJ|ESFP|ESFJ|ESTP|ESTJ)\b/i;
+
+/**
+ * Dual-type / Core / Mask / "how people misread me" questions need a long
+ * chart-grounded read — not the weather-card paraphrase or storm windows.
+ */
+export function isIdentityDualQuestion(question: string): boolean {
+  const q = (question || '').trim();
+  if (!q) return false;
+  if (IDENTITY_DUAL_RE.test(q)) return true;
+  if (TYPE_CODE_RE.test(q) && /\b(core|mask|type|personality|chart)\b/i.test(q)) return true;
+  return false;
+}
+
+export const IDENTITY_DEEP_DIVE_MIN_WORDS = 400;
+export const IDENTITY_DEEP_DIVE_MAX_WORDS = 700;
+export const IDENTITY_DEEP_DIVE_MAX_TOKENS = 4500;
+export const DEFAULT_ORACLE_MAX_TOKENS = 2200;
+
+/** Token cap is keyed off the question, never Core type. */
+export function oracleMaxTokensForQuestion(question: string): number {
+  return isIdentityDualQuestion(question)
+    ? IDENTITY_DEEP_DIVE_MAX_TOKENS
+    : DEFAULT_ORACLE_MAX_TOKENS;
+}

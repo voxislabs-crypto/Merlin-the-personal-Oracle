@@ -357,8 +357,11 @@ export function OracleChat({
     scrollToBottom(true);
 
     try {
+      const snapshot = (birthChart as any)?.personalitySnapshot as
+        | { firmware?: string; hardware?: string; finalType?: string }
+        | undefined;
       const inferredMbtiType =
-        (birthChart as any)?.personalitySnapshot?.finalType ||
+        snapshot?.finalType ||
         (birthChart as any)?.mbti?.type ||
         undefined;
 
@@ -370,6 +373,13 @@ export function OracleChat({
           userId,
           plainEnglish,
           mbtiType: inferredMbtiType,
+          dualPersonality: snapshot
+            ? {
+                core: snapshot.firmware,
+                mask: snapshot.hardware,
+                final: snapshot.finalType,
+              }
+            : undefined,
           tonePreset,
           oracleMode,
           includeLikelihood,

@@ -1,4 +1,10 @@
-import { detectQueryMode, shouldSkipStructure } from '@/lib/chat-adapter';
+import {
+  detectQueryMode,
+  IDENTITY_DEEP_DIVE_MAX_TOKENS,
+  isIdentityDualQuestion,
+  oracleMaxTokensForQuestion,
+  shouldSkipStructure,
+} from '@/lib/chat-adapter';
 
 describe('detectQueryMode', () => {
   it('routes life-weather and decision questions to full oracle', () => {
@@ -23,5 +29,24 @@ describe('shouldSkipStructure', () => {
   it('flags raw emotional language', () => {
     expect(shouldSkipStructure('I am so scared and alone')).toBe(true);
     expect(shouldSkipStructure('What is my Venus doing?')).toBe(false);
+  });
+});
+
+describe('isIdentityDualQuestion', () => {
+  it('flags dual personality, Core/Mask, and misread asks', () => {
+    expect(
+      isIdentityDualQuestion(
+        'I want to talk through my dual personality from the chart. Core INFP or INFJ. Mask INTP.',
+      ),
+    ).toBe(true);
+    expect(isIdentityDualQuestion('How do people misread me?')).toBe(true);
+    expect(isIdentityDualQuestion('Explain my Core vs Mask')).toBe(true);
+    expect(isIdentityDualQuestion('What is Uranus squaring my Venus today?')).toBe(false);
+  });
+
+  it('raises the token cap for identity asks regardless of Core type', () => {
+    const identity = 'Explain my Core vs Mask and how people misread me.';
+    expect(oracleMaxTokensForQuestion(identity)).toBe(IDENTITY_DEEP_DIVE_MAX_TOKENS);
+    expect(oracleMaxTokensForQuestion('What is Uranus squaring my Venus today?')).toBe(2200);
   });
 });

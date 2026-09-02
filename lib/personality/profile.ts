@@ -99,6 +99,7 @@ export function voiceProfileCacheSize(): number {
 export function buildVoiceStrategyBlock(
   profile: VoiceProfile,
   intent: VoiceIntent,
+  options?: { lengthOverride?: { minWords: number; maxWords: number; note: string } },
 ): string {
   const persona = profile.persona;
   const length = persona?.length;
@@ -154,9 +155,11 @@ ${examples ? `Example cadence:\n${examples}` : ''}
 
 LENGTH AND DENSITY (do not slice or pad a finished sentence)
 ${
-  length
-    ? `${length.densityNote} Target ${length.minWords}–${length.maxWords} words. Density: ${length.density}.`
-    : '80–160 words unless the ask is smaller. No repetition to fill space. No mid-word cuts.'
+  options?.lengthOverride
+    ? options.lengthOverride.note
+    : length
+      ? `${length.densityNote} Target ${length.minWords}–${length.maxWords} words. Density: ${length.density}.`
+      : '80–160 words unless the ask is smaller. No repetition to fill space. No mid-word cuts.'
 }
 
 CHART VOICE (source of truth — not a Sun-sign switch)

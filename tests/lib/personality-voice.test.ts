@@ -224,4 +224,60 @@ describe('Oracle prompt uses the strategy, not a type label', () => {
     expect(prompt).toMatch(/SPEAKING VOICE: Core INFJ/);
     expect(prompt).not.toMatch(/PERSONALITY LENS: INFJ\n/);
   });
+
+  it('injects Core/Mask/Integrated and a 400–700 word identity brief when asked about dual type', () => {
+    const prompt = buildOracleSystemPrompt({
+      conversationHistory: [],
+      currentQuestion:
+        'I want to talk through my dual personality from the chart. Core INFP or INFJ. Mask INTP. Explain what each means, how they work together when they differ, how people might misread me, and how this should shape my life-weather guidance. Ask if anything doesn’t fit.',
+      birthChart: {
+        planets: [
+          { name: 'Sun', sign: 'Leo' },
+          { name: 'Moon', sign: 'Scorpio' },
+          { name: 'Mercury', sign: 'Virgo' },
+        ],
+        ascendant: { sign: 'Libra' },
+        aspects: [],
+        personalitySnapshot: { firmware: 'INFP', hardware: 'INTP', finalType: 'INFP' },
+      } as OracleContext['birthChart'],
+      dualPersonality: { core: 'INFP', mask: 'INTP', final: 'INFP' },
+      mbtiType: 'INFP',
+      plainEnglish: true,
+    });
+    expect(prompt).toMatch(/USER DUAL TYPE/);
+    expect(prompt).toMatch(/Core: INFP/);
+    expect(prompt).toMatch(/Mask: INTP/);
+    expect(prompt).toMatch(/Integrated: INFP/);
+    expect(prompt).toMatch(/IDENTITY DEEP DIVE/);
+    expect(prompt).toMatch(/400–700 words/);
+    expect(prompt).toMatch(/Ignore the persona min\/max word budget/);
+    expect(prompt).toMatch(/regardless of Core type/);
+    expect(prompt).not.toMatch(/Target 40–75 words/);
+    expect(prompt).toMatch(/Do not use Now \/ Near Future \/ Week Ahead/);
+    expect(prompt).toMatch(/tug-of-war/);
+    expect(prompt).toMatch(/interpret threat through Core, symptoms through Mask/);
+    expect(prompt).toMatch(/Sun in Leo/);
+    expect(prompt).toMatch(/Moon in Scorpio/);
+  });
+
+  it('keeps the 400–700 word identity budget for INFJ and ESTP cores, not the persona cap', () => {
+    const ask = 'Explain my Core vs Mask and how people misread me.';
+    const infj = buildOracleSystemPrompt({
+      conversationHistory: [],
+      currentQuestion: ask,
+      dualPersonality: { core: 'INFJ', mask: 'INTP', final: 'INFJ' },
+      mbtiType: 'INFJ',
+    });
+    const estp = buildOracleSystemPrompt({
+      conversationHistory: [],
+      currentQuestion: ask,
+      dualPersonality: { core: 'ESTP', mask: 'ENTP', final: 'ESTP' },
+      mbtiType: 'ESTP',
+    });
+    for (const prompt of [infj, estp]) {
+      expect(prompt).toMatch(/IDENTITY ASK: 400–700 words/);
+      expect(prompt).not.toMatch(/Target \d+–\d+ words/);
+      expect(prompt).toMatch(/400–700 words/);
+    }
+  });
 });

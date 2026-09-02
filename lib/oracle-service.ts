@@ -10,6 +10,7 @@ import type { PersistentUserContextSnapshot } from '@/lib/user-context';
 import { MERLIN_VOICE_SYSTEM_BLOCK } from '@/lib/voice/merlin-voice';
 import { classifyIntent } from '@/lib/personality/intent';
 import { buildVoiceProfile, buildVoiceStrategyBlock } from '@/lib/personality/profile';
+import { isIdentityDualQuestion } from '@/lib/chat-adapter';
 import oraclePhrases from '@/data/oracle-phrases.json';
 import type { MentionWorthySet } from '@/lib/astrology/mention-worthy';
 import type { LivedThemePacket } from '@/lib/astrology/lived-themes';
@@ -85,6 +86,9 @@ export interface OracleContext {
   currentDate?: Date;
   plainEnglish?: boolean; // "Clarity Mode" - strip astro jargon
   mbtiType?: string; // MBTI personality type for storm cross-reference (prefer core / final)
+  coreType?: string | null;
+  maskType?: string | null;
+  integratedType?: string | null;
   /** Dual chart personality — Core (inner) + Mask (outer) */
   dualPersonality?: {
     core?: string;
@@ -827,6 +831,93 @@ ${mirrorInsight ? `- Confrontation note: ${mirrorInsight.message}` : ''}
   `.trim();
 }
 
+const MBTI_CODE_RE = /^[IE][NS][TF][JP]$/i;
+
+function asMbtiCode(value?: string | null): string | null {
+  const raw = (value || '').trim().toUpperCase();
+  return MBTI_CODE_RE.test(raw) ? raw : null;
+}
+
+/**
+ * Core / Mask / Integrated from client dual, natal snapshot, or a single mbtiType.
+ * Firmware = Core, Hardware = Mask. Never invent a third type.
+ */
+export function resolveOracleDualTypes(context: OracleContext): {
+  core: string | null;
+  mask: string | null;
+  integrated: string | null;
+} {
+  const snapshot = (context.birthChart as { personalitySnapshot?: Record<string, unknown> } | undefined)
+    ?.personalitySnapshot;
+  const dual = context.dualPersonality;
+  const core =
+    asMbtiCode(context.coreType) ||
+    asMbtiCode(dual?.core) ||
+    asMbtiCode(typeof snapshot?.firmware === 'string' ? snapshot.firmware : null) ||
+    asMbtiCode(typeof snapshot?.core === 'string' ? snapshot.core : null);
+  const mask =
+    asMbtiCode(context.maskType) ||
+    asMbtiCode(dual?.mask) ||
+    asMbtiCode(typeof snapshot?.hardware === 'string' ? snapshot.hardware : null) ||
+    asMbtiCode(typeof snapshot?.mask === 'string' ? snapshot.mask : null);
+  const integrated =
+    asMbtiCode(context.integratedType) ||
+    asMbtiCode(dual?.final) ||
+    asMbtiCode(typeof snapshot?.finalType === 'string' ? snapshot.finalType : null) ||
+    asMbtiCode(context.mbtiType) ||
+    core;
+  return { core, mask, integrated };
+}
+
+export function formatDualTypeBlock(types: {
+  core: string | null;
+  mask: string | null;
+  integrated: string | null;
+}): string {
+  if (!types.core && !types.mask && !types.integrated) {
+    return `USER DUAL TYPE
+Core: not loaded
+Mask: not loaded
+Integrated: not loaded
+Rule: interpret threat through Core, symptoms through Mask. If types are missing, say so — do not invent a type.`;
+  }
+  return `USER DUAL TYPE
+Core: ${types.core || 'not loaded'}
+Mask: ${types.mask || types.core || 'not loaded'}
+Integrated: ${types.integrated || types.core || 'not loaded'}
+Rule: interpret threat through Core, symptoms through Mask.
+If the live chart has these types, use them. Do not invent a third type. If the user hedges (e.g. INFP or INFJ), name which one is on file and why the natal supports it.`;
+}
+
+export function buildIdentityDeepDiveAddon(question: string, types: {
+  core: string | null;
+  mask: string | null;
+  integrated: string | null;
+}): string {
+  if (!isIdentityDualQuestion(question)) return '';
+  return `
+═══════════════════════════════════════
+IDENTITY DEEP DIVE (this turn)
+═══════════════════════════════════════
+The user asked about dual type / Core / Mask / MBTI / how people misread them.
+This is NOT a storm-radar question. Do not use Now / Near Future / Week Ahead windows. Do not paraphrase the weather card.
+
+${formatDualTypeBlock(types)}
+
+LENGTH: 400–700 words. Short paragraphs. Ignore the persona word budget for this turn — it applies to every Core type, not only INFP. Do not shrink to avoid empty streams.
+
+REQUIRED SHAPE
+1. Chart evidence. Name two or three natal placements that justify Core, and two that justify Mask. You MAY name Sun, Moon, Mercury, Rising, and one aspect even if Clarity is on — translate each into lived language in the same breath. Example shape: a water Moon and water houses support an INFP/INFJ core; Virgo or air Mercury plus a cooler Rising supports an INTP mask. Use the actual natal in APP SIGHT, not a generic example.
+2. Sequence, not two labels. Core is what feels threatened. Mask is what other people see and what they reach for under pressure. How they cooperate. Where they fight. One concrete inner scene. Not slogans.
+3. Misread. One social tell + one private cost. "People meet the analyst first and miss the values" is too thin.
+4. Today's weather. Use the actual pressure in APP SIGHT (transit, domain, friction). Soothe the Core. Coach the Mask. One timed move. Not a generic relationship pep talk.
+5. End with one falsifiable fit question (e.g. whether the mask shows most in writing, meetings, or conflict). Not "does this resonate."
+
+BANNED OPENERS AND PHRASES
+tug-of-war; heart and head aligned; true-self; "Your inner true-self and analytical mask are two lenses."
+Do not repeat the dashboard headline.`.trim();
+}
+
 /**
  * Build system prompt for Merlin — intellectual companion with live app sight.
  * Voice: formal-direct + conversational; risk/storm data first; guardrails always on.
@@ -853,21 +944,40 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const tonePreset = context.tonePreset || 'warm';
   const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
   const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
+  const dualTypes = resolveOracleDualTypes(context);
   const dual = context.dualPersonality;
   const lastUserAsk =
     context.currentQuestion ||
     [...context.conversationHistory].reverse().find((m) => m.role === 'user')?.content ||
     '';
+  const identityDive = isIdentityDualQuestion(lastUserAsk);
   const voiceProfile = buildVoiceProfile({
     chart: context.birthChart,
-    coreType: dual?.core || context.mbtiType || chartMbti,
-    maskType: dual?.mask,
+    coreType: dualTypes.core || dual?.core || context.mbtiType || chartMbti,
+    maskType: dualTypes.mask || dual?.mask,
   });
   const voiceIntent = classifyIntent(lastUserAsk);
   // One writer: this block is the voice. Do not run generateMessage on the stream.
-  const voiceStrategy = buildVoiceStrategyBlock(voiceProfile, voiceIntent);
+  const voiceStrategy = buildVoiceStrategyBlock(
+    voiceProfile,
+    voiceIntent,
+    identityDive
+      ? {
+          lengthOverride: {
+            minWords: 400,
+            maxWords: 700,
+            note: 'IDENTITY ASK: 400–700 words. Ignore the persona min/max word budget for this turn, regardless of Core type (INFP, INFJ, ESTP, or any other). Cadence stays; length does not shrink.',
+          },
+        }
+      : undefined,
+  );
+  const identityAddon = buildIdentityDeepDiveAddon(lastUserAsk, dualTypes);
 
-  const languageRule = plainEnglish
+  const languageRule = identityDive
+    ? `LANGUAGE (Identity deep dive — Clarity does not flatten this):
+- Prefer lived language, but you MAY name Sun, Moon, Mercury, Rising, and one aspect as evidence.
+- Translate each symbol in the same breath. No aspect soup. No skipping the natal evidence.`
+    : plainEnglish
     ? `LANGUAGE (Clarity ON):
 - Prefer plain English over jargon. Translate symbols into lived experience first.
 - You may use planet names sparingly when they help precision; never dump aspect lists.
@@ -894,7 +1004,7 @@ WHO YOU ARE (voice — companion)
 - Direct and somewhat formal, never stiff. No corporate filler, no horoscope clichés, no "dear seeker" theatrics.
 - You *see* people: reflect the real question under their words, name the tension accurately, give one clean move.
 - Interactive: answer what they asked; if the ask is vague, ask ONE precise clarifying question after a useful first pass.
-- Match length to the question: short for simple checks, deeper for complex life questions. Default ~120–280 words unless they ask for more.
+- Match length to the question: short for simple checks, deeper for identity / dual-type / "how people misread me" (400–700 words). Default ~120–280 words unless they ask for more or the IDENTITY DEEP DIVE block is present.
 - Explain *them* and their day — not the ephemeris. Astrology stays infrastructure.
 
 ═══════════════════════════════════════
@@ -913,7 +1023,7 @@ HOW TO ANSWER (interaction model)
 ═══════════════════════════════════════
 A. Address *their* question first in the opening sentence — not a weather monologue if they asked something else.
 B. When the topic is timing / friction / "is life going to suck": lead with LIFE RISK + STORM PLAYBOOK (level, when, confidence, one move).
-C. When the topic is identity / patterns / "why am I like this": use chart + dual personality + pattern mirror; still one practical implication.
+C. When the topic is identity / dual type / Core / Mask / "how people misread me": follow IDENTITY DEEP DIVE. Chart evidence first. Do not paraphrase the weather card. Do not use the storm three-window template.
 D. When the topic is purely conversational: stay human and present; lightly use weather only if it honestly helps.
 E. End with either a concrete next move OR a single intelligent question that deepens the thread — not both stacked every time.
 F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitly want a full domain scan.
@@ -947,6 +1057,9 @@ ${forecastContext ? `\n${forecastContext}` : ''}
 ${chartContext}
 ${fullPlanetaryAnalysis ? `\n${fullPlanetaryAnalysis}` : ''}
 ${voiceStrategy}
+
+${formatDualTypeBlock(dualTypes)}
+${identityAddon ? `\n${identityAddon}` : ''}
 ${timelineContext ? `\n${timelineContext}` : ''}
 ${userContextBlock ? `\n${userContextBlock}` : ''}
 ${patternMirrorBlock ? `\n${patternMirrorBlock}` : ''}

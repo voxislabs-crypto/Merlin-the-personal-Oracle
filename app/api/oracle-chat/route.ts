@@ -9,6 +9,7 @@ import {
   OracleContext,
   OracleMessage,
   TransitData,
+  resolveOracleDualTypes,
 } from '@/lib/oracle-service';
 import { getCurrentTransits, getTransitsForDate, getTransitingPositions } from '@/lib/astrology/transits';
 import { detectHouseIngressHits } from '@/lib/astrology/natal-angles';
@@ -29,7 +30,12 @@ import { BirthChartData } from '@/types/astrology';
 import { generateIdentityPack } from '@/lib/identity-pack';
 import { advanceArcProgression } from '@/lib/progression';
 import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/lib/pattern-mirror';
-import { detectQueryMode, generateCasualResponse, shouldSkipStructure } from '@/lib/chat-adapter';
+import {
+  detectQueryMode,
+  generateCasualResponse,
+  oracleMaxTokensForQuestion,
+  shouldSkipStructure,
+} from '@/lib/chat-adapter';
 import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import {
@@ -216,6 +222,7 @@ export async function POST(request: NextRequest) {
     let transits: TransitData | undefined;
     let dailyForecast;
     let stormsReport;
+    let computedDual: ReturnType<typeof getMBTIDual> | null = null;
     
     // Support both .planets (BirthChartData) and .positions (legacy) field names
     const natalPlanets = natalPointsForTransits(birthChart || {});
@@ -274,8 +281,12 @@ export async function POST(request: NextRequest) {
 
         // Compute MBTI and weekly storms so Grok can use the same navigation intelligence as dashboard cards
         const mbtiFromChart = (birthChart as any)?.personalitySnapshot?.finalType;
-        const mbtiDual = mbtiFromChart ? null : getMBTIDual(chartForForecast as BirthChartData);
-        const mbtiForStorms = mbtiType || mbtiFromChart || mbtiDual?.type;
+        const snapshot = (birthChart as any)?.personalitySnapshot as
+          | { firmware?: string; hardware?: string; finalType?: string }
+          | undefined;
+        const needsDualCompute = !snapshot?.firmware || !snapshot?.hardware;
+        computedDual = needsDualCompute ? getMBTIDual(chartForForecast as BirthChartData) : null;
+        const mbtiForStorms = mbtiType || mbtiFromChart || computedDual?.type;
         stormsReport = detectWeeklyStorms(chartForForecast as BirthChartData, mbtiForStorms as any, 30);
         console.log(
           `[Oracle Chat] Storm playbook: ${stormsReport.storms.length} storm(s), MBTI=${mbtiForStorms || 'n/a'}, riskFromClient=${Boolean(atmospherePacket?.risk)}`
@@ -286,11 +297,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const snapshot = (birthChart as any)?.personalitySnapshot as
+      | { firmware?: string; hardware?: string; finalType?: string }
+      | undefined;
     const derivedMbtiType =
       mbtiType ||
-      (birthChart as any)?.personalitySnapshot?.finalType ||
+      snapshot?.finalType ||
       (birthChart as any)?.mbti?.type ||
       stormsReport?.mbtiType;
+
+    const resolvedDual = {
+      core:
+        dualPersonality?.core ||
+        snapshot?.firmware ||
+        computedDual?.firmware?.type ||
+        null,
+      mask:
+        dualPersonality?.mask ||
+        snapshot?.hardware ||
+        computedDual?.hardware?.type ||
+        null,
+      final:
+        dualPersonality?.final ||
+        snapshot?.finalType ||
+        computedDual?.type ||
+        derivedMbtiType ||
+        null,
+    };
 
     let userContext = null;
     let detectedPattern = null as { key: string; label: string; confidence: number } | null;
@@ -378,11 +411,15 @@ export async function POST(request: NextRequest) {
       userId,
       currentDate: new Date(),
       plainEnglish,
-      mbtiType:
-        dualPersonality?.final ||
-        dualPersonality?.core ||
-        derivedMbtiType,
-      dualPersonality: dualPersonality || null,
+      mbtiType: resolvedDual.final || derivedMbtiType,
+      coreType: resolvedDual.core,
+      maskType: resolvedDual.mask,
+      integratedType: resolvedDual.final,
+      dualPersonality: {
+        core: resolvedDual.core || undefined,
+        mask: resolvedDual.mask || undefined,
+        final: resolvedDual.final || undefined,
+      },
       tonePreset,
       patternMirror,
     };
@@ -458,6 +495,7 @@ export async function POST(request: NextRequest) {
               content: m.content,
             })),
           ];
+          const maxTokens = oracleMaxTokensForQuestion(question);
 
           const llmResponse = await fetch(llmConfig.apiUrl, {
             method: 'POST',
@@ -470,7 +508,7 @@ export async function POST(request: NextRequest) {
                 {
                   messages: llmMessages,
                   temperature: 0.72,
-                  maxTokens: 2200,
+                  maxTokens,
                   stream: true,
                 },
                 llmConfig,
@@ -581,7 +619,7 @@ export async function POST(request: NextRequest) {
                 {
                   messages: llmMessages,
                   temperature: 0.72,
-                  maxTokens: 2200,
+                  maxTokens,
                 },
                 llmConfig,
               );
