@@ -82,6 +82,7 @@ export function computeAtmosphereFromDashboardSources(options: {
               phase: storm.phase,
             })),
             weekSummary: stormsReport.weekSummary,
+            dayHorizon: stormsReport.dayHorizon,
           }
         : null,
       forecast: forecast

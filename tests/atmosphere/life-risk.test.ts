@@ -1,4 +1,10 @@
-import { computeLifeRisk, lifeRiskLevelPresentation } from '@/lib/atmosphere/life-risk';
+import {
+  buildLifeRiskHorizon,
+  computeLifeRisk,
+  formatHorizonTooltip,
+  isHorizonFlowWindow,
+  lifeRiskLevelPresentation,
+} from '@/lib/atmosphere/life-risk';
 
 describe('computeLifeRisk', () => {
   it('flags bullshit when hard outer-planet pressure is loud', () => {
@@ -200,6 +206,111 @@ describe('computeLifeRisk', () => {
   it('defaults to a 30-day horizon', () => {
     const risk = computeLifeRisk({ date: '2026-08-05' });
     expect(risk.windowDays).toBe(30);
+    expect(risk.horizon).toHaveLength(30);
+  });
+
+  it('scores sampled quiet days and greys days that were never calculated', () => {
+    const horizon = buildLifeRiskHorizon({
+      asOfDate: '2026-09-02',
+      windowDays: 30,
+      windows: [
+        {
+          id: 'hard',
+          kind: 'friction',
+          label: 'Uranus square Venus',
+          friction: 68,
+          confidence: 80,
+          domains: ['love'],
+          source: 'storm',
+          peakAt: '2026-09-03T12:00:00',
+          daysToPeak: 1,
+        },
+        {
+          id: 'soft',
+          kind: 'support',
+          label: 'Jupiter trine Sun',
+          friction: 22,
+          ease: 44,
+          confidence: 70,
+          domains: ['self'],
+          source: 'transit',
+          peakAt: '2026-09-05T12:00:00',
+          daysToPeak: 3,
+        },
+      ],
+      sampledDays: [
+        {
+          date: '2026-09-02',
+          scored: true,
+          friction: 0,
+          ease: 0,
+        },
+        {
+          date: '2026-09-03',
+          scored: true,
+          friction: 60,
+          ease: 0,
+          frictionDriver: 'Uranus square Venus',
+        },
+      ],
+    });
+    expect(horizon).toHaveLength(30);
+    expect(horizon[0]).toMatchObject({ date: '2026-09-02', scored: true, friction: 0, ease: 0 });
+    expect(horizon[1].friction).toBeGreaterThanOrEqual(60);
+    expect(horizon[1].frictionDriver).toMatch(/Uranus square Venus/);
+    expect(horizon[3].ease).toBe(44);
+    expect(horizon[3].easeDriver).toMatch(/Jupiter trine Sun/);
+    expect(horizon[10].scored).toBe(false);
+    expect(horizon[10].friction).toBe(0);
+    expect(horizon[10].ease).toBe(0);
+    expect(formatHorizonTooltip(horizon[1])).toMatch(/friction 6/);
+    expect(formatHorizonTooltip(horizon[1])).toMatch(/Uranus square Venus/);
+    expect(formatHorizonTooltip(horizon[3])).toMatch(/ease 44/);
+    expect(formatHorizonTooltip(horizon[0])).toMatch(/No major hard or supportive hits scored this day/);
+    expect(formatHorizonTooltip(horizon[10])).toMatch(/Not calculated past the current window/);
+    expect(isHorizonFlowWindow(horizon[3])).toBe(true);
+    expect(isHorizonFlowWindow(horizon[1])).toBe(false);
+  });
+
+  it('plots trines as ease without lifting Storm Watch friction', () => {
+    const risk = computeLifeRisk({
+      date: '2026-09-02',
+      intensity: 35,
+      forecast: { day_rating: 'positive' },
+      predictive: {
+        events: [
+          {
+            eventId: 'jup-trine-sun',
+            scores: { intensity: 60, confidence: 0.75, volatility: 10 },
+            transit: {
+              transitingPlanet: 'Jupiter',
+              aspect: 'Trine',
+              natalPlanet: 'Sun',
+            },
+            timing: { phase: 'peaking', daysToPeak: 0, peakAt: '2026-09-02T12:00:00' },
+            domains: [{ name: 'self', impact: 55, valence: 0.7 }],
+          },
+        ],
+      },
+      storms: {
+        storms: [],
+        dayHorizon: Array.from({ length: 30 }, (_, i) => {
+          const date = `2026-09-${String(2 + i).padStart(2, '0')}`;
+          // keep dates valid through month end by clamping via ISO-less pad — test only needs first days
+          return {
+            date: i < 29 ? date : '2026-10-01',
+            scored: true,
+            friction: 0,
+            ease: 0,
+          };
+        }),
+      },
+    });
+    expect(risk.horizon[0].scored).toBe(true);
+    expect(risk.horizon[0].ease).toBeGreaterThan(20);
+    expect(risk.horizon[0].friction).toBeLessThan(30);
+    expect(risk.overallFriction).toBeLessThan(62);
+    expect(risk.supportWindows[0]?.ease).toBeGreaterThan(20);
   });
 
   it('boosts friction and bullshit when confluence triple-hit is active', () => {

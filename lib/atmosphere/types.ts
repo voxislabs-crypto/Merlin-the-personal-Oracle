@@ -121,6 +121,8 @@ export interface AtmosphereStormInput {
 export interface AtmosphereStormsInput {
   storms?: AtmosphereStormInput[];
   weekSummary?: string;
+  /** Noon-sampled day scores for the Forecast strip (friction + ease). */
+  dayHorizon?: LifeRiskDayScore[];
 }
 
 export type LifeRiskDomain = 'love' | 'career' | 'money' | 'family' | 'health' | 'self';
@@ -149,9 +151,24 @@ export interface LifeRiskWindow {
   endsAt?: string;
   daysToPeak?: number;
   friction: number;
+  /** 0–100 supportive flow — used on the dual-series strip, not Storm Watch */
+  ease?: number;
   confidence: number;
   domains: LifeRiskDomain[];
   source: 'transit' | 'storm';
+}
+
+/** One calendar day on the Forecast friction/ease strip. */
+export interface LifeRiskDayScore {
+  date: string;
+  /** False = not calculated. Never treat as a quiet/good day. */
+  scored: boolean;
+  /** 0–100 hard pressure (squares, oppositions, malefic conjunctions) */
+  friction: number;
+  /** 0–100 supportive flow (trines/sextiles to personal points) */
+  ease: number;
+  frictionDriver?: string;
+  easeDriver?: string;
 }
 
 export interface LifeRiskDomainScore {
@@ -180,6 +197,8 @@ export interface LifeRiskPacket {
   topDrivers: LifeRiskDriver[];
   frictionWindows: LifeRiskWindow[];
   supportWindows: LifeRiskWindow[];
+  /** Day-by-day strip: one entry per displayed day. Not the Today Storm Watch score. */
+  horizon: LifeRiskDayScore[];
   nextFrictionPeak: {
     label: string;
     peakAt?: string;

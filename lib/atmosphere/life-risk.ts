@@ -6,7 +6,11 @@
  */
 
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
-import { isValidCalendarDate } from '@/lib/datetime/local-calendar';
+import {
+  addCalendarDays,
+  isValidCalendarDate,
+  resolveWindowCalendarDate,
+} from '@/lib/datetime/local-calendar';
 import type {
   AtmosphereConfluence,
   AtmosphereForecastInput,
@@ -14,6 +18,7 @@ import type {
   AtmospherePredictiveInput,
   AtmosphereStormInput,
   AtmosphereStormsInput,
+  LifeRiskDayScore,
   LifeRiskDomain,
   LifeRiskDomainScore,
   LifeRiskDriver,
@@ -126,6 +131,21 @@ function dayRatingFriction(dayRating?: string): number | null {
   if (raw === 'positive' || raw === 'green') return 28;
   if (raw === 'very positive') return 18;
   return null;
+}
+
+function eventEaseScore(event: AtmospherePredictiveEventInput): number {
+  const aspect = normalizeAspect(event.transit?.aspect);
+  if (!SOFT_ASPECTS.has(aspect)) return 0;
+  const intensity =
+    typeof event.scores?.intensity === 'number' && Number.isFinite(event.scores.intensity)
+      ? event.scores.intensity
+      : 48;
+  const transiting = normalizePlanet(event.transit?.transitingPlanet);
+  const natal = normalizePlanet(event.transit?.natalPlanet);
+  let lift = aspect === 'trine' ? 0.82 : 0.7;
+  if (transiting === 'jupiter' || transiting === 'venus') lift += 0.14;
+  if (PERSONAL_POINTS.has(natal)) lift += 0.08;
+  return softCeilingFriction(intensity * lift);
 }
 
 function eventBaseFriction(event: AtmospherePredictiveEventInput): number {
@@ -315,9 +335,9 @@ function toWindowFromEvent(event: AtmospherePredictiveEventInput): LifeRiskWindo
   const isHard = HARD_ASPECTS.has(aspect) || (aspect === 'conjunction' && HEAVY_PLANETS.has(normalizePlanet(event.transit?.transitingPlanet)));
   const isSoft = SOFT_ASPECTS.has(aspect);
 
-  // Support windows only when clearly soft + low friction
+  // Soft hits belong on the ease series even if intensity is mid-range.
   let kind: LifeRiskWindow['kind'] = 'mixed';
-  if (isSoft && friction < 45) kind = 'support';
+  if (isSoft) kind = 'support';
   else if (isHard || friction >= 55) kind = 'friction';
 
   const label = driverLabel(event);
@@ -339,6 +359,7 @@ function toWindowFromEvent(event: AtmospherePredictiveEventInput): LifeRiskWindo
     endsAt,
     daysToPeak: event.timing?.daysToPeak,
     friction,
+    ease: kind === 'support' ? eventEaseScore(event) : 0,
     confidence,
     domains,
     source: 'transit',
@@ -479,6 +500,124 @@ function mergeDomainScores(
     .sort((a, b) => b.friction - a.friction || b.support - a.support);
 }
 
+const HARD_PEAK_FRICTION = 55;
+
+function windowCalendarDay(window: LifeRiskWindow, asOfDate: string): string | null {
+  return resolveWindowCalendarDate(window, asOfDate);
+}
+
+export function isHorizonFlowWindow(day: LifeRiskDayScore): boolean {
+  return day.scored && day.ease > day.friction && day.friction < HARD_PEAK_FRICTION;
+}
+
+export function formatHorizonTooltip(day: LifeRiskDayScore): string {
+  const when = (() => {
+    try {
+      return new Date(`${day.date}T12:00:00`).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return day.date;
+    }
+  })();
+  if (!day.scored) return `${when} · Not calculated past the current window.`;
+  const bits: string[] = [when];
+  if (day.friction > 0) {
+    bits.push(`friction ${day.friction}${day.frictionDriver ? ` · ${day.frictionDriver}` : ''}`);
+  }
+  if (day.ease > 0) {
+    bits.push(`ease ${day.ease}${day.easeDriver ? ` · ${day.easeDriver}` : ''}`);
+  }
+  if (day.friction <= 0 && day.ease <= 0) {
+    bits.push('No major hard or supportive hits scored this day.');
+  }
+  return bits.join(' · ');
+}
+
+/**
+ * One bar per displayed day. Sampled days with no hits stay scored-quiet.
+ * Days we did not sample are unscored — never the same empty slot as a zero.
+ */
+export function buildLifeRiskHorizon(options: {
+  asOfDate: string;
+  windowDays: number;
+  windows: LifeRiskWindow[];
+  sampledDays?: LifeRiskDayScore[] | null;
+}): LifeRiskDayScore[] {
+  const span = Math.max(1, Math.min(45, Math.round(options.windowDays || DEFAULT_RISK_WINDOW_DAYS)));
+  const asOf = isValidCalendarDate(options.asOfDate)
+    ? options.asOfDate
+    : new Date().toISOString().slice(0, 10);
+
+  const sampled = new Map<string, LifeRiskDayScore>();
+  for (const row of options.sampledDays || []) {
+    if (!row?.date) continue;
+    sampled.set(row.date, {
+      date: row.date,
+      scored: row.scored !== false,
+      friction: Math.max(0, Math.min(100, Math.round(row.friction || 0))),
+      ease: Math.max(0, Math.min(100, Math.round(row.ease || 0))),
+      frictionDriver: row.frictionDriver,
+      easeDriver: row.easeDriver,
+    });
+  }
+
+  const byDate = new Map<string, { friction: number; ease: number; frictionDriver?: string; easeDriver?: string }>();
+  for (const w of options.windows) {
+    const key = windowCalendarDay(w, asOf);
+    if (!key) continue;
+    const prev = byDate.get(key) || { friction: 0, ease: 0 };
+    if (w.kind === 'support') {
+      const ease = Math.max(prev.ease, Math.round(w.ease || 0));
+      if (ease >= prev.ease) prev.easeDriver = w.label;
+      prev.ease = ease;
+    } else {
+      const friction = Math.max(prev.friction, Math.round(w.friction || 0));
+      if (friction >= prev.friction) prev.frictionDriver = w.label;
+      prev.friction = friction;
+    }
+    byDate.set(key, prev);
+  }
+
+  const series: LifeRiskDayScore[] = [];
+  for (let i = 0; i < span; i++) {
+    const date = addCalendarDays(asOf, i);
+    const sample = sampled.get(date);
+    const overlay = byDate.get(date);
+    if (sample) {
+      series.push({
+        date,
+        scored: true,
+        friction: Math.max(sample.friction, overlay?.friction || 0),
+        ease: Math.max(sample.ease, overlay?.ease || 0),
+        frictionDriver: (overlay?.friction || 0) >= sample.friction ? overlay?.frictionDriver : sample.frictionDriver,
+        easeDriver: (overlay?.ease || 0) >= sample.ease ? overlay?.easeDriver : sample.easeDriver,
+      });
+      continue;
+    }
+    if (overlay) {
+      series.push({
+        date,
+        scored: true,
+        friction: overlay.friction,
+        ease: overlay.ease,
+        frictionDriver: overlay.frictionDriver,
+        easeDriver: overlay.easeDriver,
+      });
+      continue;
+    }
+    series.push({
+      date,
+      scored: false,
+      friction: 0,
+      ease: 0,
+    });
+  }
+  return series;
+}
+
 export interface ComputeLifeRiskInput {
   date?: string;
   windowDays?: number;
@@ -506,15 +645,14 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
     .map(toWindowFromEvent)
     .filter((w): w is LifeRiskWindow => Boolean(w));
   const stormWindows = storms.map((storm, index) => toWindowFromStorm(storm, index, input.date));
-  const windows = [...eventWindows, ...stormWindows]
-    .sort((a, b) => {
-      // Friction first, then by peak timing
-      if (b.friction !== a.friction) return b.friction - a.friction;
-      const aPeak = a.peakAt || a.startsAt || '';
-      const bPeak = b.peakAt || b.startsAt || '';
-      return aPeak.localeCompare(bPeak);
-    })
-    .slice(0, 16);
+  const allWindows = [...eventWindows, ...stormWindows].sort((a, b) => {
+    // Friction first, then by peak timing
+    if (b.friction !== a.friction) return b.friction - a.friction;
+    const aPeak = a.peakAt || a.startsAt || '';
+    const bPeak = b.peakAt || b.startsAt || '';
+    return aPeak.localeCompare(bPeak);
+  });
+  const windows = allWindows.slice(0, 16);
 
   const frictionWindows = windows.filter((w) => w.kind === 'friction');
   const supportWindows = windows.filter((w) => w.kind === 'support');
@@ -616,6 +754,13 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
       ? input.date
       : new Date().toISOString().slice(0, 10);
 
+  const horizon = buildLifeRiskHorizon({
+    asOfDate: date,
+    windowDays,
+    windows: allWindows,
+    sampledDays: input.storms?.dayHorizon || null,
+  });
+
   const hotDomainLabels = domains
     .filter((d) => d.friction >= 48)
     .sort((a, b) => b.friction - a.friction)
@@ -641,6 +786,7 @@ export function computeLifeRisk(input: ComputeLifeRiskInput = {}): LifeRiskPacke
     topDrivers,
     frictionWindows: frictionWindows.slice(0, 8),
     supportWindows: supportWindows.slice(0, 4),
+    horizon,
     nextFrictionPeak: nextFriction
       ? {
           label: nextFriction.label,

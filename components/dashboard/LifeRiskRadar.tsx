@@ -5,14 +5,20 @@ import { AlertTriangle, CheckCircle2, Radar, Shield } from 'lucide-react';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
-import { lifeRiskLevelPresentation } from '@/lib/atmosphere/life-risk';
-import type { LifeRiskLevel, LifeRiskPacket, LifeRiskWindow } from '@/lib/atmosphere/types';
-import { cn } from '@/lib/utils';
 import {
-  addCalendarDays,
-  getLocalCalendarDate,
-  resolveWindowCalendarDate,
-} from '@/lib/datetime/local-calendar';
+  buildLifeRiskHorizon,
+  formatHorizonTooltip,
+  isHorizonFlowWindow,
+  lifeRiskLevelPresentation,
+} from '@/lib/atmosphere/life-risk';
+import type {
+  LifeRiskDayScore,
+  LifeRiskLevel,
+  LifeRiskPacket,
+  LifeRiskWindow,
+} from '@/lib/atmosphere/types';
+import { cn } from '@/lib/utils';
+import { getLocalCalendarDate, resolveWindowCalendarDate } from '@/lib/datetime/local-calendar';
 
 function formatPeak(peakAt?: string, daysToPeak?: number): string {
   if (typeof daysToPeak === 'number' && Number.isFinite(daysToPeak)) {
@@ -30,10 +36,6 @@ function localToday(): string {
   return getLocalCalendarDate();
 }
 
-function addDaysIso(iso: string, days: number): string {
-  return addCalendarDays(iso, days);
-}
-
 function frictionBarClass(friction: number): string {
   if (friction >= 78) return 'from-rose-500 to-fuchsia-500';
   if (friction >= 62) return 'from-orange-500 to-rose-500';
@@ -49,119 +51,67 @@ function barSolidColor(friction: number): string {
   return '#334155';
 }
 
-type DayBar = {
-  date: string;
-  friction: number;
-  labels: string[];
-  isToday: boolean;
-};
+const FRICTION_COLOR = '#fb923c';
+const FRICTION_HOT = '#f43f5e';
+const EASE_COLOR = '#38bdf8';
+const UNSCORED_HATCH =
+  'repeating-linear-gradient(-45deg, rgba(100,116,139,0.45) 0 2px, transparent 2px 5px)';
 
-function buildFrictionDaySeries(
-  windows: LifeRiskWindow[],
-  windowDays: number
-): DayBar[] {
-  const today = localToday();
-  const byDate = new Map<string, { friction: number; labels: Set<string> }>();
+const CHART_HEIGHT_PX = 132;
+const MIDLINE_PX = 66;
 
-  for (const w of windows) {
-    const key = resolveWindowCalendarDate(w, today);
-    if (!key) continue;
-    const prev = byDate.get(key) || { friction: 0, labels: new Set<string>() };
-    prev.friction = Math.max(prev.friction, w.friction || 0);
-    if (w.label) prev.labels.add(w.label);
-    byDate.set(key, prev);
-  }
-
-  // Continuous horizon from today
-  const span = Math.min(Math.max(windowDays || 14, 7), 21);
-  const series: DayBar[] = [];
-  for (let i = 0; i < span; i++) {
-    const date = addDaysIso(today, i);
-    const hit = byDate.get(date);
-    series.push({
-      date,
-      friction: hit?.friction ?? 0,
-      labels: hit ? Array.from(hit.labels) : [],
-      isToday: date === today,
-    });
-  }
-
-  // Include any scored days that fell outside the span (past or far future)
-  const covered = new Set(series.map((s) => s.date));
-  const extras = Array.from(byDate.keys())
-    .filter((d) => !covered.has(d) && (d >= today || byDate.get(d)!.friction > 0))
-    .sort();
-  for (const date of extras.slice(0, 8)) {
-    const hit = byDate.get(date)!;
-    series.push({
-      date,
-      friction: hit.friction,
-      labels: Array.from(hit.labels),
-      isToday: date === today,
-    });
-  }
-
-  // Sort chronologically if we appended extras
-  series.sort((a, b) => a.date.localeCompare(b.date));
-  return series;
+function frictionFill(friction: number): string {
+  if (friction >= 78) return FRICTION_HOT;
+  if (friction >= 42) return FRICTION_COLOR;
+  return '#fbbf24';
 }
 
-const CHART_HEIGHT_PX = 112;
-
-function FrictionTimelineChart({
-  windows,
+function HorizonStripChart({
+  horizon,
   windowDays,
-  accentHex,
   selectedDate,
   onSelectDate,
 }: {
-  windows: LifeRiskWindow[];
+  horizon: LifeRiskDayScore[];
   windowDays: number;
-  accentHex: string;
   selectedDate: string | null;
   onSelectDate: (date: string | null) => void;
 }) {
-  const series = useMemo(
-    () => buildFrictionDaySeries(windows, windowDays),
-    [windows, windowDays]
-  );
-
-  const maxF = Math.max(1, ...series.map((d) => d.friction), 1);
-  const hasAny = series.some((d) => d.friction > 0);
-
-  if (!hasAny) {
-    return (
-      <p className="text-sm text-slate-400">
-        No hard-transit cluster scored in this window — sky is relatively quiet.
-      </p>
-    );
-  }
+  const today = localToday();
+  const series = horizon;
+  const windowLabel =
+    windowDays === 10
+      ? 'Next ten days — pressure and ease'
+      : `Next ${windowDays} days — pressure and ease`;
 
   return (
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-          Friction by day
-        </p>
-        <p className="text-[10px] text-slate-500">tap a bar · 0–100</p>
+        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{windowLabel}</p>
+        <p className="text-[10px] text-slate-500">tap a day · 0–100</p>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-black/30 px-2 pt-4 pb-2">
-        {/* Chart plot: fixed pixel height so bars always render */}
+      <div className="rounded-xl border border-white/10 bg-black/30 px-2 pt-3 pb-2">
         <div
-          className="flex items-end gap-1 sm:gap-1.5"
+          className="flex gap-px sm:gap-0.5"
           style={{ height: CHART_HEIGHT_PX }}
           role="img"
-          aria-label="Friction intensity by day"
+          aria-label={windowLabel}
         >
           {series.map((day) => {
-            // Pixel heights — % heights fail inside flex rows with items-end
-            const barPx =
-              day.friction > 0
-                ? Math.max(10, Math.round((day.friction / maxF) * (CHART_HEIGHT_PX - 4)))
-                : 3;
             const active = selectedDate === day.date;
-            const color = barSolidColor(day.friction);
+            const isToday = day.date === today;
+            const frictionPx = day.scored
+              ? day.friction > 0
+                ? Math.max(6, Math.round((day.friction / 100) * (MIDLINE_PX - 4)))
+                : 4
+              : 0;
+            const easePx = day.scored
+              ? day.ease > 0
+                ? Math.max(6, Math.round((day.ease / 100) * (CHART_HEIGHT_PX - MIDLINE_PX - 4)))
+                : 4
+              : 0;
+            const flow = isHorizonFlowWindow(day);
 
             return (
               <button
@@ -169,49 +119,99 @@ function FrictionTimelineChart({
                 type="button"
                 onClick={() => onSelectDate(active ? null : day.date)}
                 className={cn(
-                  'group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end outline-none',
-                  active && 'z-10'
+                  'group relative flex h-full min-w-0 flex-1 flex-col outline-none',
+                  active && 'z-10',
                 )}
-                title={`${day.date}: friction ${day.friction}${
-                  day.labels[0] ? ` · ${day.labels[0]}` : ''
-                }`}
+                title={formatHorizonTooltip(day)}
               >
-                {day.friction > 0 ? (
-                  <span className="pointer-events-none mb-0.5 text-[9px] font-semibold tabular-nums text-slate-400 opacity-0 transition group-hover:opacity-100">
-                    {day.friction}
+                <div className="relative flex h-full w-full flex-col">
+                  <div
+                    className="flex flex-col items-center justify-end"
+                    style={{ height: MIDLINE_PX }}
+                  >
+                    {day.scored ? (
+                      <div
+                        className={cn(
+                          'w-[72%] max-w-[0.85rem] rounded-t-sm',
+                          active && 'ring-1 ring-sky-400/70',
+                        )}
+                        style={{
+                          height: frictionPx,
+                          minHeight: frictionPx,
+                          background:
+                            day.friction > 0
+                              ? `linear-gradient(to top, ${frictionFill(day.friction)}99, ${frictionFill(day.friction)})`
+                              : 'rgba(251,146,60,0.28)',
+                          boxShadow: day.friction >= 62 ? `0 0 10px ${FRICTION_HOT}55` : undefined,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="w-[72%] max-w-[0.85rem] rounded-t-sm"
+                        style={{
+                          height: MIDLINE_PX - 6,
+                          backgroundImage: UNSCORED_HATCH,
+                          backgroundColor: 'rgba(51,65,85,0.55)',
+                        }}
+                        aria-hidden
+                      />
+                    )}
+                  </div>
+                  <div className="h-px w-full bg-white/15" />
+                  <div
+                    className="flex flex-col items-center justify-start"
+                    style={{ height: CHART_HEIGHT_PX - MIDLINE_PX }}
+                  >
+                    {day.scored ? (
+                      <div
+                        className={cn(
+                          'w-[72%] max-w-[0.85rem] rounded-b-sm',
+                          active && 'ring-1 ring-sky-400/70',
+                        )}
+                        style={{
+                          height: easePx,
+                          minHeight: easePx,
+                          background:
+                            day.ease > 0
+                              ? `linear-gradient(to bottom, ${EASE_COLOR}, ${EASE_COLOR}88)`
+                              : 'rgba(56,189,248,0.22)',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="w-[72%] max-w-[0.85rem] rounded-b-sm"
+                        style={{
+                          height: CHART_HEIGHT_PX - MIDLINE_PX - 6,
+                          backgroundImage: UNSCORED_HATCH,
+                          backgroundColor: 'rgba(51,65,85,0.55)',
+                        }}
+                        aria-hidden
+                      />
+                    )}
+                  </div>
+                </div>
+                {flow ? (
+                  <span className="pointer-events-none absolute left-1/2 top-0 hidden -translate-x-1/2 text-[7px] font-semibold uppercase tracking-wide text-sky-300 sm:block">
+                    Flow
                   </span>
-                ) : (
-                  <span className="mb-0.5 h-[12px]" aria-hidden />
-                )}
-                <div
-                  className={cn(
-                    'w-[70%] max-w-[1.5rem] rounded-t-md transition-all duration-300',
-                    day.friction <= 0 && 'opacity-50',
-                    active && 'ring-2 ring-sky-400/70 ring-offset-1 ring-offset-slate-950'
-                  )}
-                  style={{
-                    height: barPx,
-                    minHeight: barPx,
-                    background:
-                      day.friction > 0
-                        ? `linear-gradient(to top, ${color}99, ${color})`
-                        : '#334155',
-                    boxShadow: day.friction >= 62 ? `0 0 14px ${color}55` : undefined,
-                  }}
-                />
+                ) : null}
+                {isToday ? (
+                  <span className="pointer-events-none absolute bottom-0 left-1/2 h-0.5 w-3 -translate-x-1/2 rounded-full bg-violet-300" />
+                ) : null}
               </button>
             );
           })}
         </div>
 
-        {/* Day labels under the plot */}
-        <div className="mt-1.5 flex gap-1 sm:gap-1.5">
+        <div className="mt-1.5 flex gap-px sm:gap-0.5">
           {series.map((day) => {
             const label = new Date(`${day.date}T12:00:00`).toLocaleDateString('en-US', {
               weekday: 'narrow',
             });
             const dayNum = new Date(`${day.date}T12:00:00`).getDate();
             const active = selectedDate === day.date;
+            const isToday = day.date === today;
+            const flow = isHorizonFlowWindow(day);
             return (
               <button
                 key={`lbl-${day.date}`}
@@ -221,20 +221,30 @@ function FrictionTimelineChart({
               >
                 <span
                   className={cn(
-                    'text-[9px] font-medium uppercase',
-                    day.isToday ? 'text-violet-300' : active ? 'text-sky-300' : 'text-slate-500'
+                    'text-[8px] font-medium uppercase sm:text-[9px]',
+                    !day.scored
+                      ? 'text-slate-600'
+                      : isToday
+                        ? 'text-violet-300'
+                        : active
+                          ? 'text-sky-300'
+                          : flow
+                            ? 'text-sky-400/80'
+                            : 'text-slate-500',
                   )}
                 >
                   {label}
                 </span>
                 <span
                   className={cn(
-                    'text-[10px] tabular-nums',
-                    day.isToday
-                      ? 'font-bold text-violet-200'
-                      : active
-                        ? 'font-semibold text-sky-200'
-                        : 'text-slate-500'
+                    'text-[9px] tabular-nums sm:text-[10px]',
+                    !day.scored
+                      ? 'text-slate-600'
+                      : isToday
+                        ? 'font-bold text-violet-200'
+                        : active
+                          ? 'font-semibold text-sky-200'
+                          : 'text-slate-500',
                   )}
                 >
                   {dayNum}
@@ -244,44 +254,65 @@ function FrictionTimelineChart({
           })}
         </div>
 
-        <div className="mt-2 flex justify-between border-t border-white/5 pt-1.5 text-[9px] text-slate-600">
-          <span>low</span>
-          <span style={{ color: accentHex }}>high friction →</span>
-        </div>
+        <p className="mt-2 border-t border-white/5 pt-1.5 text-[10px] leading-relaxed text-slate-500">
+          Orange is hard pressure. Blue is supportive flow. Grey is not scored yet.
+        </p>
       </div>
 
       {selectedDate ? (
         <div className="rounded-lg border border-sky-400/25 bg-sky-950/25 px-3 py-2 text-xs text-slate-200">
-          <span className="font-semibold text-sky-100">
-            {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </span>
           {(() => {
             const day = series.find((d) => d.date === selectedDate);
             if (!day) return null;
+            const when = new Date(`${day.date}T12:00:00`).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            });
+            if (!day.scored) {
+              return (
+                <>
+                  <span className="font-semibold text-slate-300">{when}</span>
+                  <span className="text-slate-500"> · Not scored yet</span>
+                  <p className="mt-1 text-slate-400">Not calculated past the current window.</p>
+                </>
+              );
+            }
             return (
               <>
-                <span className="text-slate-500"> · friction </span>
-                <span
-                  className="font-semibold tabular-nums"
-                  style={{ color: barSolidColor(day.friction) }}
-                >
-                  {day.friction}
-                </span>
-                {day.labels.length > 0 ? (
-                  <div className="mt-1.5 space-y-1">
-                    {day.labels.slice(0, 3).map((label) => (
-                      <div key={label} className="text-slate-300">
-                        <TransitAspectLabel label={label} showGlyphs />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-slate-500"> · no hard peak scored</span>
-                )}
+                <span className="font-semibold text-sky-100">{when}</span>
+                {isHorizonFlowWindow(day) ? (
+                  <span className="ml-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-sky-200">
+                    Flow window
+                  </span>
+                ) : null}
+                <div className="mt-1.5 space-y-1">
+                  <p>
+                    <span className="text-slate-500">friction </span>
+                    <span className="font-semibold tabular-nums" style={{ color: FRICTION_COLOR }}>
+                      {day.friction}
+                    </span>
+                    {day.frictionDriver ? (
+                      <span className="ml-2 text-slate-300">
+                        <TransitAspectLabel label={day.frictionDriver} showGlyphs />
+                      </span>
+                    ) : null}
+                  </p>
+                  <p>
+                    <span className="text-slate-500">ease </span>
+                    <span className="font-semibold tabular-nums" style={{ color: EASE_COLOR }}>
+                      {day.ease}
+                    </span>
+                    {day.easeDriver ? (
+                      <span className="ml-2 text-slate-300">
+                        <TransitAspectLabel label={day.easeDriver} showGlyphs />
+                      </span>
+                    ) : null}
+                  </p>
+                  {day.friction <= 0 && day.ease <= 0 ? (
+                    <p className="text-slate-500">No major hard or supportive hits scored this day.</p>
+                  ) : null}
+                </div>
               </>
             );
           })()}
@@ -344,6 +375,15 @@ export function LifeRiskRadar({
   className = '',
 }: LifeRiskRadarProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const horizon = useMemo(() => {
+    if (!risk) return [];
+    if (risk.horizon?.length) return risk.horizon;
+    return buildLifeRiskHorizon({
+      asOfDate: risk.date,
+      windowDays: risk.windowDays,
+      windows: [...(risk.frictionWindows || []), ...(risk.supportWindows || [])],
+    });
+  }, [risk]);
 
   if (loading && !risk) {
     return (
@@ -410,7 +450,7 @@ export function LifeRiskRadar({
             <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-slate-400">
               <Radar className="h-3.5 w-3.5" style={{ color: presentation.hex }} />
               <span style={{ color: presentation.hex }}>
-                Transit impact · {risk.windowDays}d
+                Transit impact · next {risk.windowDays} days
               </span>
             </p>
             <SeverityTitle level={risk.level} label={presentation.label} />
@@ -486,11 +526,9 @@ export function LifeRiskRadar({
           <p className="mt-2 text-xs text-slate-500">{presentation.description}</p>
         </div>
 
-        {/* Linear bar graph of friction by day */}
-        <FrictionTimelineChart
-          windows={[...risk.frictionWindows, ...risk.supportWindows]}
+        <HorizonStripChart
+          horizon={horizon}
           windowDays={risk.windowDays}
-          accentHex={presentation.hex}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />

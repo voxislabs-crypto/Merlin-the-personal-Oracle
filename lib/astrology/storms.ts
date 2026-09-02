@@ -19,6 +19,7 @@ import {
   type StormPlaybookFields,
   type StormWhenInfo,
 } from '@/lib/astrology/storm-playbook';
+import type { LifeRiskDayScore } from '@/lib/atmosphere/types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ export interface StormsReport {
   weekSummary: string;
   mbtiType?: string;
   horizonDays?: number;
+  /** Every sampled noon: friction + ease. Quiet days stay scored, not blank. */
+  dayHorizon?: LifeRiskDayScore[];
 }
 
 // ─── Planet weight tables ─────────────────────────────────────────────────────
@@ -684,6 +687,65 @@ const HARD_ASPECTS = [
 
 const MALEFIC_CONJUNCTION = { type: "Conjunction", angle: 0, orb: 7 };
 
+/** Supportive pass — lighter orbs than the storm window, personal points only. */
+const EASE_ASPECTS = [
+  { type: "Trine", angle: 120, orb: 4 },
+  { type: "Sextile", angle: 60, orb: 3 },
+];
+
+function horizonFrictionFromStorm(storm: RawAstroStorm): number {
+  const s =
+    typeof storm.intensityScore === "number" && Number.isFinite(storm.intensityScore)
+      ? Math.max(0.5, Math.min(10, storm.intensityScore))
+      : storm.intensity === "severe"
+        ? 8
+        : storm.intensity === "moderate"
+          ? 6
+          : 4;
+  return Math.max(0, Math.min(100, Math.round(22 + s * 5.1 + s * s * 0.12)));
+}
+
+function easeScoreForHit(transiting: string, natal: string, aspect: string, orbDiff: number): number {
+  let score = aspect === "Trine" ? 38 : 28;
+  if (transiting === "Jupiter" || transiting === "Venus") score += 16;
+  else if (transiting === "Sun" || transiting === "Moon") score += 8;
+  if (["Sun", "Moon", "Ascendant"].includes(natal)) score += 10;
+  else if (PERSONAL_PLANETS.includes(natal)) score += 6;
+  score += Math.max(0, 8 - orbDiff * 2);
+  return Math.max(12, Math.min(78, Math.round(score)));
+}
+
+function findEaseForDay(
+  dateString: string,
+  natalPositions: PlanetPosition[],
+  transitPositions: PlanetPosition[],
+): Array<{ label: string; score: number }> {
+  const hits: Array<{ label: string; score: number }> = [];
+  const seen = new Set<string>();
+  const sweph = getSweph();
+  const personalNatal = natalPositions.filter((n) => PERSONAL_PLANETS.includes(n.name));
+
+  for (const transit of transitPositions) {
+    for (const natal of personalNatal) {
+      let angularDiff = Math.abs(transit.longitude - natal.longitude);
+      if (angularDiff > 180) angularDiff = 360 - angularDiff;
+      for (const asp of EASE_ASPECTS) {
+        const orbDiff = diffDegrees(angularDiff, asp.angle, sweph);
+        if (orbDiff > asp.orb) continue;
+        const key = `${transit.name}-${asp.type}-${natal.name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        hits.push({
+          label: `${transit.name} ${asp.type} ${natal.name}`,
+          score: easeScoreForHit(transit.name, natal.name, asp.type, orbDiff),
+        });
+      }
+    }
+  }
+
+  return hits.sort((a, b) => b.score - a.score);
+}
+
 function findStormsForDay(
   dateString: string,
   dayName: string,
@@ -806,12 +868,14 @@ export function predictStorms(
       weekSummary: "No storm data available.",
       mbtiType,
       horizonDays: daysAhead,
+      dayHorizon: [],
     };
   }
 
   const allStorms: RawAstroStorm[] = [];
   const dayNames: string[] = [];
   const stormyDayNames = new Set<string>();
+  const dayHorizon: LifeRiskDayScore[] = [];
 
   // Seed current transit positions for fallback approximation
   const now = new Date();
@@ -844,6 +908,20 @@ export function predictStorms(
     });
     if (dayStorms.length > 0) stormyDayNames.add(dayName);
     allStorms.push(...dayStorms);
+
+    const easeHits = findEaseForDay(dateString, natalPositions, transitPositions);
+    const topStorm = [...dayStorms].sort(
+      (a, b) => (b.intensityScore || 0) - (a.intensityScore || 0),
+    )[0];
+    const topEase = easeHits[0];
+    dayHorizon.push({
+      date: dateString,
+      scored: true,
+      friction: topStorm ? horizonFrictionFromStorm(topStorm) : 0,
+      ease: topEase ? topEase.score : 0,
+      frictionDriver: topStorm?.title,
+      easeDriver: topEase?.label,
+    });
   }
 
   const clearDays = dayNames.filter((d) => !stormyDayNames.has(d));
@@ -908,5 +986,6 @@ export function predictStorms(
     weekSummary,
     mbtiType: mbtiType || undefined,
     horizonDays: daysAhead,
+    dayHorizon,
   };
 }

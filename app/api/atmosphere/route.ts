@@ -142,6 +142,7 @@ function mapStormsReport(report: ReturnType<typeof predictStorms>): AtmosphereSt
       phase: storm.phase,
     })),
     weekSummary: sanitizeCopyText(report.weekSummary),
+    dayHorizon: report.dayHorizon,
   };
 }
 

@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       Number(lon ?? 0),
       { useGrok: false, houseSystem: `storms-${safeDaysAhead}`, tone: "direct" }
     );
-    const cacheKey = `storms:v3:${cacheHash}:${mbtiType || "none"}:${typeof clientDate === 'string' ? clientDate : 'server'}`;
+    const cacheKey = `storms:v4:${cacheHash}:${mbtiType || "none"}:${typeof clientDate === 'string' ? clientDate : 'server'}`;
     const cached = serverCache.get<{ cachedAt: number; data: any }>(cacheKey);
     if (cached && Date.now() - cached.cachedAt < TTL_24H_MS) {
       return NextResponse.json({

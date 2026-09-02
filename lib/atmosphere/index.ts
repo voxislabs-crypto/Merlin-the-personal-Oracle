@@ -28,6 +28,9 @@ export { computeAtmosphere } from '@/lib/atmosphere/compute';
 export {
   computeLifeRisk,
   lifeRiskLevelPresentation,
+  buildLifeRiskHorizon,
+  formatHorizonTooltip,
+  isHorizonFlowWindow,
   DEFAULT_RISK_WINDOW_DAYS,
   type ComputeLifeRiskInput,
 } from '@/lib/atmosphere/life-risk';
