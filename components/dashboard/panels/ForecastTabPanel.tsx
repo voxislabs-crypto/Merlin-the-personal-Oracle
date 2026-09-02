@@ -25,6 +25,11 @@ export interface ForecastTabPanelProps {
   stormsReport: StormsReport | null;
   stormsLoading?: boolean;
   mbtiType?: string;
+  weeklyCharacter?: {
+    title: string;
+    strength: string;
+    blindSpot: string;
+  } | null;
   horizonSelectedDate: string;
   onHorizonSelectedDateChange: (date: string) => void;
   showWeeklyForecast?: boolean;
@@ -56,6 +61,7 @@ export function ForecastTabPanel({
   stormsReport,
   stormsLoading,
   mbtiType,
+  weeklyCharacter,
   horizonSelectedDate,
   onHorizonSelectedDateChange,
   showWeeklyForecast = true,
@@ -72,6 +78,20 @@ export function ForecastTabPanel({
   return (
     <WeatherShell className="space-y-5">
       <div ref={storySectionRef}>
+        {weeklyCharacter?.title ? (
+          <div className="mb-4 rounded-2xl border border-violet-400/25 bg-violet-950/30 px-4 py-3.5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-200/80">
+              This week’s character
+            </p>
+            <p className="mt-1 text-lg font-semibold text-violet-50">{weeklyCharacter.title}</p>
+            <p className="mt-1 text-sm text-slate-200">
+              <span className="text-emerald-200/90">Strength:</span> {weeklyCharacter.strength}
+            </p>
+            <p className="mt-0.5 text-sm text-slate-300">
+              <span className="text-amber-200/90">Blind spot:</span> {weeklyCharacter.blindSpot}
+            </p>
+          </div>
+        ) : null}
         <LifeRiskRadar risk={risk} loading={riskLoading} onAskAboutRisk={onAskAboutRisk} />
       </div>
 

@@ -64,4 +64,28 @@ describe('dual-layer maps', () => {
     expect(card?.move.toLowerCase()).toMatch(/experiment|question|plan/);
     expect(containsMbtiLabel(card?.move || '')).toBe(false);
   });
+
+  it('changes the threatened thing and failure mode for INFP/INTP vs INFJ/INTP on the same sky', () => {
+    const sky = {
+      deadline: '6pm',
+      transitAxis: 'relationship and self-worth',
+      domain: 'relationships',
+    };
+    const infp = composeDualLayerCard({ coreType: 'INFP', maskType: 'INTP', ...sky });
+    const infj = composeDualLayerCard({ coreType: 'INFJ', maskType: 'INTP', ...sky });
+    expect(infp?.threatened.toLowerCase()).toMatch(/authenticit|feel/);
+    expect(infj?.threatened.toLowerCase()).toMatch(/coherence|vision|pattern/);
+    expect(infp?.whyThisPerson).not.toBe(infj?.whyThisPerson);
+    expect(infp?.coreNotices).not.toBe(infj?.coreNotices);
+    expect(infp?.behaviorTell).not.toBe(infj?.behaviorTell);
+    const infpSansLabels = (infp?.whyThisPerson || '').replace(/\bINF[PJ]\b/g, '');
+    const infjSansLabels = (infj?.whyThisPerson || '').replace(/\bINF[PJ]\b/g, '');
+    expect(infpSansLabels).not.toBe(infjSansLabels);
+    expect(infp?.whyThisPerson).toMatch(/INFP/);
+    expect(infj?.whyThisPerson).toMatch(/INFJ/);
+    expect(infp?.move).toBeTruthy();
+    expect(infp?.avoid).toBeTruthy();
+    expect(infp?.weeklyCharacter?.title).toMatch(/Quiet Knower/);
+    expect(infj?.weeklyCharacter?.title).toMatch(/Pattern Witness/);
+  });
 });

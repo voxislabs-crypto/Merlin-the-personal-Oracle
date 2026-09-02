@@ -53,6 +53,17 @@ export interface LifeWeatherBriefCopy {
   confidenceWhy?: string;
   domainJob?: string;
   deadline?: string;
+  coreNotices?: string;
+  maskWants?: string;
+  tensionLine?: string;
+  resolution?: string;
+  whyThisPerson?: string;
+  behaviorTell?: string;
+  weeklyCharacter?: {
+    title: string;
+    strength: string;
+    blindSpot: string;
+  };
 }
 
 function firstSentence(text: string, maxLen = 220): string {
@@ -791,8 +802,8 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
       date,
     });
 
-  const personalStory = oracle?.chartWhy || oracle?.leadFact || story;
-  const personalWhy = oracle?.whyToday || why;
+  const personalStory = oracle?.whyThisPerson || oracle?.chartWhy || oracle?.leadFact || story;
+  const personalWhy = oracle?.whyThisPerson || oracle?.whyToday || why;
 
   return {
     story: personalStory,
@@ -826,5 +837,12 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     confidenceWhy: oracle?.confidenceWhy,
     domainJob: oracle?.domainJob,
     deadline: oracle?.deadline,
+    coreNotices: oracle?.coreNotices,
+    maskWants: oracle?.maskWants,
+    tensionLine: oracle?.tensionLine,
+    resolution: oracle?.resolution,
+    whyThisPerson: oracle?.whyThisPerson,
+    behaviorTell: oracle?.behaviorTell,
+    weeklyCharacter: oracle?.weeklyCharacter,
   };
 }

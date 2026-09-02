@@ -2062,6 +2062,7 @@ export default function UnifiedDashboard() {
         move: lifeWeatherBrief.move,
         themeLabel: lifeWeatherBrief.themeLabel,
         intensity: cosmicWeatherIntensity ?? activeAtmospherePacket?.intensity,
+        behaviorTell: lifeWeatherBrief.behaviorTell,
       },
       userId || undefined,
     );
@@ -2076,6 +2077,7 @@ export default function UnifiedDashboard() {
     activeAtmospherePacket?.intensity,
     cosmicWeatherIntensity,
     forecast?.date,
+    lifeWeatherBrief.behaviorTell,
     lifeWeatherBrief.leadFactKey,
     lifeWeatherBrief.move,
     lifeWeatherBrief.themeId,
@@ -2827,6 +2829,12 @@ export default function UnifiedDashboard() {
                     personalHook={lifeWeatherBrief.personalHook}
                     confidenceWhy={lifeWeatherBrief.confidenceWhy}
                     domainJob={lifeWeatherBrief.domainJob}
+                    coreNotices={lifeWeatherBrief.coreNotices}
+                    maskWants={lifeWeatherBrief.maskWants}
+                    tensionLine={lifeWeatherBrief.tensionLine}
+                    resolution={lifeWeatherBrief.resolution}
+                    whyThisPerson={lifeWeatherBrief.whyThisPerson}
+                    behaviorTell={lifeWeatherBrief.behaviorTell}
                     chartConfidence={lifeWeatherBrief.chartConfidence}
                     readConfidence={lifeWeatherBrief.readConfidence}
                     chartConfidenceLabel={lifeWeatherBrief.chartConfidenceLabel}
@@ -3383,6 +3391,7 @@ export default function UnifiedDashboard() {
                     stormsReport={stormsReport}
                     stormsLoading={stormsLoading}
                     mbtiType={mbtiType ?? undefined}
+                    weeklyCharacter={lifeWeatherBrief.weeklyCharacter || null}
                     horizonSelectedDate={horizonSelectedDate}
                     onHorizonSelectedDateChange={setHorizonSelectedDate}
                     showWeeklyForecast={modulePreferences.weeklyForecast}

@@ -1,13 +1,14 @@
 import { addCalendarDays, getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 import { readTodayMoveMemory } from '@/lib/atmosphere/today-oracle/novelty';
 
-export type WeatherLandVote = 'landed' | 'missed';
+export type WeatherLandVote = 'landed' | 'somewhat' | 'missed';
 
 export type WeatherWindowSnapshot = {
   date: string;
   move?: string;
   themeLabel?: string;
   intensity?: number;
+  behaviorTell?: string;
 };
 
 const SNAPSHOT_PREFIX = 'merlin_weather_window_v1:';
@@ -57,7 +58,7 @@ export function readWeatherLandVote(
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(voteKey(userId, date));
-    if (raw === 'landed' || raw === 'missed') return raw;
+    if (raw === 'landed' || raw === 'somewhat' || raw === 'missed') return raw;
     return null;
   } catch {
     return null;

@@ -221,5 +221,12 @@ export function synthesizeTodayOracle(input: {
     confidenceWhy: applyMerlinVoicePass(confidenceWhy),
     domainJob: applyMerlinVoicePass(domainJob),
     deadline: constraint.deadline,
+    coreNotices: dual?.coreNotices,
+    maskWants: dual?.maskWants,
+    tensionLine: dual?.tensionLine,
+    resolution: dual?.resolution,
+    whyThisPerson: dual?.whyThisPerson,
+    behaviorTell: dual?.behaviorTell,
+    weeklyCharacter: dual?.weeklyCharacter,
   };
 }

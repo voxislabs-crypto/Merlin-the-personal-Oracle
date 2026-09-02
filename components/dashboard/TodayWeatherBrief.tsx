@@ -47,6 +47,12 @@ export interface TodayWeatherBriefProps {
   personalHook?: string | null;
   confidenceWhy?: string;
   domainJob?: string;
+  coreNotices?: string;
+  maskWants?: string;
+  tensionLine?: string;
+  resolution?: string;
+  whyThisPerson?: string;
+  behaviorTell?: string;
   chartConfidence?: number;
   readConfidence?: number;
   chartConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
@@ -128,6 +134,12 @@ export function TodayWeatherBrief({
   personalHook,
   confidenceWhy,
   domainJob,
+  coreNotices,
+  maskWants,
+  tensionLine,
+  resolution,
+  whyThisPerson,
+  behaviorTell,
   chartConfidence,
   readConfidence,
   chartConfidenceLabel,
@@ -164,10 +176,11 @@ export function TodayWeatherBrief({
         move: todayMove,
         themeLabel,
         intensity,
+        behaviorTell,
       },
       userId,
     );
-  }, [date, intensity, isEmpty, isError, loading, themeLabel, todayMove, userId]);
+  }, [behaviorTell, date, intensity, isEmpty, isError, loading, themeLabel, todayMove, userId]);
 
   if (loading) {
     return (
@@ -326,42 +339,79 @@ export function TodayWeatherBrief({
                 >
                   {todayMove}
                 </p>
-                {leadFactDisplay || leadFact || chartWhy || whyToday || watchFor || doNot || personalHook || confidenceWhy || domainJob ? (
+                {whyThisPerson || coreNotices || leadFactDisplay || chartWhy || watchFor || doNot || behaviorTell ? (
                   <dl className="mt-3 space-y-2.5 border-t border-white/10 pt-3">
-                    {leadFactDisplay ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-white/90">
-                          {leadFactDisplay}
-                        </span>
-                        {heldFromYesterday ? (
-                          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
-                            Still applies
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {leadFact ? (
-                      <dd className="text-sm font-medium leading-snug text-white/90">{leadFact}</dd>
-                    ) : null}
-                    {chartWhy ? (
+                    {whyThisPerson ? (
                       <div>
                         <dt className={`text-[10px] font-bold uppercase tracking-[0.22em] ${moveLabel}`}>
-                          Why this chart
+                          Why this happens to you
+                        </dt>
+                        <dd className="mt-1 text-sm font-medium leading-relaxed text-white/85">
+                          {whyThisPerson}
+                        </dd>
+                      </div>
+                    ) : chartWhy ? (
+                      <div>
+                        <dt className={`text-[10px] font-bold uppercase tracking-[0.22em] ${moveLabel}`}>
+                          Why this happens to you
                         </dt>
                         <dd className="mt-1 text-sm font-medium leading-relaxed text-white/85">
                           {chartWhy}
                         </dd>
                       </div>
                     ) : null}
-                    {whyToday ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                          Driven by
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{whyToday}</dd>
+                    {coreNotices || maskWants || tensionLine || resolution ? (
+                      <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+                        {coreNotices ? (
+                          <p className="text-sm leading-snug text-slate-100">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
+                              Core notices{' '}
+                            </span>
+                            {coreNotices}
+                          </p>
+                        ) : null}
+                        {maskWants ? (
+                          <p className="text-sm leading-snug text-slate-100">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/80">
+                              Mask wants{' '}
+                            </span>
+                            {maskWants}
+                          </p>
+                        ) : null}
+                        {tensionLine ? (
+                          <p className="text-sm leading-snug text-slate-200">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200/75">
+                              Tension{' '}
+                            </span>
+                            {tensionLine}
+                          </p>
+                        ) : null}
+                        {resolution ? (
+                          <p className="text-sm leading-snug text-slate-200">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/80">
+                              Resolution{' '}
+                            </span>
+                            {resolution}
+                          </p>
+                        ) : null}
                       </div>
                     ) : null}
-                    {watchFor ? (
+                    {doNot ? (
+                      <div>
+                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">
+                          Avoid
+                        </dt>
+                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{doNot}</dd>
+                      </div>
+                    ) : null}
+                    {behaviorTell ? (
+                      <div>
+                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100/80">
+                          What to watch
+                        </dt>
+                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{behaviorTell}</dd>
+                      </div>
+                    ) : watchFor ? (
                       <div>
                         <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100/80">
                           What to watch
@@ -369,29 +419,28 @@ export function TodayWeatherBrief({
                         <dd className="mt-1 text-sm leading-snug text-slate-200/85">{watchFor}</dd>
                       </div>
                     ) : null}
-                    {doNot ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">
-                          What not to do
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{doNot}</dd>
-                      </div>
-                    ) : null}
-                    {personalHook ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100/80">
-                          For you
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-100/90">{personalHook}</dd>
-                      </div>
-                    ) : null}
-                    {domainJob ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                          Where it lands
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-300/90">{domainJob}</dd>
-                      </div>
+                    {leadFactDisplay ? (
+                      <details className="group">
+                        <summary className="cursor-pointer list-none text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-300">
+                          Sky mechanic
+                        </summary>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-white/90">
+                            {leadFactDisplay}
+                          </span>
+                          {heldFromYesterday ? (
+                            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
+                              Still applies
+                            </span>
+                          ) : null}
+                        </div>
+                        {leadFact ? (
+                          <p className="mt-1.5 text-xs leading-snug text-slate-400">{leadFact}</p>
+                        ) : null}
+                        {whyToday ? (
+                          <p className="mt-1 text-xs leading-snug text-slate-500">{whyToday}</p>
+                        ) : null}
+                      </details>
                     ) : null}
                     {confidenceWhy ? (
                       <div>
@@ -399,19 +448,6 @@ export function TodayWeatherBrief({
                           Confidence
                         </dt>
                         <dd className="mt-1 text-sm leading-snug text-slate-300/90">{confidenceWhy}</dd>
-                      </div>
-                    ) : typeof chartConfidence === 'number' || typeof readConfidence === 'number' ? (
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        {typeof chartConfidence === 'number' ? (
-                          <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-200">
-                            Chart {chartConfidenceLabel || 'Steady'} · {Math.round(chartConfidence)}%
-                          </span>
-                        ) : null}
-                        {typeof readConfidence === 'number' ? (
-                          <span className="font-mono text-[11px] font-semibold tracking-wide text-slate-300">
-                            Read {readConfidenceLabel || 'Steady'} · {Math.round(readConfidence)}%
-                          </span>
-                        ) : null}
                       </div>
                     ) : null}
                   </dl>

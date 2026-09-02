@@ -53,6 +53,17 @@ interface HomeTabPanelProps {
   personalHook?: string | null;
   confidenceWhy?: string;
   domainJob?: string;
+  coreNotices?: string;
+  maskWants?: string;
+  tensionLine?: string;
+  resolution?: string;
+  whyThisPerson?: string;
+  behaviorTell?: string;
+  weeklyCharacter?: {
+    title: string;
+    strength: string;
+    blindSpot: string;
+  };
   chartConfidence?: number;
   readConfidence?: number;
   chartConfidenceLabel?: 'High' | 'Steady' | 'Tentative';
@@ -165,6 +176,12 @@ export function HomeTabPanel({
   personalHook,
   confidenceWhy,
   domainJob,
+  coreNotices,
+  maskWants,
+  tensionLine,
+  resolution,
+  whyThisPerson,
+  behaviorTell,
   chartConfidence,
   readConfidence,
   chartConfidenceLabel,
@@ -264,6 +281,12 @@ export function HomeTabPanel({
           personalHook={personalHook}
           confidenceWhy={confidenceWhy}
           domainJob={domainJob}
+          coreNotices={coreNotices}
+          maskWants={maskWants}
+          tensionLine={tensionLine}
+          resolution={resolution}
+          whyThisPerson={whyThisPerson}
+          behaviorTell={behaviorTell}
           chartConfidence={chartConfidence}
           readConfidence={readConfidence}
           chartConfidenceLabel={chartConfidenceLabel}

@@ -53,6 +53,8 @@ export interface CoreThreatMap {
   safetyNeed: string;
   hijack: string;
   help: string;
+  /** Inner read — what Core notices before the Mask agrees. */
+  notices: string;
 }
 
 export interface MaskSymptomMap {
@@ -60,6 +62,8 @@ export interface MaskSymptomMap {
   misreadAs: string;
   failureMode: string;
   coach: string;
+  /** Coping move the room sees / the user reaches for. */
+  wants: string;
 }
 
 export type GuidanceSequence =
@@ -101,6 +105,17 @@ export interface DualLayerCardCopy {
   avoid: string;
   tension: string | null;
   source: 'near-split' | 'axis' | 'core-only';
+  coreNotices: string;
+  maskWants: string;
+  tensionLine: string;
+  resolution: string;
+  whyThisPerson: string;
+  behaviorTell: string;
+  weeklyCharacter: {
+    title: string;
+    strength: string;
+    blindSpot: string;
+  };
 }
 
 export const CORE_THREAT: Record<MbtiType, CoreThreatMap> = {
@@ -109,96 +124,112 @@ export const CORE_THREAT: Record<MbtiType, CoreThreatMap> = {
     safetyNeed: 'one quiet block to think without performing care',
     hijack: 'absorbing other people’s chaos and calling it purpose',
     help: 'Name the pattern, then one bounded act that protects the vision',
+    notices: 'The pattern is already visible. Coherence is slipping.',
   },
   INFP: {
     threatened: 'authenticity — the right to feel before justifying',
     safetyNeed: 'permission that the feeling is data, not a defect',
     hijack: 'rewriting the story until the pain looks noble',
     help: 'Pick one value that will not be negotiated today',
+    notices: 'Something already shifted. The inner vote is in.',
   },
   INTJ: {
     threatened: 'competence and long-range control',
     safetyNeed: 'a system that still works',
     hijack: 'isolating to perfect the plan while the window closes',
     help: 'Run one experiment with a stop time, not a new master plan',
+    notices: 'The long-range plan feels less in control than it should.',
   },
   INTP: {
     threatened: 'logical consistency and room to keep looking',
     safetyNeed: 'unanswered questions allowed to stay open',
     hijack: 'turning the whole day into a theory so nothing has to be chosen',
     help: 'Rank two options, pick one for twenty-four hours',
+    notices: 'The model has a hole. Questions want to stay open.',
   },
   ENFJ: {
     threatened: 'the group staying intact and people still growing',
     safetyNeed: 'knowing care is landing, not leaking',
     hijack: 'rescuing everyone and calling it leadership',
     help: 'Name one person you will not carry today',
+    notices: 'Someone in the room is not growing. Care is leaking.',
   },
   ENFP: {
     threatened: 'possibility and the spark that makes life feel alive',
     safetyNeed: 'a door that is still open',
     hijack: 'starting three new meanings instead of finishing one',
     help: 'One inspired act, then stop adding plots',
+    notices: 'The spark is dimming. A door wants to stay open.',
   },
   ENTJ: {
     threatened: 'leverage, progress, the scoreboard',
     safetyNeed: 'a move that changes the board by tonight',
     hijack: 'forcing pace on people and calling it standards',
     help: 'One outcome metric, one deadline, no extra fronts',
+    notices: 'The scoreboard is slipping. Leverage wants a move tonight.',
   },
   ENTP: {
     threatened: 'freedom to test and the right to pivot',
     safetyNeed: 'debate space without being pinned',
     hijack: 'charming a new idea so the old one never gets tested',
     help: 'One test with a kill criterion',
+    notices: 'A test is being blocked. Pivot energy is up.',
   },
   ISFJ: {
     threatened: 'stable bonds and the duty that keeps people safe',
     safetyNeed: 'routines that still hold',
     hijack: 'over-functioning until resentment is the only leftover',
     help: 'One care task you keep, one you hand back',
+    notices: 'A bond or duty feels less safe than yesterday.',
   },
   ISFP: {
     threatened: 'the right to feel the moment without being managed',
     safetyNeed: 'beauty, body, quiet sensory truth',
     hijack: 'going silent and calling it peace',
     help: 'One sensory reset, then one honest sentence',
+    notices: 'The moment is being managed. The body wants out.',
   },
   ISTJ: {
     threatened: 'predictability, proof that the rules still work',
     safetyNeed: 'a known procedure',
     hijack: 'doubling down on the old method after the facts changed',
     help: 'Keep the standard, change one step',
+    notices: 'The procedure no longer matches the facts.',
   },
   ISTP: {
     threatened: 'autonomy and the ability to fix it with their own hands',
     safetyNeed: 'a problem they can touch',
     hijack: 'disappearing into the tool instead of the relationship',
     help: 'One concrete fix, then re-enter',
+    notices: 'Hands want a problem they can actually fix.',
   },
   ESFJ: {
     threatened: 'harmony and being needed',
     safetyNeed: 'the room still liking them',
     hijack: 'smiling through the real issue until it becomes a blowup',
     help: 'One clear ask, said once, without extra sugar',
+    notices: 'Harmony is costing honesty. Being needed is louder.',
   },
   ESFP: {
     threatened: 'aliveness and belonging in the room right now',
     safetyNeed: 'a win they can feel today',
     hijack: 'chasing stimulation to outrun the dip',
     help: 'One short-term win that does not create tomorrow’s mess',
+    notices: 'Aliveness is dipping. The room wants a win now.',
   },
   ESTJ: {
     threatened: 'order, accountability, things staying done',
     safetyNeed: 'a list that closes',
     hijack: 'controlling people instead of the process',
     help: 'One measurable close, no extra enforcement',
+    notices: 'Something is not staying done. The list wants a close.',
   },
   ESTP: {
     threatened: 'momentum and the chance in front of them',
     safetyNeed: 'a move they can make now',
     hijack: 'escalating the fight or the bet because standing still feels like losing',
     help: 'One bold action with an exit ramp written first',
+    notices: 'Standing still feels like losing. Momentum wants a bet.',
   },
 };
 
@@ -208,96 +239,112 @@ export const MASK_SYMPTOM: Record<MbtiType, MaskSymptomMap> = {
     misreadAs: 'unshakable',
     failureMode: 'quiet over-responsibility, then sudden withdrawal',
     coach: 'Drop the counselor voice for one hour; say the actual need',
+    wants: 'To look composed and already-understanding, then carry it alone.',
   },
   INFP: {
     showsAs: 'open, artistic, endlessly willing to explore',
     misreadAs: 'uncommitted',
     failureMode: 'soft yeses that become resentment',
     coach: 'Pick one preference and say it out loud before dinner',
+    wants: 'To stay open so no one has to hear a no.',
   },
   INTJ: {
     showsAs: 'strategic, certain, three steps ahead',
     misreadAs: 'cold',
     failureMode: 'issuing a plan nobody asked for',
     coach: 'Ask one question before you prescribe',
+    wants: 'To issue a plan three steps ahead.',
   },
   INTP: {
     showsAs: 'curious, detached, poking holes',
     misreadAs: 'not caring',
     failureMode: 'turning feeling into a briefing',
     coach: 'State the feeling in one sentence before the analysis',
+    wants: 'More proof. A briefing before a feeling counts as real.',
   },
   ENFJ: {
     showsAs: 'warm leader, holding the room',
     misreadAs: 'fine',
     failureMode: 'managing everyone’s mood',
     coach: 'Leave one problem unrescued',
+    wants: 'To hold everyone’s mood so the room stays intact.',
   },
   ENFP: {
     showsAs: 'sparkly, game, full of new frames',
     misreadAs: 'unserious',
     failureMode: 'a new story every hour',
     coach: 'Finish the current sentence before starting a better one',
+    wants: 'A new frame every hour so the dip never lands.',
   },
   ENTJ: {
     showsAs: 'commander, outcomes first',
     misreadAs: 'harsh',
     failureMode: 'turning the day into a campaign',
     coach: 'Shrink the battlefield to one objective',
+    wants: 'To turn the day into a campaign with one scoreboard.',
   },
   ENTP: {
     showsAs: 'clever, debating, inventing on contact',
     misreadAs: 'arguing for sport',
     failureMode: 'winning the riff and losing the decision',
     coach: 'Pick a test, not a thesis',
+    wants: 'To win the riff before picking a test.',
   },
   ISFJ: {
     showsAs: 'helpful, reliable, anticipating needs',
     misreadAs: 'content',
     failureMode: 'silent overload',
     coach: 'Name one thing you will not do today',
+    wants: 'To anticipate every need so no one sees the load.',
   },
   ISFP: {
     showsAs: 'easy, aesthetic, go-with-the-flow',
     misreadAs: 'passive',
     failureMode: 'disappearing instead of disagreeing',
     coach: 'One sensory truth said plainly',
+    wants: 'To look easy and disappear instead of disagreeing.',
   },
   ISTJ: {
     showsAs: 'prepared, procedural, by the book',
     misreadAs: 'rigid',
     failureMode: 'enforcing yesterday’s process on today’s mess',
     coach: 'Keep the standard, change the step',
+    wants: 'To keep yesterday’s process running on today’s mess.',
   },
   ISTP: {
     showsAs: 'calm fixer, low words',
     misreadAs: 'checked out',
     failureMode: 'solving the object and ignoring the person',
     coach: 'One fix, then one check-in',
+    wants: 'To fix the object and skip the person.',
   },
   ESFJ: {
     showsAs: 'host, glue, everyone-okay',
     misreadAs: 'not needing anything',
     failureMode: 'harmony at the cost of honesty',
     coach: 'One direct request, no apology attached',
+    wants: 'Everyone okay, including a smile over the real issue.',
   },
   ESFP: {
     showsAs: 'on, fun, in the moment',
     misreadAs: 'shallow',
     failureMode: 'lighting up the room to skip the dip',
     coach: 'One real feeling before the next hit of stimulation',
+    wants: 'To light up the room so the dip never has to be felt.',
   },
   ESTJ: {
     showsAs: 'organized closer',
     misreadAs: 'bossy',
     failureMode: 'managing people like tasks',
     coach: 'Close one item, stop policing the rest',
+    wants: 'To close the list by managing people like tasks.',
   },
   ESTP: {
     showsAs: 'bold, fast, already moving',
     misreadAs: 'reckless',
     failureMode: 'doubling the bet when restless',
     coach: 'Act once, write the exit first',
+    wants: 'To double the bet because standing still feels like losing.',
   },
 };
 
@@ -671,6 +718,86 @@ function sootheWhy(options: {
   return `What's at risk is ${threat}.`;
 }
 
+const CORE_WEEK: Record<MbtiType, { title: string; strength: string; blindSpot: string }> = {
+  INFJ: { title: 'The Pattern Witness', strength: 'Seeing the split before anyone names it.', blindSpot: 'Carrying the room’s chaos and calling it purpose.' },
+  INFP: { title: 'The Quiet Knower', strength: 'Loyalty to the inner vote.', blindSpot: 'Mistaking silence for peace.' },
+  INTJ: { title: 'The Architect', strength: 'Long-range control.', blindSpot: 'Isolating to perfect a plan while the window closes.' },
+  INTP: { title: 'The Tester', strength: 'Keeping questions honest.', blindSpot: 'Turning the whole day into a theory.' },
+  ENFJ: { title: 'The Steward', strength: 'Growing the room.', blindSpot: 'Rescuing everyone.' },
+  ENFP: { title: 'The Spark', strength: 'Keeping a door open.', blindSpot: 'Starting three plots and finishing none.' },
+  ENTJ: { title: 'The Closer', strength: 'Moving the scoreboard.', blindSpot: 'Forcing pace on people.' },
+  ENTP: { title: 'The Pivot', strength: 'Courage to test.', blindSpot: 'Winning the riff and losing the decision.' },
+  ISFJ: { title: 'The Keeper', strength: 'Protecting the bond.', blindSpot: 'Silent overload.' },
+  ISFP: { title: 'The Sensor', strength: 'Truth in the body.', blindSpot: 'Disappearing instead of disagreeing.' },
+  ISTJ: { title: 'The Standard', strength: 'Keeping what works.', blindSpot: 'Enforcing yesterday on today’s mess.' },
+  ISTP: { title: 'The Fixer', strength: 'A problem you can touch.', blindSpot: 'Solving the object and skipping the person.' },
+  ESFJ: { title: 'The Host', strength: 'Holding the glue.', blindSpot: 'Harmony at the cost of honesty.' },
+  ESFP: { title: 'The Live Wire', strength: 'Aliveness in the room.', blindSpot: 'Lighting up the room to skip the dip.' },
+  ESTJ: { title: 'The Closer of Lists', strength: 'Things staying done.', blindSpot: 'Managing people like tasks.' },
+  ESTP: { title: 'The Experimenter', strength: 'Courage to move.', blindSpot: 'Mistaking movement for progress.' },
+};
+
+function tensionLineFor(
+  sequence: GuidanceSequence,
+  nearTension: string | null,
+  domain: string,
+): string {
+  if (sequence === 'feel-then-test') {
+    return `Waiting for certainty on ${domain} raises the stress.`;
+  }
+  if (sequence === 'insight-then-step') {
+    return `Seeing the pattern without one bounded act turns ${domain} into a burden.`;
+  }
+  if (nearTension) return `${nearTension} is the gap this weather widens in ${domain}.`;
+  return `The inner read and the outer coping move disagree on ${domain}.`;
+}
+
+function resolutionFor(sequence: GuidanceSequence, deadline: string, core: CoreThreatMap): string {
+  if (sequence === 'feel-then-test') {
+    return `Run one small test by ${deadline}, not a verdict.`;
+  }
+  if (sequence === 'insight-then-step') {
+    return `Name the pattern, then one bounded act by ${deadline}.`;
+  }
+  return `${period(core.help).replace(/\.$/, '')} by ${deadline}.`;
+}
+
+function whyThisPersonLine(
+  coreType: MbtiType,
+  maskType: MbtiType,
+  core: CoreThreatMap,
+  domain: string,
+): string {
+  if (coreType === maskType) {
+    return `Today's pressure on ${domain} hits ${core.threatened}.`;
+  }
+  if (coreType === 'INFP' && maskType[2] === 'T') {
+    const noun = /relationship/.test(domain) ? 'bond' : domain;
+    return `Your INFP core often knows the ${noun} has shifted before your ${maskType} mask will admit it. Today's pressure on ${domain} widens that gap.`;
+  }
+  if (coreType === 'INFJ' && maskType[2] === 'T') {
+    return `Your INFJ core already sees the pattern in ${domain}; your ${maskType} mask still wants a model that survives debate. Today's pressure on ${domain} widens that gap.`;
+  }
+  return `Your ${coreType} core notices ${core.notices} Your ${maskType} mask is still collecting a coping move. Today's pressure on ${domain} widens that gap.`;
+}
+
+function behaviorTellFor(coreType: MbtiType, maskType: MbtiType, domain: string): string {
+  const bond = /relationship|home|love|bond/.test(domain);
+  if (coreType === 'INFP' && maskType === 'INTP' && bond) {
+    return 'You may rewrite a text three times because the emotional version and the logical version disagree.';
+  }
+  if (coreType === 'INFJ' && maskType === 'INTP' && bond) {
+    return 'You may explain the feeling as a theory so you never have to ask for anything.';
+  }
+  if (maskType === 'INTP') {
+    return 'You may turn the feeling into a briefing before you let it count.';
+  }
+  if (coreType === 'ESTP') {
+    return 'You may pick a fight or a bet just to feel motion.';
+  }
+  return `Watch for ${MASK_SYMPTOM[maskType].failureMode} around ${domain}.`;
+}
+
 export interface ComposeDualLayerInput {
   coreType?: string | null;
   maskType?: string | null;
@@ -680,7 +807,8 @@ export interface ComposeDualLayerInput {
 }
 
 /**
- * Weather-card formula. No type labels in the returned copy.
+ * Weather-card formula. Personality first, transit as activator.
+ * Type letters may appear in whyThisPerson so INFP/INTP is not interchangeable with INFJ/INTP.
  */
 export function composeDualLayerCard(input: ComposeDualLayerInput): DualLayerCardCopy | null {
   const coreType = parseMbtiType(input.coreType);
@@ -733,6 +861,12 @@ export function composeDualLayerCard(input: ComposeDualLayerInput): DualLayerCar
     transitAxis: input.transitAxis,
     whyNot,
   });
+  const domain = (input.domain || 'the day').trim();
+  const tensionLine = tensionLineFor(sequence, tension, domain);
+  const resolution = resolutionFor(sequence, deadline, core);
+  const whyThisPerson = whyThisPersonLine(coreType, maskType, core, domain);
+  const behaviorTell = behaviorTellFor(coreType, maskType, domain);
+  const weeklyCharacter = CORE_WEEK[coreType];
 
   return {
     threatened: core.threatened,
@@ -743,5 +877,12 @@ export function composeDualLayerCard(input: ComposeDualLayerInput): DualLayerCar
     avoid: stripMbtiLabels(period(avoid)),
     tension,
     source,
+    coreNotices: core.notices,
+    maskWants: mask.wants,
+    tensionLine,
+    resolution,
+    whyThisPerson,
+    behaviorTell,
+    weeklyCharacter,
   };
 }

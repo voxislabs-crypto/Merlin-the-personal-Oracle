@@ -49,9 +49,9 @@ export function YesterdayLandCheck({
               aspectId: `weather-window-${yesterday}`,
               theme: 'life-weather',
               feedback: {
-                resonated: next === 'landed',
-                accuracyScore: next === 'landed' ? 0.85 : 0.25,
-                notes: `Yesterday's weather ${next}${snapshot?.move ? `: ${snapshot.move}` : ''}`,
+                resonated: next === 'landed' || next === 'somewhat',
+                accuracyScore: next === 'landed' ? 0.85 : next === 'somewhat' ? 0.55 : 0.25,
+                notes: `Yesterday's call ${next}${snapshot?.behaviorTell ? `: ${snapshot.behaviorTell}` : snapshot?.move ? `: ${snapshot.move}` : ''}`,
               },
             }),
           });
@@ -80,9 +80,9 @@ export function YesterdayLandCheck({
       role="group"
       aria-label="Yesterday's weather window"
     >
-      <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Yesterday’s window</p>
+      <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Yesterday’s call</p>
       <p className="mt-1 text-sm text-slate-200">
-        Did yesterday’s read match how the day actually felt?
+        {snapshot.behaviorTell || 'Did yesterday’s read match how the day actually felt?'}
       </p>
       {snapshot.move ? (
         <p className="mt-1 text-xs text-slate-400 line-clamp-2">Move was: {snapshot.move}</p>
@@ -93,14 +93,21 @@ export function YesterdayLandCheck({
           onClick={() => void submit('landed')}
           className="rounded-full border border-emerald-400/35 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20"
         >
-          It landed
+          Yes
+        </button>
+        <button
+          type="button"
+          onClick={() => void submit('somewhat')}
+          className="rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20"
+        >
+          Somewhat
         </button>
         <button
           type="button"
           onClick={() => void submit('missed')}
           className="rounded-full border border-slate-500/40 bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700/70"
         >
-          It missed
+          No
         </button>
       </div>
     </div>

@@ -98,4 +98,15 @@ export interface TodayOracleBrief {
   domainJob: string;
   /** Deadline baked into the move ("6pm", "noon") */
   deadline: string;
+  coreNotices?: string;
+  maskWants?: string;
+  tensionLine?: string;
+  resolution?: string;
+  whyThisPerson?: string;
+  behaviorTell?: string;
+  weeklyCharacter?: {
+    title: string;
+    strength: string;
+    blindSpot: string;
+  };
 }

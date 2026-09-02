@@ -17,10 +17,11 @@ describe('YesterdayLandCheck', () => {
 
     render(<YesterdayLandCheck userId="user-1" today="2026-08-29" />);
 
-    expect(await screen.findByText(/Yesterday’s window/)).toBeInTheDocument();
+    expect(await screen.findByText(/Yesterday’s call/)).toBeInTheDocument();
     expect(screen.getByText(/Send the draft, skip the argument/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /it landed/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /it missed/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^yes$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /somewhat/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^no$/i })).toBeInTheDocument();
   });
 
   it('does not show without a snapshot', () => {
@@ -31,8 +32,8 @@ describe('YesterdayLandCheck', () => {
   it('hides the prompt after a vote', async () => {
     writeWeatherWindowSnapshot({ date: '2026-08-28', move: 'Wait one beat.' }, 'user-1');
     render(<YesterdayLandCheck userId="user-1" today="2026-08-29" />);
-    fireEvent.click(await screen.findByRole('button', { name: /it missed/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^no$/i }));
     expect(screen.getByText(/logged/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /it landed/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^yes$/i })).not.toBeInTheDocument();
   });
 });
