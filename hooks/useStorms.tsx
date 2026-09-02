@@ -100,7 +100,7 @@ export function useStorms() {
 
   const buildCacheKey = (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 30) => {
     const day = typeof window !== 'undefined' ? getLocalCalendarDate() : 'ssr';
-    return `merlin_storms_v4_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}_${day}`;
+    return `merlin_storms_v5_${birthData.date}_${birthData.time}_${birthData.latitude.toFixed(3)}_${birthData.longitude.toFixed(3)}_${mbtiType || 'none'}_${daysAhead}_${day}`;
   };
 
   const calculateStorms = useCallback(

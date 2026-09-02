@@ -1,7 +1,9 @@
 import {
   buildLifeRiskHorizon,
   computeLifeRisk,
+  emphasizeHorizonWinner,
   formatHorizonTooltip,
+  horizonHasUnscored,
   isHorizonFlowWindow,
   lifeRiskLevelPresentation,
 } from '@/lib/atmosphere/life-risk';
@@ -270,6 +272,33 @@ describe('computeLifeRisk', () => {
     expect(formatHorizonTooltip(horizon[10])).toMatch(/Not calculated past the current window/);
     expect(isHorizonFlowWindow(horizon[3])).toBe(true);
     expect(isHorizonFlowWindow(horizon[1])).toBe(false);
+    expect(horizonHasUnscored(horizon)).toBe(true);
+  });
+
+  it('lets the larger force own the day instead of twin bars', () => {
+    const hard = emphasizeHorizonWinner({ scored: true, friction: 85, ease: 62 });
+    expect(hard.friction).toBe(85);
+    expect(hard.ease).toBeLessThanOrEqual(Math.round(85 * 0.4));
+    expect(hard.ease).toBeGreaterThan(0);
+    expect(hard.quiet).toBe(false);
+
+    const flow = emphasizeHorizonWinner({ scored: true, friction: 20, ease: 70 });
+    expect(flow.ease).toBe(70);
+    expect(flow.friction).toBeLessThanOrEqual(Math.round(70 * 0.4));
+
+    const quiet = emphasizeHorizonWinner({ scored: true, friction: 8, ease: 6 });
+    expect(quiet.quiet).toBe(true);
+    expect(quiet.friction).toBe(8);
+    expect(quiet.ease).toBe(8);
+
+    const none = emphasizeHorizonWinner({ scored: true, friction: 0, ease: 0 });
+    expect(none.quiet).toBe(true);
+    expect(none.friction).toBe(8);
+    expect(none.ease).toBe(8);
+
+    const onlyHard = emphasizeHorizonWinner({ scored: true, friction: 80, ease: 0 });
+    expect(onlyHard.friction).toBe(80);
+    expect(onlyHard.ease).toBe(0);
   });
 
   it('plots trines as ease without lifting Storm Watch friction', () => {

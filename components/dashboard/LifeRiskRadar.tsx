@@ -7,7 +7,9 @@ import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import {
   buildLifeRiskHorizon,
+  emphasizeHorizonWinner,
   formatHorizonTooltip,
+  horizonHasUnscored,
   isHorizonFlowWindow,
   lifeRiskLevelPresentation,
 } from '@/lib/atmosphere/life-risk';
@@ -51,9 +53,11 @@ function barSolidColor(friction: number): string {
   return '#334155';
 }
 
-const FRICTION_COLOR = '#fb923c';
-const FRICTION_HOT = '#f43f5e';
-const EASE_COLOR = '#38bdf8';
+const FRICTION_COLOR = '#f97316';
+const FRICTION_HOT = '#ea580c';
+const EASE_COLOR = '#0284c7';
+const QUIET_FRICTION = 'rgba(249,115,22,0.45)';
+const QUIET_EASE = 'rgba(2,132,199,0.4)';
 const UNSCORED_HATCH =
   'repeating-linear-gradient(-45deg, rgba(100,116,139,0.45) 0 2px, transparent 2px 5px)';
 
@@ -61,9 +65,8 @@ const CHART_HEIGHT_PX = 132;
 const MIDLINE_PX = 66;
 
 function frictionFill(friction: number): string {
-  if (friction >= 78) return FRICTION_HOT;
-  if (friction >= 42) return FRICTION_COLOR;
-  return '#fbbf24';
+  if (friction >= 70) return FRICTION_HOT;
+  return FRICTION_COLOR;
 }
 
 function HorizonStripChart({
@@ -101,16 +104,18 @@ function HorizonStripChart({
           {series.map((day) => {
             const active = selectedDate === day.date;
             const isToday = day.date === today;
-            const frictionPx = day.scored
-              ? day.friction > 0
-                ? Math.max(6, Math.round((day.friction / 100) * (MIDLINE_PX - 4)))
-                : 4
-              : 0;
-            const easePx = day.scored
-              ? day.ease > 0
-                ? Math.max(6, Math.round((day.ease / 100) * (CHART_HEIGHT_PX - MIDLINE_PX - 4)))
-                : 4
-              : 0;
+            const display = emphasizeHorizonWinner(day);
+            const frictionPx =
+              display.friction > 0
+                ? Math.max(display.quiet ? 4 : 8, Math.round((display.friction / 100) * (MIDLINE_PX - 6)))
+                : 0;
+            const easePx =
+              display.ease > 0
+                ? Math.max(
+                    display.quiet ? 4 : 8,
+                    Math.round((display.ease / 100) * (CHART_HEIGHT_PX - MIDLINE_PX - 6)),
+                  )
+                : 0;
             const flow = isHorizonFlowWindow(day);
 
             return (
@@ -130,26 +135,26 @@ function HorizonStripChart({
                     style={{ height: MIDLINE_PX }}
                   >
                     {day.scored ? (
-                      <div
-                        className={cn(
-                          'w-[72%] max-w-[0.85rem] rounded-t-sm',
-                          active && 'ring-1 ring-sky-400/70',
-                        )}
-                        style={{
-                          height: frictionPx,
-                          minHeight: frictionPx,
-                          background:
-                            day.friction > 0
-                              ? `linear-gradient(to top, ${frictionFill(day.friction)}99, ${frictionFill(day.friction)})`
-                              : 'rgba(251,146,60,0.28)',
-                          boxShadow: day.friction >= 62 ? `0 0 10px ${FRICTION_HOT}55` : undefined,
-                        }}
-                      />
+                      frictionPx > 0 ? (
+                        <div
+                          className={cn(
+                            'w-[65%] max-w-[0.7rem] rounded-t-sm',
+                            active && 'ring-1 ring-orange-400/70',
+                          )}
+                          style={{
+                            height: frictionPx,
+                            minHeight: frictionPx,
+                            background: display.quiet ? QUIET_FRICTION : frictionFill(day.friction),
+                            boxShadow:
+                              !display.quiet && display.friction >= 62 ? `0 0 10px ${FRICTION_HOT}66` : undefined,
+                          }}
+                        />
+                      ) : null
                     ) : (
                       <div
-                        className="w-[72%] max-w-[0.85rem] rounded-t-sm"
+                        className="w-[65%] max-w-[0.7rem] rounded-t-sm"
                         style={{
-                          height: MIDLINE_PX - 6,
+                          height: MIDLINE_PX - 8,
                           backgroundImage: UNSCORED_HATCH,
                           backgroundColor: 'rgba(51,65,85,0.55)',
                         }}
@@ -157,31 +162,30 @@ function HorizonStripChart({
                       />
                     )}
                   </div>
-                  <div className="h-px w-full bg-white/15" />
+                  <div className="h-px w-full bg-white/20" />
                   <div
                     className="flex flex-col items-center justify-start"
                     style={{ height: CHART_HEIGHT_PX - MIDLINE_PX }}
                   >
                     {day.scored ? (
-                      <div
-                        className={cn(
-                          'w-[72%] max-w-[0.85rem] rounded-b-sm',
-                          active && 'ring-1 ring-sky-400/70',
-                        )}
-                        style={{
-                          height: easePx,
-                          minHeight: easePx,
-                          background:
-                            day.ease > 0
-                              ? `linear-gradient(to bottom, ${EASE_COLOR}, ${EASE_COLOR}88)`
-                              : 'rgba(56,189,248,0.22)',
-                        }}
-                      />
+                      easePx > 0 ? (
+                        <div
+                          className={cn(
+                            'w-[65%] max-w-[0.7rem] rounded-b-sm',
+                            active && 'ring-1 ring-sky-500/70',
+                          )}
+                          style={{
+                            height: easePx,
+                            minHeight: easePx,
+                            background: display.quiet ? QUIET_EASE : EASE_COLOR,
+                          }}
+                        />
+                      ) : null
                     ) : (
                       <div
-                        className="w-[72%] max-w-[0.85rem] rounded-b-sm"
+                        className="w-[65%] max-w-[0.7rem] rounded-b-sm"
                         style={{
-                          height: CHART_HEIGHT_PX - MIDLINE_PX - 6,
+                          height: CHART_HEIGHT_PX - MIDLINE_PX - 8,
                           backgroundImage: UNSCORED_HATCH,
                           backgroundColor: 'rgba(51,65,85,0.55)',
                         }}
@@ -255,7 +259,8 @@ function HorizonStripChart({
         </div>
 
         <p className="mt-2 border-t border-white/5 pt-1.5 text-[10px] leading-relaxed text-slate-500">
-          Orange is hard pressure. Blue is supportive flow. Grey is not scored yet.
+          Orange is hard pressure. Blue is supportive flow.
+          {horizonHasUnscored(series) ? ' Grey is not scored yet.' : ''}
         </p>
       </div>
 

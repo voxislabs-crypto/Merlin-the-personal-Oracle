@@ -705,18 +705,30 @@ function horizonFrictionFromStorm(storm: RawAstroStorm): number {
   return Math.max(0, Math.min(100, Math.round(22 + s * 5.1 + s * s * 0.12)));
 }
 
+/** Moon/Mercury trines fire almost daily and wallpaper the strip. */
+const EASE_TRANSITING = new Set([
+  "Jupiter",
+  "Venus",
+  "Sun",
+  "Mars",
+  "Saturn",
+  "Uranus",
+  "Neptune",
+  "Pluto",
+]);
+
 function easeScoreForHit(transiting: string, natal: string, aspect: string, orbDiff: number): number {
-  let score = aspect === "Trine" ? 38 : 28;
-  if (transiting === "Jupiter" || transiting === "Venus") score += 16;
-  else if (transiting === "Sun" || transiting === "Moon") score += 8;
+  let score = aspect === "Trine" ? 34 : 24;
+  if (transiting === "Jupiter" || transiting === "Venus") score += 18;
+  else if (transiting === "Sun") score += 8;
   if (["Sun", "Moon", "Ascendant"].includes(natal)) score += 10;
   else if (PERSONAL_PLANETS.includes(natal)) score += 6;
-  score += Math.max(0, 8 - orbDiff * 2);
-  return Math.max(12, Math.min(78, Math.round(score)));
+  score += Math.max(0, 6 - orbDiff * 2);
+  return Math.max(0, Math.min(78, Math.round(score)));
 }
 
 function findEaseForDay(
-  dateString: string,
+  _dateString: string,
   natalPositions: PlanetPosition[],
   transitPositions: PlanetPosition[],
 ): Array<{ label: string; score: number }> {
@@ -726,6 +738,7 @@ function findEaseForDay(
   const personalNatal = natalPositions.filter((n) => PERSONAL_PLANETS.includes(n.name));
 
   for (const transit of transitPositions) {
+    if (!EASE_TRANSITING.has(transit.name)) continue;
     for (const natal of personalNatal) {
       let angularDiff = Math.abs(transit.longitude - natal.longitude);
       if (angularDiff > 180) angularDiff = 360 - angularDiff;

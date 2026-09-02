@@ -136,11 +136,13 @@ function dayRatingFriction(dayRating?: string): number | null {
 function eventEaseScore(event: AtmospherePredictiveEventInput): number {
   const aspect = normalizeAspect(event.transit?.aspect);
   if (!SOFT_ASPECTS.has(aspect)) return 0;
+  const transiting = normalizePlanet(event.transit?.transitingPlanet);
+  // Moon/Mercury trines are daily noise — they wallpaper the 30-day strip.
+  if (transiting === 'moon' || transiting === 'mercury') return 0;
   const intensity =
     typeof event.scores?.intensity === 'number' && Number.isFinite(event.scores.intensity)
       ? event.scores.intensity
       : 48;
-  const transiting = normalizePlanet(event.transit?.transitingPlanet);
   const natal = normalizePlanet(event.transit?.natalPlanet);
   let lift = aspect === 'trine' ? 0.82 : 0.7;
   if (transiting === 'jupiter' || transiting === 'venus') lift += 0.14;
@@ -508,6 +510,37 @@ function windowCalendarDay(window: LifeRiskWindow, asOfDate: string): string | n
 
 export function isHorizonFlowWindow(day: LifeRiskDayScore): boolean {
   return day.scored && day.ease > day.friction && day.friction < HARD_PEAK_FRICTION;
+}
+
+const HORIZON_QUIET = 18;
+const COUNTERWEIGHT_CAP = 0.4;
+
+export interface HorizonBarDisplay {
+  friction: number;
+  ease: number;
+  quiet: boolean;
+}
+
+/**
+ * Visual emphasis for the strip: the larger force owns the day.
+ * Loser is a short counterweight, never a twin. Both-low → two stubs.
+ */
+export function emphasizeHorizonWinner(day: Pick<LifeRiskDayScore, 'scored' | 'friction' | 'ease'>): HorizonBarDisplay {
+  if (!day.scored) return { friction: 0, ease: 0, quiet: false };
+  const friction = Math.max(0, day.friction || 0);
+  const ease = Math.max(0, day.ease || 0);
+  if (friction < HORIZON_QUIET && ease < HORIZON_QUIET) {
+    return { friction: 8, ease: 8, quiet: true };
+  }
+  const winner = Math.max(friction, ease);
+  const loserRaw = Math.min(friction, ease);
+  const loser = loserRaw <= 0 ? 0 : Math.min(loserRaw, Math.round(winner * COUNTERWEIGHT_CAP));
+  if (friction >= ease) return { friction: winner, ease: loser, quiet: false };
+  return { friction: loser, ease: winner, quiet: false };
+}
+
+export function horizonHasUnscored(days: LifeRiskDayScore[] | null | undefined): boolean {
+  return (days || []).some((d) => !d.scored);
 }
 
 export function formatHorizonTooltip(day: LifeRiskDayScore): string {
