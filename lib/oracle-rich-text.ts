@@ -1,15 +1,23 @@
 /**
  * Tokenize Oracle chat copy for colorful rendering:
+ * - markdown **bold** / *italic* → styled (markers stripped)
  * - planet names → per-planet colors
  * - severity phrases → calm / caution / storm tints
+ * - *Shareable closer:* → labeled closer block
  */
 
 export type OracleSeverity = 'calm' | 'neutral' | 'caution' | 'storm';
 
-export type OracleTextToken =
+export type OracleInlineToken =
   | { type: 'text'; value: string }
   | { type: 'planet'; value: string; canonical: string }
   | { type: 'severity'; value: string; severity: Exclude<OracleSeverity, 'neutral'> };
+
+export type OracleTextToken =
+  | OracleInlineToken
+  | { type: 'bold'; children: OracleTextToken[]; heading?: boolean }
+  | { type: 'italic'; children: OracleTextToken[] }
+  | { type: 'closer'; children: OracleTextToken[] };
 
 /** Longest-first so "North Node" wins over "Node" */
 const PLANET_ALIASES: Array<{ pattern: string; canonical: string }> = [
@@ -121,7 +129,7 @@ function canonicalPlanet(match: string): string {
   return hit?.canonical || match;
 }
 
-type Span = { start: number; end: number; token: OracleTextToken };
+type Span = { start: number; end: number; token: OracleInlineToken };
 
 /**
  * Score overall message tone for bubble chrome.
@@ -157,14 +165,13 @@ export function scoreOracleSeverity(text: string): OracleSeverity {
 }
 
 /**
- * Split text into plain / planet / severity tokens for rich rendering.
+ * Split a markdown-free string into plain / planet / severity tokens.
  */
-export function tokenizeOracleText(text: string): OracleTextToken[] {
+export function tokenizeOracleHighlights(text: string): OracleInlineToken[] {
   if (!text) return [];
 
   const spans: Span[] = [];
 
-  // Planets
   PLANET_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = PLANET_RE.exec(text)) !== null) {
@@ -176,7 +183,6 @@ export function tokenizeOracleText(text: string): OracleTextToken[] {
     });
   }
 
-  // Severity phrases (skip ranges already claimed by planets)
   for (const { severity, re } of SEVERITY_PATTERNS) {
     re.lastIndex = 0;
     let sm: RegExpExecArray | null;
@@ -195,7 +201,6 @@ export function tokenizeOracleText(text: string): OracleTextToken[] {
 
   spans.sort((a, b) => a.start - b.start || b.end - a.end);
 
-  // Greedy non-overlapping
   const picked: Span[] = [];
   let cursor = 0;
   for (const span of spans) {
@@ -204,7 +209,7 @@ export function tokenizeOracleText(text: string): OracleTextToken[] {
     cursor = span.end;
   }
 
-  const tokens: OracleTextToken[] = [];
+  const tokens: OracleInlineToken[] = [];
   let i = 0;
   for (const span of picked) {
     if (span.start > i) {
@@ -218,4 +223,175 @@ export function tokenizeOracleText(text: string): OracleTextToken[] {
   }
 
   return tokens.length > 0 ? tokens : [{ type: 'text', value: text }];
+}
+
+const CLOSER_LABEL_RE = /^\s*shareable closer:?\s*/i;
+
+function closerPrefixLength(value: string): number {
+  const m = value.match(CLOSER_LABEL_RE);
+  return m ? m[0].length : 0;
+}
+
+function trimEmphasisInner(value: string): string {
+  return value.replace(/^\n+/, '').replace(/\n+$/, '');
+}
+
+function isHeadingLabel(value: string): boolean {
+  const t = value.trim();
+  return t.length > 0 && t.length <= 80 && /:\s*$/.test(t);
+}
+
+function findClosingSingle(text: string, openIdx: number, mark: string): number {
+  for (let k = openIdx + 1; k < text.length; k++) {
+    if (text[k] === '\n') return -1;
+    if (text[k] !== mark) continue;
+    if (text[k + 1] === mark) {
+      k += 1;
+      continue;
+    }
+    if (k === openIdx + 1) continue;
+    return k;
+  }
+  return -1;
+}
+
+function takeParagraph(text: string, from: number): { body: string; nextIndex: number } {
+  const rest = text.slice(from);
+  const blank = rest.search(/\n[ \t]*\n/);
+  const chunk = blank === -1 ? rest : rest.slice(0, blank);
+  return {
+    body: chunk.replace(/^[ \t\n]+/, '').trim(),
+    nextIndex: from + (blank === -1 ? rest.length : blank),
+  };
+}
+
+type EmphasisSeg =
+  | { type: 'text'; value: string }
+  | { type: 'bold'; value: string; heading?: boolean }
+  | { type: 'italic'; value: string }
+  | { type: 'closer'; value: string };
+
+function pushCloserSeg(segs: EmphasisSeg[], inner: string, text: string, closeEnd: number): number {
+  const prefix = closerPrefixLength(inner);
+  const inlineBody = inner.slice(prefix).trim();
+  if (inlineBody) {
+    segs.push({ type: 'closer', value: inlineBody });
+    return closeEnd;
+  }
+  const taken = takeParagraph(text, closeEnd);
+  segs.push({ type: 'closer', value: taken.body });
+  return taken.nextIndex;
+}
+
+function parseEmphasis(text: string): EmphasisSeg[] {
+  const segs: EmphasisSeg[] = [];
+  let i = 0;
+  let lineStart = true;
+
+  while (i < text.length) {
+    if (text[i] === '\n') {
+      lineStart = true;
+    }
+
+    if (text.startsWith('**', i)) {
+      const close = text.indexOf('**', i + 2);
+      if (close !== -1) {
+        const inner = trimEmphasisInner(text.slice(i + 2, close));
+        if (closerPrefixLength(inner) > 0) {
+          i = pushCloserSeg(segs, inner, text, close + 2);
+          lineStart = i > 0 && text[i - 1] === '\n';
+          continue;
+        }
+        segs.push({
+          type: 'bold',
+          value: inner,
+          heading: lineStart && isHeadingLabel(inner),
+        });
+        i = close + 2;
+        lineStart = false;
+        continue;
+      }
+    }
+
+    if (text[i] === '*' && text[i + 1] !== '*') {
+      const after = text[i + 1];
+      const listMarker = lineStart && (after === ' ' || after === '\t');
+      if (!listMarker) {
+        const close = findClosingSingle(text, i, '*');
+        if (close !== -1) {
+          const inner = trimEmphasisInner(text.slice(i + 1, close));
+          if (closerPrefixLength(inner) > 0) {
+            i = pushCloserSeg(segs, inner, text, close + 1);
+            lineStart = i > 0 && text[i - 1] === '\n';
+            continue;
+          }
+          segs.push({ type: 'italic', value: inner });
+          i = close + 1;
+          lineStart = false;
+          continue;
+        }
+      }
+    }
+
+    const next = text.indexOf('*', i + (text[i] === '*' ? 1 : 0));
+    const end = next === -1 ? text.length : next;
+    const chunk = text.slice(i, end);
+    if (chunk) segs.push({ type: 'text', value: chunk });
+    if (chunk.includes('\n')) {
+      lineStart = chunk.endsWith('\n');
+    } else if (chunk.length > 0) {
+      lineStart = false;
+    }
+    i = end;
+  }
+
+  return segs;
+}
+
+function visibleOracleText(tokens: OracleTextToken[]): string {
+  return tokens
+    .map((token) => {
+      if (token.type === 'text' || token.type === 'planet' || token.type === 'severity') {
+        return token.value;
+      }
+      return visibleOracleText(token.children);
+    })
+    .join('');
+}
+
+/**
+ * Split text into plain / planet / severity / emphasis tokens for rich rendering.
+ * Markdown markers are consumed, not shown.
+ */
+export function tokenizeOracleText(text: string): OracleTextToken[] {
+  if (!text) return [];
+
+  const segs = parseEmphasis(text);
+  const tokens: OracleTextToken[] = [];
+  for (const seg of segs) {
+    if (seg.type === 'text') {
+      tokens.push(...tokenizeOracleHighlights(seg.value));
+      continue;
+    }
+    if (seg.type === 'closer') {
+      tokens.push({ type: 'closer', children: tokenizeOracleHighlights(seg.value) });
+      continue;
+    }
+    if (seg.type === 'bold') {
+      tokens.push({
+        type: 'bold',
+        heading: seg.heading,
+        children: tokenizeOracleHighlights(seg.value),
+      });
+      continue;
+    }
+    tokens.push({ type: 'italic', children: tokenizeOracleHighlights(seg.value) });
+  }
+
+  return tokens.length > 0 ? tokens : [{ type: 'text', value: text }];
+}
+
+/** Visible copy with markdown markers stripped — useful for tests and TTS. */
+export function oracleVisibleText(tokens: OracleTextToken[]): string {
+  return visibleOracleText(tokens);
 }
