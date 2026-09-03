@@ -128,7 +128,9 @@ function buildRationaleUserPrompt(packet: AtmospherePacket): string {
       : '';
 
   return [
-    `Sky tone: ${packet.tone.label} (${packet.intensity}%).`,
+    `Sky tone: ${packet.tone.label} (${packet.intensity}% alarm). Friction / hard-aspect load: ${
+      typeof packet.risk?.overallFriction === 'number' ? `${packet.risk.overallFriction}/100` : 'n/a'
+    }.`,
     `Day rating: ${packet.dayRating}.`,
     `Driver: ${packet.dominantDriver.label}.`,
     realityLine,

@@ -15,7 +15,7 @@ function trendClass(trend: DomainStripItem['trend']): string {
 }
 
 /**
- * Glanceable domain clarity: Relationships ▲ · Career ▬ · Risk 12%
+ * Glanceable domain clarity: Relationships ▲ · Career ▬ · Friction 12%
  */
 export function LifeDomainStrip({ items, riskPercent, className = '' }: LifeDomainStripProps) {
   if (!items.length && riskPercent == null) return null;
@@ -37,9 +37,9 @@ export function LifeDomainStrip({ items, riskPercent, className = '' }: LifeDoma
       {typeof riskPercent === 'number' ? (
         <span
           className="inline-flex items-center gap-1 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-sky-100 sm:text-xs"
-          title="Overall life-friction risk for this window"
+          title="Hard-aspect load for this window — not the Storm Watch alarm"
         >
-          <span className="text-sky-300/80 font-medium">Risk</span>
+          <span className="text-sky-300/80 font-medium">Friction</span>
           <span className="tabular-nums">{riskPercent}%</span>
         </span>
       ) : null}

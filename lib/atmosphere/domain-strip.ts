@@ -81,7 +81,7 @@ export function buildDomainStripItems(
   return items;
 }
 
-/** Risk % for the glance strip — overall life-friction, not weather intensity. */
+/** Glance-strip percent — overall life-friction (hard-aspect load), not the Storm Watch alarm. */
 export function resolveRiskPercent(risk?: LifeRiskPacket | null, intensityFallback?: number): number {
   if (typeof risk?.overallFriction === 'number' && Number.isFinite(risk.overallFriction)) {
     return Math.max(0, Math.min(100, Math.round(risk.overallFriction)));

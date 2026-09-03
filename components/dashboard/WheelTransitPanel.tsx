@@ -4,6 +4,7 @@ import { ArrowRight, Zap } from 'lucide-react';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { AtmosphereHeader } from '@/components/dashboard/AtmosphereHeader';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
+import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 
 interface TransitAlert {
   transitingPlanet: string;
@@ -21,6 +22,7 @@ interface WheelTransitPanelProps {
   driverLabel?: string;
   moonPhase?: string;
   moonSign?: string;
+  risk?: LifeRiskPacket | null;
   significant: TransitAlert[];
   approaching: TransitAlert[];
   loading?: boolean;
@@ -35,6 +37,7 @@ export function WheelTransitPanel({
   driverLabel,
   moonPhase,
   moonSign,
+  risk = null,
   significant,
   approaching,
   loading,
@@ -82,6 +85,7 @@ export function WheelTransitPanel({
         driverLabel={driverLabel}
         moonPhase={moonPhase}
         moonSign={moonSign}
+        risk={risk}
         variant="compact"
         loading={atmosphereLoading}
       />

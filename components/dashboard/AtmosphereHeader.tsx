@@ -13,8 +13,14 @@ import { LifeDomainStrip } from '@/components/dashboard/LifeDomainStrip';
 import {
   buildDomainStripItems,
   buildPersonalGreeting,
-  resolveRiskPercent,
 } from '@/lib/atmosphere/domain-strip';
+import {
+  ALARM_LABEL,
+  FRICTION_LABEL,
+  dualScoresNeedLabels,
+  formatDualScoreUi,
+  resolveFrictionPercent,
+} from '@/lib/atmosphere/score-labels';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { AtmosphereToneIcon, LifeRiskPacket } from '@/lib/atmosphere/types';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
@@ -128,11 +134,14 @@ export function AtmosphereHeader({
           .filter((item) => item.trend === 'down' || item.friction >= 48)
           .slice(0, 2)
       : [];
-  const riskPercent = variant === 'hero' ? resolveRiskPercent(risk, resolvedIntensity) : null;
+  const frictionPercent = resolveFrictionPercent(risk);
+  const showFrictionBesideAlarm =
+    frictionPercent != null && dualScoresNeedLabels(resolvedIntensity, frictionPercent);
+  const riskPercent = variant === 'hero' ? frictionPercent : null;
 
   const feltLine = showFeltLine ? (
     <p className="mt-1 text-xs text-slate-300/90">
-      Felt intensity {resolvedFeltIntensity}% · chart weather {resolvedIntensity}%
+      Felt intensity {resolvedFeltIntensity}% · chart weather alarm {resolvedIntensity}%
       {typeof sentimentScore === 'number' ? ` · mood signal ${sentimentScore}%` : ''}
     </p>
   ) : null;
@@ -162,7 +171,9 @@ export function AtmosphereHeader({
           {variant === 'hero' ? 'Weather scale' : barLabel}
         </span>
         {variant === 'hero' ? (
-          <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>{resolvedIntensity}%</span>
+          <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>
+            {resolvedIntensity}% {ALARM_LABEL}
+          </span>
         ) : null}
       </div>
       <div
@@ -171,7 +182,11 @@ export function AtmosphereHeader({
         aria-valuenow={resolvedIntensity}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Life weather intensity ${resolvedIntensity} percent — ${tone.label}`}
+        aria-label={`${tone.label} alarm ${resolvedIntensity} percent${
+          showFrictionBesideAlarm && frictionPercent != null
+            ? `, friction ${frictionPercent} percent`
+            : ''
+        }`}
       >
         <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-slate-950/90 shadow-inner">
           <div
@@ -227,7 +242,9 @@ export function AtmosphereHeader({
               <p className="text-[10px] uppercase tracking-wider text-slate-400">Life weather</p>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`text-sm font-bold ${tone.text}`}>{tone.label}</p>
-                <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>{resolvedIntensity}%</span>
+                <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>
+                  {formatDualScoreUi(resolvedIntensity, frictionPercent)}
+                </span>
                 {dayRating ? <DayRatingBadge dayRating={dayRating} /> : null}
               </div>
             </div>
@@ -266,11 +283,22 @@ export function AtmosphereHeader({
           >
             {tone.label}
           </h2>
-          <span
-            className={`mb-1 text-2xl font-bold tabular-nums sm:text-3xl ${tone.text} opacity-90`}
-          >
-            {resolvedIntensity}%
-          </span>
+          <div className="mb-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <span className={`text-2xl font-bold tabular-nums sm:text-3xl ${tone.text} opacity-90`}>
+              {resolvedIntensity}%
+              <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {ALARM_LABEL}
+              </span>
+            </span>
+            {showFrictionBesideAlarm && frictionPercent != null ? (
+              <span className="text-2xl font-bold tabular-nums sm:text-3xl text-sky-200/90">
+                {frictionPercent}%
+                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  {FRICTION_LABEL}
+                </span>
+              </span>
+            ) : null}
+          </div>
           <div className="mb-1.5 flex flex-wrap items-center gap-2">
             {dayRating ? <DayRatingBadge dayRating={dayRating} /> : null}
             {confluenceChip}

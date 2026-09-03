@@ -93,6 +93,18 @@ export {
   type DomainTrend,
 } from '@/lib/atmosphere/domain-strip';
 export {
+  ALARM_LABEL,
+  DUAL_SCORE_GAP,
+  FRICTION_LABEL,
+  clampScore,
+  dualScoresNeedLabels,
+  formatDualScoreUi,
+  formatScorePairContext,
+  formatShareScoreSuffix,
+  formatStormWatchScoreLine,
+  resolveFrictionPercent,
+} from '@/lib/atmosphere/score-labels';
+export {
   applyBaselineModifier,
   applyCalibrationModifier,
   applyTripleHitAmplification,

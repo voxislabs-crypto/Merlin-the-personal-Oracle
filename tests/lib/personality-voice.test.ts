@@ -280,4 +280,70 @@ describe('Oracle prompt uses the strategy, not a type label', () => {
       expect(prompt).toMatch(/400–700 words/);
     }
   });
+
+  it('injects a labeled score pair so Storm Watch and friction cannot fight', () => {
+    const prompt = buildOracleSystemPrompt({
+      conversationHistory: [],
+      currentQuestion: 'How bad is today?',
+      atmospherePacket: {
+        date: '2026-09-03',
+        intensity: 85,
+        feltIntensity: 85,
+        readinessModifier: 1,
+        dayRating: 'red',
+        tone: {
+          label: 'Storm Watch',
+          icon: 'storm',
+          gradient: '',
+          shellBg: '',
+          border: '',
+          text: '',
+          glow: '',
+        },
+        dominantDriver: {
+          label: 'Saturn square Moon',
+          rationale: 'Pressure is elevated.',
+          source: 'transit',
+        },
+        risk: {
+          date: '2026-09-03',
+          windowDays: 7,
+          overallFriction: 71,
+          level: 'friction',
+          elevatedDisruption: true,
+          confidence: 70,
+          headline: 'Hard window',
+          move: 'One priority.',
+          topDrivers: [],
+          frictionWindows: [],
+          supportWindows: [],
+          horizon: [],
+          nextFrictionPeak: null,
+          nextSupportPeak: null,
+          domains: [],
+          provenance: [],
+          generatedAt: '2026-09-03T12:00:00.000Z',
+        },
+        temporal: { baselineTemperature: 'neutral' },
+        confluence: { aligned: false, tripleHit: false, themes: [], signalCount: 0, sources: [] },
+        realityCheck: {
+          sentimentScore: null,
+          readinessModifier: 1,
+          feltIntensity: 85,
+          gap: 0,
+          guidanceBranch: 'neutral',
+          guidanceNote: '',
+          source: 'none',
+        },
+        patterns: { active: [], modifier: 1, tags: [], provenance: [] },
+        confidence: 70,
+        provenance: [],
+        generatedAt: '2026-09-03T12:00:00.000Z',
+      } as OracleContext['atmospherePacket'],
+    });
+    expect(prompt).toMatch(/SCORE PAIR/);
+    expect(prompt).toMatch(/Storm Watch 85, friction 71/);
+    expect(prompt).toMatch(/hard-aspect load/);
+    expect(prompt).toMatch(/SCORE LABELS/);
+  });
 });

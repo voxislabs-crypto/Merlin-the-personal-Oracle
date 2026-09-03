@@ -34,6 +34,10 @@ describe('domain-strip', () => {
     expect(resolveRiskPercent(null, 33)).toBe(33);
   });
 
+  it('does not treat weather intensity as the glance-strip friction', () => {
+    expect(resolveRiskPercent({ overallFriction: 71 } as LifeRiskPacket, 85)).toBe(71);
+  });
+
   it('builds time-of-day greeting', () => {
     const morning = new Date('2026-08-05T09:00:00');
     expect(timeOfDayGreeting(morning)).toBe('morning');

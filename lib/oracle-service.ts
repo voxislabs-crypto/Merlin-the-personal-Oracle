@@ -7,6 +7,7 @@ import { Timeline } from '@/lib/timeline-service';
 import { DailyForecast } from '@/lib/astrology/ephemeris';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import type { PersistentUserContextSnapshot } from '@/lib/user-context';
+import { formatScorePairContext, formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
 import { MERLIN_VOICE_SYSTEM_BLOCK } from '@/lib/voice/merlin-voice';
 import { classifyIntent } from '@/lib/personality/intent';
 import { buildVoiceProfile, buildVoiceStrategyBlock } from '@/lib/personality/profile';
@@ -540,7 +541,7 @@ function formatLifeRiskContext(packet: AtmospherePacket | undefined): string {
 LIFE RISK / TRANSIT IMPACT (AUTHORITATIVE — answer "is disruption risk / friction elevated?" from THIS first):
 - Horizon: ${risk.windowDays} days · Date anchor: ${risk.date}
 - Level: ${risk.level.toUpperCase()}
-- Overall friction: ${risk.overallFriction}/100
+- Overall friction (hard-aspect load): ${risk.overallFriction}/100
 - Elevated disruption risk: ${risk.elevatedDisruption ? 'YES' : 'NO'}
 - Confidence: ${risk.confidence}%
 - Headline: ${risk.headline}
@@ -566,6 +567,11 @@ function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
   if (!packet) return '';
 
   const riskBlock = formatLifeRiskContext(packet);
+  const scorePair = formatScorePairContext(
+    packet.tone.label,
+    packet.intensity,
+    packet.risk?.overallFriction,
+  );
 
   const confluenceLine = packet.confluence.aligned
     ? `- Signal alignment: YES${packet.confluence.tripleHit ? ' · TRIPLE HIT' : ''} (${packet.confluence.themes.slice(0, 3).join(', ') || 'multiple layers converging'})`
@@ -573,7 +579,7 @@ function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
 
   const realityLine =
     packet.realityCheck.source !== 'none'
-      ? `- Reality check: felt ${packet.feltIntensity}% vs sky ${packet.intensity}% (mood signal ${packet.realityCheck.sentimentScore ?? 'n/a'}%, readiness ×${packet.readinessModifier.toFixed(2)}, branch ${packet.realityCheck.guidanceBranch})`
+      ? `- Reality check: felt ${packet.feltIntensity}% vs sky alarm ${packet.intensity}% (mood signal ${packet.realityCheck.sentimentScore ?? 'n/a'}%, readiness ×${packet.readinessModifier.toFixed(2)}, branch ${packet.realityCheck.guidanceBranch})`
       : '- Reality check: no check-in or journal signal yet';
 
   const patternLine =
@@ -585,9 +591,11 @@ function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
       : '- Learned patterns: none matched today';
 
   return `
-${riskBlock ? `${riskBlock}\n\n` : ''}LIFE WEATHER / ATMOSPHERE (secondary tone for today — after life risk):
+${riskBlock ? `${riskBlock}\n\n` : ''}${scorePair}
+
+LIFE WEATHER / ATMOSPHERE (secondary tone for today — after life risk):
 - Date: ${packet.date}
-- Life weather tone: ${packet.tone.label} (${packet.intensity}% intensity)
+- Life weather tone: ${packet.tone.label} (${packet.intensity}% alarm)
 - Felt intensity: ${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})
 - Day rating: ${packet.dayRating}
 - Dominant driver (engine label — translate for the user): ${packet.dominantDriver.label}
@@ -610,7 +618,7 @@ ${confluenceLine}
       : 'none within 1°'
   }
 - Confidence: ${packet.confidence}%
-- Use rule: Life RISK block above is primary for friction / timing. Atmosphere tone fills mood texture only — do not contradict the risk level.
+- Use rule: Life RISK is primary for timing / disruption. Atmosphere tone is the alarm (Storm Watch at 80+). If you cite a percent, use the SCORE PAIR form so alarm and friction don't look like a fight.
   `.trim();
 }
 
@@ -723,14 +731,23 @@ function formatAppSightInventory(context: OracleContext): string {
           ? `Type ${context.mbtiType}`
           : 'not loaded'
     }`,
+    `- Score pair: ${
+      context.atmospherePacket
+        ? `${formatStormWatchScoreLine(
+            context.atmospherePacket.tone.label,
+            context.atmospherePacket.intensity,
+            risk?.overallFriction,
+          )} — two meters (alarm vs hard-aspect load); cite both if you cite either`
+        : 'not loaded'
+    }`,
     `- Life risk: ${
       risk
-        ? `level=${risk.level}, friction=${risk.overallFriction}/100, elevatedDisruption=${risk.elevatedDisruption}, conf=${risk.confidence}%`
+        ? `level=${risk.level}, friction=${risk.overallFriction}/100 (hard-aspect load), elevatedDisruption=${risk.elevatedDisruption}, conf=${risk.confidence}%`
         : 'not loaded (do not invent risk scores)'
     }`,
     `- Atmosphere tone: ${
       context.atmospherePacket
-        ? `${context.atmospherePacket.tone.label} · intensity ${context.atmospherePacket.intensity}% · driver: ${context.atmospherePacket.dominantDriver.label}`
+        ? `${context.atmospherePacket.tone.label} · alarm ${context.atmospherePacket.intensity}% · driver: ${context.atmospherePacket.dominantDriver.label}`
         : 'not loaded'
     }`,
     `- Storm playbook: ${storms > 0 ? `${storms} storm window(s)` : 'none or not loaded'}`,
@@ -1016,6 +1033,7 @@ GUARDRAILS (non-negotiable)
 5. NO SCARE TACTICS — Hard windows are named clearly without catastrophizing. "Elevated friction" not "your life will fall apart."
 6. PRIVACY OF CLAIM — Do not invent childhood trauma, secret enemies, or medical conditions.
 7. SAFETY LANGUAGE — Prefer "you might notice" / "pressure is elevated in" over absolute prophecies.
+8. SCORE LABELS — A day may have two percents. Storm Watch / alarm is weather intensity. Friction is hard-aspect load. If you mention a number, name the meter: "Storm Watch 85, friction 71." Never present them as two official scores for the same thing.
 
 ═══════════════════════════════════════
 HOW TO ANSWER (interaction model)

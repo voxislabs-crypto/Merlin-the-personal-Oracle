@@ -12,6 +12,7 @@ import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 import { StatusPanel } from '@/components/ui/status-panel';
+import { formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
@@ -535,7 +536,11 @@ export function TodayWeatherBrief({
         </div>
 
         <p className="text-center font-mono text-[10px] tracking-[0.2em] text-slate-500/80">
-          MERLIN · {tone.label.toUpperCase()} · {resolveAtmosphereIntensity(intensity, dayRating)}%
+          MERLIN · {formatStormWatchScoreLine(
+            tone.label,
+            resolveAtmosphereIntensity(intensity, dayRating),
+            risk?.overallFriction,
+          ).toUpperCase()}
         </p>
       </div>
     </ArcanePane>

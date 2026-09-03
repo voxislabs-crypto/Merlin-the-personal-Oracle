@@ -81,6 +81,7 @@ import {
   computeAtmosphereFromDashboardSources,
   buildAtmosphereRenderedDetail,
   buildLifeWeatherBrief,
+  formatStormWatchScoreLine,
   getTodayCheckinEntry,
   getYesterdayCheckinEntry,
   isAtmosphereEngineV1Enabled,
@@ -1899,18 +1900,18 @@ export default function UnifiedDashboard() {
 
   const handleAskAboutToday = useCallback(() => {
     if (activeAtmospherePacket) {
-      const { tone, intensity, feltIntensity, dayRating, dominantDriver, confluence, realityCheck } =
+      const { tone, intensity, feltIntensity, dayRating, dominantDriver, confluence, realityCheck, risk } =
         activeAtmospherePacket;
       const confluenceLine = confluence.aligned
         ? ` Multiple life-weather signals are aligned (${confluence.themes.slice(0, 2).join(', ') || 'converging layers'}).`
         : '';
       const feltLine =
         realityCheck.source !== 'none'
-          ? ` Felt intensity: ${feltIntensity}% (chart weather ${intensity}%, mood signal ${realityCheck.sentimentScore ?? 'n/a'}%).`
+          ? ` Felt intensity: ${feltIntensity}% (chart weather ${intensity}% alarm, mood signal ${realityCheck.sentimentScore ?? 'n/a'}%).`
           : '';
       queueAskContext(
         "Today's life weather",
-        `Today's life weather for my chart: ${tone.label} at ${intensity}% (${dayRating} day).${feltLine} Dominant driver: ${dominantDriver.label} — ${dominantDriver.rationale}.${confluenceLine} Explain what this means for me today and what I should watch for.`
+        `Today's life weather for my chart: ${formatStormWatchScoreLine(tone.label, intensity, risk?.overallFriction)} (${dayRating} day).${feltLine} Dominant driver: ${dominantDriver.label} — ${dominantDriver.rationale}.${confluenceLine} Explain what this means for me today and what I should watch for.`
       );
       return;
     }
@@ -3232,6 +3233,7 @@ export default function UnifiedDashboard() {
                                   driverLabel={activeAtmospherePacket?.dominantDriver.label}
                                   moonPhase={forecast?.moonPhase}
                                   moonSign={forecast?.moonSign}
+                                  risk={activeAtmospherePacket?.risk}
                                   significant={transits?.significant || []}
                                   approaching={transits?.approaching || []}
                                   loading={
@@ -3387,13 +3389,21 @@ export default function UnifiedDashboard() {
                       (forecastLoading || atmosphereLoading) && !activeAtmospherePacket?.risk
                     }
                     onAskAboutRisk={() => {
-                      const risk = activeAtmospherePacket?.risk;
+                      const packet = activeAtmospherePacket;
+                      const risk = packet?.risk;
                       const driver = risk?.topDrivers?.[0]?.label;
                       const peak = risk?.nextFrictionPeak?.label;
+                      const pair = packet
+                        ? formatStormWatchScoreLine(
+                            packet.tone.label,
+                            packet.intensity,
+                            risk?.overallFriction,
+                          )
+                        : null;
                       queueAskContext(
                         'Transit risk',
                         risk
-                          ? `Score-first read: level ${risk.level}, friction ${risk.overallFriction}/100, elevatedDisruption=${risk.elevatedDisruption}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
+                          ? `Score-first read: ${pair || `friction ${risk.overallFriction}/100`}, level ${risk.level}, elevatedDisruption=${risk.elevatedDisruption}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
                           : 'What hard transit windows should I prepare for this week, and is life friction elevated for my chart?',
                       );
                     }}

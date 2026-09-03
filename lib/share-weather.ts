@@ -3,6 +3,7 @@
  * Voice: lead with move + human story, not aspect lists. @see docs/MERLIN_VOICE.md
  */
 
+import { formatShareScoreSuffix } from '@/lib/atmosphere/score-labels';
 import { MERLIN_PRODUCT_CLAIM } from '@/lib/voice/merlin-voice';
 
 export interface ShareWeatherPayload {
@@ -42,13 +43,18 @@ export function buildShareWeatherText(payload: ShareWeatherPayload): string {
     '',
   ];
 
-  if (payload.levelLabel || typeof payload.friction === 'number') {
+  if (payload.levelLabel || typeof payload.friction === 'number' || typeof payload.intensity === 'number') {
     const level = payload.levelLabel || 'Life weather';
-    const fr =
-      typeof payload.friction === 'number' ? ` · friction ${Math.round(payload.friction)}/100` : '';
-    lines.push(`${level}${fr}`);
-  } else if (typeof payload.intensity === 'number') {
-    lines.push(`Intensity ${Math.round(payload.intensity)}%${payload.dayRating ? ` · ${payload.dayRating}` : ''}`);
+    const suffix = formatShareScoreSuffix(payload.intensity, payload.friction);
+    if (suffix) {
+      lines.push(`${level}${suffix}`);
+    } else if (payload.levelLabel) {
+      lines.push(level);
+    } else if (typeof payload.intensity === 'number') {
+      lines.push(
+        `Alarm ${Math.round(payload.intensity)}%${payload.dayRating ? ` · ${payload.dayRating}` : ''}`,
+      );
+    }
   }
 
   if (payload.elevatedDisruption === true) {
