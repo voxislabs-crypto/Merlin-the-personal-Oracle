@@ -64,6 +64,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { birthDate, birthTime, lat, lon, timezoneOffset, purpose } = body;
+    const isLandingPreview = purpose === 'landing-preview';
     
     console.log('[API] Calculate birth chart request:', { birthDate, birthTime, lat, lon });
     
@@ -74,16 +75,29 @@ export async function POST(request: Request) {
 
     // Unique-natal cap (anti household sharing). Same birth data is free.
     // Synastry partner charts are not a second household natal — don't consume a slot.
+    // Landing preview is one anonymous result so visitors can see their chart before signup.
     const isSynastry = purpose === 'synastry';
     const fingerprint = natalFingerprintFromInput({ birthDate, birthTime, lat, lon });
-    const chartQuota = isSynastry
-      ? await getChartQuotaStatus()
-      : await consumeChartQuota(fingerprint);
-    if (!isSynastry && !chartQuota.allowed) {
+    let chartQuota: Awaited<ReturnType<typeof consumeChartQuota>> | Awaited<ReturnType<typeof getChartQuotaStatus>>;
+    if (isLandingPreview) {
+      chartQuota = {
+        allowed: true,
+        rebuildOwn: true,
+        tier: 'free',
+        limit: 0,
+        used: 0,
+        remaining: 0,
+      };
+    } else if (isSynastry) {
+      chartQuota = await getChartQuotaStatus();
+    } else {
+      chartQuota = await consumeChartQuota(fingerprint);
+    }
+    if (!isLandingPreview && !isSynastry && !chartQuota.allowed) {
       const denied = chartQuotaDeniedResponse(chartQuota);
       return NextResponse.json(denied.body, { status: denied.status });
     }
-    if (isSynastry && chartQuota.code === 'CHART_AUTH_REQUIRED') {
+    if (!isLandingPreview && isSynastry && chartQuota.code === 'CHART_AUTH_REQUIRED') {
       const denied = chartQuotaDeniedResponse(chartQuota);
       return NextResponse.json(denied.body, { status: denied.status });
     }
@@ -131,7 +145,11 @@ export async function POST(request: Request) {
         utcBirthTime,
         lat,
         lon,
-        { includeTransits: false }
+        {
+          includeTransits: isLandingPreview,
+          includeProgressed: !isLandingPreview,
+          includeElectional: !isLandingPreview,
+        }
       );
 
       const moonSign = swissData?.positions?.find((p: any) => p.name === 'Moon')?.sign;
