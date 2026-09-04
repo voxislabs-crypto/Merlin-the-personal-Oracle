@@ -2,6 +2,7 @@
 
 import { Compass, Eye, MessageCircle, RefreshCcw, Sparkles, Theater } from 'lucide-react';
 import { getMBTITypeDescription, type MBTIType } from '@/lib/mbti-overlay';
+import { MbtiCoreOverrideControl } from '@/components/dashboard/MbtiCoreOverrideControl';
 import {
   ActiveStorylinePanel,
   type StorylineTheme,
@@ -49,6 +50,14 @@ interface ChartIdentityBriefProps {
   /** Natal Rx overlay — Core only. Mask stays put. */
   retrogradeOverlay?: boolean;
   onToggleRetrogradeOverlay?: () => void;
+  /** Engine Core before the user-layer override. */
+  calculatedCoreType?: string | null;
+  calculatedMaskType?: string | null;
+  coreOverride?: string | null;
+  onSetCoreOverride?: (type: MBTIType) => void | Promise<void>;
+  onClearCoreOverride?: () => void | Promise<void>;
+  coreOverrideSaving?: boolean;
+  coreOverrideDisabled?: boolean;
   /** Whose natal chart this is — date / place so a borrowed session is obvious */
   chartForLabel?: string | null;
   /** Base-engine Core (overlay off) */
@@ -92,6 +101,13 @@ export function ChartIdentityBrief({
   onAskStorylineWindow,
   retrogradeOverlay = false,
   onToggleRetrogradeOverlay,
+  calculatedCoreType = null,
+  calculatedMaskType = null,
+  coreOverride = null,
+  onSetCoreOverride,
+  onClearCoreOverride,
+  coreOverrideSaving = false,
+  coreOverrideDisabled = false,
   chartForLabel = null,
   baseCoreType = null,
   rxCoreType = null,
@@ -112,6 +128,11 @@ export function ChartIdentityBrief({
   const same = Boolean(core && mask && core === mask);
   const coreBlurb = typeBlurb(core);
   const maskBlurb = typeBlurb(mask);
+  const calculatedCore = (calculatedCoreType || '').toUpperCase() || undefined;
+  const calculatedMask = (calculatedMaskType || '').toUpperCase() || undefined;
+  const coreIsUserSet = Boolean(coreOverride);
+  const showCalculatedCore =
+    Boolean(calculatedCore && core && calculatedCore !== core);
 
   const hasStorylineUi =
     Boolean(activeStoryline?.trim()) ||
@@ -262,6 +283,16 @@ export function ChartIdentityBrief({
                   {retrogradeOverlay ? 'Rx overlay on' : 'Rx overlay off'}
                 </button>
               ) : null}
+              {onSetCoreOverride && onClearCoreOverride ? (
+                <MbtiCoreOverrideControl
+                  calculatedCore={calculatedCore || core}
+                  coreOverride={coreOverride}
+                  onSet={onSetCoreOverride}
+                  onClear={onClearCoreOverride}
+                  saving={coreOverrideSaving}
+                  disabled={coreOverrideDisabled}
+                />
+              ) : null}
               {onAskPersonality ? (
                 <button
                   type="button"
@@ -287,8 +318,14 @@ export function ChartIdentityBrief({
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300/80">
                         Core · inside{retrogradeOverlay ? ' · Rx' : ''}
+                        {coreIsUserSet ? ' · I set this' : ' · Calculated'}
                       </p>
                       <p className="mt-0.5 text-lg font-bold text-violet-50">{core}</p>
+                      {showCalculatedCore ? (
+                        <p className="mt-0.5 text-[11px] text-violet-200/60">
+                          Engine calculated {calculatedCore}
+                        </p>
+                      ) : null}
                       {coreBlurb ? (
                         <p className="mt-1 text-xs leading-snug text-violet-100/85 sm:text-sm">
                           {coreBlurb}
@@ -308,6 +345,13 @@ export function ChartIdentityBrief({
                         Mask · present
                       </p>
                       <p className="mt-0.5 text-lg font-bold text-orange-50">{mask}</p>
+                      {calculatedMask && calculatedMask !== mask ? (
+                        <p className="mt-0.5 text-[11px] text-orange-200/60">
+                          Engine calculated {calculatedMask}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-[11px] text-orange-200/55">Calculated</p>
+                      )}
                       {maskBlurb ? (
                         <p className="mt-1 text-xs leading-snug text-orange-100/85 sm:text-sm">
                           {maskBlurb}

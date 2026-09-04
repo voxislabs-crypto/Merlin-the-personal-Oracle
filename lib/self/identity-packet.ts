@@ -39,6 +39,8 @@ function asMbtiType(value?: string | null): string | undefined {
  * Life weather and Oracle must use this — never a hardcoded INFJ fallback.
  */
 export function resolveSelfMbtiType(input: {
+  /** User-layer Core override — wins over the engine, never written into fusion. */
+  coreOverride?: string | null;
   identity?: { mbti?: { primary?: { type?: string }; secondary?: { type?: string } } } | null;
   dualOverlay?: {
     firmware?: { mbtiType?: string };
@@ -48,6 +50,7 @@ export function resolveSelfMbtiType(input: {
   mbtiType?: string | null;
 } = {}): string | undefined {
   return (
+    asMbtiType(input.coreOverride) ||
     asMbtiType(input.identity?.mbti?.primary?.type) ||
     asMbtiType(input.dualOverlay?.firmware?.mbtiType) ||
     asMbtiType(input.mbtiType) ||

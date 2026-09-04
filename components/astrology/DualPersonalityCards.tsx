@@ -6,7 +6,8 @@ import { getMBTITypeDescription, MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/hooks/usePersonality';
 import { Theater, Eye, AlertTriangle, Shuffle } from 'lucide-react';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
-import { useUser } from '@clerk/nextjs';
+import { useMbtiOverride } from '@/hooks/useMbtiOverride';
+import { applyMbtiUserOverride } from '@/lib/personality/mbti-override';
 import flavorsRaw from '@/data/mbti-flavors.json';
 import shadowsRaw from '@/data/mbti-shadows.json';
 
@@ -67,11 +68,14 @@ interface DualPersonalityCardsProps {
 export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading = false, onAskContext, selectedContextLabel }: DualPersonalityCardsProps) {
   const SHADOW_INFO_STORAGE_KEY = 'merlin:shadow-info:expanded';
   const MBTI_OVERRIDE_PANEL_STORAGE_KEY = 'merlin:mbti-override-panel:open';
-  const { user } = useUser();
-  const savedOverride = (user?.unsafeMetadata?.mbtiOverride as MBTIType | undefined) ?? null;
+  const {
+    coreOverride: savedOverride,
+    setCoreOverride,
+    clearCoreOverride,
+    saving: savingOverride,
+  } = useMbtiOverride();
   const [showOverride, setShowOverride] = useState(false);
   const [selectedType, setSelectedType] = useState<MBTIType | ''>(savedOverride || '');
-  const [savingOverride, setSavingOverride] = useState(false);
   const [showShadowInfo, setShowShadowInfo] = useState(false);
   const [shadowPrefLoaded, setShadowPrefLoaded] = useState(false);
   const [overridePanelPrefLoaded, setOverridePanelPrefLoaded] = useState(false);
@@ -123,7 +127,12 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
     }
   }, [showOverride, overridePanelPrefLoaded]);
 
-  const finalType: MBTIType | null = savedOverride || (dualOverlay?.finalType as MBTIType) || mbtiType;
+  const activeDual = applyMbtiUserOverride(dualOverlay, { core: savedOverride });
+  const finalType: MBTIType | null =
+    savedOverride ||
+    (activeDual?.firmware?.mbtiType as MBTIType) ||
+    (activeDual?.finalType as MBTIType) ||
+    mbtiType;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const flavor = useMemo(() => {
@@ -151,28 +160,13 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
   }, [finalType]);
 
   const handleSaveOverride = async () => {
-    if (!selectedType || !user) return;
-    setSavingOverride(true);
-    try {
-      await user.update({ unsafeMetadata: { ...user.unsafeMetadata, mbtiOverride: selectedType } });
-      setShowOverride(false);
-    } catch (e) {
-      console.error('Failed to save MBTI override:', e);
-    } finally {
-      setSavingOverride(false);
-    }
+    if (!selectedType) return;
+    await setCoreOverride(selectedType);
+    setShowOverride(false);
   };
 
   const handleClearOverride = async () => {
-    if (!user) return;
-    setSavingOverride(true);
-    try {
-      const meta = { ...user.unsafeMetadata };
-      delete (meta as Record<string, unknown>).mbtiOverride;
-      await user.update({ unsafeMetadata: meta });
-    } finally {
-      setSavingOverride(false);
-    }
+    await clearCoreOverride();
   };
 
   if (loading) {
@@ -197,6 +191,9 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
     );
   }
 
+  const shownCore = (activeDual || dualOverlay).firmware.mbtiType;
+  const calculatedCore = dualOverlay.firmware.mbtiType;
+
   // Get colors based on MBTI type (Extrovert = warm, Introvert = cool)
   const getMaskColor = () => {
     const firstLetter = dualOverlay.hardware.mbtiType?.[0] || 'E';
@@ -206,7 +203,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
   };
 
   const getCoreColor = () => {
-    const firstLetter = dualOverlay.firmware.mbtiType?.[0] || 'I';
+    const firstLetter = shownCore?.[0] || 'I';
     return firstLetter === 'I'
       ? 'from-purple-600/40 to-indigo-600/40 border-purple-400/50'
       : 'from-red-600/40 to-pink-600/40 border-red-400/50';
@@ -218,7 +215,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
   };
 
   const getCoreTextColor = () => {
-    const firstLetter = dualOverlay.firmware.mbtiType?.[0] || 'I';
+    const firstLetter = shownCore?.[0] || 'I';
     return firstLetter === 'I' ? 'text-purple-300' : 'text-red-300';
   };
 
@@ -302,7 +299,13 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
             <div>
               <p className="text-xs uppercase tracking-wide text-purple-300/80 mb-1">{dualOverlay.firmware.sublabel}</p>
               <p className={`text-3xl font-bold ${getCoreTextColor()}`}>
-                {dualOverlay.firmware.mbtiType}
+                {shownCore}
+              </p>
+              <p className="text-[11px] text-purple-200/70 mt-1">
+                {savedOverride ? 'I set this' : 'Calculated'}
+                {savedOverride && calculatedCore && calculatedCore !== shownCore
+                  ? ` · engine ${calculatedCore}`
+                  : ''}
               </p>
               <p className="text-xs text-purple-200/60 mt-1">Confidence: {dualOverlay.firmware.confidence}%</p>
             </div>
@@ -320,10 +323,10 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
             {/* Poetic line */}
             <div className="pt-4 border-t border-purple-400/30">
               <p className="text-sm text-purple-100/90 mb-1">
-                {getMBTITypeDescription(dualOverlay.firmware.mbtiType as MBTIType)}
+                {getMBTITypeDescription(shownCore as MBTIType)}
               </p>
               <p className="text-sm italic text-purple-100">
-                {getInnerCorePoetry(dualOverlay.firmware.mbtiType)}
+                {getInnerCorePoetry(shownCore)}
               </p>
               {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === dualOverlay.firmware.label ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === dualOverlay.firmware.label ? 'Selected for Merlin' : 'Click card to ask Merlin about this layer'}</p> : null}
             </div>
@@ -375,7 +378,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
 
       {/* Dual combined interpretation when mask ≠ core */}
       {(() => {
-        const blend = buildBlendSynthesis(dualOverlay);
+        const blend = buildBlendSynthesis(activeDual || dualOverlay);
         if (blend.sameType) return null;
         return (
           <motion.div
@@ -395,7 +398,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
                 onClick={() =>
                   onAskContext(
                     'Dual MBTI blend',
-                    `My core is ${dualOverlay.firmware.mbtiType} and mask is ${dualOverlay.hardware.mbtiType}. Explain how they combine and how I should work with both.`,
+                    `My core is ${shownCore} and mask is ${dualOverlay.hardware.mbtiType}. Explain how they combine and how I should work with both.`,
                   )
                 }
               >
@@ -527,7 +530,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-300 transition-colors py-1"
             >
               <Shuffle className="w-3.5 h-3.5" />
-              {savedOverride ? `Override: ${savedOverride}` : 'Override type'}
+              {savedOverride ? `I set this · ${savedOverride}` : 'I set this'}
             </button>
             {savedOverride && (
               <button

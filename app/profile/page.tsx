@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { Eye, Sparkles, Scroll, MessageCircle } from "lucide-react";
 import type { OracleTonePreset } from '@/lib/oracle-output';
 import { useOraclePreferences } from '@/hooks/useOraclePreferences';
+import { useMbtiOverride } from '@/hooks/useMbtiOverride';
+import { MbtiCoreOverrideControl } from '@/components/dashboard/MbtiCoreOverrideControl';
 
 type ReadingPreset = 'plain' | 'warm' | 'bullshit' | 'oracle';
 type InterpretationMode = 'grok' | 'traditional';
@@ -27,6 +29,12 @@ export default function ProfilePage() {
   const [prophecyPolishMode, setProphecyPolishMode] = useState<ProphecyPolishMode>('engine');
   const [syncMessage, setSyncMessage] = useState('');
   const { preferences, persistPreferences } = useOraclePreferences({ enabled: isLoaded && !!user });
+  const {
+    coreOverride,
+    setCoreOverride,
+    clearCoreOverride,
+    saving: coreOverrideSaving,
+  } = useMbtiOverride();
 
   useEffect(() => {
     setClarityMode(preferences.clarityMode);
@@ -631,6 +639,24 @@ export default function ProfilePage() {
               >
                 {retrogradeOverlay ? 'Overlay On' : 'Overlay Off'}
               </button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-white font-semibold mb-1">Core type</p>
+                <p className="text-gray-400 text-sm">
+                  {coreOverride
+                    ? `I set this to ${coreOverride}. Voice, overlay copy, and storm wording follow this Core. Mask stays calculated. Clear to return to the engine.`
+                    : 'Calculated from your chart. If you already know your Core, set it here — the histogram does not have to agree first.'}
+                </p>
+              </div>
+              <MbtiCoreOverrideControl
+                coreOverride={coreOverride}
+                onSet={setCoreOverride}
+                onClear={clearCoreOverride}
+                saving={coreOverrideSaving}
+                disabled={!user}
+              />
             </div>
           </div>
 

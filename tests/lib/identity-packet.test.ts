@@ -57,6 +57,20 @@ describe('buildIdentityPacket', () => {
     expect(resolveSelfMbtiType({})).toBeUndefined();
   });
 
+  it('lets a user Core override beat the engine firmware', () => {
+    expect(
+      resolveSelfMbtiType({
+        coreOverride: 'INFJ',
+        dualOverlay: {
+          firmware: { mbtiType: 'INFP' },
+          hardware: { mbtiType: 'INTP' },
+          finalType: 'INFP',
+        },
+        mbtiType: 'INFP',
+      }),
+    ).toBe('INFJ');
+  });
+
   it('falls back when only empty inputs are given', () => {
     const packet = buildIdentityPacket({});
     expect(packet.pillar).toBe('self');
