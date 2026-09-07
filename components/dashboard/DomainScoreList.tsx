@@ -6,6 +6,8 @@ import { lifeDomainsForDriver } from '@/lib/astrology/pressure-engine/domains';
 import {
   domainSurfaceLine,
   explainHitsInDomain,
+  groupDriversByMechanism,
+  MAX_DOMAIN_EXPLAIN_LINES,
   mechanicsLine,
 } from '@/lib/astrology/pressure-engine/lay-reason';
 import { DomainDrillDown } from '@/components/dashboard/DomainDrillDown';
@@ -34,15 +36,25 @@ function buildDomainScoreDetail(
   fallbackDrivers: TransitDriver[],
 ): DomainScoreDetail {
   const transits = transitsForDomain(domain, fallbackDrivers);
-  const explanations = explainHitsInDomain(transits, domain.domain);
-  const mechanics = transits.map((driver) =>
-    mechanicsLine({
-      label: driver.label,
-      transitingPlanet: driver.transitingPlanet,
-      aspect: driver.aspect,
-      natalPlanet: driver.natalPlanet,
-      orbDeg: driver.orbDeg,
-    }),
+  const grouped = groupDriversByMechanism(transits).slice(0, MAX_DOMAIN_EXPLAIN_LINES);
+  const reps = grouped.map((group) => group[0]);
+  const explanations = explainHitsInDomain(reps, domain.domain);
+  const mechanics = grouped.map((group) =>
+    Array.from(
+      new Set(
+        group
+          .map((driver) =>
+            mechanicsLine({
+              label: driver.label,
+              transitingPlanet: driver.transitingPlanet,
+              aspect: driver.aspect,
+              natalPlanet: driver.natalPlanet,
+              orbDeg: driver.orbDeg,
+            }),
+          )
+          .filter(Boolean),
+      ),
+    ).join(' · '),
   );
   return {
     domain: domain.domain,

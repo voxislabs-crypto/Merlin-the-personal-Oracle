@@ -136,23 +136,43 @@ describe('unique domain explanations', () => {
       'love',
     );
 
-    expect(lines).toHaveLength(6);
+    expect(lines.length).toBeLessThanOrEqual(4);
+    expect(lines.length).toBeGreaterThanOrEqual(3);
     expect(lines.join(' ')).not.toMatch(/next \d+ days/i);
     expect(lines.join(' ')).not.toMatch(/reactive choices can create avoidable fallout/i);
-    expect(new Set(lines).size).toBe(6);
+    expect(lines.join(' ')).not.toMatch(/how you connect and what you value/i);
+    expect(lines.join(' ')).not.toMatch(/foggy, hard-to-pin-down feeling/i);
+    expect(new Set(lines).size).toBe(lines.length);
 
-    const verbs = lines.map((line) => line.match(/^This is (\w+)/)?.[1]);
-    expect(verbs.every(Boolean)).toBe(true);
-    expect(new Set(verbs).size).toBe(6);
+    const verbs = lines.map((line) => line.match(/^This is (\w+)/)?.[1] || '');
+    expect(new Set(verbs).size).toBe(lines.length);
 
     const windows = lines.map(
       (line) =>
         line.match(
           /(right now|today|over the next couple of days|this week|through this stretch|before the week turns)/,
-        )?.[1],
+        )?.[1] || '',
     );
-    expect(windows.every(Boolean)).toBe(true);
-    expect(new Set(windows).size).toBe(6);
+    expect(new Set(windows).size).toBe(lines.length);
+
+    for (const line of lines) {
+      const verb = line.match(/^This is (\w+)/)?.[1] || '';
+      const body = line.split('—')[1] || '';
+      if (/opening|loosening|easing/.test(verb)) {
+        expect(body).not.toMatch(/tightening|pressuring|straining|heavier/i);
+      }
+      if (/tightening|pressuring|straining/.test(verb)) {
+        expect(body).not.toMatch(/\bopening\b|\bloosening\b|\beasing\b/i);
+      }
+    }
+  });
+
+  it('does not say conversations and plans is', () => {
+    const [line] = explainHitsInDomain(
+      [{ label: 'Mercury Square Venus', kind: 'friction', daysToPeak: 0 }],
+      'love',
+    );
+    expect(line).not.toMatch(/conversations and plans is/i);
   });
 });
 

@@ -1,5 +1,7 @@
 import {
   explainHitsInDomain,
+  groupDriversByMechanism,
+  MAX_DOMAIN_EXPLAIN_LINES,
   mechanicsLine,
   rewriteLayReason,
 } from '@/lib/astrology/pressure-engine/lay-reason';
@@ -57,8 +59,16 @@ function hitFromNamed(
 }
 
 function uniquifyExplanations(hits: DomainHitCopy[], domain: LifeRiskDomain): DomainHitCopy[] {
-  const lines = explainHitsInDomain(hits, domain);
-  return hits.map((hit, index) => ({ ...hit, explanation: lines[index] || hit.explanation }));
+  const grouped = groupDriversByMechanism(hits).slice(0, MAX_DOMAIN_EXPLAIN_LINES);
+  const merged = grouped.map((group) => {
+    const primary = group[0];
+    const mechanics = Array.from(
+      new Set(group.map((hit) => (hit.mechanics || '').trim()).filter(Boolean)),
+    ).join(' · ');
+    return { ...primary, mechanics: mechanics || primary.mechanics };
+  });
+  const lines = explainHitsInDomain(merged, domain);
+  return merged.map((hit, index) => ({ ...hit, explanation: lines[index] || hit.explanation }));
 }
 
 export function domainHitsFromRisk(
@@ -97,7 +107,7 @@ export function domainHitsFromRisk(
     });
   }
 
-  return uniquifyExplanations(hits.slice(0, 8), domain);
+  return uniquifyExplanations(hits, domain);
 }
 
 export function buildDomainDetailPayload(

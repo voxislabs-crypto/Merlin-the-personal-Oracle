@@ -67,6 +67,13 @@ function planetFeel(name: string): string {
   return PLANET_FEEL_NAME[name.trim().toLowerCase()] || name.toLowerCase();
 }
 
+function copulaFor(subject: string): 'is' | 'are' {
+  const text = (subject || '').trim();
+  if (/\band\b/i.test(text)) return 'are';
+  if (/^(conversations|plans|things|feelings)\b/i.test(text)) return 'are';
+  return 'is';
+}
+
 export function rewriteLayReason(raw: string | null | undefined): string {
   let text = (raw || '').replace(/\s+/g, ' ').trim();
   if (!text) {
@@ -80,12 +87,13 @@ export function rewriteLayReason(raw: string | null | undefined): string {
     const left = planetFeel(labeled[1]);
     const right = planetFeel(labeled[3]);
     const aspect = labeled[2].toLowerCase();
+    const copula = copulaFor(left);
     if (aspect === 'square' || aspect === 'opposition') {
-      text = `${left} is tightening ${right} — things feel heavier than they are.`;
+      text = `${left} ${copula} leaning on ${right} — things feel heavier than they are.`;
     } else if (aspect === 'trine' || aspect === 'sextile') {
-      text = `${left} is easing ${right} — a usable opening if you take it.`;
+      text = `${left} ${copula} easing ${right} — a usable opening if you take it.`;
     } else {
-      text = `${left} is sitting on ${right} — the volume is up.`;
+      text = `${left} ${copula} sitting on ${right} — the volume is up.`;
     }
     return text.charAt(0).toUpperCase() + text.slice(1);
   }
@@ -200,7 +208,6 @@ export type DomainHitExplainInput = {
 const FRICTION_VERBS = ['tightening', 'pressuring', 'warning', 'straining'] as const;
 const SUPPORT_VERBS = ['opening', 'loosening', 'easing'] as const;
 const MIXED_VERBS = ['stirring', 'nudging', 'shifting'] as const;
-const ALL_VERBS = [...FRICTION_VERBS, ...SUPPORT_VERBS, ...MIXED_VERBS];
 
 const TIME_WINDOWS = [
   'right now',
@@ -251,27 +258,228 @@ function preferredWindow(days: number | undefined): string {
   return 'before the week turns';
 }
 
+export const MAX_DOMAIN_EXPLAIN_LINES = 4;
+
+const FORBIDDEN_CLAUSES = [
+  'how you connect and what you value',
+  'foggy, hard-to-pin-down feeling',
+];
+
+const TIGHT_BODY = /\b(tightening|pressuring|straining|heavier|weighing)\b/i;
+const OPEN_BODY = /\b(opening|loosening|easing)\b/i;
+const OPEN_VERBS = new Set(['opening', 'loosening', 'easing']);
+const TIGHT_VERBS = new Set(['tightening', 'pressuring', 'warning', 'straining']);
+
+type AspectClass = 'hard' | 'soft' | 'meet';
+
+export function parseTransitLabel(label: string | null | undefined): {
+  transiting: string;
+  aspect: string;
+  natal: string;
+} | null {
+  const text = (label || '').replace(/\s+/g, ' ').trim();
+  const match = text.match(
+    /^([A-Za-z][A-Za-z\s]*?)\s+(square|opposition|trine|sextile|conjunction|conjunct|quincunx)\s+(?:natal\s+)?([A-Za-z][A-Za-z\s]*?)$/i,
+  );
+  if (!match) return null;
+  return {
+    transiting: match[1].trim().toLowerCase(),
+    aspect: match[2].trim().toLowerCase(),
+    natal: match[3].trim().toLowerCase(),
+  };
+}
+
+function aspectClassOf(aspect: string): AspectClass {
+  const a = aspect.toLowerCase();
+  if (a.includes('trine') || a.includes('sextile')) return 'soft';
+  if (a.includes('conjunct')) return 'meet';
+  return 'hard';
+}
+
+export function mechanismKey(label: string | null | undefined): string {
+  const parsed = parseTransitLabel(label);
+  if (!parsed) return (label || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return `${parsed.transiting}|${aspectClassOf(parsed.aspect)}`;
+}
+
+export function groupDriversByMechanism<T extends { label?: string }>(drivers: T[]): T[][] {
+  const order: string[] = [];
+  const groups = new Map<string, T[]>();
+  for (const driver of drivers || []) {
+    const key = mechanismKey(driver.label) || `row-${order.length}`;
+    if (!groups.has(key)) {
+      order.push(key);
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(driver);
+  }
+  return order.map((key) => groups.get(key) || []);
+}
+
 function pickUnused(preferred: string, bank: readonly string[], used: Set<string>): string {
   if (!used.has(preferred)) return preferred;
   return bank.find((item) => !used.has(item)) || preferred;
 }
 
-function pickVerb(kind: 'friction' | 'support' | 'mixed', used: Set<string>, feel: string): string {
-  const inner = (feel || '').toLowerCase();
-  const ranked = [...preferredVerbs(kind), ...ALL_VERBS].filter(
-    (verb, index, list) => list.indexOf(verb) === index && !inner.includes(verb),
-  );
-  const available = ranked.filter((verb) => !used.has(verb));
-  return available[0] || ALL_VERBS.find((verb) => !used.has(verb)) || 'stirring';
+function pickVerb(kind: 'friction' | 'support' | 'mixed', used: Set<string>): string {
+  const bank = preferredVerbs(kind);
+  return bank.find((verb) => !used.has(verb)) || bank[0];
 }
 
-function driverFeel(driver: DomainHitExplainInput): string {
+function areaNoun(domain: string): string {
+  const key = (domain || '').toLowerCase();
+  if (key === 'love' || key === 'relationships') return 'the bond';
+  if (key === 'money' || key === 'finances') return 'money';
+  if (key === 'career') return 'work';
+  if (key === 'family' || key === 'social_connection') return 'home';
+  if (key === 'health' || key === 'mental_strain') return 'your energy';
+  if (key === 'self' || key === 'identity') return 'how you show up';
+  return domainInPlainWords(domain);
+}
+
+/** Mechanism banks: transiting planet + aspect class. No recycled Venus/Neptune clauses. */
+const MECHANISM: Record<string, Record<AspectClass, string[]>> = {
+  uranus: {
+    hard: [
+      'a sudden jolt is rattling {noun} — wait out the spike before you decide',
+      'the ground under {noun} just shifted — do not rebuild the whole house tonight',
+    ],
+    soft: ['an unusual option is open around {noun} if you take the odd path'],
+    meet: ['surprise is sitting on {noun} — the change is already in the room'],
+  },
+  venus: {
+    hard: [
+      'wanting and friction are tangled in {noun} — name one thing, not ten',
+      'affection is scoring every small slight — pick the real slight and leave the rest',
+    ],
+    soft: [
+      'warmth has a usable opening around {noun} if you keep the gesture small',
+      'a small kindness around {noun} lands farther than a speech',
+    ],
+    meet: [
+      'closeness is turned up around {noun} — volume is not a verdict',
+      'what you care about is louder — notice it without making it a project',
+    ],
+  },
+  neptune: {
+    hard: [
+      'the picture of the other person is blurry — check the facts before you fill them in',
+      'idealizing is doing extra work around {noun} — ask what is actually in the room',
+    ],
+    soft: ['softness is available around {noun} — let the edge down one notch, not the whole wall'],
+    meet: ['feelings are harder to pin down around {noun} — name one true thing and leave the rest'],
+  },
+  saturn: {
+    hard: ['duty is sitting on {noun} — the conversation wants patience, not a verdict'],
+    soft: ['a slower, sturdier current is available around {noun} if you keep the promise small'],
+    meet: ['a heavy, slow pressure is sitting on {noun} — patience over a snap decision'],
+  },
+  pluto: {
+    hard: ['something old is asking to be named in {noun} — do not force a confession'],
+    soft: ['a deep honesty has an opening around {noun} if you stay specific'],
+    meet: ['a deep pull is asking {noun} to get more honest — one true sentence is enough'],
+  },
+  mars: {
+    hard: ['heat is in the room around {noun} — pause before you pick a fight that is not the real one'],
+    soft: ['useful urgency is available around {noun} if you spend it on one move'],
+    meet: ['heat is turned up around {noun} — use it, do not spray it'],
+  },
+  mercury: {
+    hard: ['talk is running hot around {noun} — say less until you know what you mean'],
+    soft: ['a cleaner conversation is available around {noun} if you keep it short'],
+    meet: ['conversations and plans are louder around {noun} — write it down before you send it'],
+  },
+  moon: {
+    hard: ['mood is coloring {noun} — wait until the weather inside you settles'],
+    soft: ['the emotional current around {noun} is easier if you eat and sleep first'],
+    meet: ['feelings are sitting on {noun} — name the feeling, then the ask'],
+  },
+  sun: {
+    hard: ['pride is in the way of {noun} — drop the performance'],
+    soft: ['a clearer sense of self is available around {noun} if you stop proving it'],
+    meet: ['your sense of self is turned up around {noun} — let it show without a speech'],
+  },
+  jupiter: {
+    hard: ['a too-big promise around {noun} will cost you — keep the yes small'],
+    soft: ['a widening, hopeful pull is available around {noun} if you take one concrete step'],
+    meet: ['hope is loud around {noun} — one real step beats a grand plan'],
+  },
+};
+
+const FALLBACK_MECHANISM: Record<AspectClass, string[]> = {
+  hard: [
+    'pressure is leaning on {noun} — pick one reversible move',
+    'friction is up around {noun} — leave an exit ramp',
+  ],
+  soft: [
+    'a usable opening is around {noun} if you take it',
+    'the current is easier around {noun} — spend it on one thing',
+  ],
+  meet: [
+    'the volume is up around {noun} — notice it before you react',
+    'this area is louder than usual — name it, then choose',
+  ],
+};
+
+function fillNoun(template: string, domain: string): string {
+  return template.replace(/\{noun\}/g, areaNoun(domain));
+}
+
+function polarityOk(kind: 'friction' | 'support' | 'mixed', body: string): boolean {
+  if (kind === 'support' && TIGHT_BODY.test(body)) return false;
+  if (kind === 'friction' && OPEN_BODY.test(body)) return false;
+  return true;
+}
+
+function containsForbidden(body: string, usedClauses: Set<string>): boolean {
+  const lower = body.toLowerCase();
+  for (const clause of FORBIDDEN_CLAUSES) {
+    if (lower.includes(clause) && usedClauses.has(clause)) return true;
+  }
+  return false;
+}
+
+function markForbidden(body: string, usedClauses: Set<string>) {
+  const lower = body.toLowerCase();
+  for (const clause of FORBIDDEN_CLAUSES) {
+    if (lower.includes(clause)) usedClauses.add(clause);
+  }
+}
+
+function mechanismBody(
+  driver: DomainHitExplainInput,
+  domain: string,
+  kind: 'friction' | 'support' | 'mixed',
+  usedBodies: Set<string>,
+  usedClauses: Set<string>,
+): string {
   const specific = driver.layReason || driver.reason || '';
-  const source =
-    specific && !isGenericNarrative(specific) && specific.replace(/\s+/g, ' ').trim() !== (driver.label || '').trim()
-      ? specific
-      : driver.label || specific;
-  return rewriteLayReason(source);
+  if (
+    specific &&
+    !isGenericNarrative(specific) &&
+    specific.replace(/\s+/g, ' ').trim() !== (driver.label || '').trim() &&
+    polarityOk(kind, specific) &&
+    !containsForbidden(specific, usedClauses)
+  ) {
+    const rewritten = rewriteLayReason(specific);
+    if (polarityOk(kind, rewritten) && !containsForbidden(rewritten, usedClauses) && !usedBodies.has(rewritten.toLowerCase())) {
+      return rewritten;
+    }
+  }
+
+  const parsed = parseTransitLabel(driver.label || '');
+  const planet = parsed?.transiting || '';
+  const cls: AspectClass = parsed ? aspectClassOf(parsed.aspect) : kind === 'support' ? 'soft' : kind === 'mixed' ? 'meet' : 'hard';
+  const bank = [...(MECHANISM[planet]?.[cls] || []), ...FALLBACK_MECHANISM[cls]];
+  for (const template of bank) {
+    const body = fillNoun(template, domain);
+    const key = body.toLowerCase();
+    if (usedBodies.has(key)) continue;
+    if (!polarityOk(kind, body)) continue;
+    if (containsForbidden(body, usedClauses)) continue;
+    return body;
+  }
+  return fillNoun(FALLBACK_MECHANISM[cls][0], domain);
 }
 
 function decap(text: string): string {
@@ -280,29 +488,46 @@ function decap(text: string): string {
   return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
 }
 
+function linePolarityOk(verb: string, body: string): boolean {
+  if (OPEN_VERBS.has(verb) && TIGHT_BODY.test(body)) return false;
+  if (TIGHT_VERBS.has(verb) && OPEN_BODY.test(body)) return false;
+  return true;
+}
+
 /**
- * One transit, one sentence. Lists must go through `explainHitsInDomain`
- * so verbs and time windows stay unique.
+ * One transit, one sentence. Lists go through `explainHitsInDomain`.
  */
 export function explainDriverInDomain(driver: DomainHitExplainInput, domain: string): string {
   return explainHitsInDomain([driver], domain)[0];
 }
 
 /**
- * Verb bank + unique time windows. No two lines share a verb or a timeframe,
- * and generic "next N days" skeletons are discarded.
+ * Merge lookalike transits, cap at four, unique verb + window + mechanism.
+ * Wrapper and body stay the same polarity. Recycled Venus/Neptune clauses stay gone.
  */
 export function explainHitsInDomain(drivers: DomainHitExplainInput[], domain: string): string[] {
+  const grouped = groupDriversByMechanism(drivers || []).slice(0, MAX_DOMAIN_EXPLAIN_LINES);
+  const reps = grouped.map((group) => group[0]).filter(Boolean);
   const area = domainInPlainWords(domain);
   const usedVerbs = new Set<string>();
   const usedWindows = new Set<string>();
-  return (drivers || []).map((driver) => {
-    const feel = driverFeel(driver);
-    const verb = pickVerb(kindFromDriver(driver), usedVerbs, feel);
+  const usedBodies = new Set<string>();
+  const usedClauses = new Set<string>();
+
+  return reps.map((driver) => {
+    const kind = kindFromDriver(driver);
+    const verb = pickVerb(kind, usedVerbs);
     const window = pickUnused(preferredWindow(daysFromDriver(driver)), TIME_WINDOWS, usedWindows);
+    let body = mechanismBody(driver, domain, kind, usedBodies, usedClauses);
+    if (!linePolarityOk(verb, body)) {
+      const cls: AspectClass = kind === 'support' ? 'soft' : kind === 'mixed' ? 'meet' : 'hard';
+      body = fillNoun(FALLBACK_MECHANISM[cls][0], domain);
+    }
     usedVerbs.add(verb);
     usedWindows.add(window);
-    return `This is ${verb} ${area} ${window} — ${decap(feel)}.`;
+    usedBodies.add(body.toLowerCase());
+    markForbidden(body, usedClauses);
+    return `This is ${verb} ${area} ${window} — ${decap(body)}.`;
   });
 }
 
