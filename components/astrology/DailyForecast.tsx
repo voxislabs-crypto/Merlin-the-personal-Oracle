@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { parseTransitPhrase } from '@/lib/astrology/planet-style';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
+import { DomainScoreList } from '@/components/dashboard/DomainScoreList';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 
 // eslint-disable-next-line no-unused-vars
@@ -139,8 +140,12 @@ export function DailyForecast({
   };
 
   const rankedDomains = [...(domainScores?.length ? domainScores : explainability?.domainScores || [])]
-    .sort((a, b) => b.pressure - a.pressure)
-    .slice(0, 3);
+    .filter((domain) => (domain.topDrivers?.length || 0) > 0 || domain.pressure >= 18 || (domain.opportunity ?? 0) >= 18)
+    .sort(
+      (a, b) =>
+        Math.max(b.pressure, b.opportunity ?? 0) - Math.max(a.pressure, a.opportunity ?? 0),
+    )
+    .slice(0, 6);
   const showSafety =
     (explainability?.globalPressure || 0) >= 75 ||
     Boolean(explainability?.safety?.grounding?.length) ||
@@ -250,18 +255,7 @@ export function DailyForecast({
                   ) : null}
                 </>
               ) : null}
-              {rankedDomains.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {rankedDomains.map((domain) => (
-                    <span
-                      key={domain.domain}
-                      className="rounded-full border border-slate-600/50 bg-slate-900/60 px-2.5 py-1 text-[11px] text-slate-300"
-                    >
-                      {formatDomainLabel(domain.domain)} · {domain.pressure}/100
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+              {rankedDomains.length > 0 ? <DomainScoreList domains={rankedDomains} /> : null}
               {showSafety ? (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                   <p className="text-xs font-semibold text-amber-200">Grounding</p>
@@ -594,15 +588,8 @@ export function DailyForecast({
           ) : null}
 
           {rankedDomains.length > 0 ? (
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {rankedDomains.map((domain) => (
-                <div key={domain.domain} className="rounded border border-slate-600/40 bg-slate-950/45 px-3 py-2">
-                  <p className="text-xs text-slate-200">{formatDomainLabel(domain.domain)}</p>
-                  <p className="text-xs text-slate-300 mt-1">
-                    Pressure {domain.pressure}/100 · Confidence {domain.confidence}/100
-                  </p>
-                </div>
-              ))}
+            <div className="mt-3">
+              <DomainScoreList domains={rankedDomains} />
             </div>
           ) : null}
 
@@ -919,13 +906,6 @@ function generateActionableTip(dayRating: string): string {
     'Very Challenging': '🔥 Simplify everything. What\'s essential? Focus there. This too shall pass; do less today.',
   };
   return tips[dayRating] || 'Trust your instincts. Let them guide you.';
-}
-
-function formatDomainLabel(domain: string): string {
-  return domain
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 function getConfidenceMeterColor(probability: number): string {

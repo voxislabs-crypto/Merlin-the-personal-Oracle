@@ -129,11 +129,7 @@ export function AtmosphereHeader({
   const formattedDate = formatStoryDate(date);
   const greeting = showGreeting ? buildPersonalGreeting(firstName) : null;
   const domainItems =
-    variant === 'hero'
-      ? buildDomainStripItems(risk, { max: 6, includeQuiet: false })
-          .filter((item) => item.trend === 'down' || item.friction >= 48)
-          .slice(0, 2)
-      : [];
+    variant === 'hero' ? buildDomainStripItems(risk, { max: 6, includeQuiet: false }) : [];
   const frictionPercent = resolveFrictionPercent(risk);
   const showFrictionBesideAlarm =
     frictionPercent != null && dualScoresNeedLabels(resolvedIntensity, frictionPercent);
@@ -316,7 +312,7 @@ export function AtmosphereHeader({
       </div>
 
       {(domainItems.length > 0 || riskPercent != null) && (
-        <LifeDomainStrip items={domainItems} riskPercent={riskPercent} />
+        <LifeDomainStrip items={domainItems} riskPercent={riskPercent} risk={risk} />
       )}
 
       {weatherBar}

@@ -5,3 +5,5 @@ export * from './domains';
 export * from './archetypes';
 export * from './safety';
 export * from './explainability';
+export * from './lay-reason';
+export * from './drivers';

@@ -97,13 +97,24 @@ export interface TransitDriver {
   strength: number;
   confidence: number;
   reason: string;
+  layReason?: string;
+  domains?: LifeDomain[];
+  valence?: number;
+  aspect?: string;
+  transitingPlanet?: string;
+  natalPlanet?: string;
+  orbDeg?: number;
 }
+
+export type DomainTone = 'pressure' | 'opportunity' | 'neutral';
 
 export interface DomainScore {
   domain: LifeDomain;
   pressure: number;
+  opportunity: number;
   volatility: number;
   confidence: number;
+  tone: DomainTone;
   topDrivers: TransitDriver[];
 }
 

@@ -15,6 +15,7 @@ import { StatusPanel } from '@/components/ui/status-panel';
 import { formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
+import { domainInPlainWords, rewriteLayReason } from '@/lib/astrology/pressure-engine/lay-reason';
 import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
 import {
   preservePriorWeatherWindow,
@@ -66,6 +67,8 @@ export interface TodayWeatherBriefProps {
   weatherPrinciple?: string;
   /** Optional dominant driver label for Why pills when risk is thin */
   driverLabel?: string | null;
+  /** Pressure-engine / atmosphere driver reason — rewritten in plain speech */
+  moodReason?: string | null;
   moonPhase?: string;
   moonSign?: string;
   streak?: number;
@@ -149,6 +152,7 @@ export function TodayWeatherBrief({
   themeLabel,
   heldFromYesterday = false,
   driverLabel = null,
+  moodReason = null,
   moonPhase,
   moonSign,
   streak,
@@ -257,6 +261,12 @@ export function TodayWeatherBrief({
 
   const tone = resolveTone(resolveAtmosphereIntensity(intensity, dayRating));
   const arcaneTone = arcaneToneFromIntensity(intensity, dayRating);
+  const moodWord = (themeLabel || tone.label || '').trim();
+  const layMood = rewriteLayReason(moodReason || chartWhy || whyToday || driverLabel || '');
+  const hotDomain = [...(risk?.domains || [])].sort((a, b) => b.friction - a.friction)[0];
+  const whyThisMove = hotDomain
+    ? `${layMood.replace(/\.$/, '')} — that's why the move is about ${domainInPlainWords(hotDomain.name)}.`
+    : layMood;
   const moveEdge =
     arcaneTone === 'storm'
       ? 'border-rose-300/55 bg-gradient-to-br from-rose-500/25 via-rose-600/15 to-black/40 shadow-[0_0_36px_rgba(251,113,133,0.18)]'
@@ -304,6 +314,14 @@ export function TodayWeatherBrief({
           risk={risk}
         />
 
+        {moodWord ? (
+          <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Mood</p>
+            <p className={`mt-1 text-lg font-bold ${tone.text}`}>{moodWord}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-200/90">{layMood}</p>
+          </div>
+        ) : null}
+
         {/* Three-beat brief — Move is the 2-second headline */}
         <div className="relative space-y-3.5 overflow-hidden rounded-xl border border-white/15 bg-black/30 p-4 shadow-inner shadow-black/40 backdrop-blur-sm md:p-5">
           <div
@@ -340,6 +358,7 @@ export function TodayWeatherBrief({
                 >
                   {todayMove}
                 </p>
+                <p className="mt-2 text-sm leading-relaxed text-white/80">{whyThisMove}</p>
                 {whyThisPerson || coreNotices || leadFactDisplay || chartWhy || watchFor || doNot || behaviorTell ? (
                   <dl className="mt-3 space-y-2.5 border-t border-white/10 pt-3">
                     {whyThisPerson ? (

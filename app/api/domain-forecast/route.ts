@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
-import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
+import { buildExplainabilityPacket, toTransitDrivers } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
 import type { BirthChartData, DomainScore } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
@@ -110,6 +110,7 @@ export async function POST(request: Request) {
       windowEndIso: new Date(Date.now() + windowDays * 24 * 60 * 60 * 1000).toISOString(),
       globalPressure,
       confidence,
+      topDrivers: toTransitDrivers(sortedEvents),
     });
 
     return NextResponse.json({

@@ -48,8 +48,10 @@ describe('ChartInterpretation explainability context', () => {
         {
           domain: 'identity',
           pressure: 61,
+          opportunity: 18,
           volatility: 40,
           confidence: 64,
+          tone: 'pressure',
           topDrivers: [],
         },
       ],

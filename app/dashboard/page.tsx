@@ -2899,6 +2899,11 @@ export default function UnifiedDashboard() {
                         ? null
                         : activeAtmospherePacket?.dominantDriver?.label
                     }
+                    moodReason={
+                      todayWeatherStillLoading
+                        ? null
+                        : activeAtmospherePacket?.dominantDriver?.rationale
+                    }
                     mbtiType={speakingMbti || mbtiType || undefined}
                     mbtiGuidance={cosmicStoryMbtiGuidance}
                     moonPhase={todayWeatherStillLoading ? undefined : forecast?.moonPhase}

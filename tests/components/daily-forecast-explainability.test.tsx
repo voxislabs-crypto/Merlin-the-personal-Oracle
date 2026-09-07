@@ -52,8 +52,10 @@ describe('DailyForecast explainability block', () => {
         {
           domain: 'mental_strain',
           pressure: 76,
+          opportunity: 12,
           volatility: 51,
           confidence: 67,
+          tone: 'pressure',
           topDrivers: [],
         },
       ],

@@ -76,6 +76,7 @@ interface HomeTabPanelProps {
   weatherPrinciple?: string;
   /** Dominant transit/driver label for Why pills */
   driverLabel?: string | null;
+  moodReason?: string | null;
   mbtiType?: string;
   mbtiGuidance?: string;
   moonPhase?: string;
@@ -193,6 +194,7 @@ export function HomeTabPanel({
   heldFromYesterday,
   weatherPrinciple,
   driverLabel = null,
+  moodReason = null,
   mbtiType,
   moonPhase,
   moonSign,
@@ -298,6 +300,7 @@ export function HomeTabPanel({
           heldFromYesterday={heldFromYesterday}
           weatherPrinciple={weatherPrinciple}
           driverLabel={driverLabel}
+          moodReason={moodReason}
           moonPhase={moonPhase}
           moonSign={moonSign}
           streak={streak}

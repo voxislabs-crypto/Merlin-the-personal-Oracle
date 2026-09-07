@@ -82,8 +82,10 @@ describe('ActiveTransits explainability block', () => {
         {
           domain: 'career',
           pressure: 79,
+          opportunity: 10,
           volatility: 64,
           confidence: 70,
+          tone: 'pressure',
           topDrivers: [],
         },
       ],

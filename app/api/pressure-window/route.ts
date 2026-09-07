@@ -3,11 +3,11 @@ import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
-import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
+import { buildExplainabilityPacket, toTransitDrivers } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
 import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
 import { getAtmospherePatternProfile } from '@/lib/atmosphere/pattern-store.server';
-import type { BirthChartData, TransitDriver } from '@/types/astrology';
+import type { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { calendarDateToLocalNoon, resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
 
@@ -31,18 +31,6 @@ function normalizeUtcBirth(birthDate: string, birthTime: string, timezoneOffset?
     .padStart(2, '0')}`;
 
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
-}
-
-function toTransitDrivers(
-  events: Awaited<ReturnType<typeof buildPredictiveTransitBundle>>['events']
-): TransitDriver[] {
-  return events.slice(0, 3).map((event) => ({
-    transitId: event.eventId,
-    label: `${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}`,
-    strength: event.scores.intensity,
-    confidence: event.scores.confidence,
-    reason: event.narrative.whisper,
-  }));
 }
 
 export async function POST(request: Request) {

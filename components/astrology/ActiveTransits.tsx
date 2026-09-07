@@ -8,6 +8,7 @@ import { UserContextCard } from './UserContextCard';
 import { PredictionTimeline } from './PredictionTimeline';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
+import { DomainScoreList } from '@/components/dashboard/DomainScoreList';
 
 // eslint-disable-next-line no-unused-vars
 type AskContextFn = (s1: string, s2: string) => void;
@@ -327,8 +328,12 @@ export function ActiveTransits({
 
   const isSelectedContext = (label: string) => selectedContextLabel === label;
   const rankedDomains = [...(domainScores?.length ? domainScores : explainability?.domainScores || [])]
-    .sort((a, b) => b.pressure - a.pressure)
-    .slice(0, 4);
+    .filter((domain) => (domain.topDrivers?.length || 0) > 0 || domain.pressure >= 18 || (domain.opportunity ?? 0) >= 18)
+    .sort(
+      (a, b) =>
+        Math.max(b.pressure, b.opportunity ?? 0) - Math.max(a.pressure, a.opportunity ?? 0),
+    )
+    .slice(0, 6);
   const topBreakdown = explainability
     ? Object.entries(explainability.weightingBreakdown || {})
         .sort((a, b) => b[1] - a[1])
@@ -417,15 +422,8 @@ export function ActiveTransits({
           ) : null}
 
           {rankedDomains.length > 0 ? (
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-              {rankedDomains.map((domain) => (
-                <div key={domain.domain} className="rounded border border-slate-600/40 bg-slate-900/45 p-2.5">
-                  <p className="text-xs text-slate-200">{formatDomainLabel(domain.domain)}</p>
-                  <p className="text-xs text-slate-300 mt-1">
-                    Pressure {domain.pressure}/100 · Volatility {domain.volatility}/100 · Confidence {domain.confidence}/100
-                  </p>
-                </div>
-              ))}
+            <div className="mt-3">
+              <DomainScoreList domains={rankedDomains} />
             </div>
           ) : null}
 
@@ -814,13 +812,6 @@ function describeAspect(aspect: string): string {
     'Semisextile': 'small openings through steady integration'
   };
   return descriptions[aspect] || 'astrological influence';
-}
-
-function formatDomainLabel(domain: string): string {
-  return domain
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }
 
 function formatScoreLabel(key: string): string {

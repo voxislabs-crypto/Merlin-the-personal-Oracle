@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import ThumbsFeedback from './ThumbsFeedback';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
+import { DomainScoreList } from '@/components/dashboard/DomainScoreList';
 
 interface ChartInterpretationProps {
   summary: string;
@@ -74,8 +75,12 @@ export function ChartInterpretation({
   };
 
   const rankedDomains = [...(domainScores?.length ? domainScores : explainability?.domainScores || [])]
-    .sort((a, b) => b.pressure - a.pressure)
-    .slice(0, 3);
+    .filter((domain) => (domain.topDrivers?.length || 0) > 0 || domain.pressure >= 18 || (domain.opportunity ?? 0) >= 18)
+    .sort(
+      (a, b) =>
+        Math.max(b.pressure, b.opportunity ?? 0) - Math.max(a.pressure, a.opportunity ?? 0),
+    )
+    .slice(0, 6);
   const showSafety =
     (explainability?.globalPressure || 0) >= 75 ||
     Boolean(explainability?.safety?.grounding?.length) ||
@@ -151,13 +156,8 @@ export function ChartInterpretation({
           ) : null}
 
           {rankedDomains.length > 0 ? (
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-              {rankedDomains.map((domain) => (
-                <div key={domain.domain} className="rounded border border-slate-600/40 bg-slate-950/45 px-3 py-2">
-                  <p className="text-xs text-slate-200">{formatDomainLabel(domain.domain)}</p>
-                  <p className="text-xs text-slate-300 mt-1">Pressure {domain.pressure}/100 · Confidence {domain.confidence}/100</p>
-                </div>
-              ))}
+            <div className="mt-3">
+              <DomainScoreList domains={rankedDomains} />
             </div>
           ) : null}
 
@@ -225,9 +225,3 @@ export function ChartInterpretation({
   );
 }
 
-function formatDomainLabel(domain: string): string {
-  return domain
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}

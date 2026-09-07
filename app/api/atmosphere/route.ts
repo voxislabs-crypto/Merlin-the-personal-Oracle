@@ -15,7 +15,7 @@ import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { natalPointsForTransits } from '@/lib/astrology/natal-angles';
 import { getMBTIDual } from '@/lib/personality/fusion';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
-import { buildExplainabilityPacket } from '@/lib/astrology/pressure-engine';
+import { buildExplainabilityPacket, toTransitDrivers } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
 import { predictStorms } from '@/lib/astrology/storms';
 import { calculateBirthChart } from '@/lib/engine';
@@ -27,7 +27,7 @@ import {
   calendarDateToLocalNoon,
   resolveForecastTargetDate,
 } from '@/lib/datetime/local-calendar';
-import type { BirthChartData, TransitDriver } from '@/types/astrology';
+import type { BirthChartData } from '@/types/astrology';
 import type { MBTIType } from '@/lib/mbti-system';
 
 const VALID_MBTI_TYPES = new Set<string>([
@@ -61,18 +61,6 @@ function normalizeUtcBirth(birthDate: string, birthTime: string, timezoneOffset?
     .padStart(2, '0')}`;
 
   return { utcBirthDate, utcBirthTime, appliedOffsetHours: offsetHours };
-}
-
-function toTransitDrivers(
-  events: Awaited<ReturnType<typeof buildPredictiveTransitBundle>>['events']
-): TransitDriver[] {
-  return events.slice(0, 3).map((event) => ({
-    transitId: event.eventId,
-    label: `${event.transit.transitingPlanet} ${event.transit.aspect} ${event.transit.natalPlanet}`,
-    strength: event.scores.intensity,
-    confidence: event.scores.confidence,
-    reason: sanitizeCopyText(event.narrative.whisper),
-  }));
 }
 
 function mapPredictiveBundle(

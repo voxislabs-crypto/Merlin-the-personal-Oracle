@@ -322,13 +322,27 @@ export interface TransitDriver {
   strength: number;
   confidence: number;
   reason: string;
+  /** Everyday-language rewrite of `reason` — no planet/aspect jargon. */
+  layReason?: string;
+  domains?: LifeDomain[];
+  /** Negative = pressure, positive = opportunity */
+  valence?: number;
+  aspect?: string;
+  transitingPlanet?: string;
+  natalPlanet?: string;
+  orbDeg?: number;
 }
+
+export type DomainTone = 'pressure' | 'opportunity' | 'neutral';
 
 export interface DomainScore {
   domain: LifeDomain;
   pressure: number;
+  /** Supportive / opening load for this domain — independent of pressure. */
+  opportunity: number;
   volatility: number;
   confidence: number;
+  tone: DomainTone;
   topDrivers: TransitDriver[];
 }
 
