@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { DomainStripItem, DomainTrend } from '@/lib/atmosphere/domain-strip';
 import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
-import { domainHitsFromRisk } from '@/lib/atmosphere/domain-detail';
+import { domainHitsFromRisk, uniqueExplanations, uniqueMechanics } from '@/lib/atmosphere/domain-detail';
 import { domainInPlainWords, domainSurfaceLine } from '@/lib/astrology/pressure-engine/lay-reason';
 import { ShowMechanics } from '@/components/dashboard/ShowMechanics';
 
@@ -80,14 +80,14 @@ export function LifeDomainStrip({
             Only what is touching {domainInPlainWords(openItem.id)} right now.
           </p>
           {hits.length ? (
-            <ul className="mt-2 space-y-2">
-              {hits.map((hit) => (
-                <li key={hit.id} className="rounded-md bg-black/30 px-2.5 py-2">
-                  <p className="text-xs leading-relaxed text-slate-200">{hit.explanation}</p>
-                  <ShowMechanics className="mt-1.5" lines={[hit.mechanics]} />
-                </li>
+            <div className="mt-2 rounded-md bg-black/30 px-2.5 py-2">
+              {uniqueExplanations(hits).map((line) => (
+                <p key={line} className="text-xs leading-relaxed text-slate-200">
+                  {line}
+                </p>
               ))}
-            </ul>
+              <ShowMechanics className="mt-1.5" lines={uniqueMechanics(hits)} />
+            </div>
           ) : (
             <p className="mt-2 text-xs text-slate-400">Quiet in this area — no specific transit is scoring it today.</p>
           )}

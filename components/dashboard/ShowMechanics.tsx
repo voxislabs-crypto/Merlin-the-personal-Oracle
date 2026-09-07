@@ -13,7 +13,9 @@ export function ShowMechanics({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const mechanics = lines.map((line) => (line || '').trim()).filter(Boolean);
+  const mechanics = Array.from(
+    new Set(lines.map((line) => (line || '').trim()).filter(Boolean)),
+  );
   if (!mechanics.length) return null;
 
   return (

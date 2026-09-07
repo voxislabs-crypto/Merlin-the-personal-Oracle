@@ -463,17 +463,16 @@ function mergeDomainScores(
   }
 
   for (const storm of storms) {
-    for (const name of mapStormDomains(storm)) {
-      const bucket = ensure(name);
-      const f =
-        typeof storm.intensityScore === 'number'
-          ? stormScoreToFriction(storm.intensityScore)
-          : STORM_INTENSITY[storm.intensity || 'moderate'] || 56;
-      // Secondary domains from a storm read a bit softer
-      const primary = mapStormDomains(storm)[0] === name;
-      bucket.frictionHits.push(primary ? f : f * 0.82);
-      bucket.hits += 1;
-    }
+    const names = mapStormDomains(storm);
+    const primary = names[0];
+    if (!primary) continue;
+    const bucket = ensure(primary);
+    const f =
+      typeof storm.intensityScore === 'number'
+        ? stormScoreToFriction(storm.intensityScore)
+        : STORM_INTENSITY[storm.intensity || 'moderate'] || 56;
+    bucket.frictionHits.push(f);
+    bucket.hits += 1;
   }
 
   const blend = (hits: number[]): number => {

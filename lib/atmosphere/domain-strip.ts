@@ -30,8 +30,9 @@ export const DOMAIN_STRIP_META: Array<{ id: LifeRiskDomain; label: string }> = [
 
 export function domainTrendFromScores(friction: number, support: number): DomainTrend {
   const net = support - friction;
-  if (net >= 14 || (support >= 55 && friction < 42)) return 'up';
-  if (net <= -14 || (friction >= 55 && support < 42)) return 'down';
+  // Opening (blue) if support actually leads — don't wait for a huge gap.
+  if (net >= 8 || (support >= 40 && support > friction)) return 'up';
+  if (net <= -8 || (friction >= 48 && friction > support)) return 'down';
   return 'flat';
 }
 

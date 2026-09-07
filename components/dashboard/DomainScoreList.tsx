@@ -47,25 +47,31 @@ export function DomainScoreList({
                   Only what is touching {domainInPlainWords(domain.domain)} right now.
                 </p>
                 {domain.topDrivers.length ? (
-                  domain.topDrivers.map((driver) => (
-                    <div key={driver.transitId} className="rounded-md bg-black/25 px-2.5 py-2">
-                      <p className="text-xs leading-relaxed text-slate-200">
-                        {explainDriverInDomain(driver, domain.domain)}
+                  <div className="rounded-md bg-black/25 px-2.5 py-2">
+                    {Array.from(
+                      new Set(
+                        domain.topDrivers.map((driver) =>
+                          explainDriverInDomain(driver, domain.domain),
+                        ),
+                      ),
+                    ).map((line) => (
+                      <p key={line} className="text-xs leading-relaxed text-slate-200">
+                        {line}
                       </p>
-                      <ShowMechanics
-                        className="mt-1.5"
-                        lines={[
-                          mechanicsLine({
-                            label: driver.label,
-                            transitingPlanet: driver.transitingPlanet,
-                            aspect: driver.aspect,
-                            natalPlanet: driver.natalPlanet,
-                            orbDeg: driver.orbDeg,
-                          }),
-                        ]}
-                      />
-                    </div>
-                  ))
+                    ))}
+                    <ShowMechanics
+                      className="mt-1.5"
+                      lines={domain.topDrivers.map((driver) =>
+                        mechanicsLine({
+                          label: driver.label,
+                          transitingPlanet: driver.transitingPlanet,
+                          aspect: driver.aspect,
+                          natalPlanet: driver.natalPlanet,
+                          orbDeg: driver.orbDeg,
+                        }),
+                      )}
+                    />
+                  </div>
                 ) : (
                   <p className="text-xs text-slate-400">Quiet here — no transit is scoring this area today.</p>
                 )}

@@ -13,6 +13,24 @@ export interface DomainHitCopy {
   mechanics: string | null;
 }
 
+export function transitIdentityKey(label: string): string {
+  return (label || '')
+    .toLowerCase()
+    .replace(/\bnatal\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pushUnique(hits: DomainHitCopy[], hit: DomainHitCopy) {
+  const key = transitIdentityKey(hit.mechanics || hit.label);
+  if (!key) return;
+  if (hits.some((existing) => transitIdentityKey(existing.mechanics || existing.label) === key)) {
+    return;
+  }
+  hits.push(hit);
+}
+
 export function domainHitsFromRisk(
   risk: LifeRiskPacket | null | undefined,
   domain: LifeRiskDomain,
@@ -23,7 +41,7 @@ export function domainHitsFromRisk(
   const windows = [...(risk.frictionWindows || []), ...(risk.supportWindows || [])];
   for (const window of windows) {
     if (!window.domains?.includes(domain)) continue;
-    hits.push({
+    pushUnique(hits, {
       id: window.id,
       label: window.label,
       kind: window.kind,
@@ -41,8 +59,7 @@ export function domainHitsFromRisk(
 
   for (const driver of risk.topDrivers || []) {
     if (!driver.domains?.includes(domain)) continue;
-    if (hits.some((hit) => hit.label === driver.label)) continue;
-    hits.push({
+    pushUnique(hits, {
       id: `driver-${driver.label}`,
       label: driver.label,
       kind: driver.kind,
@@ -59,6 +76,31 @@ export function domainHitsFromRisk(
   }
 
   return hits.slice(0, 8);
+}
+
+export function uniqueExplanations(hits: DomainHitCopy[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const hit of hits) {
+    const key = (hit.explanation || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(hit.explanation);
+  }
+  return out;
+}
+
+export function uniqueMechanics(hits: DomainHitCopy[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const hit of hits) {
+    const line = (hit.mechanics || '').trim();
+    const key = transitIdentityKey(line);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(line);
+  }
+  return out;
 }
 
 export function moodLayReason(
