@@ -462,6 +462,7 @@ function mergeDomainScores(
     label: string,
     kind: LifeRiskWindowKind,
     reason?: string,
+    daysToPeak?: number,
   ) => {
     const key = label.replace(/\s+/g, ' ').trim().toLowerCase();
     if (!key) return;
@@ -470,9 +471,15 @@ function mergeDomainScores(
     );
     if (existing) {
       if (!existing.reason && reason) existing.reason = reason.trim();
+      if (existing.daysToPeak == null && typeof daysToPeak === 'number') existing.daysToPeak = daysToPeak;
       return;
     }
-    bucket.drivers.push({ label: label.trim(), kind, reason: reason?.trim() || undefined });
+    bucket.drivers.push({
+      label: label.trim(),
+      kind,
+      reason: reason?.trim() || undefined,
+      daysToPeak: typeof daysToPeak === 'number' && Number.isFinite(daysToPeak) ? daysToPeak : undefined,
+    });
   };
 
   const eventStory = (
@@ -493,12 +500,12 @@ function mergeDomainScores(
       const impact = softCeilingFriction(d.impact);
       if (d.valence >= 0.25) {
         bucket.supportHits.push(impact * 0.85);
-        remember(bucket, label, 'support', eventStory(event, 'support'));
+        remember(bucket, label, 'support', eventStory(event, 'support'), event.timing?.daysToPeak);
       } else {
         const kind: LifeRiskWindowKind = d.valence < -0.2 ? 'friction' : 'mixed';
         const f = impact * (d.valence < -0.2 ? 1 : 0.72);
         bucket.frictionHits.push(f);
-        remember(bucket, label, kind, eventStory(event, kind));
+        remember(bucket, label, kind, eventStory(event, kind), event.timing?.daysToPeak);
       }
       bucket.hits += 1;
     }

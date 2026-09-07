@@ -187,29 +187,123 @@ export function mechanicsLine(input: {
   return base;
 }
 
-/**
- * "this is tightening your finances because…"
- */
-export function explainDriverInDomain(
-  driver: {
-    label?: string;
-    reason?: string;
-    layReason?: string;
-    valence?: number;
-    aspect?: string;
-  },
-  domain: string,
-): string {
-  const area = domainInPlainWords(domain);
-  const why = rewriteLayReason(driver.layReason || driver.reason || driver.label);
+export type DomainHitExplainInput = {
+  label?: string;
+  reason?: string;
+  layReason?: string;
+  valence?: number;
+  aspect?: string;
+  kind?: 'friction' | 'support' | 'mixed';
+  daysToPeak?: number;
+};
+
+const FRICTION_VERBS = ['tightening', 'pressuring', 'warning', 'straining'] as const;
+const SUPPORT_VERBS = ['opening', 'loosening', 'easing'] as const;
+const MIXED_VERBS = ['stirring', 'nudging', 'shifting'] as const;
+const ALL_VERBS = [...FRICTION_VERBS, ...SUPPORT_VERBS, ...MIXED_VERBS];
+
+const TIME_WINDOWS = [
+  'right now',
+  'today',
+  'over the next couple of days',
+  'this week',
+  'through this stretch',
+  'before the week turns',
+] as const;
+
+const GENERIC_NARRATIVE =
+  /reactive choices can create avoidable fallout|momentum is available|small disciplined actions compound|this week'?s vibe|pressure is building around your|this transit is peaking now around|the peak has passed|complacency can waste a strong opening|if you stay deliberate under pressure|treat the next opening like a real door|survival mode is loud|pause high-stakes launches|prepare now so the peak|act cleanly, speak directly|harvest the lesson/i;
+
+export function isGenericNarrative(text: string | null | undefined): boolean {
+  return GENERIC_NARRATIVE.test(text || '');
+}
+
+function preferredVerbs(kind: 'friction' | 'support' | 'mixed'): readonly string[] {
+  if (kind === 'support') return SUPPORT_VERBS;
+  if (kind === 'friction') return FRICTION_VERBS;
+  return MIXED_VERBS;
+}
+
+function kindFromDriver(driver: DomainHitExplainInput): 'friction' | 'support' | 'mixed' {
+  if (driver.kind === 'support' || driver.kind === 'friction' || driver.kind === 'mixed') {
+    return driver.kind;
+  }
   const valence = typeof driver.valence === 'number' ? driver.valence : inferValence(driver.aspect);
-  if (valence >= 0.2) {
-    return `This is opening ${area} because ${why.charAt(0).toLowerCase()}${why.slice(1)}`;
+  if (valence >= 0.2) return 'support';
+  if (valence <= -0.15) return 'friction';
+  return 'mixed';
+}
+
+function daysFromDriver(driver: DomainHitExplainInput): number | undefined {
+  if (typeof driver.daysToPeak === 'number' && Number.isFinite(driver.daysToPeak)) {
+    return driver.daysToPeak;
   }
-  if (valence <= -0.15) {
-    return `This is tightening ${area} because ${why.charAt(0).toLowerCase()}${why.slice(1)}`;
-  }
-  return `This is stirring ${area} because ${why.charAt(0).toLowerCase()}${why.slice(1)}`;
+  const match = `${driver.reason || ''} ${driver.layReason || ''}`.match(/next\s+(\d+)\s+days?/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+function preferredWindow(days: number | undefined): string {
+  if (days == null) return 'through this stretch';
+  if (days <= 0) return 'right now';
+  if (days <= 1) return 'today';
+  if (days <= 3) return 'over the next couple of days';
+  if (days <= 7) return 'this week';
+  return 'before the week turns';
+}
+
+function pickUnused(preferred: string, bank: readonly string[], used: Set<string>): string {
+  if (!used.has(preferred)) return preferred;
+  return bank.find((item) => !used.has(item)) || preferred;
+}
+
+function pickVerb(kind: 'friction' | 'support' | 'mixed', used: Set<string>, feel: string): string {
+  const inner = (feel || '').toLowerCase();
+  const ranked = [...preferredVerbs(kind), ...ALL_VERBS].filter(
+    (verb, index, list) => list.indexOf(verb) === index && !inner.includes(verb),
+  );
+  const available = ranked.filter((verb) => !used.has(verb));
+  return available[0] || ALL_VERBS.find((verb) => !used.has(verb)) || 'stirring';
+}
+
+function driverFeel(driver: DomainHitExplainInput): string {
+  const specific = driver.layReason || driver.reason || '';
+  const source =
+    specific && !isGenericNarrative(specific) && specific.replace(/\s+/g, ' ').trim() !== (driver.label || '').trim()
+      ? specific
+      : driver.label || specific;
+  return rewriteLayReason(source);
+}
+
+function decap(text: string): string {
+  const trimmed = (text || '').replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
+  if (!trimmed) return 'something in the day is leaning on you';
+  return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+}
+
+/**
+ * One transit, one sentence. Lists must go through `explainHitsInDomain`
+ * so verbs and time windows stay unique.
+ */
+export function explainDriverInDomain(driver: DomainHitExplainInput, domain: string): string {
+  return explainHitsInDomain([driver], domain)[0];
+}
+
+/**
+ * Verb bank + unique time windows. No two lines share a verb or a timeframe,
+ * and generic "next N days" skeletons are discarded.
+ */
+export function explainHitsInDomain(drivers: DomainHitExplainInput[], domain: string): string[] {
+  const area = domainInPlainWords(domain);
+  const usedVerbs = new Set<string>();
+  const usedWindows = new Set<string>();
+  return (drivers || []).map((driver) => {
+    const feel = driverFeel(driver);
+    const verb = pickVerb(kindFromDriver(driver), usedVerbs, feel);
+    const window = pickUnused(preferredWindow(daysFromDriver(driver)), TIME_WINDOWS, usedWindows);
+    usedVerbs.add(verb);
+    usedWindows.add(window);
+    return `This is ${verb} ${area} ${window} — ${decap(feel)}.`;
+  });
 }
 
 export function inferValence(aspect?: string | null): number {

@@ -1,5 +1,5 @@
 import {
-  explainDriverInDomain,
+  explainHitsInDomain,
   mechanicsLine,
   rewriteLayReason,
 } from '@/lib/astrology/pressure-engine/lay-reason';
@@ -11,6 +11,8 @@ export interface DomainHitCopy {
   kind: 'friction' | 'support' | 'mixed';
   explanation: string;
   mechanics: string | null;
+  reason?: string;
+  daysToPeak?: number;
 }
 
 export interface DomainDetailPayload {
@@ -39,24 +41,24 @@ function pushUnique(hits: DomainHitCopy[], hit: DomainHitCopy) {
 }
 
 function hitFromNamed(
-  domain: LifeRiskDomain,
-  row: Pick<LifeRiskDomainHit, 'label' | 'kind' | 'reason'>,
+  _domain: LifeRiskDomain,
+  row: Pick<LifeRiskDomainHit, 'label' | 'kind' | 'reason' | 'daysToPeak'>,
   id: string,
 ): DomainHitCopy {
   return {
     id,
     label: row.label,
     kind: row.kind,
-    explanation: explainDriverInDomain(
-      {
-        label: row.label,
-        reason: row.reason || row.label,
-        valence: row.kind === 'support' ? 0.4 : row.kind === 'friction' ? -0.4 : 0,
-      },
-      domain,
-    ),
+    reason: row.reason,
+    daysToPeak: row.daysToPeak,
+    explanation: '',
     mechanics: mechanicsLine({ label: row.label }),
   };
+}
+
+function uniquifyExplanations(hits: DomainHitCopy[], domain: LifeRiskDomain): DomainHitCopy[] {
+  const lines = explainHitsInDomain(hits, domain);
+  return hits.map((hit, index) => ({ ...hit, explanation: lines[index] || hit.explanation }));
 }
 
 export function domainHitsFromRisk(
@@ -78,14 +80,8 @@ export function domainHitsFromRisk(
       id: window.id,
       label: window.label,
       kind: window.kind,
-      explanation: explainDriverInDomain(
-        {
-          label: window.label,
-          reason: window.label,
-          valence: window.kind === 'support' ? 0.4 : window.kind === 'friction' ? -0.4 : 0,
-        },
-        domain,
-      ),
+      daysToPeak: window.daysToPeak,
+      explanation: '',
       mechanics: mechanicsLine({ label: window.label }),
     });
   }
@@ -96,19 +92,12 @@ export function domainHitsFromRisk(
       id: `driver-${driver.label}`,
       label: driver.label,
       kind: driver.kind,
-      explanation: explainDriverInDomain(
-        {
-          label: driver.label,
-          reason: driver.label,
-          valence: driver.kind === 'support' ? 0.4 : driver.kind === 'friction' ? -0.4 : 0,
-        },
-        domain,
-      ),
+      explanation: '',
       mechanics: mechanicsLine({ label: driver.label }),
     });
   }
 
-  return hits.slice(0, 8);
+  return uniquifyExplanations(hits.slice(0, 8), domain);
 }
 
 export function buildDomainDetailPayload(
@@ -120,13 +109,15 @@ export function buildDomainDetailPayload(
     hits?: LifeRiskDomainHit[];
   },
 ): DomainDetailPayload {
-  const hits = domainHitsFromRisk(risk, item.id);
-  if (!hits.length) {
-    for (const row of item.hits || []) {
-      pushUnique(hits, hitFromNamed(item.id, row, `item-${row.label}`));
-    }
-  }
   const scored = risk?.domains?.find((row) => row.name === item.id);
+  let hits = domainHitsFromRisk(risk, item.id);
+  if (!hits.length) {
+    const fallback: DomainHitCopy[] = [];
+    for (const row of item.hits || []) {
+      pushUnique(fallback, hitFromNamed(item.id, row, `item-${row.label}`));
+    }
+    hits = uniquifyExplanations(fallback, item.id);
+  }
   return {
     domain: item.id,
     pressure: scored?.friction ?? item.friction,

@@ -177,6 +177,7 @@ export interface LifeRiskDomainHit {
   kind: LifeRiskWindowKind;
   /** Chart-specific whisper/risk/opportunity copy when the event had it. */
   reason?: string;
+  daysToPeak?: number;
 }
 
 export interface LifeRiskDomainScore {

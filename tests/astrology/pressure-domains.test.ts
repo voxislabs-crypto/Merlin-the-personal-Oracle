@@ -5,6 +5,7 @@ import {
 import {
   domainSurfaceLine,
   explainDriverInDomain,
+  explainHitsInDomain,
   hasAstroJargon,
   rewriteLayReason,
 } from '@/lib/astrology/pressure-engine/lay-reason';
@@ -88,6 +89,70 @@ describe('pressure-engine domain scores', () => {
     expect(
       finances?.topDrivers.map((hit) => explainDriverInDomain(hit, 'finances')).join(' '),
     ).toMatch(/tightening money|security|connect/i);
+  });
+});
+
+describe('unique domain explanations', () => {
+  it('gives each transit its own verb and time window — no template with a swapped day count', () => {
+    const lines = explainHitsInDomain(
+      [
+        {
+          label: 'Uranus Square Venus',
+          reason: 'Reactive choices can create avoidable fallout in the next 3 days.',
+          kind: 'friction',
+          daysToPeak: 3,
+        },
+        {
+          label: 'Venus Square Mars',
+          reason: 'Reactive choices can create avoidable fallout in the next 1 days.',
+          kind: 'friction',
+          daysToPeak: 1,
+        },
+        {
+          label: 'Venus Sextile Neptune',
+          reason: 'Momentum is available—small disciplined actions compound quickly now.',
+          kind: 'support',
+          daysToPeak: 2,
+        },
+        {
+          label: 'Venus Conjunction Saturn',
+          reason: "This week's vibe: prepare now so the peak doesn't catch you ungrounded.",
+          kind: 'mixed',
+          daysToPeak: 5,
+        },
+        {
+          label: 'Venus Conjunction Pluto',
+          reason: 'Reactive choices can create avoidable fallout in the next 10 days.',
+          kind: 'friction',
+          daysToPeak: 10,
+        },
+        {
+          label: 'Venus Square Ascendant',
+          reason: 'Reactive choices can create avoidable fallout in the next 4 days.',
+          kind: 'friction',
+          daysToPeak: 4,
+        },
+      ],
+      'love',
+    );
+
+    expect(lines).toHaveLength(6);
+    expect(lines.join(' ')).not.toMatch(/next \d+ days/i);
+    expect(lines.join(' ')).not.toMatch(/reactive choices can create avoidable fallout/i);
+    expect(new Set(lines).size).toBe(6);
+
+    const verbs = lines.map((line) => line.match(/^This is (\w+)/)?.[1]);
+    expect(verbs.every(Boolean)).toBe(true);
+    expect(new Set(verbs).size).toBe(6);
+
+    const windows = lines.map(
+      (line) =>
+        line.match(
+          /(right now|today|over the next couple of days|this week|through this stretch|before the week turns)/,
+        )?.[1],
+    );
+    expect(windows.every(Boolean)).toBe(true);
+    expect(new Set(windows).size).toBe(6);
   });
 });
 

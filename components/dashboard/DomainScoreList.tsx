@@ -5,7 +5,7 @@ import type { DomainScore, DomainTone, TransitDriver } from '@/types/astrology';
 import { lifeDomainsForDriver } from '@/lib/astrology/pressure-engine/domains';
 import {
   domainSurfaceLine,
-  explainDriverInDomain,
+  explainHitsInDomain,
   mechanicsLine,
 } from '@/lib/astrology/pressure-engine/lay-reason';
 import { DomainDrillDown } from '@/components/dashboard/DomainDrillDown';
@@ -34,9 +34,7 @@ function buildDomainScoreDetail(
   fallbackDrivers: TransitDriver[],
 ): DomainScoreDetail {
   const transits = transitsForDomain(domain, fallbackDrivers);
-  const explanations = Array.from(
-    new Set(transits.map((driver) => explainDriverInDomain(driver, domain.domain))),
-  );
+  const explanations = explainHitsInDomain(transits, domain.domain);
   const mechanics = transits.map((driver) =>
     mechanicsLine({
       label: driver.label,

@@ -57,6 +57,38 @@ describe('domain drill-down', () => {
     expect(screen.queryByText(/Quiet in this area/i)).not.toBeInTheDocument();
   });
 
+  it('opens Relationships with the Uranus-Venus hit that painted it tight', () => {
+    const risk = computeLifeRisk({
+      date: '2026-09-07',
+      predictive: {
+        events: [
+          {
+            eventId: 'uranus-sq-venus',
+            scores: { intensity: 82, confidence: 0.85, volatility: 30 },
+            transit: { transitingPlanet: 'Uranus', aspect: 'Square', natalPlanet: 'Venus' },
+            timing: { phase: 'peaking', daysToPeak: 0 },
+            domains: [
+              { name: 'love', impact: 82, valence: -0.7 },
+              { name: 'money', impact: 70, valence: -0.5 },
+            ],
+            narrative: { risk: 'A sudden jolt in how you connect is asking for a cleaner boundary.' },
+          },
+        ],
+      },
+    });
+    const items = buildDomainStripItems(risk, { includeQuiet: false });
+    const love = items.find((item) => item.id === 'love');
+    expect(love?.trend).toBe('down');
+
+    render(<LifeDomainStrip items={items} risk={risk} />);
+    fireEvent.click(screen.getByRole('button', { name: /relationships are tight/i }));
+
+    expect(screen.getByText(/Pressure \d+\/100/)).toBeInTheDocument();
+    expect(screen.getByText(/Opportunity \d+\/100/)).toBeInTheDocument();
+    expect(screen.getByText(/tightening relationships|sudden jolt|how you connect/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Quiet in this area/i)).not.toBeInTheDocument();
+  });
+
   it('opens a Today chip with pressure, opportunity, and the money transit that scored it', () => {
     const risk = computeLifeRisk({
       date: '2026-09-07',
