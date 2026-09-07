@@ -2,10 +2,15 @@
 
 import { useState } from 'react';
 import type { DomainStripItem, DomainTrend } from '@/lib/atmosphere/domain-strip';
-import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
-import { domainHitsFromRisk, uniqueExplanations, uniqueMechanics } from '@/lib/atmosphere/domain-detail';
-import { domainInPlainWords, domainSurfaceLine } from '@/lib/astrology/pressure-engine/lay-reason';
-import { ShowMechanics } from '@/components/dashboard/ShowMechanics';
+import type { LifeRiskPacket } from '@/lib/atmosphere/types';
+import {
+  buildDomainDetailPayload,
+  uniqueExplanations,
+  uniqueMechanics,
+  type DomainDetailPayload,
+} from '@/lib/atmosphere/domain-detail';
+import { domainSurfaceLine } from '@/lib/astrology/pressure-engine/lay-reason';
+import { DomainDrillDown } from '@/components/dashboard/DomainDrillDown';
 
 export interface LifeDomainStripProps {
   items: DomainStripItem[];
@@ -37,11 +42,19 @@ export function LifeDomainStrip({
   className = '',
   onOpenTransitList,
 }: LifeDomainStripProps) {
-  const [openId, setOpenId] = useState<LifeRiskDomain | null>(null);
+  const [detail, setDetail] = useState<DomainDetailPayload | null>(null);
   if (!items.length && riskPercent == null) return null;
 
+  const openId = detail?.domain ?? null;
   const openItem = items.find((item) => item.id === openId) || null;
-  const hits = openId ? domainHitsFromRisk(risk, openId) : [];
+
+  const openDomain = (item: DomainStripItem) => {
+    if (openId === item.id) {
+      setDetail(null);
+      return;
+    }
+    setDetail(buildDomainDetailPayload(risk, item));
+  };
 
   return (
     <div className={`space-y-2 ${className}`}>
@@ -54,7 +67,7 @@ export function LifeDomainStrip({
               openId === item.id ? 'ring-1 ring-white/40' : ''
             }`}
             title={domainSurfaceLine(item.id, trendToTone(item.trend))}
-            onClick={() => setOpenId(openId === item.id ? null : item.id)}
+            onClick={() => openDomain(item)}
             aria-expanded={openId === item.id}
           >
             {domainSurfaceLine(item.id, trendToTone(item.trend))}
@@ -71,36 +84,24 @@ export function LifeDomainStrip({
         ) : null}
       </div>
 
-      {openItem ? (
-        <div className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2.5">
-          <p className={`text-sm font-semibold ${openItem.trend === 'down' ? 'text-rose-100' : openItem.trend === 'up' ? 'text-sky-100' : 'text-slate-200'}`}>
-            {domainSurfaceLine(openItem.id, trendToTone(openItem.trend))}
-          </p>
-          <p className="mt-1 text-[11px] text-slate-500">
-            Only what is touching {domainInPlainWords(openItem.id)} right now.
-          </p>
-          {hits.length ? (
-            <div className="mt-2 rounded-md bg-black/30 px-2.5 py-2">
-              {uniqueExplanations(hits).map((line) => (
-                <p key={line} className="text-xs leading-relaxed text-slate-200">
-                  {line}
-                </p>
-              ))}
-              <ShowMechanics className="mt-1.5" lines={uniqueMechanics(hits)} />
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-slate-400">Quiet in this area — no specific transit is scoring it today.</p>
-          )}
-          {onOpenTransitList ? (
-            <button
-              type="button"
-              onClick={onOpenTransitList}
-              className="mt-2 text-[11px] font-medium text-sky-300 underline-offset-2 hover:underline"
-            >
-              See full transit list
-            </button>
-          ) : null}
-        </div>
+      {detail ? (
+        <DomainDrillDown
+          domain={detail.domain}
+          title={domainSurfaceLine(detail.domain, trendToTone(openItem?.trend || 'flat'))}
+          titleClassName={
+            openItem?.trend === 'down'
+              ? 'text-rose-100'
+              : openItem?.trend === 'up'
+                ? 'text-sky-100'
+                : 'text-slate-200'
+          }
+          className="rounded-xl border border-white/10 bg-slate-950/70"
+          pressure={detail.pressure}
+          opportunity={detail.opportunity}
+          explanations={uniqueExplanations(detail.hits)}
+          mechanics={uniqueMechanics(detail.hits)}
+          onOpenTransitList={onOpenTransitList}
+        />
       ) : null}
     </div>
   );

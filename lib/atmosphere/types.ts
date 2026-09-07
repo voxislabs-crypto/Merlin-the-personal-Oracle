@@ -172,12 +172,21 @@ export interface LifeRiskDayScore {
   easeDriver?: string;
 }
 
+export interface LifeRiskDomainHit {
+  label: string;
+  kind: LifeRiskWindowKind;
+  /** Chart-specific whisper/risk/opportunity copy when the event had it. */
+  reason?: string;
+}
+
 export interface LifeRiskDomainScore {
   name: LifeRiskDomain;
   label: string;
   friction: number;
   support: number;
   hitCount: number;
+  /** Named transits that actually built this score — used for drill-down. */
+  hits?: LifeRiskDomainHit[];
 }
 
 /**

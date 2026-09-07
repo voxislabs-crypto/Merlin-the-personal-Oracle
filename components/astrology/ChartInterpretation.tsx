@@ -157,7 +157,10 @@ export function ChartInterpretation({
 
           {rankedDomains.length > 0 ? (
             <div className="mt-3">
-              <DomainScoreList domains={rankedDomains} />
+              <DomainScoreList
+                domains={rankedDomains}
+                fallbackDrivers={explainability?.topDrivers}
+              />
             </div>
           ) : null}
 

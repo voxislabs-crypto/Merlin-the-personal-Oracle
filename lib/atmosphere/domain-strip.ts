@@ -3,7 +3,12 @@
  * Sell clarity, not astrology jargon.
  */
 
-import type { LifeRiskDomain, LifeRiskDomainScore, LifeRiskPacket } from '@/lib/atmosphere/types';
+import type {
+  LifeRiskDomain,
+  LifeRiskDomainHit,
+  LifeRiskDomainScore,
+  LifeRiskPacket,
+} from '@/lib/atmosphere/types';
 
 export type DomainTrend = 'up' | 'flat' | 'down';
 
@@ -16,6 +21,8 @@ export interface DomainStripItem {
   arrow: '▲' | '▬' | '▼';
   friction: number;
   support: number;
+  /** Named transits that scored this chip — click payload, not a second lookup. */
+  hits: LifeRiskDomainHit[];
 }
 
 /** Display order + labels for the clarity strip (not internal engine names). */
@@ -63,11 +70,11 @@ export function buildDomainStripItems(
     const score = byName.get(meta.id);
     const friction = score?.friction ?? 0;
     const support = score?.support ?? 0;
-    const hitCount = score?.hitCount ?? 0;
-    const hasSignal = hitCount > 0 || friction >= 20 || support >= 20;
-    if (!includeQuiet && !hasSignal) continue;
+    const namedHits = score?.hits?.length ?? 0;
+    if (!includeQuiet && namedHits === 0) continue;
 
-    const trend = domainTrendFromScores(friction, support);
+    // Color only when drill-down can name a transit. Otherwise stay mixed.
+    const trend = namedHits > 0 ? domainTrendFromScores(friction, support) : 'flat';
     items.push({
       id: meta.id,
       label: meta.label,
@@ -75,6 +82,7 @@ export function buildDomainStripItems(
       arrow: trendArrow(trend),
       friction,
       support,
+      hits: score?.hits || [],
     });
     if (items.length >= max) break;
   }

@@ -3,7 +3,7 @@ import {
   mechanicsLine,
   rewriteLayReason,
 } from '@/lib/astrology/pressure-engine/lay-reason';
-import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
+import type { LifeRiskDomain, LifeRiskDomainHit, LifeRiskPacket } from '@/lib/atmosphere/types';
 
 export interface DomainHitCopy {
   id: string;
@@ -11,6 +11,13 @@ export interface DomainHitCopy {
   kind: 'friction' | 'support' | 'mixed';
   explanation: string;
   mechanics: string | null;
+}
+
+export interface DomainDetailPayload {
+  domain: LifeRiskDomain;
+  pressure: number;
+  opportunity: number;
+  hits: DomainHitCopy[];
 }
 
 export function transitIdentityKey(label: string): string {
@@ -31,12 +38,38 @@ function pushUnique(hits: DomainHitCopy[], hit: DomainHitCopy) {
   hits.push(hit);
 }
 
+function hitFromNamed(
+  domain: LifeRiskDomain,
+  row: Pick<LifeRiskDomainHit, 'label' | 'kind' | 'reason'>,
+  id: string,
+): DomainHitCopy {
+  return {
+    id,
+    label: row.label,
+    kind: row.kind,
+    explanation: explainDriverInDomain(
+      {
+        label: row.label,
+        reason: row.reason || row.label,
+        valence: row.kind === 'support' ? 0.4 : row.kind === 'friction' ? -0.4 : 0,
+      },
+      domain,
+    ),
+    mechanics: mechanicsLine({ label: row.label }),
+  };
+}
+
 export function domainHitsFromRisk(
   risk: LifeRiskPacket | null | undefined,
   domain: LifeRiskDomain,
 ): DomainHitCopy[] {
   if (!risk) return [];
   const hits: DomainHitCopy[] = [];
+
+  const scored = risk.domains?.find((row) => row.name === domain);
+  for (const row of scored?.hits || []) {
+    pushUnique(hits, hitFromNamed(domain, row, `score-${row.label}`));
+  }
 
   const windows = [...(risk.frictionWindows || []), ...(risk.supportWindows || [])];
   for (const window of windows) {
@@ -76,6 +109,30 @@ export function domainHitsFromRisk(
   }
 
   return hits.slice(0, 8);
+}
+
+export function buildDomainDetailPayload(
+  risk: LifeRiskPacket | null | undefined,
+  item: {
+    id: LifeRiskDomain;
+    friction: number;
+    support: number;
+    hits?: LifeRiskDomainHit[];
+  },
+): DomainDetailPayload {
+  const hits = domainHitsFromRisk(risk, item.id);
+  if (!hits.length) {
+    for (const row of item.hits || []) {
+      pushUnique(hits, hitFromNamed(item.id, row, `item-${row.label}`));
+    }
+  }
+  const scored = risk?.domains?.find((row) => row.name === item.id);
+  return {
+    domain: item.id,
+    pressure: scored?.friction ?? item.friction,
+    opportunity: scored?.support ?? item.support,
+    hits,
+  };
 }
 
 export function uniqueExplanations(hits: DomainHitCopy[]): string[] {

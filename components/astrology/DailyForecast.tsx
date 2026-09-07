@@ -255,7 +255,9 @@ export function DailyForecast({
                   ) : null}
                 </>
               ) : null}
-              {rankedDomains.length > 0 ? <DomainScoreList domains={rankedDomains} /> : null}
+              {rankedDomains.length > 0 ? (
+                <DomainScoreList domains={rankedDomains} fallbackDrivers={explainability?.topDrivers} />
+              ) : null}
               {showSafety ? (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                   <p className="text-xs font-semibold text-amber-200">Grounding</p>
@@ -589,7 +591,10 @@ export function DailyForecast({
 
           {rankedDomains.length > 0 ? (
             <div className="mt-3">
-              <DomainScoreList domains={rankedDomains} />
+              <DomainScoreList
+                domains={rankedDomains}
+                fallbackDrivers={explainability?.topDrivers}
+              />
             </div>
           ) : null}
 

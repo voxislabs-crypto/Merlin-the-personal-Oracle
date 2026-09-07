@@ -20,11 +20,13 @@ import type {
   AtmosphereStormsInput,
   LifeRiskDayScore,
   LifeRiskDomain,
+  LifeRiskDomainHit,
   LifeRiskDomainScore,
   LifeRiskDriver,
   LifeRiskLevel,
   LifeRiskPacket,
   LifeRiskWindow,
+  LifeRiskWindowKind,
 } from '@/lib/atmosphere/types';
 
 /** Default predictive / risk horizon (days). */
@@ -440,23 +442,63 @@ function mergeDomainScores(
   // Track full hit lists so we blend max + mean instead of pure max (which pinned 100s)
   const acc = new Map<
     LifeRiskDomain,
-    { frictionHits: number[]; supportHits: number[]; hits: number }
+    {
+      frictionHits: number[];
+      supportHits: number[];
+      hits: number;
+      drivers: LifeRiskDomainHit[];
+    }
   >();
 
   const ensure = (name: LifeRiskDomain) => {
-    if (!acc.has(name)) acc.set(name, { frictionHits: [], supportHits: [], hits: 0 });
+    if (!acc.has(name)) {
+      acc.set(name, { frictionHits: [], supportHits: [], hits: 0, drivers: [] });
+    }
     return acc.get(name)!;
   };
 
+  const remember = (
+    bucket: { drivers: LifeRiskDomainHit[] },
+    label: string,
+    kind: LifeRiskWindowKind,
+    reason?: string,
+  ) => {
+    const key = label.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!key) return;
+    const existing = bucket.drivers.find(
+      (row) => row.label.replace(/\s+/g, ' ').trim().toLowerCase() === key,
+    );
+    if (existing) {
+      if (!existing.reason && reason) existing.reason = reason.trim();
+      return;
+    }
+    bucket.drivers.push({ label: label.trim(), kind, reason: reason?.trim() || undefined });
+  };
+
+  const eventStory = (
+    event: AtmospherePredictiveEventInput,
+    kind: LifeRiskWindowKind,
+  ): string | undefined => {
+    const narrative = event.narrative;
+    if (!narrative) return undefined;
+    if (kind === 'support') return narrative.opportunity || narrative.whisper;
+    if (kind === 'friction') return narrative.risk || narrative.whisper;
+    return narrative.whisper || narrative.risk || narrative.opportunity;
+  };
+
   for (const event of events) {
+    const label = driverLabel(event);
     for (const d of domainFromPredictive(event)) {
       const bucket = ensure(d.name);
       const impact = softCeilingFriction(d.impact);
       if (d.valence >= 0.25) {
         bucket.supportHits.push(impact * 0.85);
+        remember(bucket, label, 'support', eventStory(event, 'support'));
       } else {
+        const kind: LifeRiskWindowKind = d.valence < -0.2 ? 'friction' : 'mixed';
         const f = impact * (d.valence < -0.2 ? 1 : 0.72);
         bucket.frictionHits.push(f);
+        remember(bucket, label, kind, eventStory(event, kind));
       }
       bucket.hits += 1;
     }
@@ -473,6 +515,14 @@ function mergeDomainScores(
         : STORM_INTENSITY[storm.intensity || 'moderate'] || 56;
     bucket.frictionHits.push(f);
     bucket.hits += 1;
+    remember(
+      bucket,
+      storm.title ||
+        [storm.transitingPlanet, storm.aspect, storm.natalPlanet].filter(Boolean).join(' ') ||
+        'Storm pressure',
+      'friction',
+      storm.description,
+    );
   }
 
   const blend = (hits: number[]): number => {
@@ -489,13 +539,14 @@ function mergeDomainScores(
   const allDomains: LifeRiskDomain[] = ['self', 'love', 'career', 'money', 'family', 'health'];
   return allDomains
     .map((name) => {
-      const bucket = acc.get(name) || { frictionHits: [], supportHits: [], hits: 0 };
+      const bucket = acc.get(name) || { frictionHits: [], supportHits: [], hits: 0, drivers: [] };
       return {
         name,
         label: DOMAIN_LABELS[name],
         friction: blend(bucket.frictionHits),
         support: blend(bucket.supportHits),
         hitCount: bucket.hits,
+        hits: bucket.drivers.slice(0, 8),
       };
     })
     .sort((a, b) => b.friction - a.friction || b.support - a.support);
