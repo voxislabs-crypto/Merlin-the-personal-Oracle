@@ -1,5 +1,5 @@
 import { calculateBirthChart } from '@/lib/engine';
-import { computeMBTIDual } from '@/lib/astrology/mbtiFusion';
+import { computeMBTIDual, computeMBTIDualReads } from '@/lib/astrology/mbtiFusion';
 
 describe('Norfolk MBTI mask tuning', () => {
   it('reports hardware mask breakdown for Aug 14 1983 12:21 Norfolk', () => {
@@ -65,5 +65,9 @@ describe('Norfolk MBTI mask tuning', () => {
     expect(off.firmware.type).toBe('INFJ');
     expect(on.firmware.type).toBe('INFP');
     expect(on.firmware.breakdown.reasoning.judging.join(' ')).toMatch(/Retrograde overlay/);
+
+    const reads = computeMBTIDualReads(chart);
+    expect(reads.base.firmware.type).toBe('INFJ');
+    expect(reads.rx.firmware.type).toBe('INFP');
   });
 });

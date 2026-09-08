@@ -3,7 +3,7 @@
  * Validates MBTI calculation logic with known chart configurations
  */
 
-import { computeMBTI, computeMBTIDual } from '../lib/astrology/mbtiFusion';
+import { computeMBTI, computeMBTIDual, computeMBTIDualReads } from '../lib/astrology/mbtiFusion';
 import type { BirthChartData } from '../types/astrology';
 
 describe('MBTI Fusion', () => {
@@ -216,6 +216,11 @@ describe('MBTI Fusion', () => {
     expect(off.firmware.breakdown.reasoning.intuition.join(' ')).not.toMatch(/Retrograde overlay/);
     expect(on.firmware.breakdown.reasoning.intuition.join(' ')).toMatch(/Retrograde overlay/);
     expect(on.firmware.type).not.toBe(off.firmware.type);
+
+    const reads = computeMBTIDualReads(chart);
+    expect(reads.base.firmware.type).toBe(off.firmware.type);
+    expect(reads.rx.firmware.type).toBe(on.firmware.type);
+    expect(reads.rx.hardware.type).toBe(reads.base.hardware.type);
   });
 
   test('keeps firmware as the listed core type (no INFJ letter-count override)', () => {

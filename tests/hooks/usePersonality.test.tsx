@@ -23,11 +23,23 @@ describe('usePersonality', () => {
         data: {
           firmware: 'INFJ',
           hardware: 'INTP',
+          firmwareBase: 'INFJ',
+          firmwareRx: 'INFP',
           finalType: 'INFJ',
           dualOverlay: {
             firmware: { mbtiType: 'INFJ' },
             hardware: { mbtiType: 'INTP' },
             finalType: 'INFJ',
+          },
+          dualOverlayBase: {
+            firmware: { mbtiType: 'INFJ' },
+            hardware: { mbtiType: 'INTP' },
+            finalType: 'INFJ',
+          },
+          dualOverlayRx: {
+            firmware: { mbtiType: 'INFP' },
+            hardware: { mbtiType: 'INTP' },
+            finalType: 'INFP',
           },
         },
       }),
@@ -54,6 +66,8 @@ describe('usePersonality', () => {
     expect(body.retrogradeOverlay).toBe(false);
     expect(result.current.dualOverlay?.firmware.mbtiType).toBe('INFJ');
     expect(result.current.dualOverlay?.hardware.mbtiType).toBe('INTP');
+    expect(result.current.dualOverlayBase?.firmware.mbtiType).toBe('INFJ');
+    expect(result.current.dualOverlayRx?.firmware.mbtiType).toBe('INFP');
   });
 
   it('sends retrogradeOverlay on a fresh API call when the toggle changes', async () => {

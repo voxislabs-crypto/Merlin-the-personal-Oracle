@@ -1,4 +1,8 @@
-import { derivePersonalityFromChart } from '@/lib/personality/dual-overlay';
+import {
+  derivePersonalityFromChart,
+  selectPersonalityReads,
+  type DualOverlay,
+} from '@/lib/personality/dual-overlay';
 import type { BirthChartData } from '@/types/astrology';
 
 function sampleChart(): BirthChartData {
@@ -48,5 +52,69 @@ describe('derivePersonalityFromChart', () => {
     chart.planets = [];
 
     expect(derivePersonalityFromChart(chart)).toBeNull();
+  });
+});
+
+function overlayFor(core: string): DualOverlay {
+  return {
+    hardware: {
+      label: 'mask',
+      sublabel: '',
+      mbtiType: 'INTP',
+      confidence: 80,
+      archetype: '',
+      description: '',
+      breakdown: {
+        e_i: 'I',
+        s_n: 'N',
+        t_f: 'T',
+        j_p: 'P',
+        reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] },
+      },
+    },
+    firmware: {
+      label: 'core',
+      sublabel: '',
+      mbtiType: core,
+      confidence: 80,
+      archetype: '',
+      description: '',
+      breakdown: {
+        e_i: 'I',
+        s_n: 'N',
+        t_f: 'F',
+        j_p: core.endsWith('J') ? 'J' : 'P',
+        reasoning: { extraversion: [], intuition: [], thinking: [], judging: [] },
+      },
+    },
+    finalType: core,
+    finalConfidence: 80,
+  };
+}
+
+describe('selectPersonalityReads', () => {
+  const base = overlayFor('INFJ');
+  const rx = overlayFor('INFP');
+
+  it('uses overlay-off Core while the switch is off', () => {
+    const reads = selectPersonalityReads({
+      overlay: rx,
+      base,
+      rx,
+      retrogradeOverlay: false,
+    });
+    expect(reads.live?.firmware.mbtiType).toBe('INFJ');
+    expect(reads.base?.firmware.mbtiType).toBe('INFJ');
+    expect(reads.rx?.firmware.mbtiType).toBe('INFP');
+  });
+
+  it('uses overlay-on Core when flipped', () => {
+    const reads = selectPersonalityReads({
+      overlay: base,
+      base,
+      rx,
+      retrogradeOverlay: true,
+    });
+    expect(reads.live?.firmware.mbtiType).toBe('INFP');
   });
 });

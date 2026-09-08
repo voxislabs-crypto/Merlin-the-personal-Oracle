@@ -114,6 +114,24 @@ export function buildDualOverlay(chart: BirthChartData, mbtiDual: ReturnType<typ
   };
 }
 
+/** Pick overlay-off / overlay-on Core without waiting for a second personality POST. */
+export function selectPersonalityReads(input: {
+  overlay?: DualOverlay | null;
+  base?: DualOverlay | null;
+  rx?: DualOverlay | null;
+  retrogradeOverlay: boolean;
+}): {
+  base: DualOverlay | null;
+  rx: DualOverlay | null;
+  live: DualOverlay | null;
+} {
+  const overlay = input.overlay || null;
+  const base = input.base || (!input.retrogradeOverlay ? overlay : null);
+  const rx = input.rx || (input.retrogradeOverlay ? overlay : null);
+  const live = (input.retrogradeOverlay ? rx : base) || overlay;
+  return { base, rx, live };
+}
+
 export function derivePersonalityFromChart(
   chart: BirthChartData,
   options?: MbtiFusionOptions

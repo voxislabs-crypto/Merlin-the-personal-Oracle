@@ -8,6 +8,8 @@ export type { DualOverlay };
 export interface PersonalityProfile {
   mbtiType: MBTIType;
   dualOverlay?: DualOverlay;
+  dualOverlayBase?: DualOverlay;
+  dualOverlayRx?: DualOverlay;
   source?: 'swiss-real' | 'mock-fallback' | 'chart-derived';
 }
 
@@ -60,10 +62,17 @@ export function usePersonality() {
         if (requestId !== requestIdRef.current) return null;
 
         const nextMbti = (result.data.firmware || result.data.finalType || result.data.mbtiType) as MBTIType;
+        const dualOverlay = result.data.dualOverlay as DualOverlay | undefined;
+        const dualOverlayBase = (result.data.dualOverlayBase ||
+          (!options?.retrogradeOverlay ? dualOverlay : undefined)) as DualOverlay | undefined;
+        const dualOverlayRx = (result.data.dualOverlayRx ||
+          (options?.retrogradeOverlay ? dualOverlay : undefined)) as DualOverlay | undefined;
         setMbtiType(nextMbti);
         setProfile({
           mbtiType: nextMbti,
-          dualOverlay: result.data.dualOverlay,
+          dualOverlay,
+          dualOverlayBase,
+          dualOverlayRx,
           source: result.source,
         });
         return nextMbti;
@@ -94,6 +103,8 @@ export function usePersonality() {
     mbtiType,
     profile,
     dualOverlay: profile?.dualOverlay || null,
+    dualOverlayBase: profile?.dualOverlayBase || null,
+    dualOverlayRx: profile?.dualOverlayRx || null,
     loading,
     error,
     calculatePersonality,

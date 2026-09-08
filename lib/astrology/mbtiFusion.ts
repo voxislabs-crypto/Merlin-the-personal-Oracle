@@ -294,6 +294,19 @@ export function computeMBTIDual(chart: BirthChartData, options?: MbtiFusionOptio
   };
 }
 
+export type MbtiDualResult = ReturnType<typeof computeMBTIDual>;
+
+/** Score overlay-off and overlay-on Core from the same natal so the Rx toggle can name both. */
+export function computeMBTIDualReads(chart: BirthChartData): {
+  base: MbtiDualResult;
+  rx: MbtiDualResult;
+} {
+  return {
+    base: computeMBTIDual(chart, { retrogradeOverlay: false }),
+    rx: computeMBTIDual(chart, { retrogradeOverlay: true }),
+  };
+}
+
 /**
  * Compute Hardware Mascot Layer (external face)
  * Weighted toward: Rising, Sun, Mars, 1st house, 10th house

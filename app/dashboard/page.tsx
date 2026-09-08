@@ -133,6 +133,7 @@ import { globalAudioManager } from '@/lib/global-audio-manager';
 import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
 import { applyMbtiUserOverride, parseMbtiType } from '@/lib/personality/mbti-override';
+import { selectPersonalityReads } from '@/lib/personality/dual-overlay';
 import { useMbtiOverride } from '@/hooks/useMbtiOverride';
 import {
   clearChartSession,
@@ -357,7 +358,14 @@ export default function UnifiedDashboard() {
     setText: setJournalText,
   } = useAtmosphereJournal(forecast?.date);
   const { memory: todayMoveMemory, remember: rememberTodayMove } = useTodayMoveMemory(userId || undefined);
-  const { mbtiType, dualOverlay, calculatePersonality, reset: resetPersonality } = usePersonality();
+  const {
+    mbtiType,
+    dualOverlay,
+    dualOverlayBase,
+    dualOverlayRx,
+    calculatePersonality,
+    reset: resetPersonality,
+  } = usePersonality();
   const {
     coreOverride,
     setCoreOverride,
@@ -365,18 +373,29 @@ export default function UnifiedDashboard() {
     saving: coreOverrideSaving,
     canEdit: canEditCoreOverride,
   } = useMbtiOverride();
-  const speakingMbti = React.useMemo(
-    () => parseMbtiType(coreOverride) || parseMbtiType(dualOverlay?.firmware?.mbtiType) || parseMbtiType(mbtiType),
-    [coreOverride, dualOverlay?.firmware?.mbtiType, mbtiType],
-  );
-  const activeDual = React.useMemo(
-    () => applyMbtiUserOverride(dualOverlay, { core: coreOverride }),
-    [dualOverlay, coreOverride],
-  );
   const { preferences: oraclePreferences, persistPreferences } = useOraclePreferences({
     enabled: Boolean(userId),
   });
   const retrogradeOverlay = oraclePreferences.retrogradeOverlay;
+  const personalityReads = React.useMemo(
+    () =>
+      selectPersonalityReads({
+        overlay: dualOverlay,
+        base: dualOverlayBase,
+        rx: dualOverlayRx,
+        retrogradeOverlay,
+      }),
+    [dualOverlay, dualOverlayBase, dualOverlayRx, retrogradeOverlay],
+  );
+  const liveDual = personalityReads.live;
+  const speakingMbti = React.useMemo(
+    () => parseMbtiType(coreOverride) || parseMbtiType(liveDual?.firmware?.mbtiType) || parseMbtiType(mbtiType),
+    [coreOverride, liveDual?.firmware?.mbtiType, mbtiType],
+  );
+  const activeDual = React.useMemo(
+    () => applyMbtiUserOverride(liveDual, { core: coreOverride }),
+    [liveDual, coreOverride],
+  );
   const atmosphereEngineEnabled = isAtmosphereEngineV1Enabled({
     premium: featureFlags.premiumInsights,
   });
@@ -2028,7 +2047,6 @@ export default function UnifiedDashboard() {
       })()
     : null;
 
-  const liveDual = dualOverlay;
   const natalClockLabel = resolveDisplayBirthTime({
     storedTime: birthData?.time,
     utcTime: (chartData as { birthData?: { birthTime?: string } } | null)?.birthData?.birthTime,
@@ -3053,8 +3071,8 @@ export default function UnifiedDashboard() {
                           }`
                         : null
                     }
-                    baseCoreType={null}
-                    rxCoreType={null}
+                    baseCoreType={personalityReads.base?.firmware?.mbtiType || null}
+                    rxCoreType={personalityReads.rx?.firmware?.mbtiType || null}
                     operatingSystem={identityPacket.operatingSystem}
                     activeStoryline={activeTransitStoryline}
                     storylineThemes={interpretations?.confluence || null}

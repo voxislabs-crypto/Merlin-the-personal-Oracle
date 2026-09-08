@@ -1,7 +1,12 @@
 // lib/personality/fusion.ts
 
 import { type MBTIType } from '@/shared/schema';
-import { computeMBTI, computeMBTIDual, type MbtiFusionOptions } from '@/lib/astrology/mbtiFusion';
+import {
+  computeMBTI,
+  computeMBTIDual,
+  computeMBTIDualReads,
+  type MbtiFusionOptions,
+} from '@/lib/astrology/mbtiFusion';
 import { isMbtiDebugEnabled } from '@/lib/debug';
 
 /**
@@ -38,6 +43,21 @@ export function getMBTIDual(chart: any, options?: MbtiFusionOptions) {
     return result;
   } catch (error) {
     console.error('[getMBTIDual] Error computing dual MBTI:', error);
+    throw error;
+  }
+}
+
+/** Overlay-off and overlay-on Core from one natal. Mask is unchanged. */
+export function getMBTIDualReads(chart: any) {
+  try {
+    const result = computeMBTIDualReads(chart);
+    if (isMbtiDebugEnabled()) {
+      console.log('[getMBTIDualReads] Base Core:', result.base.firmware.type);
+      console.log('[getMBTIDualReads] Rx Core:', result.rx.firmware.type);
+    }
+    return result;
+  } catch (error) {
+    console.error('[getMBTIDualReads] Error computing dual MBTI reads:', error);
     throw error;
   }
 }

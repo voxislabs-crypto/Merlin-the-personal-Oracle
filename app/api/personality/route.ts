@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
-import { getMBTIDual } from '@/lib/personality/fusion';
+import { getMBTIDualReads } from '@/lib/personality/fusion';
 import { buildDualOverlay } from '@/lib/personality/dual-overlay';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
@@ -101,15 +101,22 @@ export async function POST(request: Request) {
       ) as BirthChartData;
     }
 
-    // Derive dual-layer MBTI from a freshly calculated natal, not client overlay cache.
-    const mbtiDual = getMBTIDual(natalChart, {
-      retrogradeOverlay: Boolean(retrogradeOverlay),
-    });
-    const dualOverlay = buildDualOverlay(natalChart, mbtiDual);
+    // Score overlay-off and overlay-on from the same natal so You can flip INFJ/INFP without a second POST.
+    const overlayOn = Boolean(retrogradeOverlay);
+    const reads = getMBTIDualReads(natalChart);
+    const mbtiDual = overlayOn ? reads.rx : reads.base;
+    const dualOverlayBase = buildDualOverlay(natalChart, reads.base);
+    const dualOverlayRx =
+      reads.rx.firmware.type === reads.base.firmware.type &&
+      reads.rx.hardware.type === reads.base.hardware.type
+        ? dualOverlayBase
+        : buildDualOverlay(natalChart, reads.rx);
+    const dualOverlay = overlayOn ? dualOverlayRx : dualOverlayBase;
 
     // Log results
     console.log('[Personality] Hardware Mascot:', mbtiDual.hardware.type, `(${mbtiDual.hardware.confidence}%)`);
     console.log('[Personality] Firmware Inner Core:', mbtiDual.firmware.type, `(${mbtiDual.firmware.confidence}%)`);
+    console.log('[Personality] Base Core:', reads.base.firmware.type, 'Rx Core:', reads.rx.firmware.type);
     console.log('[Personality] Final Type (with override):', mbtiDual.type);
 
     return NextResponse.json({
@@ -118,10 +125,14 @@ export async function POST(request: Request) {
       data: { 
         hardware: mbtiDual.hardware.type,
         firmware: mbtiDual.firmware.type,
+        firmwareBase: reads.base.firmware.type,
+        firmwareRx: reads.rx.firmware.type,
         finalType: mbtiDual.type,
         finalConfidence: mbtiDual.confidence,
         timezoneOffsetHours: appliedOffsetHours,
-        dualOverlay 
+        dualOverlay,
+        dualOverlayBase,
+        dualOverlayRx,
       }
     });
   } catch (error) {
