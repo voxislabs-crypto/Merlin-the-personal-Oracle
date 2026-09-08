@@ -2910,6 +2910,7 @@ export default function UnifiedDashboard() {
                     confidenceLabel={lifeWeatherBrief.confidenceLabel}
                     mixedSignals={lifeWeatherBrief.mixedSignals}
                     themeLabel={lifeWeatherBrief.themeLabel}
+                    themeId={lifeWeatherBrief.themeId}
                     heldFromYesterday={lifeWeatherBrief.heldFromYesterday}
                     weatherPrinciple={lifeWeatherBrief.weatherPrinciple}
                     driverLabel={

@@ -120,17 +120,30 @@ export function domainPhrase(domain?: LifeRiskDomain | string | null): string {
   return DOMAIN_PHRASE[domain as LifeRiskDomain] || String(domain);
 }
 
-export function primaryDomains(theme: RankedTheme, risk?: LifeRiskPacket | null): LifeRiskDomain[] {
-  const hot =
+const TIGHT_FRICTION = 48;
+
+export function tightDomainsFromRisk(risk?: LifeRiskPacket | null): LifeRiskDomain[] {
+  return (
     risk?.domains
-      ?.filter((d) => d.friction >= 48)
+      ?.filter((row) => row.friction >= TIGHT_FRICTION)
       .sort((a, b) => b.friction - a.friction)
-      .map((d) => d.name) || [];
+      .map((row) => row.name) || []
+  );
+}
+
+/** More than two life areas are tight — the headline must not pick one and ignore the rest. */
+export function weatherIsCrowded(risk?: LifeRiskPacket | null): boolean {
+  return tightDomainsFromRisk(risk).length > 2;
+}
+
+export function primaryDomains(theme: RankedTheme, risk?: LifeRiskPacket | null): LifeRiskDomain[] {
+  const hot = tightDomainsFromRisk(risk);
   const fromTheme = theme.domains || [];
   const merged: LifeRiskDomain[] = [];
   for (const d of [...hot, ...fromTheme]) {
     if (!merged.includes(d)) merged.push(d);
   }
+  if (hot.length > 2) return merged.slice(0, 3);
   return merged.slice(0, 2);
 }
 
@@ -522,7 +535,7 @@ export function buildConfidenceWhy(options: {
   const held = options.held
     ? ' The "still applies" flag means yesterday\'s condition didn\'t break overnight — don\'t escalate.'
     : '';
-  return `${options.readConfidence}% that the ${domainBit} friction is the real weather. ${options.chartConfidence}% that the move above is the right size.${held}`;
+  return `Read confidence ${options.readConfidence}% that ${domainBit} is the real weather. Chart confidence ${options.chartConfidence}% that the move above is the right size.${held}`;
 }
 
 export function buildDomainJob(
@@ -534,6 +547,10 @@ export function buildDomainJob(
   }
   const hotBit = joinTwo(hot.map((d) => DOMAIN_LABEL[d] || d));
   const verb = hot.length === 1 ? 'is the pressure point' : 'are the pressure points';
+  if (hot.length > 2) {
+    const allHot = hot.map((d) => DOMAIN_LABEL[d] || d).join(', ');
+    return `${allHot} are all tight. Pick the hottest test and ignore the rest of the caution budget.`;
+  }
   if (!quiet.length) {
     return `${hotBit} ${verb}. Keep the caution budget there.`;
   }

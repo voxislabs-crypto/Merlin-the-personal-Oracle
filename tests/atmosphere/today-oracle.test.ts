@@ -233,7 +233,8 @@ describe('composeTodayOracle', () => {
     expect(brief!.chartConfidence).toBeGreaterThan(50);
     expect(brief!.readConfidence).toBeGreaterThan(40);
     expect(brief!.move).not.toMatch(/one reversible step only/i);
-    expect(brief!.confidenceWhy).toMatch(/%/);
+    expect(brief!.confidenceWhy).toMatch(/Read confidence \d+%/);
+    expect(brief!.confidenceWhy).toMatch(/Chart confidence \d+%/);
     expect(brief!.confidenceWhy.toLowerCase()).toMatch(/move above/);
     expect(brief!.confidenceWhy.toLowerCase()).not.toMatch(/changing one variable/);
     expect(brief!.confidenceWhy.toLowerCase()).not.toMatch(/exit ramp/);
@@ -251,6 +252,29 @@ describe('composeTodayOracle', () => {
     expect(brief?.mixedSignals).toBe(true);
     expect(brief?.chartConfidence).not.toEqual(brief?.readConfidence);
     expect(brief?.readConfidence).toBeLessThan(brief!.chartConfidence);
+  });
+
+  it('does not pretend relationships are the only weather when more than two domains are tight', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-08',
+      transitLookup: [{ transit_aspect: 'Uranus square Venus', orb: '0.30°', score: 96 }],
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      packet: {
+        risk: {
+          domains: [
+            { name: 'love', label: 'Relationships', friction: 70, support: 12, hitCount: 2 },
+            { name: 'career', label: 'Career', friction: 68, support: 14, hitCount: 2 },
+            { name: 'health', label: 'Energy', friction: 64, support: 10, hitCount: 1 },
+            { name: 'family', label: 'Home', friction: 62, support: 8, hitCount: 1 },
+          ],
+        },
+      } as AtmospherePacket,
+    });
+    expect(brief).not.toBeNull();
+    expect(brief!.move.toLowerCase()).toMatch(/don't add a second one/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/one value that will not move/);
+    expect(brief!.domainJob.toLowerCase()).toMatch(/all tight/);
   });
 
   it('changes navigation by life domain, not just the transit name', () => {

@@ -16,6 +16,8 @@ import { formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 import { domainInPlainWords, rewriteLayReason } from '@/lib/astrology/pressure-engine/lay-reason';
+import { weatherIsCrowded } from '@/lib/atmosphere/today-oracle/personal-copy';
+import type { TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
 import {
   preservePriorWeatherWindow,
@@ -63,6 +65,7 @@ export interface TodayWeatherBriefProps {
   confidenceLabel?: 'High' | 'Steady' | 'Tentative';
   mixedSignals?: boolean;
   themeLabel?: string;
+  themeId?: TodayThemeId | string | null;
   heldFromYesterday?: boolean;
   weatherPrinciple?: string;
   /** Optional dominant driver label for Why pills when risk is thin */
@@ -150,6 +153,7 @@ export function TodayWeatherBrief({
   readConfidenceLabel,
   moveConfidence,
   themeLabel,
+  themeId = null,
   heldFromYesterday = false,
   driverLabel = null,
   moodReason = null,
@@ -263,10 +267,17 @@ export function TodayWeatherBrief({
   const arcaneTone = arcaneToneFromIntensity(intensity, dayRating);
   const moodWord = (themeLabel || tone.label || '').trim();
   const layMood = rewriteLayReason(moodReason || chartWhy || whyToday || driverLabel || '');
+  const crowded = weatherIsCrowded(risk);
   const hotDomain = [...(risk?.domains || [])].sort((a, b) => b.friction - a.friction)[0];
-  const whyThisMove = hotDomain
-    ? `${layMood.replace(/\.$/, '')} — that's why the move is about ${domainInPlainWords(hotDomain.name)}.`
-    : layMood;
+  const thinClarity =
+    themeId === 'fog-clarity' ||
+    /clarity is thin/i.test(themeLabel || '') ||
+    /mercury.{0,24}neptune|neptune.{0,24}mercury/i.test(`${leadFact || ''} ${leadFactDisplay || ''}`);
+  const whyThisMove = crowded
+    ? `${layMood.replace(/\.$/, '')} — more than two areas are tight, so keep one test.`
+    : hotDomain
+      ? `${layMood.replace(/\.$/, '')} — that's why the move is about ${domainInPlainWords(hotDomain.name)}.`
+      : layMood;
   const moveEdge =
     arcaneTone === 'storm'
       ? 'border-rose-300/55 bg-gradient-to-br from-rose-500/25 via-rose-600/15 to-black/40 shadow-[0_0_36px_rgba(251,113,133,0.18)]'
@@ -359,7 +370,57 @@ export function TodayWeatherBrief({
                   {todayMove}
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-white/80">{whyThisMove}</p>
-                {whyThisPerson || coreNotices || leadFactDisplay || chartWhy || watchFor || doNot || behaviorTell ? (
+                {thinClarity && doNot ? (
+                  <div className="mt-3 border-t border-white/10 pt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">
+                      Avoid
+                    </p>
+                    <p className="mt-1 text-sm leading-snug text-slate-200/85">{doNot}</p>
+                  </div>
+                ) : null}
+                {thinClarity && (coreNotices || maskWants || tensionLine || resolution) ? (
+                  <details className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+                    <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400 hover:text-slate-200">
+                      Core, Mask, Tension
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      {coreNotices ? (
+                        <p className="text-sm leading-snug text-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
+                            Core notices{' '}
+                          </span>
+                          {coreNotices}
+                        </p>
+                      ) : null}
+                      {maskWants ? (
+                        <p className="text-sm leading-snug text-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/80">
+                            Mask wants{' '}
+                          </span>
+                          {maskWants}
+                        </p>
+                      ) : null}
+                      {tensionLine ? (
+                        <p className="text-sm leading-snug text-slate-200">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200/75">
+                            Tension{' '}
+                          </span>
+                          {tensionLine}
+                        </p>
+                      ) : null}
+                      {resolution ? (
+                        <p className="text-sm leading-snug text-slate-200">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/80">
+                            Resolution{' '}
+                          </span>
+                          {resolution}
+                        </p>
+                      ) : null}
+                    </div>
+                  </details>
+                ) : null}
+                {!thinClarity &&
+                (whyThisPerson || coreNotices || leadFactDisplay || chartWhy || watchFor || doNot || behaviorTell) ? (
                   <dl className="mt-3 space-y-2.5 border-t border-white/10 pt-3">
                     {whyThisPerson ? (
                       <div>
@@ -490,7 +551,7 @@ export function TodayWeatherBrief({
             </motion.div>
           ) : null}
 
-          {!chartWhy && story ? (
+          {!thinClarity && !chartWhy && story ? (
             <div className="border-t border-white/10 pt-3">
               <p className="text-sm leading-relaxed text-slate-300/90 md:text-[15px]">{story}</p>
             </div>

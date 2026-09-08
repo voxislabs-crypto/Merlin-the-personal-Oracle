@@ -115,4 +115,48 @@ describe('domain drill-down', () => {
     expect(screen.getByText(/money conversation|tightening money/i)).toBeInTheDocument();
     expect(screen.queryByText(/Quiet in this area/i)).not.toBeInTheDocument();
   });
+
+  it('keeps extra money sentences behind Show the mechanics', () => {
+    const risk = computeLifeRisk({
+      date: '2026-09-07',
+      predictive: {
+        events: [
+          {
+            eventId: 'sat-sq-venus-money',
+            scores: { intensity: 80, confidence: 0.8, volatility: 20 },
+            transit: { transitingPlanet: 'Saturn', aspect: 'Square', natalPlanet: 'Venus' },
+            timing: { phase: 'peaking', daysToPeak: 0 },
+            domains: [{ name: 'money', impact: 80, valence: -0.8 }],
+            narrative: { risk: 'A money conversation is asking for more than you want to give today.' },
+          },
+          {
+            eventId: 'pluto-sq-venus-money',
+            scores: { intensity: 72, confidence: 0.7, volatility: 18 },
+            transit: { transitingPlanet: 'Pluto', aspect: 'Square', natalPlanet: 'Venus' },
+            timing: { phase: 'peaking', daysToPeak: 2 },
+            domains: [{ name: 'money', impact: 72, valence: -0.6 }],
+            narrative: { risk: 'An old money pattern wants a confession you do not owe tonight.' },
+          },
+          {
+            eventId: 'neptune-sq-jupiter-money',
+            scores: { intensity: 66, confidence: 0.65, volatility: 16 },
+            transit: { transitingPlanet: 'Neptune', aspect: 'Square', natalPlanet: 'Jupiter' },
+            timing: { phase: 'building', daysToPeak: 4 },
+            domains: [{ name: 'money', impact: 66, valence: -0.5 }],
+            narrative: { risk: 'The too-big promise around money will cost you.' },
+          },
+        ],
+      },
+    });
+    const items = buildDomainStripItems(risk, { includeQuiet: false });
+    render(<LifeDomainStrip items={items} risk={risk} />);
+    fireEvent.click(screen.getByRole('button', { name: /finances are tight/i }));
+
+    const thisIs = screen.getAllByText(/^This is /);
+    expect(thisIs).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /show the mechanics/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /show the mechanics/i }));
+    expect(screen.getAllByText(/^This is /).length).toBeGreaterThan(1);
+  });
 });

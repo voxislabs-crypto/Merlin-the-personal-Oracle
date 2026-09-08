@@ -15,9 +15,11 @@ import {
   buildLeadFactLine,
   buildLivedCollision,
   buildPersonalHook,
+  domainPhrase,
   natalAxisPhrase,
   primaryDomains,
   quietDomains,
+  weatherIsCrowded,
   type CheckinSnapshot,
 } from '@/lib/atmosphere/today-oracle/personal-copy';
 import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
@@ -67,7 +69,21 @@ function pickTodayHeadline(options: {
   heldMove?: string | null;
   constraintMove: string;
   deadline: string;
+  crowded?: boolean;
+  hottestDomain?: string | null;
 }): string {
+  const deadline = options.deadline || '6pm';
+  if (options.crowded) {
+    const held = (options.heldMove || '').trim();
+    if (held && !isProverbWeatherMove(held)) {
+      return `Same test as yesterday, still due by ${deadline} — don't add a second one.`;
+    }
+    const hottest = (options.hottestDomain || '').trim();
+    if (hottest) {
+      return `Run one ${hottest} test by ${deadline} — the other tight areas wait. Don't add a second one.`;
+    }
+    return `One reversible test by ${deadline} — more than two areas are tight. Don't add a second one.`;
+  }
   const dualMove = (options.dualMove || '').trim();
   const dualResolution = (options.dualResolution || '').trim();
   if (dualMove && !isProverbWeatherMove(dualMove)) return dualMove;
@@ -77,7 +93,7 @@ function pickTodayHeadline(options: {
   if (options.constraintMove && !isProverbWeatherMove(options.constraintMove)) {
     return options.constraintMove;
   }
-  return `Run one small test by ${options.deadline || '6pm'}, not a verdict.`;
+  return `Run one small test by ${deadline}, not a verdict.`;
 }
 
 /** Uncertainty from the sky data: orbs, fact count, whether we have tight hits. */
@@ -191,12 +207,15 @@ export function synthesizeTodayOracle(input: {
   const operational = dual && dual.source !== 'core-only' ? dual.why : null;
   const heldMove =
     input.held && input.memory?.move && input.memory.themeId === primary.id ? input.memory.move : null;
+  const crowded = weatherIsCrowded(input.risk);
   const move = pickTodayHeadline({
     dualMove: dual?.move,
     dualResolution: dual?.resolution,
     heldMove,
     constraintMove: constraint.move,
     deadline: constraint.deadline,
+    crowded,
+    hottestDomain: domains[0] ? domainPhrase(domains[0]) : null,
   });
   const watchFor = dual
     ? `Watch for the ${constraint.watchWindow} window: ${dual.watchFor.replace(/^Watch for:\s*/i, '')}`.replace(

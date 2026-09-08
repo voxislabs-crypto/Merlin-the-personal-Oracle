@@ -31,7 +31,7 @@ describe('buildShareWeatherText', () => {
       friction: 71,
       siteUrl: 'https://example.com',
     });
-    expect(text).toMatch(/Storm Watch 85, friction 71/);
+    expect(text).toMatch(/Storm Watch 85 alarm, friction 71/);
     expect(text).not.toMatch(/Intensity 85%/);
   });
 });

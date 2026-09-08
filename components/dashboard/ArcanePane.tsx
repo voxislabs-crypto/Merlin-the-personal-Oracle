@@ -69,7 +69,7 @@ export function ArcanePane({
   const edge = TONE_EDGE[tone];
 
   const shell = cn(
-    'relative overflow-hidden rounded-2xl border backdrop-blur-md',
+    'relative rounded-2xl border backdrop-blur-md',
     glass && 'bg-slate-950/45',
     TONE_GLOW[tone],
     shellClassName,
@@ -79,38 +79,40 @@ export function ArcanePane({
 
   const body = (
     <>
-      <div
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-90"
-        style={{
-          background: `linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 30%, transparent 70%, ${edge} 100%)`,
-        }}
-      />
-      {grid ? (
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 rounded-2xl opacity-90"
           style={{
-            backgroundImage:
-              'linear-gradient(rgba(148,163,184,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.35) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
+            background: `linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 30%, transparent 70%, ${edge} 100%)`,
           }}
         />
-      ) : null}
-      {orbs ? (
-        <>
+        {grid ? (
           <div
-            className={cn(
-              'pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full blur-3xl',
-              orbsTone.a,
-            )}
+            className="absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(148,163,184,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.35) 1px, transparent 1px)',
+              backgroundSize: '28px 28px',
+            }}
           />
-          <div
-            className={cn(
-              'pointer-events-none absolute -bottom-16 -right-10 h-44 w-44 rounded-full blur-3xl',
-              orbsTone.b,
-            )}
-          />
-        </>
-      ) : null}
+        ) : null}
+        {orbs ? (
+          <>
+            <div
+              className={cn(
+                'absolute -left-10 -top-12 h-40 w-40 rounded-full blur-3xl',
+                orbsTone.a,
+              )}
+            />
+            <div
+              className={cn(
+                'absolute -bottom-16 -right-10 h-44 w-44 rounded-full blur-3xl',
+                orbsTone.b,
+              )}
+            />
+          </>
+        ) : null}
+      </div>
       <div className="relative z-10">{children}</div>
     </>
   );

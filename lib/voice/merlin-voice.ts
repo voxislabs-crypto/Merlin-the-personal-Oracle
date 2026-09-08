@@ -57,7 +57,8 @@ SCORE PAIR
 A day may have two percents. They are different meters, not a disagreement.
 - Storm Watch / alarm = weather intensity (the tone word; 80+ is Storm Watch).
 - Friction = hard-aspect load (transit impact).
-If you mention a number, name the meter: "Storm Watch 85, friction 71." Never let them look like a fight.
+If you mention a number, name the meter: "Storm Watch 85 alarm, friction 71." Never let them look like a fight.
+Read confidence and chart confidence are a third pair — cite them as "read confidence 54%" or "chart confidence 72%", never a bare percent next to the alarm.
 
 THE MERLIN TEST
 If you removed every mention of astrology, would this still feel insightful and useful?

@@ -30,9 +30,8 @@ export function dualScoresNeedLabels(alarm: number, friction: number): boolean {
 }
 
 /**
- * Spoken / chat form.
- * Differing meters: "Storm Watch 85, friction 71"
- * Matching meters: "Storm Watch 85"
+ * Spoken / chat form. Always labels both meters when friction is loaded.
+ * "Storm Watch 85 alarm, friction 71"
  */
 export function formatStormWatchScoreLine(
   toneLabel: string,
@@ -41,27 +40,19 @@ export function formatStormWatchScoreLine(
 ): string {
   const a = clampScore(alarm);
   const label = (toneLabel || 'Storm Watch').trim() || 'Storm Watch';
-  if (
-    typeof friction === 'number' &&
-    Number.isFinite(friction) &&
-    dualScoresNeedLabels(a, friction)
-  ) {
-    return `${label} ${a}, friction ${clampScore(friction)}`;
+  if (typeof friction === 'number' && Number.isFinite(friction)) {
+    return `${label} ${a} alarm, friction ${clampScore(friction)}`;
   }
-  return `${label} ${a}`;
+  return `${label} ${a} alarm`;
 }
 
-/** Compact UI: "85% alarm" or "85% alarm · 71% friction". */
+/** Compact UI: always names the meter. "85% alarm · 71% friction". */
 export function formatDualScoreUi(
   alarm: number,
   friction?: number | null,
 ): string {
   const a = clampScore(alarm);
-  if (
-    typeof friction === 'number' &&
-    Number.isFinite(friction) &&
-    dualScoresNeedLabels(a, friction)
-  ) {
+  if (typeof friction === 'number' && Number.isFinite(friction)) {
     return `${a}% ${ALARM_LABEL} · ${clampScore(friction)}% ${FRICTION_LABEL}`;
   }
   return `${a}% ${ALARM_LABEL}`;
@@ -73,8 +64,8 @@ export function formatShareScoreSuffix(
 ): string {
   const hasAlarm = typeof alarm === 'number' && Number.isFinite(alarm);
   const hasFriction = typeof friction === 'number' && Number.isFinite(friction);
-  if (hasAlarm && hasFriction && dualScoresNeedLabels(alarm, friction)) {
-    return ` · Storm Watch ${clampScore(alarm)}, friction ${clampScore(friction)}`;
+  if (hasAlarm && hasFriction) {
+    return ` · Storm Watch ${clampScore(alarm)} alarm, friction ${clampScore(friction)}`;
   }
   if (hasFriction) return ` · friction ${clampScore(friction)}/100`;
   if (hasAlarm) return ` · alarm ${clampScore(alarm)}%`;
@@ -99,7 +90,7 @@ export function formatScorePairContext(
   const cite =
     typeof friction === 'number' && Number.isFinite(friction)
       ? formatStormWatchScoreLine(label, a, friction)
-      : `${label} ${a}`;
+      : `${label} ${a} alarm`;
   const agree =
     typeof friction === 'number' &&
     Number.isFinite(friction) &&
@@ -110,6 +101,6 @@ SCORE PAIR (two meters — both can be true; they must not look like a fight):
 - ${label} / ${ALARM_LABEL}: ${a}% — weather intensity that sets the tone word. 80+ is Storm Watch.
 - ${FRICTION_LABEL} / hard-aspect load: ${frictionLine} — transit impact, not the alarm.
 - Cite as: "${cite}."${agree ? ' Meters agree today — still name which one if you cite a percent.' : ''}
-- Never present two unlabeled percents as competing official scores for the same day. Never pick one and hide the other.
+- Never present two unlabeled percents as competing official scores for the same day. Never pick one and hide the other. Never quote the header's alarm without the word alarm, or friction without the word friction.
   `.trim();
 }

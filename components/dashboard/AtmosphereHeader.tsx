@@ -17,7 +17,6 @@ import {
 import {
   ALARM_LABEL,
   FRICTION_LABEL,
-  dualScoresNeedLabels,
   formatDualScoreUi,
   resolveFrictionPercent,
 } from '@/lib/atmosphere/score-labels';
@@ -131,8 +130,7 @@ export function AtmosphereHeader({
   const domainItems =
     variant === 'hero' ? buildDomainStripItems(risk, { max: 6, includeQuiet: false }) : [];
   const frictionPercent = resolveFrictionPercent(risk);
-  const showFrictionBesideAlarm =
-    frictionPercent != null && dualScoresNeedLabels(resolvedIntensity, frictionPercent);
+  const showFrictionBesideAlarm = frictionPercent != null;
   const riskPercent = variant === 'hero' ? frictionPercent : null;
 
   const feltLine = showFeltLine ? (

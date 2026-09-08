@@ -72,6 +72,7 @@ interface HomeTabPanelProps {
   confidenceLabel?: 'High' | 'Steady' | 'Tentative';
   mixedSignals?: boolean;
   themeLabel?: string;
+  themeId?: string | null;
   heldFromYesterday?: boolean;
   weatherPrinciple?: string;
   /** Dominant transit/driver label for Why pills */
@@ -191,6 +192,7 @@ export function HomeTabPanel({
   confidenceLabel,
   mixedSignals,
   themeLabel,
+  themeId = null,
   heldFromYesterday,
   weatherPrinciple,
   driverLabel = null,
@@ -297,6 +299,7 @@ export function HomeTabPanel({
           confidenceLabel={confidenceLabel}
           mixedSignals={mixedSignals}
           themeLabel={themeLabel}
+          themeId={themeId}
           heldFromYesterday={heldFromYesterday}
           weatherPrinciple={weatherPrinciple}
           driverLabel={driverLabel}
