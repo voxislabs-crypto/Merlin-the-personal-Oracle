@@ -25,14 +25,23 @@ export function isHomeworkHeadline(text: string | null | undefined): boolean {
   );
 }
 
+/** Carryover is yesterday's sky still applying — never today's own snapshot. */
+export function isPriorDayMemory(today?: string | null, memoryDate?: string | null): boolean {
+  if (!today || !memoryDate) return false;
+  return memoryDate !== today;
+}
+
 export function resolveHeadlinePolarity(input: {
   held?: boolean;
   sameSky?: boolean;
+  today?: string | null;
+  memoryDate?: string | null;
   theme: RankedTheme;
   lead?: TransitFact | null;
   risk?: LifeRiskPacket | null;
 }): HeadlinePolarity {
-  if (input.held || input.sameSky) return 'carryover';
+  const fromYesterday = isPriorDayMemory(input.today, input.memoryDate);
+  if (fromYesterday && (input.held || input.sameSky)) return 'carryover';
   if (isSupportWeather(input.theme, input.lead, input.risk)) return 'support';
   return 'storm';
 }
@@ -183,6 +192,8 @@ export function composeTodayHeadline(input: {
   held?: boolean;
   heldMove?: string | null;
   memoryFactKey?: string | null;
+  today?: string | null;
+  memoryDate?: string | null;
 }): { headline: string; polarity: HeadlinePolarity; avoid: string } {
   const tight = tightDomainsFromRisk(input.risk);
   const crowded = tight.length > 2;
@@ -190,6 +201,8 @@ export function composeTodayHeadline(input: {
   const polarity = resolveHeadlinePolarity({
     held: input.held,
     sameSky,
+    today: input.today,
+    memoryDate: input.memoryDate,
     theme: input.theme,
     lead: input.lead,
     risk: input.risk,
@@ -229,6 +242,9 @@ export function isSameSkyCarryover(
   lead: TransitFact | null | undefined,
   memoryFactKey?: string | null,
   held?: boolean,
+  today?: string | null,
+  memoryDate?: string | null,
 ): boolean {
+  if (!isPriorDayMemory(today, memoryDate)) return false;
   return Boolean(held || sameSkyAsMemory(lead, memoryFactKey));
 }

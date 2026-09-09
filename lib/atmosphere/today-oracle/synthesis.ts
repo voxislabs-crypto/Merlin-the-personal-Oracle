@@ -184,6 +184,8 @@ export function synthesizeTodayOracle(input: {
     held: input.held,
     heldMove,
     memoryFactKey: input.memory?.factKey,
+    today: input.date,
+    memoryDate: input.memory?.date,
   });
   const move = composed.headline;
   const watchFor = dual

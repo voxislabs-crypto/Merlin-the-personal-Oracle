@@ -136,6 +136,8 @@ describe('today headline compose', () => {
       held: true,
       heldMove: day1.headline,
       memoryFactKey: 'Mercury square Neptune',
+      today: '2026-09-09',
+      memoryDate: '2026-09-08',
     });
     expect(day2.polarity).toBe('carryover');
     expect(day2.headline).not.toBe(day1.headline);
@@ -143,5 +145,33 @@ describe('today headline compose', () => {
     expect(day2.headline).toMatch(/Don't add a second task/);
     expect(day2.headline).toMatch(/Send the sentence/);
     expect(nextInchFromHeldMove(day1.headline, 'INFP')).toBe('Send the sentence.');
+  });
+
+  it('does not rewrite today\'s own snapshot as carryover (prevents a setState loop)', () => {
+    const first = composeTodayHeadline({
+      theme: fogTheme(),
+      lead: mercuryNeptune(),
+      domains: ['career'],
+      coreType: 'INFP',
+      maskType: 'INTP',
+      window: '10am–1pm',
+      today: '2026-09-08',
+    });
+    const again = composeTodayHeadline({
+      theme: fogTheme(),
+      lead: mercuryNeptune(),
+      domains: ['career'],
+      coreType: 'INFP',
+      maskType: 'INTP',
+      window: '10am–1pm',
+      today: '2026-09-08',
+      memoryDate: '2026-09-08',
+      held: true,
+      heldMove: first.headline,
+      memoryFactKey: 'Mercury square Neptune',
+    });
+    expect(again.polarity).toBe('storm');
+    expect(again.headline).toBe(first.headline);
+    expect(again.headline).not.toMatch(/as yesterday/);
   });
 });
