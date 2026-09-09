@@ -14,7 +14,6 @@ import type { AtmospherePacket, LifeRiskDomain, LifeRiskPacket } from '@/lib/atm
 import { composeTodayOracle, isProverbWeatherMove } from '@/lib/atmosphere/today-oracle';
 import { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
 import { buildCoreMaskTension } from '@/lib/self/dual-layer-lens';
-import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
 import type { CheckinSnapshot } from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { TodayMoveMemory, TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 
@@ -803,15 +802,11 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
       date,
     });
 
-  // If Core/Mask exist, the title is the compose move — never the exit-ramp proverb.
+  // Headline is sky-first from composeTodayHeadline. Never fall back to the 6pm homework.
   if (isProverbWeatherMove(move) || !move) {
-    const dualMove = composeDualLayerCard({
-      coreType: input.mbtiType,
-      maskType: input.maskType,
-      deadline: oracle?.deadline || '6pm',
-      domain: domains.split(' and ')[0] || domains,
-    })?.move;
-    move = dualMove || 'Take one reversible step today.';
+    move = oracle?.move && !isProverbWeatherMove(oracle.move)
+      ? oracle.move
+      : 'Take one reversible step today.';
   }
 
   const personalStory = oracle?.whyThisPerson || oracle?.chartWhy || oracle?.leadFact || story;

@@ -7,6 +7,10 @@ import { applyMerlinVoicePass } from '@/lib/voice/merlin-voice';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 import { THEME_CATALOG } from '@/lib/atmosphere/today-oracle/meaning';
 import {
+  composeTodayHeadline,
+  isHomeworkHeadline,
+} from '@/lib/atmosphere/today-oracle/headline';
+import {
   buildChartWhy,
   buildConfidenceWhy,
   buildConstraintMove,
@@ -15,11 +19,9 @@ import {
   buildLeadFactLine,
   buildLivedCollision,
   buildPersonalHook,
-  domainPhrase,
   natalAxisPhrase,
   primaryDomains,
   quietDomains,
-  weatherIsCrowded,
   type CheckinSnapshot,
 } from '@/lib/atmosphere/today-oracle/personal-copy';
 import { composeDualLayerCard } from '@/lib/self/dual-layer-maps';
@@ -56,44 +58,9 @@ function bandLabel(score: number): TodayOracleBrief['confidenceLabel'] {
   return 'Tentative';
 }
 
-/** Old weather-card proverb — never the Today headline once Core/Mask has a real move. */
+/** Old weather-card proverb / leftover homework — never the Today headline. */
 export function isProverbWeatherMove(text: string | null | undefined): boolean {
-  const t = (text || '').trim();
-  if (!t) return false;
-  return /change one (visible )?variable/i.test(t) || /keep an exit ramp/i.test(t) || /not the whole life/i.test(t);
-}
-
-function pickTodayHeadline(options: {
-  dualMove?: string | null;
-  dualResolution?: string | null;
-  heldMove?: string | null;
-  constraintMove: string;
-  deadline: string;
-  crowded?: boolean;
-  hottestDomain?: string | null;
-}): string {
-  const deadline = options.deadline || '6pm';
-  if (options.crowded) {
-    const held = (options.heldMove || '').trim();
-    if (held && !isProverbWeatherMove(held)) {
-      return `Same test as yesterday, still due by ${deadline} — don't add a second one.`;
-    }
-    const hottest = (options.hottestDomain || '').trim();
-    if (hottest) {
-      return `Run one ${hottest} test by ${deadline} — the other tight areas wait. Don't add a second one.`;
-    }
-    return `One reversible test by ${deadline} — more than two areas are tight. Don't add a second one.`;
-  }
-  const dualMove = (options.dualMove || '').trim();
-  const dualResolution = (options.dualResolution || '').trim();
-  if (dualMove && !isProverbWeatherMove(dualMove)) return dualMove;
-  if (dualResolution && !isProverbWeatherMove(dualResolution)) return dualResolution;
-  const held = (options.heldMove || '').trim();
-  if (held && !isProverbWeatherMove(held)) return held;
-  if (options.constraintMove && !isProverbWeatherMove(options.constraintMove)) {
-    return options.constraintMove;
-  }
-  return `Run one small test by ${deadline}, not a verdict.`;
+  return isHomeworkHeadline(text);
 }
 
 /** Uncertainty from the sky data: orbs, fact count, whether we have tight hits. */
@@ -205,25 +172,27 @@ export function synthesizeTodayOracle(input: {
     domain: domainWord,
   });
   const operational = dual && dual.source !== 'core-only' ? dual.why : null;
-  const heldMove =
-    input.held && input.memory?.move && input.memory.themeId === primary.id ? input.memory.move : null;
-  const crowded = weatherIsCrowded(input.risk);
-  const move = pickTodayHeadline({
-    dualMove: dual?.move,
-    dualResolution: dual?.resolution,
+  const heldMove = input.memory?.move || null;
+  const composed = composeTodayHeadline({
+    theme: primary,
+    lead,
+    domains,
+    risk: input.risk,
+    window: constraint.watchWindow,
+    coreType: input.mbtiType,
+    maskType: input.maskType,
+    held: input.held,
     heldMove,
-    constraintMove: constraint.move,
-    deadline: constraint.deadline,
-    crowded,
-    hottestDomain: domains[0] ? domainPhrase(domains[0]) : null,
+    memoryFactKey: input.memory?.factKey,
   });
+  const move = composed.headline;
   const watchFor = dual
     ? `Watch for the ${constraint.watchWindow} window: ${dual.watchFor.replace(/^Watch for:\s*/i, '')}`.replace(
         /\.\s*\./g,
         '.',
       )
     : constraint.watchFor;
-  const doNot = dual?.avoid || constraint.doNot;
+  const doNot = composed.avoid || dual?.avoid || constraint.doNot;
   const chartWhy = buildChartWhy({
     leadFact,
     lived,

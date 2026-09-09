@@ -185,7 +185,7 @@ describe('close themes', () => {
 });
 
 describe('composeTodayOracle', () => {
-  it('uses the dual test-by-deadline as the headline, not the exit-ramp proverb', () => {
+  it('leads the headline with the sky, not the 6pm homework', () => {
     const brief = composeTodayOracle({
       date: '2026-09-02',
       transitLookup: [{ transit_aspect: 'Uranus square Venus', orb: '0.30°', score: 96 }],
@@ -193,14 +193,18 @@ describe('composeTodayOracle', () => {
       maskType: 'INTP',
     });
     expect(brief).not.toBeNull();
-    expect(brief!.move.toLowerCase()).toMatch(/6pm|test|value|sentence/);
-    expect(brief!.move.toLowerCase()).toMatch(/bond|relationship|today/);
+    expect(brief!.move.toLowerCase()).toMatch(/through|jolt|bond/);
+    expect(brief!.move.toLowerCase()).toMatch(/honest sentence|silence/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
     expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
+    expect(brief!.coreNotices).toBeTruthy();
+    expect(brief!.maskWants).toBeTruthy();
+    expect(brief!.doNot).toBeTruthy();
     expect(brief!.resolution.toLowerCase()).toMatch(/test by 6pm/);
   });
 
-  it("does not keep yesterday's proverb as the headline when dual copy exists", () => {
+  it('labels carryover and changes the next inch when the same sky still applies', () => {
     const brief = composeTodayOracle({
       date: '2026-09-02',
       transitLookup: [{ transit_aspect: 'Uranus square Venus', orb: '0.30°', score: 96 }],
@@ -209,13 +213,15 @@ describe('composeTodayOracle', () => {
       memory: {
         date: '2026-09-01',
         themeId: 'sudden-shift',
-        move: 'Change one variable, not the whole life. Keep an exit ramp.',
+        move: 'By 6pm, write the one-sentence test you can defend about this bond — one value that will not move.',
         factKey: 'Uranus square Venus',
       },
     });
+    expect(brief!.move.toLowerCase()).toMatch(/same .+ as yesterday/);
+    expect(brief!.move.toLowerCase()).toMatch(/don't add a second task/);
+    expect(brief!.move.toLowerCase()).toMatch(/send the sentence/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
-    expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
-    expect(brief!.move.toLowerCase()).toMatch(/6pm|test|value|sentence/);
   });
 
   it('leads with the actual chart hit and a human translation', () => {
@@ -227,7 +233,7 @@ describe('composeTodayOracle', () => {
     expect(brief!.leadFact).toMatch(/Moon is squaring your Saturn/i);
     expect(brief!.leadFact.toLowerCase()).toMatch(/duty|limits|verdict|character/);
     expect(brief!.whyToday).toMatch(/Moon square Saturn/i);
-    expect(brief!.move).toMatch(/by (noon|3pm|6pm)/i);
+    expect(brief!.move.toLowerCase()).toMatch(/through|heavy mood|window open/);
     expect(brief!.watchFor).toMatch(/\d(am|pm)/i);
     expect(brief!.doNot.length).toBeGreaterThan(8);
     expect(brief!.chartConfidence).toBeGreaterThan(50);
@@ -272,9 +278,45 @@ describe('composeTodayOracle', () => {
       } as AtmospherePacket,
     });
     expect(brief).not.toBeNull();
-    expect(brief!.move.toLowerCase()).toMatch(/don't add a second one/);
+    expect(brief!.move.toLowerCase()).toMatch(/wide plate/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/this bond/);
     expect(brief!.move.toLowerCase()).not.toMatch(/one value that will not move/);
     expect(brief!.domainJob.toLowerCase()).toMatch(/all tight/);
+  });
+
+  it('does not use the same homework headline for INFP-core and INFJ-core on the same sky', () => {
+    const sky = {
+      date: '2026-09-08',
+      transitLookup: [{ transit_aspect: 'Mercury square Neptune', orb: '0.80°', score: 90 }],
+    };
+    const infp = composeTodayOracle({ ...sky, mbtiType: 'INFP', maskType: 'INTP' });
+    const infj = composeTodayOracle({ ...sky, mbtiType: 'INFJ', maskType: 'INTP' });
+    expect(infp!.move.toLowerCase()).toMatch(/thin clarity/);
+    expect(infj!.move.toLowerCase()).toMatch(/thin clarity/);
+    expect(infp!.move.toLowerCase()).toMatch(/honest sentence|silence/);
+    expect(infj!.move.toLowerCase()).toMatch(/feeling before the analysis/);
+    expect(infp!.move).not.toBe(infj!.move);
+  });
+
+  it('uses a green action when ease beats friction, not the 6pm sentence', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-08',
+      transitLookup: [{ transit_aspect: 'Mercury trine Jupiter', orb: '0.90°', score: 88 }],
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      packet: {
+        risk: {
+          domains: [
+            { name: 'career', label: 'Career', friction: 22, support: 74, hitCount: 1 },
+            { name: 'love', label: 'Relationships', friction: 18, support: 40, hitCount: 0 },
+          ],
+        },
+      } as AtmospherePacket,
+    });
+    expect(brief!.move.toLowerCase()).toMatch(/window open/);
+    expect(brief!.move.toLowerCase()).toMatch(/outside|yes|joy/);
+    expect(brief!.move.toLowerCase()).not.toMatch(/6pm|write the one-sentence|honest sentence, then silence/);
+    expect(brief!.doNot.toLowerCase()).toMatch(/green hour|research the walk/);
   });
 
   it('changes navigation by life domain, not just the transit name', () => {
@@ -283,15 +325,7 @@ describe('composeTodayOracle', () => {
       transitLookup: [{ transit_aspect: 'Mars square Saturn', orb: '0.50°', score: 90 }],
       packet: {
         risk: {
-          topDrivers: [
-            {
-              label: 'Mars square Saturn',
-              friction: 80,
-              kind: 'friction',
-              domains: ['career'],
-              source: 'transit',
-            },
-          ],
+          domains: [{ name: 'career', label: 'Career', friction: 80, support: 10, hitCount: 1 }],
         },
       } as AtmospherePacket,
     });
@@ -300,20 +334,12 @@ describe('composeTodayOracle', () => {
       transitLookup: [{ transit_aspect: 'Mars square Saturn', orb: '0.50°', score: 90 }],
       packet: {
         risk: {
-          topDrivers: [
-            {
-              label: 'Mars square Saturn',
-              friction: 80,
-              kind: 'friction',
-              domains: ['love'],
-              source: 'transit',
-            },
-          ],
+          domains: [{ name: 'love', label: 'Relationships', friction: 80, support: 10, hitCount: 1 }],
         },
       } as AtmospherePacket,
     });
-    expect(career?.move.toLowerCase()).toMatch(/work|career|meeting|brick/);
-    expect(love?.move.toLowerCase()).toMatch(/relationship|fight|home|ask/);
+    expect(career?.move.toLowerCase()).toMatch(/work/);
+    expect(love?.move.toLowerCase()).toMatch(/relationship/);
     expect(career?.move).not.toBe(love?.move);
   });
 
@@ -391,12 +417,13 @@ describe('composeTodayOracle', () => {
     expect(brief?.chartWhy).toMatch(/Leo/);
     expect(brief?.chartWhy).not.toMatch(/\b(INFP|INTP)\b/);
     expect(brief?.chartWhy.toLowerCase()).toMatch(/authenticit|feel|self-worth/);
-    expect(brief?.move).toMatch(/6pm/i);
-    expect(brief?.move.toLowerCase()).toMatch(/value/);
-    expect(brief?.move.toLowerCase()).toMatch(/sentence|test/);
+    expect(brief?.move.toLowerCase()).toMatch(/through/);
+    expect(brief?.move.toLowerCase()).toMatch(/jolt|bond/);
+    expect(brief?.move.toLowerCase()).toMatch(/honest sentence|silence/);
+    expect(brief?.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief?.watchFor).toMatch(/4–7pm|4-7pm/i);
     expect(brief?.watchFor.toLowerCase()).toMatch(/briefing|feeling/);
-    expect(brief?.doNot.toLowerCase()).toMatch(/explaining|proving you are fine|variable/);
+    expect(brief?.doNot.toLowerCase()).toMatch(/brief/);
     expect(brief?.personalHook?.toLowerCase()).toMatch(/first return|constraint/);
     expect(brief?.domainJob).toMatch(/Relationships/i);
     expect(brief?.whyToday).toMatch(/Jupiter square Moon/i);
@@ -405,7 +432,7 @@ describe('composeTodayOracle', () => {
     );
   });
 
-  it('reuses yesterday’s move when the theme still applies', () => {
+  it('labels carryover instead of reprinting yesterday’s assignment', () => {
     const brief = composeTodayOracle({
       date: '2026-08-13',
       transitLookup: [{ transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 }],
@@ -417,6 +444,8 @@ describe('composeTodayOracle', () => {
       },
     });
     expect(brief?.heldFromYesterday).toBe(true);
-    expect(brief?.move).toBe('Ask for the concrete need. Skip the self-trial.');
+    expect(brief?.move.toLowerCase()).toMatch(/same heavy mood as yesterday/);
+    expect(brief?.move.toLowerCase()).toMatch(/don't add a second task/);
+    expect(brief?.move).not.toBe('Ask for the concrete need. Skip the self-trial.');
   });
 });

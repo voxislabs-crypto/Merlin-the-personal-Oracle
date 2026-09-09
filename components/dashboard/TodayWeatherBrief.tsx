@@ -15,8 +15,7 @@ import { StatusPanel } from '@/components/ui/status-panel';
 import { formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
 import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
-import { domainInPlainWords, rewriteLayReason } from '@/lib/astrology/pressure-engine/lay-reason';
-import { weatherIsCrowded } from '@/lib/atmosphere/today-oracle/personal-copy';
+import { rewriteLayReason } from '@/lib/astrology/pressure-engine/lay-reason';
 import type { TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
 import {
@@ -267,17 +266,11 @@ export function TodayWeatherBrief({
   const arcaneTone = arcaneToneFromIntensity(intensity, dayRating);
   const moodWord = (themeLabel || tone.label || '').trim();
   const layMood = rewriteLayReason(moodReason || chartWhy || whyToday || driverLabel || '');
-  const crowded = weatherIsCrowded(risk);
-  const hotDomain = [...(risk?.domains || [])].sort((a, b) => b.friction - a.friction)[0];
   const thinClarity =
     themeId === 'fog-clarity' ||
     /clarity is thin/i.test(themeLabel || '') ||
     /mercury.{0,24}neptune|neptune.{0,24}mercury/i.test(`${leadFact || ''} ${leadFactDisplay || ''}`);
-  const whyThisMove = crowded
-    ? `${layMood.replace(/\.$/, '')} — more than two areas are tight, so keep one test.`
-    : hotDomain
-      ? `${layMood.replace(/\.$/, '')} — that's why the move is about ${domainInPlainWords(hotDomain.name)}.`
-      : layMood;
+  const whyThisMove = layMood;
   const moveEdge =
     arcaneTone === 'storm'
       ? 'border-rose-300/55 bg-gradient-to-br from-rose-500/25 via-rose-600/15 to-black/40 shadow-[0_0_36px_rgba(251,113,133,0.18)]'

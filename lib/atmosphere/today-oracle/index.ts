@@ -25,6 +25,14 @@ export {
 export { personalityFrame } from '@/lib/atmosphere/today-oracle/personality-lens';
 export { WEATHER_PRINCIPLE, isProverbWeatherMove } from '@/lib/atmosphere/today-oracle/synthesis';
 export {
+  composeTodayHeadline,
+  isHomeworkHeadline,
+  isSupportWeather,
+  plainSkyPhrase,
+  typedStormMove,
+  typedSupportMove,
+} from '@/lib/atmosphere/today-oracle/headline';
+export {
   selectThemeWithNovelty,
   readTodayMoveMemory,
   writeTodayMoveMemory,
