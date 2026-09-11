@@ -310,7 +310,7 @@ describe('buildLifeWeatherBrief', () => {
     expect(brief.operationalTension || brief.chartWhy).toMatch(/coherence|authenticit|feel|meaning|logic/i);
     expect(brief.story).not.toMatch(/As an INFJ/);
     expect(`${brief.operationalTension} ${brief.chartWhy} ${brief.move}`).not.toMatch(/\b(INFJ|INTP)\b/);
-    expect(brief.move.toLowerCase()).toMatch(/pattern|sentence|value|feeling|analysis/);
+    expect(brief.move.toLowerCase()).toMatch(/watch|feeling|fact|stop|project|heat/);
     expect(brief.navigate || brief.move).toBeTruthy();
   });
 

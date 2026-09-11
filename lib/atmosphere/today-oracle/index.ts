@@ -28,6 +28,7 @@ export {
   composeTodayHeadline,
   isHomeworkHeadline,
   isSupportWeather,
+  interventionLevel,
   plainSkyPhrase,
   typedStormMove,
   typedSupportMove,

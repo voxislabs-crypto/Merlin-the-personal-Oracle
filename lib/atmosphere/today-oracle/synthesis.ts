@@ -218,6 +218,8 @@ export function synthesizeTodayOracle(input: {
     phase: matchingDriver?.phase,
     daysToPeak: peak,
     mixedSignals: close.length > 1,
+    intensity: input.intensity,
+    tripleHit: input.tripleHit,
   });
   const move = composed.move;
   const whatHappening = composed.what;

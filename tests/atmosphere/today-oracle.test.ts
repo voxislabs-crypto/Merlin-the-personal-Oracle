@@ -196,7 +196,7 @@ describe('composeTodayOracle', () => {
     expect(brief!.whatHappening).toBeTruthy();
     expect(brief!.whyItMatters).toBeTruthy();
     expect(brief!.howToRide).toBeTruthy();
-    expect(brief!.move.toLowerCase()).toMatch(/honest sentence|silence|reversible/);
+    expect(brief!.move.toLowerCase()).toMatch(/restlessness|quit|spike|test|verdict/);
     expect(brief!.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
     expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
@@ -319,9 +319,9 @@ describe('composeTodayOracle', () => {
       } as AtmospherePacket,
     });
     expect(brief!.whatHappening?.toLowerCase()).toMatch(/opening/);
-    expect(brief!.move.toLowerCase()).toMatch(/outside|yes|joy/);
+    expect(brief!.move.toLowerCase()).toMatch(/useful sentence|say the useful|send the update/);
     expect(brief!.move.toLowerCase()).not.toMatch(/6pm|write the one-sentence|honest sentence, then silence/);
-    expect(brief!.doNot.toLowerCase()).toMatch(/green hour|research the walk/);
+    expect(brief!.doNot.toLowerCase()).toMatch(/useful sentence|green hour|research/);
   });
 
   it('changes navigation by life domain, not just the transit name', () => {
@@ -377,7 +377,7 @@ describe('composeTodayOracle', () => {
     });
     expect(dual?.themeId).toBe(base?.themeId);
     expect(dual?.leadFactDisplay).toBe(base?.leadFactDisplay);
-    expect(dual?.move.toLowerCase()).toMatch(/pattern|sentence|analysis|vision|feeling/);
+    expect(dual?.move.toLowerCase()).toMatch(/need|self-trial|duty|weight/);
     expect(dual?.chartWhy.toLowerCase()).toMatch(/coherence|vision|duty|meaning/);
     expect(dual?.watchFor.toLowerCase()).toMatch(/briefing|feeling|withdrawal|over-responsibility/);
     expect(`${dual?.move} ${dual?.chartWhy} ${dual?.watchFor} ${dual?.doNot}`).not.toMatch(
@@ -424,11 +424,11 @@ describe('composeTodayOracle', () => {
     expect(brief?.chartWhy.toLowerCase()).toMatch(/authenticit|feel|self-worth/);
     expect(brief?.whatHappening).toBeTruthy();
     expect(brief?.whyItMatters?.toLowerCase()).toMatch(/relationship|home/);
-    expect(brief?.move.toLowerCase()).toMatch(/honest sentence|silence/);
+    expect(brief?.move.toLowerCase()).toMatch(/restlessness|quit|spike|test|verdict/);
     expect(brief?.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief?.watchFor).toMatch(/4–7pm|4-7pm/i);
     expect(brief?.watchFor.toLowerCase()).toMatch(/briefing|feeling/);
-    expect(brief?.doNot.toLowerCase()).toMatch(/brief/);
+    expect(brief?.doNot.toLowerCase()).toMatch(/spike|brief|quit/);
     expect(brief?.personalHook?.toLowerCase()).toMatch(/first return|constraint/);
     expect(brief?.domainJob).toMatch(/Relationships/i);
     expect(brief?.whyToday).toMatch(/Jupiter square Moon/i);
@@ -452,5 +452,74 @@ describe('composeTodayOracle', () => {
     expect(brief?.whatHappening?.toLowerCase()).toMatch(/same .+ as yesterday/);
     expect(brief?.howToRide?.toLowerCase()).toMatch(/don't add a second task/);
     expect(brief?.move).not.toBe('Ask for the concrete need. Skip the self-trial.');
+  });
+
+  it('keeps selected emotional-restraint when a louder work opening is competing', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-10',
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      transitLookup: [
+        { transit_aspect: 'Moon square Saturn', orb: '0.40°', score: 95 },
+        { transit_aspect: 'Mercury trine Jupiter', orb: '0.45°', score: 94 },
+      ],
+      packet: {
+        risk: {
+          domains: [
+            { name: 'family', label: 'Home', friction: 70, support: 12, hitCount: 1 },
+            { name: 'career', label: 'Career', friction: 22, support: 74, hitCount: 1 },
+          ],
+        },
+      } as AtmospherePacket,
+    });
+    expect(brief?.themeId).toBe('emotional-restraint');
+    expect(brief?.mixedSignals).toBe(true);
+    expect(brief?.whatHappening?.toLowerCase()).toMatch(/mood is running heavier/);
+    expect(brief?.whatHappening?.toLowerCase()).not.toMatch(/opening/);
+    expect(brief?.whyItMatters?.toLowerCase()).toMatch(/home/);
+    expect(brief?.move.toLowerCase()).toMatch(/weight|duty/);
+  });
+
+  it('keeps selected action-block when a relationship opening is almost as loud', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-10',
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      transitLookup: [
+        { transit_aspect: 'Mars square Saturn', orb: '0.55°', score: 90 },
+        { transit_aspect: 'Venus trine Jupiter', orb: '0.60°', score: 88 },
+      ],
+      packet: {
+        risk: {
+          domains: [
+            { name: 'career', label: 'Career', friction: 78, support: 16, hitCount: 1 },
+            { name: 'love', label: 'Relationships', friction: 20, support: 76, hitCount: 1 },
+          ],
+        },
+      } as AtmospherePacket,
+    });
+    expect(brief?.themeId).toBe('action-block');
+    expect(brief?.whatHappening?.toLowerCase()).toMatch(/drive is meeting a wall|work/);
+    expect(brief?.whatHappening?.toLowerCase()).not.toMatch(/opening/);
+    expect(brief?.move.toLowerCase()).toMatch(/brick/);
+    expect(brief?.move.toLowerCase()).not.toMatch(/honest sentence|go outside/);
+  });
+
+  it('keeps Mercury trine Neptune as fog, not a green opening', () => {
+    const brief = composeTodayOracle({
+      date: '2026-09-10',
+      mbtiType: 'INFP',
+      maskType: 'INTP',
+      transitLookup: [{ transit_aspect: 'Mercury trine Neptune', orb: '0.70°', score: 86 }],
+      packet: {
+        risk: {
+          domains: [{ name: 'career', label: 'Career', friction: 24, support: 60, hitCount: 1 }],
+        },
+      } as AtmospherePacket,
+    });
+    expect(brief?.themeId).toBe('fog-clarity');
+    expect(brief?.whatHappening?.toLowerCase()).toMatch(/clarity is thinner/);
+    expect(brief?.whatHappening?.toLowerCase()).not.toMatch(/opening/);
+    expect(brief?.move.toLowerCase()).toMatch(/honest sentence|silence/);
   });
 });
