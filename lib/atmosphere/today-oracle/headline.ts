@@ -4,11 +4,29 @@
  */
 
 import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
-import { domainPhrase, tightDomainsFromRisk } from '@/lib/atmosphere/today-oracle/personal-copy';
+import {
+  domainPhrase,
+  natalAxisPhrase,
+  tightDomainsFromRisk,
+} from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { RankedTheme, TransitFact } from '@/lib/atmosphere/today-oracle/types';
-import { CORE_THREAT, parseMbtiType } from '@/lib/self/dual-layer-maps';
+import { CORE_THREAT, MASK_SYMPTOM, parseMbtiType } from '@/lib/self/dual-layer-maps';
 
 export type HeadlinePolarity = 'storm' | 'support' | 'carryover';
+
+export interface TodayMoveSlots {
+  polarity: HeadlinePolarity;
+  /** Slot 1 */
+  what: string;
+  /** Slot 2 */
+  whyMe: string;
+  /** Slot 3 */
+  ride: string;
+  /** Slot 4 — conclusion. Also aliased as headline for older callers. */
+  move: string;
+  headline: string;
+  avoid: string;
+}
 
 export function isHomeworkHeadline(text: string | null | undefined): boolean {
   const t = (text || '').trim();
@@ -150,26 +168,181 @@ export function nextInchFromHeldMove(
   return 'Do the next inch. Stop there.';
 }
 
-function headlineWindow(
-  lead: TransitFact | null | undefined,
-  constraintWindow: string | null | undefined,
-  polarity: HeadlinePolarity,
-): string {
-  const given = (constraintWindow || '').trim();
-  if (given && given !== 'late afternoon') return given;
-  if (lead?.transiting === 'mercury' || lead?.natal === 'mercury') return '10am–1pm';
-  if (polarity === 'support') return 'this afternoon';
-  return '4–7pm';
+function decap(text: string): string {
+  const t = (text || '').trim();
+  if (!t) return t;
+  return t.charAt(0).toLowerCase() + t.slice(1);
 }
 
-function domainSlot(input: {
-  crowded?: boolean;
-  domains: LifeRiskDomain[];
-  tight: LifeRiskDomain[];
+function joinAnd(items: string[]): string {
+  const unique = Array.from(new Set(items.filter(Boolean)));
+  if (unique.length === 0) return '';
+  if (unique.length === 1) return unique[0];
+  if (unique.length === 2) return `${unique[0]} and ${unique[1]}`;
+  return `${unique.slice(0, -1).join(', ')}, and ${unique[unique.length - 1]}`;
+}
+
+function winningDomains(
+  polarity: HeadlinePolarity,
+  risk: LifeRiskPacket | null | undefined,
+  fallback: LifeRiskDomain[],
+): LifeRiskDomain[] {
+  const rows = risk?.domains || [];
+  if (polarity === 'support') {
+    const open = [...rows]
+      .filter((row) => row.support > row.friction)
+      .sort((a, b) => b.support - a.support)
+      .map((row) => row.name);
+    if (open.length) return open.slice(0, 3);
+  }
+  const tight = tightDomainsFromRisk(risk);
+  if (tight.length) return tight;
+  return fallback.slice(0, 2);
+}
+
+function phaseBit(
+  phase?: string | null,
+  daysToPeak?: number | null,
+): string {
+  if (phase === 'building') {
+    if (typeof daysToPeak === 'number' && daysToPeak > 0) {
+      return daysToPeak === 1 ? 'Still gathering — about a day from peak.' : `Still gathering — about ${daysToPeak} days from peak.`;
+    }
+    return 'Still gathering.';
+  }
+  if (phase === 'peaking' || daysToPeak === 0) return 'This is the peak.';
+  if (phase === 'releasing') return "The peak has already passed.";
+  if (typeof daysToPeak === 'number' && daysToPeak > 0 && daysToPeak <= 2) {
+    return daysToPeak === 1 ? 'The peak is about a day out.' : `The peak is about ${daysToPeak} days out.`;
+  }
+  return '';
+}
+
+function meaningfulTiming(input: {
+  window?: string | null;
+  lead?: TransitFact | null;
+  phase?: string | null;
+  daysToPeak?: number | null;
+}): string | null {
+  const window = (input.window || '').trim();
+  const mapped = Boolean(window && window !== 'late afternoon' && window !== 'this afternoon');
+  const mercury =
+    input.lead?.transiting === 'mercury' || input.lead?.natal === 'mercury';
+  const peaking = input.phase === 'peaking' || input.daysToPeak === 0;
+  if (!mapped && !mercury && !peaking && input.phase !== 'building' && input.phase !== 'releasing') {
+    return null;
+  }
+  if ((mapped || mercury) && (peaking || mercury)) {
+    const slot = mapped ? window : mercury ? '10am–1pm' : '';
+    if (slot) return `The sharper hours are ${slot}.`;
+  }
+  return null;
+}
+
+function whatSlot(input: {
+  polarity: HeadlinePolarity;
+  sky: string;
+  themeId: string;
+  domain: string;
+  crowded: boolean;
+  phase?: string | null;
+  daysToPeak?: number | null;
 }): string {
-  if (input.crowded && input.tight.length > 2) return 'a wide plate';
-  const primary = input.domains[0] || input.tight[0];
-  return domainPhrase(primary) || 'the day';
+  const phase = phaseBit(input.phase, input.daysToPeak);
+  let what: string;
+  if (input.polarity === 'carryover') {
+    what = `Same ${input.sky} as yesterday.`;
+  } else if (input.polarity === 'support') {
+    what = input.crowded
+      ? 'A usable opening is in the mix.'
+      : `A usable opening is forming around ${input.domain}.`;
+  } else if (input.themeId === 'fog-clarity' || /thin clarity|clarity is thin/.test(input.sky)) {
+    what = 'Clarity is thinner than usual right now.';
+  } else if (input.crowded) {
+    what = 'Several life areas are tight at once.';
+  } else {
+    what = `Something is tightening around ${input.domain}.`;
+  }
+  return phase ? `${what} ${phase}` : what;
+}
+
+function whyMeSlot(input: {
+  polarity: HeadlinePolarity;
+  domain: string;
+  crowded: boolean;
+  names: string[];
+  natalAxis?: string | null;
+  coreType?: string | null;
+  maskType?: string | null;
+}): string {
+  const place = input.crowded
+    ? `This is landing across ${joinAnd(input.names)}, not one room.`
+    : `This is landing in ${input.domain}.`;
+  if (input.polarity === 'carryover') {
+    return `${place} Don't re-diagnose it.`;
+  }
+  const core = parseMbtiType(input.coreType);
+  const mask = parseMbtiType(input.maskType);
+  const notices = core ? CORE_THREAT[core].notices.replace(/\.+$/, '') : '';
+  const wants = mask ? MASK_SYMPTOM[mask].wants.replace(/\.+$/, '').replace(/^To /i, '') : '';
+  const axis = (input.natalAxis || '').trim();
+  const axisBit = axis ? ` That's the ${axis} — not a random mood.` : '';
+  if (notices && wants) {
+    return `${place} ${notices} — while ${decap(wants)}.${axisBit}`;
+  }
+  if (notices) return `${place} ${notices}.${axisBit}`;
+  return `${place}${axisBit}`;
+}
+
+function rideSlot(input: {
+  polarity: HeadlinePolarity;
+  avoid: string;
+  timing: string | null;
+  mixedSignals?: boolean;
+  dont?: string | null;
+}): string {
+  const bits: string[] = [];
+  if (input.polarity === 'carryover') {
+    bits.push("Don't add a second task.");
+  } else {
+    bits.push(period(input.avoid));
+  }
+  if (input.timing) bits.push(input.timing);
+  if (input.mixedSignals) bits.push("Don't treat this as the only weather.");
+  const dont = (input.dont || '').replace(/\s+/g, ' ').trim();
+  if (
+    dont &&
+    dont.length < 90 &&
+    !/\b(mercury|neptune|saturn|uranus|pluto|jupiter|venus|mars)\b/i.test(dont) &&
+    !bits.some((bit) => bit.toLowerCase().includes(dont.toLowerCase().slice(0, 18)))
+  ) {
+    bits.push(period(dont));
+  }
+  return bits.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function conclusionMove(input: {
+  polarity: HeadlinePolarity;
+  coreType?: string | null;
+  maskType?: string | null;
+  heldMove?: string | null;
+}): string {
+  const fresh =
+    input.polarity === 'support'
+      ? typedSupportMove(input.coreType, input.maskType)
+      : typedStormMove(input.coreType, input.maskType);
+  if (input.polarity !== 'carryover') return fresh;
+
+  const held = (input.heldMove || '').replace(/\s+/g, ' ').trim();
+  const freshNorm = fresh.replace(/\s+/g, ' ').trim().toLowerCase();
+  const heldNorm = held.toLowerCase();
+  if (!held || heldNorm === freshNorm || /no new assignment/i.test(held)) {
+    return "No new assignment. Keep yesterday's inch.";
+  }
+  if (heldNorm.includes(freshNorm.replace(/\.$/, ''))) {
+    return "No new assignment. Keep yesterday's inch.";
+  }
+  return nextInchFromHeldMove(held, input.coreType);
 }
 
 function sameSkyAsMemory(
@@ -194,9 +367,10 @@ export function composeTodayHeadline(input: {
   memoryFactKey?: string | null;
   today?: string | null;
   memoryDate?: string | null;
-}): { headline: string; polarity: HeadlinePolarity; avoid: string } {
-  const tight = tightDomainsFromRisk(input.risk);
-  const crowded = tight.length > 2;
+  phase?: string | null;
+  daysToPeak?: number | null;
+  mixedSignals?: boolean;
+}): TodayMoveSlots {
   const sameSky = sameSkyAsMemory(input.lead, input.memoryFactKey);
   const polarity = resolveHeadlinePolarity({
     held: input.held,
@@ -207,34 +381,59 @@ export function composeTodayHeadline(input: {
     lead: input.lead,
     risk: input.risk,
   });
+  const names = winningDomains(polarity, input.risk, input.domains);
+  const crowded = names.length > 2;
+  const domain = crowded ? 'a wide plate' : domainPhrase(names[0] || input.domains[0]) || 'the day';
   const sky = plainSkyPhrase(input.lead, input.theme.label);
-  const domain = domainSlot({ crowded, domains: input.domains, tight });
-  const window = headlineWindow(input.lead, input.window, polarity);
   const core = input.coreType;
   const mask = input.maskType;
-  const avoid = typedAvoid(core, mask, polarity);
-
-  if (polarity === 'carryover') {
-    const inch = nextInchFromHeldMove(input.heldMove, core);
-    return {
-      polarity,
-      avoid,
-      headline: `Same ${sky} as yesterday. Don't add a second task. ${inch}`,
-    };
-  }
-
-  if (polarity === 'support') {
-    return {
-      polarity,
-      avoid,
-      headline: `Window open on ${domain}. ${typedSupportMove(core, mask)}`,
-    };
-  }
+  const avoid = typedAvoid(core, mask, polarity === 'carryover' ? 'storm' : polarity);
+  const timing = meaningfulTiming({
+    window: input.window,
+    lead: input.lead,
+    phase: input.phase,
+    daysToPeak: input.daysToPeak,
+  });
+  const what = whatSlot({
+    polarity,
+    sky,
+    themeId: input.theme.id,
+    domain,
+    crowded,
+    phase: input.phase,
+    daysToPeak: input.daysToPeak,
+  });
+  const whyMe = whyMeSlot({
+    polarity,
+    domain,
+    crowded,
+    names: names.map((name) => domainPhrase(name)),
+    natalAxis: natalAxisPhrase(input.lead?.natal),
+    coreType: core,
+    maskType: mask,
+  });
+  const ride = rideSlot({
+    polarity,
+    avoid,
+    timing,
+    mixedSignals: input.mixedSignals,
+    dont: input.lead?.dont?.[0] || null,
+  });
+  const move = conclusionMove({
+    polarity,
+    coreType: core,
+    maskType: mask,
+    heldMove: input.heldMove,
+  });
 
   return {
     polarity,
+    what,
+    whyMe,
+    ride,
+    move,
+    headline: move,
     avoid,
-    headline: `Through ${window}: ${sky} on ${domain}. ${typedStormMove(core, mask)}`,
   };
 }
 

@@ -32,6 +32,9 @@ export interface TransitFact {
   score: number;
   domains: LifeRiskDomain[];
   source: TransitFactSource;
+  /** From forecast lookup when present — not calculated here. */
+  do?: string[];
+  dont?: string[];
 }
 
 export interface RankedTheme {
@@ -58,7 +61,14 @@ export interface TodaySupportingSignal {
 }
 
 export interface TodayOracleBrief {
+  /** Slot 4 — conclusion inch. Never dual/constraint homework. */
   move: string;
+  /** Slot 1 — plain weather */
+  whatHappening?: string;
+  /** Slot 2 — where it lands + why this person */
+  whyItMatters?: string;
+  /** Slot 3 — stance, not a second task */
+  howToRide?: string;
   whyToday: string;
   usuallyBrings: string;
   navigate: string;

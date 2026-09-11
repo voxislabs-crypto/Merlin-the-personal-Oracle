@@ -60,8 +60,8 @@ function openingTheme(): RankedTheme {
 }
 
 describe('today headline compose', () => {
-  it('storm INFP leads with thin clarity, not the 6pm sentence', () => {
-    const { headline, polarity, avoid } = composeTodayHeadline({
+  it('storm INFP reasons first; the move is the last sentence, not the 6pm homework', () => {
+    const slots = composeTodayHeadline({
       theme: fogTheme(),
       lead: mercuryNeptune(),
       domains: ['career', 'family', 'love'],
@@ -75,12 +75,19 @@ describe('today headline compose', () => {
       window: '10am–1pm',
       coreType: 'INFP',
       maskType: 'INTP',
+      phase: 'peaking',
+      daysToPeak: 0,
     });
-    expect(polarity).toBe('storm');
-    expect(headline).toMatch(/^Through 10am–1pm: thin clarity on a wide plate\./);
-    expect(headline).toMatch(/One honest sentence, then silence/);
-    expect(headline).not.toMatch(/6pm|write the one-sentence/);
-    expect(avoid.toLowerCase()).toMatch(/brief/);
+    expect(slots.polarity).toBe('storm');
+    expect(slots.what.toLowerCase()).toMatch(/clarity is thinner/);
+    expect(slots.what.toLowerCase()).toMatch(/peak/);
+    expect(slots.whyMe.toLowerCase()).toMatch(/work|home|relationship/);
+    expect(slots.whyMe.toLowerCase()).not.toMatch(/\binfp\b|\bintp\b/);
+    expect(slots.ride.toLowerCase()).toMatch(/brief|white paper|clause/);
+    expect(slots.move).toBe('One honest sentence, then silence.');
+    expect(slots.move).not.toMatch(/6pm|write the one-sentence/);
+    expect(slots.headline).toBe(slots.move);
+    expect(slots.avoid.toLowerCase()).toMatch(/brief/);
   });
 
   it('INFJ storm move is not interchangeable with INFP on the same sky', () => {
@@ -93,7 +100,8 @@ describe('today headline compose', () => {
     };
     const infp = composeTodayHeadline({ ...base, domains: ['career'], coreType: 'INFP' });
     const infj = composeTodayHeadline({ ...base, domains: ['career'], coreType: 'INFJ' });
-    expect(infp.headline).not.toBe(infj.headline);
+    expect(infp.move).not.toBe(infj.move);
+    expect(infp.whyMe).not.toBe(infj.whyMe);
     expect(typedStormMove('INFP', 'INTP')).not.toBe(typedStormMove('INFJ', 'INTP'));
   });
 
@@ -102,7 +110,7 @@ describe('today headline compose', () => {
       domains: [{ name: 'career', friction: 22, support: 74, hitCount: 1 }],
     } as LifeRiskPacket;
     expect(isSupportWeather(openingTheme(), openingTheme().facts[0], risk)).toBe(true);
-    const { headline, polarity, avoid } = composeTodayHeadline({
+    const slots = composeTodayHeadline({
       theme: openingTheme(),
       lead: openingTheme().facts[0],
       domains: ['career'],
@@ -110,12 +118,15 @@ describe('today headline compose', () => {
       coreType: 'INFP',
       maskType: 'INTP',
     });
-    expect(polarity).toBe('support');
-    expect(headline).toMatch(/^Window open on work\./);
-    expect(headline.toLowerCase()).toMatch(/outside|yes|joy/);
-    expect(isHomeworkHeadline(headline)).toBe(false);
+    expect(slots.polarity).toBe('support');
+    expect(slots.what.toLowerCase()).toMatch(/opening/);
+    expect(slots.what.toLowerCase()).toMatch(/work/);
+    expect(slots.move.toLowerCase()).toMatch(/outside|yes|joy/);
+    expect(isHomeworkHeadline(slots.move)).toBe(false);
+    expect(slots.move).not.toMatch(/6pm|honest sentence, then silence/);
     expect(typedSupportMove('INFP', 'INTP')).not.toMatch(/6pm/);
-    expect(avoid.toLowerCase()).toMatch(/green hour/);
+    expect(slots.avoid.toLowerCase()).toMatch(/green hour/);
+    expect(slots.ride.toLowerCase()).toMatch(/green hour/);
   });
 
   it('carryover labels the same sky and changes the next inch', () => {
@@ -140,11 +151,13 @@ describe('today headline compose', () => {
       memoryDate: '2026-09-08',
     });
     expect(day2.polarity).toBe('carryover');
-    expect(day2.headline).not.toBe(day1.headline);
-    expect(day2.headline).toMatch(/Same thin clarity as yesterday/);
-    expect(day2.headline).toMatch(/Don't add a second task/);
-    expect(day2.headline).toMatch(/Send the sentence/);
-    expect(nextInchFromHeldMove(day1.headline, 'INFP')).toBe('Send the sentence.');
+    expect(day2.what).toMatch(/Same thin clarity as yesterday/);
+    expect(day2.ride).toMatch(/Don't add a second task/);
+    expect(day2.move).toBe("No new assignment. Keep yesterday's inch.");
+    expect(day2.move).not.toBe(day1.move);
+    expect(nextInchFromHeldMove('By 6pm, write the one-sentence test', 'INFP')).toBe(
+      'Send the sentence.',
+    );
   });
 
   it('does not rewrite today\'s own snapshot as carryover (prevents a setState loop)', () => {
@@ -171,7 +184,8 @@ describe('today headline compose', () => {
       memoryFactKey: 'Mercury square Neptune',
     });
     expect(again.polarity).toBe('storm');
-    expect(again.headline).toBe(first.headline);
-    expect(again.headline).not.toMatch(/as yesterday/);
+    expect(again.move).toBe(first.move);
+    expect(again.what).toBe(first.what);
+    expect(again.what).not.toMatch(/as yesterday/);
   });
 });

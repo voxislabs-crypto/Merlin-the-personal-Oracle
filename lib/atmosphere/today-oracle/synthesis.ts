@@ -9,6 +9,7 @@ import { THEME_CATALOG } from '@/lib/atmosphere/today-oracle/meaning';
 import {
   composeTodayHeadline,
   isHomeworkHeadline,
+  isSupportWeather,
 } from '@/lib/atmosphere/today-oracle/headline';
 import {
   buildChartWhy,
@@ -173,6 +174,34 @@ export function synthesizeTodayOracle(input: {
   });
   const operational = dual && dual.source !== 'core-only' ? dual.why : null;
   const heldMove = input.memory?.move || null;
+  const matchingDriver = (input.risk?.topDrivers || []).find((driver) => {
+    const label = (driver.label || '').toLowerCase();
+    return Boolean(
+      lead?.transiting &&
+        lead?.natal &&
+        label.includes(lead.transiting) &&
+        label.includes(lead.natal),
+    );
+  });
+  const matchingHit = (input.risk?.domains || [])
+    .flatMap((row) => row.hits || [])
+    .find((hit) => {
+      const label = (hit.label || '').toLowerCase();
+      return Boolean(
+        lead?.transiting &&
+          lead?.natal &&
+          label.includes(lead.transiting) &&
+          label.includes(lead.natal),
+      );
+    });
+  const opening = isSupportWeather(primary, lead, input.risk);
+  const peak =
+    matchingHit?.daysToPeak ??
+    (opening
+      ? input.risk?.nextSupportPeak?.daysToPeak
+      : input.risk?.nextFrictionPeak?.daysToPeak) ??
+    null;
+
   const composed = composeTodayHeadline({
     theme: primary,
     lead,
@@ -186,8 +215,14 @@ export function synthesizeTodayOracle(input: {
     memoryFactKey: input.memory?.factKey,
     today: input.date,
     memoryDate: input.memory?.date,
+    phase: matchingDriver?.phase,
+    daysToPeak: peak,
+    mixedSignals: close.length > 1,
   });
-  const move = composed.headline;
+  const move = composed.move;
+  const whatHappening = composed.what;
+  const whyItMatters = composed.whyMe;
+  const howToRide = composed.ride;
   const watchFor = dual
     ? `Watch for the ${constraint.watchWindow} window: ${dual.watchFor.replace(/^Watch for:\s*/i, '')}`.replace(
         /\.\s*\./g,
@@ -213,6 +248,9 @@ export function synthesizeTodayOracle(input: {
 
   return {
     move: applyMerlinVoicePass(move),
+    whatHappening: applyMerlinVoicePass(whatHappening),
+    whyItMatters: applyMerlinVoicePass(whyItMatters),
+    howToRide: applyMerlinVoicePass(howToRide),
     whyToday: applyMerlinVoicePass(drivenBy),
     usuallyBrings: '',
     navigate: operational ? applyMerlinVoicePass(operational) : applyMerlinVoicePass(move),
@@ -230,7 +268,7 @@ export function synthesizeTodayOracle(input: {
     companionThemeLabels: close.slice(1).map((t) => t.label),
     leadFactKey: lead?.key || primary.id,
     leadFactDisplay: lead?.display || spec.label,
-    heldFromYesterday: input.held,
+    heldFromYesterday: composed.polarity === 'carryover',
     factCount: close.reduce((n, t) => n + t.facts.length, 0),
     principle: WEATHER_PRINCIPLE,
     leadFact: applyMerlinVoicePass(leadFact),

@@ -40,6 +40,9 @@ interface HomeTabPanelProps {
   story: string;
   whyLine?: string;
   todayMove?: string;
+  whatHappening?: string;
+  whyItMatters?: string;
+  howToRide?: string;
   whyToday?: string;
   usuallyBrings?: string;
   navigate?: string;
@@ -165,6 +168,9 @@ export function HomeTabPanel({
   story,
   whyLine,
   todayMove,
+  whatHappening,
+  whyItMatters,
+  howToRide,
   whyToday,
   usuallyBrings,
   navigate,
@@ -272,6 +278,9 @@ export function HomeTabPanel({
           story={story}
           whyLine={whyLine}
           todayMove={todayMove}
+          whatHappening={whatHappening}
+          whyItMatters={whyItMatters}
+          howToRide={howToRide}
           whyToday={whyToday}
           usuallyBrings={usuallyBrings}
           navigate={navigate}

@@ -37,6 +37,9 @@ export interface TodayWeatherBriefProps {
   story: string;
   whyLine?: string;
   todayMove?: string;
+  whatHappening?: string;
+  whyItMatters?: string;
+  howToRide?: string;
   whyToday?: string;
   usuallyBrings?: string;
   navigate?: string;
@@ -131,6 +134,9 @@ export function TodayWeatherBrief({
   story,
   whyLine,
   todayMove,
+  whatHappening,
+  whyItMatters,
+  howToRide,
   whyToday,
   watchFor,
   leadFact,
@@ -354,7 +360,22 @@ export function TodayWeatherBrief({
                 <Lightbulb className="h-5 w-5 md:h-6 md:w-6" />
               </div>
               <div className="min-w-0">
-                <p className={`text-[11px] font-bold uppercase tracking-[0.24em] ${moveLabel}`}>
+                {whatHappening || whyItMatters || howToRide ? (
+                  <div className="space-y-2">
+                    {whatHappening ? (
+                      <p className="text-sm leading-relaxed text-white/85">{whatHappening}</p>
+                    ) : null}
+                    {whyItMatters ? (
+                      <p className="text-sm leading-relaxed text-white/80">{whyItMatters}</p>
+                    ) : null}
+                    {howToRide ? (
+                      <p className="text-sm leading-relaxed text-white/75">{howToRide}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed text-white/80">{whyThisMove}</p>
+                )}
+                <p className={`mt-3 text-[11px] font-bold uppercase tracking-[0.24em] ${moveLabel}`}>
                   Today&apos;s move
                 </p>
                 <p
@@ -362,7 +383,6 @@ export function TodayWeatherBrief({
                 >
                   {todayMove}
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-white/80">{whyThisMove}</p>
                 {thinClarity && doNot ? (
                   <div className="mt-3 border-t border-white/10 pt-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">

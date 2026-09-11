@@ -31,6 +31,7 @@ export {
   plainSkyPhrase,
   typedStormMove,
   typedSupportMove,
+  type TodayMoveSlots,
 } from '@/lib/atmosphere/today-oracle/headline';
 export {
   selectThemeWithNovelty,

@@ -193,8 +193,10 @@ describe('composeTodayOracle', () => {
       maskType: 'INTP',
     });
     expect(brief).not.toBeNull();
-    expect(brief!.move.toLowerCase()).toMatch(/through|jolt|bond/);
-    expect(brief!.move.toLowerCase()).toMatch(/honest sentence|silence/);
+    expect(brief!.whatHappening).toBeTruthy();
+    expect(brief!.whyItMatters).toBeTruthy();
+    expect(brief!.howToRide).toBeTruthy();
+    expect(brief!.move.toLowerCase()).toMatch(/honest sentence|silence|reversible/);
     expect(brief!.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief!.move.toLowerCase()).not.toMatch(/change one variable/);
     expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
@@ -217,9 +219,9 @@ describe('composeTodayOracle', () => {
         factKey: 'Uranus square Venus',
       },
     });
-    expect(brief!.move.toLowerCase()).toMatch(/same .+ as yesterday/);
-    expect(brief!.move.toLowerCase()).toMatch(/don't add a second task/);
-    expect(brief!.move.toLowerCase()).toMatch(/send the sentence/);
+    expect(brief!.whatHappening?.toLowerCase()).toMatch(/same .+ as yesterday/);
+    expect(brief!.howToRide?.toLowerCase()).toMatch(/don't add a second task/);
+    expect(brief!.move.toLowerCase()).toMatch(/send the sentence|no new assignment/);
     expect(brief!.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief!.move.toLowerCase()).not.toMatch(/keep an exit ramp/);
   });
@@ -233,7 +235,8 @@ describe('composeTodayOracle', () => {
     expect(brief!.leadFact).toMatch(/Moon is squaring your Saturn/i);
     expect(brief!.leadFact.toLowerCase()).toMatch(/duty|limits|verdict|character/);
     expect(brief!.whyToday).toMatch(/Moon square Saturn/i);
-    expect(brief!.move.toLowerCase()).toMatch(/through|heavy mood|window open/);
+    expect(brief!.whatHappening).toBeTruthy();
+    expect(brief!.move.length).toBeGreaterThan(8);
     expect(brief!.watchFor).toMatch(/\d(am|pm)/i);
     expect(brief!.doNot.length).toBeGreaterThan(8);
     expect(brief!.chartConfidence).toBeGreaterThan(50);
@@ -278,7 +281,8 @@ describe('composeTodayOracle', () => {
       } as AtmospherePacket,
     });
     expect(brief).not.toBeNull();
-    expect(brief!.move.toLowerCase()).toMatch(/wide plate/);
+    expect(brief!.whyItMatters?.toLowerCase()).toMatch(/work|home|relationship/);
+    expect(brief!.whatHappening?.toLowerCase()).toMatch(/several life areas|clarity|tight/);
     expect(brief!.move.toLowerCase()).not.toMatch(/this bond/);
     expect(brief!.move.toLowerCase()).not.toMatch(/one value that will not move/);
     expect(brief!.domainJob.toLowerCase()).toMatch(/all tight/);
@@ -291,11 +295,12 @@ describe('composeTodayOracle', () => {
     };
     const infp = composeTodayOracle({ ...sky, mbtiType: 'INFP', maskType: 'INTP' });
     const infj = composeTodayOracle({ ...sky, mbtiType: 'INFJ', maskType: 'INTP' });
-    expect(infp!.move.toLowerCase()).toMatch(/thin clarity/);
-    expect(infj!.move.toLowerCase()).toMatch(/thin clarity/);
+    expect(infp!.whatHappening?.toLowerCase()).toMatch(/clarity is thinner/);
+    expect(infj!.whatHappening?.toLowerCase()).toMatch(/clarity is thinner/);
     expect(infp!.move.toLowerCase()).toMatch(/honest sentence|silence/);
     expect(infj!.move.toLowerCase()).toMatch(/feeling before the analysis/);
     expect(infp!.move).not.toBe(infj!.move);
+    expect(infp!.whyItMatters).not.toBe(infj!.whyItMatters);
   });
 
   it('uses a green action when ease beats friction, not the 6pm sentence', () => {
@@ -313,7 +318,7 @@ describe('composeTodayOracle', () => {
         },
       } as AtmospherePacket,
     });
-    expect(brief!.move.toLowerCase()).toMatch(/window open/);
+    expect(brief!.whatHappening?.toLowerCase()).toMatch(/opening/);
     expect(brief!.move.toLowerCase()).toMatch(/outside|yes|joy/);
     expect(brief!.move.toLowerCase()).not.toMatch(/6pm|write the one-sentence|honest sentence, then silence/);
     expect(brief!.doNot.toLowerCase()).toMatch(/green hour|research the walk/);
@@ -338,9 +343,9 @@ describe('composeTodayOracle', () => {
         },
       } as AtmospherePacket,
     });
-    expect(career?.move.toLowerCase()).toMatch(/work/);
-    expect(love?.move.toLowerCase()).toMatch(/relationship/);
-    expect(career?.move).not.toBe(love?.move);
+    expect(career?.whatHappening?.toLowerCase()).toMatch(/work/);
+    expect(love?.whatHappening?.toLowerCase()).toMatch(/relationship/);
+    expect(career?.whatHappening).not.toBe(love?.whatHappening);
   });
 
   it('keeps the weather the same when personality changes the framing', () => {
@@ -417,8 +422,8 @@ describe('composeTodayOracle', () => {
     expect(brief?.chartWhy).toMatch(/Leo/);
     expect(brief?.chartWhy).not.toMatch(/\b(INFP|INTP)\b/);
     expect(brief?.chartWhy.toLowerCase()).toMatch(/authenticit|feel|self-worth/);
-    expect(brief?.move.toLowerCase()).toMatch(/through/);
-    expect(brief?.move.toLowerCase()).toMatch(/jolt|bond/);
+    expect(brief?.whatHappening).toBeTruthy();
+    expect(brief?.whyItMatters?.toLowerCase()).toMatch(/relationship|home/);
     expect(brief?.move.toLowerCase()).toMatch(/honest sentence|silence/);
     expect(brief?.move.toLowerCase()).not.toMatch(/write the one-sentence test/);
     expect(brief?.watchFor).toMatch(/4–7pm|4-7pm/i);
@@ -444,8 +449,8 @@ describe('composeTodayOracle', () => {
       },
     });
     expect(brief?.heldFromYesterday).toBe(true);
-    expect(brief?.move.toLowerCase()).toMatch(/same heavy mood as yesterday/);
-    expect(brief?.move.toLowerCase()).toMatch(/don't add a second task/);
+    expect(brief?.whatHappening?.toLowerCase()).toMatch(/same .+ as yesterday/);
+    expect(brief?.howToRide?.toLowerCase()).toMatch(/don't add a second task/);
     expect(brief?.move).not.toBe('Ask for the concrete need. Skip the self-trial.');
   });
 });

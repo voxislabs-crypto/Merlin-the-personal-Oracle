@@ -2881,6 +2881,9 @@ export default function UnifiedDashboard() {
                     story={cosmicStoryText}
                     whyLine={cosmicWeatherHeadlineForUi}
                     todayMove={cosmicStoryMove}
+                    whatHappening={lifeWeatherBrief.whatHappening}
+                    whyItMatters={lifeWeatherBrief.whyItMatters}
+                    howToRide={lifeWeatherBrief.howToRide}
                     whyToday={lifeWeatherBrief.whyToday}
                     usuallyBrings={lifeWeatherBrief.usuallyBrings}
                     navigate={lifeWeatherBrief.navigate}

@@ -17,6 +17,8 @@ export interface TodayFactTransitRow {
   orb?: string;
   score?: number;
   adjustedScore?: number;
+  do?: string[];
+  dont?: string[];
 }
 
 const PLANET_DOMAINS: Record<string, LifeRiskDomain[]> = {
@@ -70,6 +72,8 @@ function buildFact(
     score?: number;
     domains?: LifeRiskDomain[];
     source: TransitFactSource;
+    do?: string[];
+    dont?: string[];
   },
 ): TransitFact {
   const t = transiting.trim().toLowerCase();
@@ -87,6 +91,8 @@ function buildFact(
     score: options.score ?? tightnessScore(options.orbDeg ?? null),
     domains: options.domains?.length ? options.domains : domainsForPlanets(t, n),
     source: options.source,
+    do: options.do?.filter(Boolean).slice(0, 3),
+    dont: options.dont?.filter(Boolean).slice(0, 3),
   };
 }
 
@@ -136,6 +142,8 @@ export function gatherTodayFacts(input: GatherTodayFactsInput): TransitFact[] {
         orbDeg: parseOrb(row.orb),
         score: row.adjustedScore ?? row.score ?? tightnessScore(parseOrb(row.orb)),
         source: 'transit-lookup',
+        do: row.do,
+        dont: row.dont,
       }),
     );
   }

@@ -22,8 +22,11 @@ export interface LifeWeatherBriefCopy {
   story: string;
   /** Concrete why (domain first, technical second) */
   why: string;
-  /** Single actionable move */
+  /** Single actionable move — slot 4, conclusion */
   move: string;
+  whatHappening?: string;
+  whyItMatters?: string;
+  howToRide?: string;
   eyebrow: string;
   askLabel: string;
   /** Oracle synthesis: why this move is tied to today's facts */
@@ -816,6 +819,9 @@ export function buildLifeWeatherBrief(input: BuildLifeWeatherBriefInput): LifeWe
     story: personalStory,
     why: personalWhy,
     move,
+    whatHappening: oracle?.whatHappening,
+    whyItMatters: oracle?.whyItMatters,
+    howToRide: oracle?.howToRide,
     eyebrow,
     askLabel,
     whyToday: oracle?.whyToday,
