@@ -4,11 +4,7 @@
  */
 
 import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
-import {
-  domainPhrase,
-  natalAxisPhrase,
-  tightDomainsFromRisk,
-} from '@/lib/atmosphere/today-oracle/personal-copy';
+import { domainPhrase, tightDomainsFromRisk } from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { RankedTheme, TransitFact } from '@/lib/atmosphere/today-oracle/types';
 import { CORE_THREAT, MASK_SYMPTOM, parseMbtiType } from '@/lib/self/dual-layer-maps';
 
@@ -200,43 +196,126 @@ function winningDomains(
   return fallback.slice(0, 2);
 }
 
-function phaseBit(
-  phase?: string | null,
-  daysToPeak?: number | null,
-): string {
-  if (phase === 'building') {
-    if (typeof daysToPeak === 'number' && daysToPeak > 0) {
-      return daysToPeak === 1 ? 'Still gathering — about a day from peak.' : `Still gathering — about ${daysToPeak} days from peak.`;
-    }
-    return 'Still gathering.';
+/** User-facing nerve of the natal planet — not ephemeris slang. */
+const LIVED_NERVE: Record<string, string> = {
+  sun: 'how you stand in your own life',
+  moon: 'mood and home-base',
+  mercury: 'words and decisions',
+  venus: 'what you value and who you keep',
+  mars: 'drive and conflict',
+  jupiter: 'how big a yes feels safe',
+  saturn: 'duty and limits',
+  uranus: 'the urge to split or start over',
+  neptune: 'meaning and certainty',
+  pluto: 'control and old power',
+};
+
+function weatherWhatLine(themeId: string, sky: string, polarity: HeadlinePolarity, domain: string, crowded: boolean): string {
+  if (polarity === 'support') {
+    return crowded
+      ? 'A usable opening is here — keep it small enough to use.'
+      : `A usable opening is forming around ${domain}.`;
   }
-  if (phase === 'peaking' || daysToPeak === 0) return 'This is the peak.';
-  if (phase === 'releasing') return "The peak has already passed.";
-  if (typeof daysToPeak === 'number' && daysToPeak > 0 && daysToPeak <= 2) {
-    return daysToPeak === 1 ? 'The peak is about a day out.' : `The peak is about ${daysToPeak} days out.`;
+  if (themeId === 'fog-clarity' || /thin clarity|clarity is thin/.test(sky)) {
+    return 'Clarity is thinner than usual right now. Stories will feel truer than the facts.';
+  }
+  if (themeId === 'communication-friction' || /talk running hot/.test(sky)) {
+    return crowded
+      ? 'Words are landing harder than they need to, in more than one room.'
+      : `Words are landing harder than they need to around ${domain}.`;
+  }
+  if (themeId === 'sudden-shift' || /jolt/.test(sky)) {
+    return crowded
+      ? 'A sudden split-urge is in the weather — not a verdict.'
+      : `A sudden split-urge is pressing on ${domain}.`;
+  }
+  if (themeId === 'emotional-restraint' || /heavy mood/.test(sky)) {
+    return `Mood is running heavier than the facts around ${crowded ? 'more than one part of life' : domain}.`;
+  }
+  if (crowded) return 'Pressure is on in more than one part of life at once.';
+  return `Something is tightening around ${domain}.`;
+}
+
+function phaseClause(phase?: string | null, daysToPeak?: number | null): string {
+  if (phase === 'building' && typeof daysToPeak === 'number' && daysToPeak > 0 && daysToPeak <= 3) {
+    return daysToPeak === 1
+      ? 'It is still gathering — about a day from its loudest point.'
+      : `It is still gathering — about ${daysToPeak} days from its loudest point.`;
+  }
+  if (phase === 'releasing') {
+    return 'The loudest point has already passed; do not treat the leftover as a new crisis.';
+  }
+  if (phase === 'peaking' || daysToPeak === 0) {
+    return 'It is at its loudest today.';
   }
   return '';
 }
 
 function meaningfulTiming(input: {
   window?: string | null;
-  lead?: TransitFact | null;
   phase?: string | null;
   daysToPeak?: number | null;
 }): string | null {
+  if (input.phase === 'releasing') return null;
   const window = (input.window || '').trim();
   const mapped = Boolean(window && window !== 'late afternoon' && window !== 'this afternoon');
-  const mercury =
-    input.lead?.transiting === 'mercury' || input.lead?.natal === 'mercury';
-  const peaking = input.phase === 'peaking' || input.daysToPeak === 0;
-  if (!mapped && !mercury && !peaking && input.phase !== 'building' && input.phase !== 'releasing') {
-    return null;
-  }
-  if ((mapped || mercury) && (peaking || mercury)) {
-    const slot = mapped ? window : mercury ? '10am–1pm' : '';
-    if (slot) return `The sharper hours are ${slot}.`;
+  if (!mapped) return null;
+  if (input.phase === 'peaking' || input.daysToPeak === 0) {
+    return `If you need a sharper window, it is ${window} — not the whole day.`;
   }
   return null;
+}
+
+function coreSensesLine(core?: string | null, polarity: HeadlinePolarity = 'storm'): string {
+  const c = parseMbtiType(core);
+  if (!c) return '';
+  const feel = c[2] === 'F';
+  const think = c[2] === 'T';
+  const intuit = c[1] === 'N';
+  const judge = c[3] === 'J';
+  if (polarity === 'support') {
+    if (feel && intuit) {
+      return 'You may feel the opening as permission before you can justify taking it.';
+    }
+    if (think) {
+      return 'You may want to map the upside before you step into it.';
+    }
+  }
+  if (feel && intuit && judge) {
+    return 'You may see the pattern before you have a usable ask.';
+  }
+  if (feel && intuit) {
+    return 'You may notice the change as a feeling before you can explain it.';
+  }
+  if (feel) {
+    return 'You may feel the shift in the room before you have a clean reason.';
+  }
+  if (think && judge) {
+    return 'You may clock it as a system problem before you clock it as weather.';
+  }
+  if (think) {
+    return 'You may want a working model before you let the feeling count.';
+  }
+  return period(CORE_THREAT[c].notices);
+}
+
+function maskHabitLine(mask?: string | null): string {
+  const m = parseMbtiType(mask);
+  if (!m) return '';
+  if (m[2] === 'T') {
+    return 'The outward habit wants enough evidence to make it defensible.';
+  }
+  if (m[2] === 'F' && m[0] === 'E') {
+    return 'The outward habit wants the room to stay intact.';
+  }
+  if (m[3] === 'J') {
+    return 'The outward habit wants a closed decision.';
+  }
+  if (m[3] === 'P') {
+    return 'The outward habit wants to keep options open so no one hears a no.';
+  }
+  const wants = MASK_SYMPTOM[m].wants.replace(/\.+$/, '').replace(/^To /i, '');
+  return `The outward habit wants ${decap(wants)}.`;
 }
 
 function whatSlot(input: {
@@ -248,22 +327,12 @@ function whatSlot(input: {
   phase?: string | null;
   daysToPeak?: number | null;
 }): string {
-  const phase = phaseBit(input.phase, input.daysToPeak);
-  let what: string;
   if (input.polarity === 'carryover') {
-    what = `Same ${input.sky} as yesterday.`;
-  } else if (input.polarity === 'support') {
-    what = input.crowded
-      ? 'A usable opening is in the mix.'
-      : `A usable opening is forming around ${input.domain}.`;
-  } else if (input.themeId === 'fog-clarity' || /thin clarity|clarity is thin/.test(input.sky)) {
-    what = 'Clarity is thinner than usual right now.';
-  } else if (input.crowded) {
-    what = 'Several life areas are tight at once.';
-  } else {
-    what = `Something is tightening around ${input.domain}.`;
+    return `Same weather as yesterday — ${input.sky}. Nothing material changed overnight.`;
   }
-  return phase ? `${what} ${phase}` : what;
+  const body = weatherWhatLine(input.themeId, input.sky, input.polarity, input.domain, input.crowded);
+  const phase = phaseClause(input.phase, input.daysToPeak);
+  return phase ? `${body} ${phase}` : body;
 }
 
 function whyMeSlot(input: {
@@ -271,53 +340,52 @@ function whyMeSlot(input: {
   domain: string;
   crowded: boolean;
   names: string[];
-  natalAxis?: string | null;
+  natal?: string | null;
   coreType?: string | null;
   maskType?: string | null;
 }): string {
   const place = input.crowded
-    ? `This is landing across ${joinAnd(input.names)}, not one room.`
-    : `This is landing in ${input.domain}.`;
+    ? `It is showing up in more than one part of life — ${joinAnd(input.names)}.`
+    : `It is showing up in ${input.domain}.`;
   if (input.polarity === 'carryover') {
-    return `${place} Don't re-diagnose it.`;
+    return `${place} Same landing as yesterday. Do not re-diagnose it.`;
   }
-  const core = parseMbtiType(input.coreType);
-  const mask = parseMbtiType(input.maskType);
-  const notices = core ? CORE_THREAT[core].notices.replace(/\.+$/, '') : '';
-  const wants = mask ? MASK_SYMPTOM[mask].wants.replace(/\.+$/, '').replace(/^To /i, '') : '';
-  const axis = (input.natalAxis || '').trim();
-  const axisBit = axis ? ` That's the ${axis} — not a random mood.` : '';
-  if (notices && wants) {
-    return `${place} ${notices} — while ${decap(wants)}.${axisBit}`;
-  }
-  if (notices) return `${place} ${notices}.${axisBit}`;
-  return `${place}${axisBit}`;
+  const sense = coreSensesLine(input.coreType, input.polarity);
+  const habit = maskHabitLine(input.maskType);
+  const nerve = input.natal ? LIVED_NERVE[input.natal] : '';
+  const nerveBit = nerve ? ` This is about ${nerve}, not a random mood.` : '';
+  if (sense && habit) return `${place} ${sense} ${habit}${nerveBit}`;
+  if (sense) return `${place} ${sense}${nerveBit}`;
+  return `${place}${nerveBit}`;
 }
 
 function rideSlot(input: {
   polarity: HeadlinePolarity;
-  avoid: string;
+  coreType?: string | null;
+  maskType?: string | null;
   timing: string | null;
   mixedSignals?: boolean;
-  dont?: string | null;
 }): string {
-  const bits: string[] = [];
+  const core = parseMbtiType(input.coreType);
+  const mask = parseMbtiType(input.maskType);
+  let stance: string;
   if (input.polarity === 'carryover') {
-    bits.push("Don't add a second task.");
+    stance = "Don't add a second task. Stay with yesterday's inch.";
+  } else if (input.polarity === 'support') {
+    stance = 'Use the opening without turning it into a project.';
+    if (mask?.[2] === 'T') stance = 'Use the opening. Do not research it into a plan.';
+  } else if (core?.[1] === 'N' && core?.[2] === 'F' && core?.[3] === 'J' && mask?.[2] === 'T') {
+    stance = "Don't turn the pattern into a theory before you name the need.";
+  } else if (core?.[2] === 'F' && mask?.[2] === 'T') {
+    stance = "Don't force the feeling into a conclusion yet. One true sentence is enough evidence for today.";
+  } else if (core?.[2] === 'T') {
+    stance = 'Pick one testable next inch. Leave the rest of the model open.';
   } else {
-    bits.push(period(input.avoid));
+    stance = period(typedAvoid(input.coreType, input.maskType, input.polarity));
   }
+  const bits = [stance];
   if (input.timing) bits.push(input.timing);
-  if (input.mixedSignals) bits.push("Don't treat this as the only weather.");
-  const dont = (input.dont || '').replace(/\s+/g, ' ').trim();
-  if (
-    dont &&
-    dont.length < 90 &&
-    !/\b(mercury|neptune|saturn|uranus|pluto|jupiter|venus|mars)\b/i.test(dont) &&
-    !bits.some((bit) => bit.toLowerCase().includes(dont.toLowerCase().slice(0, 18)))
-  ) {
-    bits.push(period(dont));
-  }
+  if (input.mixedSignals) bits.push('Do not spend the whole caution budget on one room.');
   return bits.join(' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -390,7 +458,6 @@ export function composeTodayHeadline(input: {
   const avoid = typedAvoid(core, mask, polarity === 'carryover' ? 'storm' : polarity);
   const timing = meaningfulTiming({
     window: input.window,
-    lead: input.lead,
     phase: input.phase,
     daysToPeak: input.daysToPeak,
   });
@@ -408,16 +475,16 @@ export function composeTodayHeadline(input: {
     domain,
     crowded,
     names: names.map((name) => domainPhrase(name)),
-    natalAxis: natalAxisPhrase(input.lead?.natal),
+    natal: input.lead?.natal,
     coreType: core,
     maskType: mask,
   });
   const ride = rideSlot({
     polarity,
-    avoid,
+    coreType: core,
+    maskType: mask,
     timing,
     mixedSignals: input.mixedSignals,
-    dont: input.lead?.dont?.[0] || null,
   });
   const move = conclusionMove({
     polarity,

@@ -80,10 +80,12 @@ describe('today headline compose', () => {
     });
     expect(slots.polarity).toBe('storm');
     expect(slots.what.toLowerCase()).toMatch(/clarity is thinner/);
-    expect(slots.what.toLowerCase()).toMatch(/peak/);
     expect(slots.whyMe.toLowerCase()).toMatch(/work|home|relationship/);
+    expect(slots.whyMe.toLowerCase()).toMatch(/feeling|pattern|notice/);
+    expect(slots.whyMe.toLowerCase()).toMatch(/evidence|defensible|proof/);
     expect(slots.whyMe.toLowerCase()).not.toMatch(/\binfp\b|\bintp\b/);
-    expect(slots.ride.toLowerCase()).toMatch(/brief|white paper|clause/);
+    expect(slots.whyMe.toLowerCase()).not.toMatch(/inner vote|fog and story|more proof/);
+    expect(slots.ride.toLowerCase()).toMatch(/force|conclusion|feeling|sentence/);
     expect(slots.move).toBe('One honest sentence, then silence.');
     expect(slots.move).not.toMatch(/6pm|write the one-sentence/);
     expect(slots.headline).toBe(slots.move);
@@ -125,8 +127,8 @@ describe('today headline compose', () => {
     expect(isHomeworkHeadline(slots.move)).toBe(false);
     expect(slots.move).not.toMatch(/6pm|honest sentence, then silence/);
     expect(typedSupportMove('INFP', 'INTP')).not.toMatch(/6pm/);
-    expect(slots.avoid.toLowerCase()).toMatch(/green hour/);
-    expect(slots.ride.toLowerCase()).toMatch(/green hour/);
+    expect(slots.avoid.toLowerCase()).toMatch(/green hour|research/);
+    expect(slots.ride.toLowerCase()).toMatch(/opening|project|research/);
   });
 
   it('carryover labels the same sky and changes the next inch', () => {
@@ -151,7 +153,7 @@ describe('today headline compose', () => {
       memoryDate: '2026-09-08',
     });
     expect(day2.polarity).toBe('carryover');
-    expect(day2.what).toMatch(/Same thin clarity as yesterday/);
+    expect(day2.what.toLowerCase()).toMatch(/same weather as yesterday|thin clarity/);
     expect(day2.ride).toMatch(/Don't add a second task/);
     expect(day2.move).toBe("No new assignment. Keep yesterday's inch.");
     expect(day2.move).not.toBe(day1.move);

@@ -282,7 +282,7 @@ describe('composeTodayOracle', () => {
     });
     expect(brief).not.toBeNull();
     expect(brief!.whyItMatters?.toLowerCase()).toMatch(/work|home|relationship/);
-    expect(brief!.whatHappening?.toLowerCase()).toMatch(/several life areas|clarity|tight/);
+    expect(brief!.whatHappening?.toLowerCase()).toMatch(/more than one|split-urge|weather|pressure/);
     expect(brief!.move.toLowerCase()).not.toMatch(/this bond/);
     expect(brief!.move.toLowerCase()).not.toMatch(/one value that will not move/);
     expect(brief!.domainJob.toLowerCase()).toMatch(/all tight/);
