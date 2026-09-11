@@ -81,11 +81,16 @@ describe('today headline compose', () => {
     expect(slots.polarity).toBe('storm');
     expect(slots.what.toLowerCase()).toMatch(/clarity is thinner/);
     expect(slots.whyMe.toLowerCase()).toMatch(/work|home|relationship/);
-    expect(slots.whyMe.toLowerCase()).toMatch(/feeling|pattern|notice/);
-    expect(slots.whyMe.toLowerCase()).toMatch(/evidence|defensible|proof/);
+    expect(slots.whyMe.toLowerCase()).toMatch(/feel|uncertainty|name/);
+    expect(slots.whyMe.toLowerCase()).toMatch(/justif/);
     expect(slots.whyMe.toLowerCase()).not.toMatch(/\binfp\b|\bintp\b/);
-    expect(slots.whyMe.toLowerCase()).not.toMatch(/inner vote|fog and story|more proof/);
-    expect(slots.ride.toLowerCase()).toMatch(/force|conclusion|feeling|sentence/);
+    expect(slots.whyMe.toLowerCase()).not.toMatch(/inner vote|fog and story|random mood|outward habit|defensible/);
+    expect(slots.ride.toLowerCase()).toMatch(/force|certainty/);
+    expect(slots.ride.toLowerCase()).not.toMatch(/sentence/);
+    expect(slots.ride.toLowerCase()).not.toMatch(/\d(am|pm)/);
+    expect(`${slots.what} ${slots.whyMe} ${slots.ride}`.toLowerCase()).not.toMatch(
+      /outward habit|random mood|caution budget|inner vote/,
+    );
     expect(slots.move).toBe('One honest sentence, then silence.');
     expect(slots.move).not.toMatch(/6pm|write the one-sentence/);
     expect(slots.headline).toBe(slots.move);
@@ -128,7 +133,9 @@ describe('today headline compose', () => {
     expect(slots.move).not.toMatch(/6pm|honest sentence, then silence/);
     expect(typedSupportMove('INFP', 'INTP')).not.toMatch(/6pm/);
     expect(slots.avoid.toLowerCase()).toMatch(/green hour|research/);
-    expect(slots.ride.toLowerCase()).toMatch(/opening|project|research/);
+    expect(slots.ride.toLowerCase()).toMatch(/opening|plan|project/);
+    expect(slots.whyMe.toLowerCase()).toMatch(/permission|justif/);
+    expect(slots.what.toLowerCase()).not.toMatch(/problem|tightening/);
   });
 
   it('carryover labels the same sky and changes the next inch', () => {

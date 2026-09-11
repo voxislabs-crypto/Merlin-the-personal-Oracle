@@ -164,12 +164,6 @@ export function nextInchFromHeldMove(
   return 'Do the next inch. Stop there.';
 }
 
-function decap(text: string): string {
-  const t = (text || '').trim();
-  if (!t) return t;
-  return t.charAt(0).toLowerCase() + t.slice(1);
-}
-
 function joinAnd(items: string[]): string {
   const unique = Array.from(new Set(items.filter(Boolean)));
   if (unique.length === 0) return '';
@@ -196,41 +190,29 @@ function winningDomains(
   return fallback.slice(0, 2);
 }
 
-/** User-facing nerve of the natal planet — not ephemeris slang. */
-const LIVED_NERVE: Record<string, string> = {
-  sun: 'how you stand in your own life',
-  moon: 'mood and home-base',
-  mercury: 'words and decisions',
-  venus: 'what you value and who you keep',
-  mars: 'drive and conflict',
-  jupiter: 'how big a yes feels safe',
-  saturn: 'duty and limits',
-  uranus: 'the urge to split or start over',
-  neptune: 'meaning and certainty',
-  pluto: 'control and old power',
-};
-
 function weatherWhatLine(themeId: string, sky: string, polarity: HeadlinePolarity, domain: string, crowded: boolean): string {
   if (polarity === 'support') {
     return crowded
-      ? 'A usable opening is here — keep it small enough to use.'
-      : `A usable opening is forming around ${domain}.`;
+      ? 'There is a real opening. Keep it small enough to use.'
+      : `There is a real opening around ${domain}.`;
   }
   if (themeId === 'fog-clarity' || /thin clarity|clarity is thin/.test(sky)) {
     return 'Clarity is thinner than usual right now. Stories will feel truer than the facts.';
   }
   if (themeId === 'communication-friction' || /talk running hot/.test(sky)) {
     return crowded
-      ? 'Words are landing harder than they need to, in more than one room.'
+      ? 'Words are landing harder than they need to.'
       : `Words are landing harder than they need to around ${domain}.`;
   }
   if (themeId === 'sudden-shift' || /jolt/.test(sky)) {
     return crowded
-      ? 'A sudden split-urge is in the weather — not a verdict.'
-      : `A sudden split-urge is pressing on ${domain}.`;
+      ? 'A sudden urge to split or start over is in the air. That is weather, not a verdict.'
+      : `A sudden urge to split or start over is pressing on ${domain}.`;
   }
   if (themeId === 'emotional-restraint' || /heavy mood/.test(sky)) {
-    return `Mood is running heavier than the facts around ${crowded ? 'more than one part of life' : domain}.`;
+    return crowded
+      ? 'Mood is running heavier than the facts.'
+      : `Mood is running heavier than the facts around ${domain}.`;
   }
   if (crowded) return 'Pressure is on in more than one part of life at once.';
   return `Something is tightening around ${domain}.`;
@@ -239,31 +221,13 @@ function weatherWhatLine(themeId: string, sky: string, polarity: HeadlinePolarit
 function phaseClause(phase?: string | null, daysToPeak?: number | null): string {
   if (phase === 'building' && typeof daysToPeak === 'number' && daysToPeak > 0 && daysToPeak <= 3) {
     return daysToPeak === 1
-      ? 'It is still gathering — about a day from its loudest point.'
-      : `It is still gathering — about ${daysToPeak} days from its loudest point.`;
+      ? 'It is still gathering — about a day out.'
+      : `It is still gathering — about ${daysToPeak} days out.`;
   }
   if (phase === 'releasing') {
-    return 'The loudest point has already passed; do not treat the leftover as a new crisis.';
-  }
-  if (phase === 'peaking' || daysToPeak === 0) {
-    return 'It is at its loudest today.';
+    return 'The worst of it has already passed.';
   }
   return '';
-}
-
-function meaningfulTiming(input: {
-  window?: string | null;
-  phase?: string | null;
-  daysToPeak?: number | null;
-}): string | null {
-  if (input.phase === 'releasing') return null;
-  const window = (input.window || '').trim();
-  const mapped = Boolean(window && window !== 'late afternoon' && window !== 'this afternoon');
-  if (!mapped) return null;
-  if (input.phase === 'peaking' || input.daysToPeak === 0) {
-    return `If you need a sharper window, it is ${window} — not the whole day.`;
-  }
-  return null;
 }
 
 function coreSensesLine(core?: string | null, polarity: HeadlinePolarity = 'storm'): string {
@@ -275,47 +239,48 @@ function coreSensesLine(core?: string | null, polarity: HeadlinePolarity = 'stor
   const judge = c[3] === 'J';
   if (polarity === 'support') {
     if (feel && intuit) {
-      return 'You may feel the opening as permission before you can justify taking it.';
+      return "You'll feel permission before you can justify taking it.";
     }
     if (think) {
-      return 'You may want to map the upside before you step into it.';
+      return "You'll want the upside mapped before you step in.";
     }
   }
   if (feel && intuit && judge) {
-    return 'You may see the pattern before you have a usable ask.';
+    return "You'll see the pattern before you have something to ask for.";
   }
   if (feel && intuit) {
-    return 'You may notice the change as a feeling before you can explain it.';
+    return "You'll feel the uncertainty before you can name it.";
   }
   if (feel) {
-    return 'You may feel the shift in the room before you have a clean reason.';
+    return "You'll feel the shift before you have a clean reason.";
   }
   if (think && judge) {
-    return 'You may clock it as a system problem before you clock it as weather.';
+    return "You'll treat it as a problem to solve before you treat it as weather.";
   }
   if (think) {
-    return 'You may want a working model before you let the feeling count.';
+    return "You'll want a model before you let the feeling count.";
   }
   return period(CORE_THREAT[c].notices);
 }
 
-function maskHabitLine(mask?: string | null): string {
+function maskHabitLine(mask?: string | null, polarity: HeadlinePolarity = 'storm'): string {
   const m = parseMbtiType(mask);
   if (!m) return '';
   if (m[2] === 'T') {
-    return 'The outward habit wants enough evidence to make it defensible.';
+    return polarity === 'support'
+      ? "The pull will be to plan instead of take it."
+      : "You'll want a stronger justification than you have.";
   }
   if (m[2] === 'F' && m[0] === 'E') {
-    return 'The outward habit wants the room to stay intact.';
+    return "You'll want the room to stay easy.";
   }
   if (m[3] === 'J') {
-    return 'The outward habit wants a closed decision.';
+    return "You'll want this closed.";
   }
   if (m[3] === 'P') {
-    return 'The outward habit wants to keep options open so no one hears a no.';
+    return "You'll want to keep every option open.";
   }
-  const wants = MASK_SYMPTOM[m].wants.replace(/\.+$/, '').replace(/^To /i, '');
-  return `The outward habit wants ${decap(wants)}.`;
+  return '';
 }
 
 function whatSlot(input: {
@@ -328,7 +293,7 @@ function whatSlot(input: {
   daysToPeak?: number | null;
 }): string {
   if (input.polarity === 'carryover') {
-    return `Same weather as yesterday — ${input.sky}. Nothing material changed overnight.`;
+    return `Same ${input.sky} as yesterday. Nothing material changed.`;
   }
   const body = weatherWhatLine(input.themeId, input.sky, input.polarity, input.domain, input.crowded);
   const phase = phaseClause(input.phase, input.daysToPeak);
@@ -345,48 +310,42 @@ function whyMeSlot(input: {
   maskType?: string | null;
 }): string {
   const place = input.crowded
-    ? `It is showing up in more than one part of life — ${joinAnd(input.names)}.`
-    : `It is showing up in ${input.domain}.`;
+    ? `It's on ${joinAnd(input.names)} at once.`
+    : `It's on ${input.domain}.`;
   if (input.polarity === 'carryover') {
-    return `${place} Same landing as yesterday. Do not re-diagnose it.`;
+    return `${place} Same place as yesterday. Don't start a new read.`;
   }
   const sense = coreSensesLine(input.coreType, input.polarity);
-  const habit = maskHabitLine(input.maskType);
-  const nerve = input.natal ? LIVED_NERVE[input.natal] : '';
-  const nerveBit = nerve ? ` This is about ${nerve}, not a random mood.` : '';
-  if (sense && habit) return `${place} ${sense} ${habit}${nerveBit}`;
-  if (sense) return `${place} ${sense}${nerveBit}`;
-  return `${place}${nerveBit}`;
+  const habit = maskHabitLine(input.maskType, input.polarity);
+  if (sense && habit) return `${place} ${sense} ${habit}`;
+  if (sense) return `${place} ${sense}`;
+  return place;
 }
 
 function rideSlot(input: {
   polarity: HeadlinePolarity;
   coreType?: string | null;
   maskType?: string | null;
-  timing: string | null;
-  mixedSignals?: boolean;
 }): string {
   const core = parseMbtiType(input.coreType);
   const mask = parseMbtiType(input.maskType);
   let stance: string;
   if (input.polarity === 'carryover') {
-    stance = "Don't add a second task. Stay with yesterday's inch.";
+    stance = "Don't add a second task.";
   } else if (input.polarity === 'support') {
-    stance = 'Use the opening without turning it into a project.';
-    if (mask?.[2] === 'T') stance = 'Use the opening. Do not research it into a plan.';
+    stance = mask?.[2] === 'T'
+      ? "Use the opening. Don't turn it into a plan."
+      : "Use the opening. Don't turn it into a project.";
   } else if (core?.[1] === 'N' && core?.[2] === 'F' && core?.[3] === 'J' && mask?.[2] === 'T') {
-    stance = "Don't turn the pattern into a theory before you name the need.";
+    stance = "Don't turn the pattern into a theory before you name what you need.";
   } else if (core?.[2] === 'F' && mask?.[2] === 'T') {
-    stance = "Don't force the feeling into a conclusion yet. One true sentence is enough evidence for today.";
+    stance = "Don't force certainty.";
   } else if (core?.[2] === 'T') {
-    stance = 'Pick one testable next inch. Leave the rest of the model open.';
+    stance = 'One testable next step. Leave the rest of the model open.';
   } else {
     stance = period(typedAvoid(input.coreType, input.maskType, input.polarity));
   }
-  const bits = [stance];
-  if (input.timing) bits.push(input.timing);
-  if (input.mixedSignals) bits.push('Do not spend the whole caution budget on one room.');
-  return bits.join(' ').replace(/\s+/g, ' ').trim();
+  return stance;
 }
 
 function conclusionMove(input: {
@@ -456,11 +415,6 @@ export function composeTodayHeadline(input: {
   const core = input.coreType;
   const mask = input.maskType;
   const avoid = typedAvoid(core, mask, polarity === 'carryover' ? 'storm' : polarity);
-  const timing = meaningfulTiming({
-    window: input.window,
-    phase: input.phase,
-    daysToPeak: input.daysToPeak,
-  });
   const what = whatSlot({
     polarity,
     sky,
@@ -483,8 +437,6 @@ export function composeTodayHeadline(input: {
     polarity,
     coreType: core,
     maskType: mask,
-    timing,
-    mixedSignals: input.mixedSignals,
   });
   const move = conclusionMove({
     polarity,
