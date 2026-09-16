@@ -1,9 +1,0 @@
-{
-  "name": "merlin-oracle-offline",
-  "private": true,
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "check": "node --check src/timetrak/historical-time-trak.js && node --check src/ui/app.js"
-  }
-}
