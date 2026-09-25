@@ -1,9 +1,11 @@
 import {
   applyBaselineModifier,
+  applyTripleHitAmplification,
   getBaselineTemperature,
   normalizeDayRating,
   resolveBaseIntensity,
 } from '@/lib/atmosphere/intensity';
+import { softCeilingFriction } from '@/lib/atmosphere/score-shape';
 
 describe('atmosphere intensity', () => {
   it('prefers pressure-engine globalPressure when available', () => {
@@ -134,5 +136,24 @@ describe('atmosphere intensity', () => {
     expect(normalizeDayRating({ day_rating: 'Positive' }, 80)).toBe('green');
     expect(normalizeDayRating(null, 50)).toBe('yellow');
     expect(normalizeDayRating(null, 80)).toBe('red');
+  });
+
+  it('does not slam alarm to 100 on a triple-confluence day', () => {
+    const triple = applyTripleHitAmplification(80, 70, true);
+    const quiet = applyTripleHitAmplification(80, 70, false);
+    expect(quiet.intensity).toBe(80);
+    expect(triple.intensity).toBeGreaterThanOrEqual(88);
+    expect(triple.intensity).toBeLessThanOrEqual(90);
+    expect(triple.intensity).not.toBe(100);
+    expect(applyTripleHitAmplification(90, 70, true).intensity).toBeLessThan(96);
+    expect(applyTripleHitAmplification(90, 70, true).intensity).toBeGreaterThanOrEqual(90);
+    expect(triple.provenance).toContain('triple-hit-amplification');
+    expect(quiet.provenance).toEqual([]);
+  });
+
+  it('shares friction\'s soft ceiling so 100 raw does not stay 100', () => {
+    expect(softCeilingFriction(100)).toBeLessThan(90);
+    expect(softCeilingFriction(40)).toBe(40);
+    expect(softCeilingFriction(55)).toBe(55);
   });
 });

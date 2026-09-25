@@ -6,6 +6,7 @@
  */
 
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { softCeilingFriction } from '@/lib/atmosphere/score-shape';
 import {
   addCalendarDays,
   isValidCalendarDate,
@@ -65,18 +66,7 @@ function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-/**
- * Soft ceiling so scores stay expressive (≈35–88) instead of slamming 100.
- * Linear through the mid-range; only the top tail compresses.
- * Examples (approx): 40→40, 55→55, 70→66, 85→74, 100→80, 120→85.
- */
-export function softCeilingFriction(raw: number): number {
-  const x = Math.max(0, raw);
-  if (x <= 58) return clamp(x); // preserve 40 vs 55 vs 58 distinction
-  const over = x - 58;
-  // 58→58, 75→58+12≈70, 90→58+18≈76, 100→58+21≈79, 120→58+26≈84, 140→58+29≈87
-  return clamp(58 + 34 * (1 - Math.exp(-over / 30)));
-}
+export { softCeilingFriction };
 
 /**
  * Map storm engine intensityScore (typically 1–10) to graduated friction.

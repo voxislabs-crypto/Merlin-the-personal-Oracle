@@ -81,6 +81,8 @@ export interface TodayWeatherBriefProps {
   userId?: string;
   confluenceAligned?: boolean;
   confluenceThemes?: string[];
+  confluenceTripleHit?: boolean;
+  confluenceSignalCount?: number;
   onAskMerlin?: () => void;
   onExploreSelf?: () => void;
   askLabel?: string;
@@ -169,6 +171,8 @@ export function TodayWeatherBrief({
   userId,
   confluenceAligned,
   confluenceThemes,
+  confluenceTripleHit,
+  confluenceSignalCount,
   onAskMerlin,
   onExploreSelf,
   askLabel = 'Ask Merlin about today',
@@ -319,6 +323,8 @@ export function TodayWeatherBrief({
           barLabel="Life weather"
           confluenceAligned={confluenceAligned}
           confluenceThemes={confluenceThemes}
+          confluenceTripleHit={confluenceTripleHit}
+          confluenceSignalCount={confluenceSignalCount}
           showGreeting
           firstName={firstName}
           risk={risk}
@@ -383,7 +389,7 @@ export function TodayWeatherBrief({
                 >
                   {todayMove}
                 </p>
-                {thinClarity && doNot ? (
+                {doNot ? (
                   <div className="mt-3 border-t border-white/10 pt-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">
                       Avoid
@@ -391,12 +397,36 @@ export function TodayWeatherBrief({
                     <p className="mt-1 text-sm leading-snug text-slate-200/85">{doNot}</p>
                   </div>
                 ) : null}
-                {thinClarity && (coreNotices || maskWants || tensionLine || resolution) ? (
+                {whyThisPerson ||
+                chartWhy ||
+                coreNotices ||
+                maskWants ||
+                tensionLine ||
+                resolution ||
+                behaviorTell ||
+                watchFor ||
+                leadFactDisplay ||
+                confidenceWhy ? (
                   <details className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
                     <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400 hover:text-slate-200">
                       Core, Mask, Tension
                     </summary>
-                    <div className="mt-2 space-y-2">
+                    <div className="mt-2 space-y-2.5">
+                      {whyThisPerson ? (
+                        <div>
+                          <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${moveLabel}`}>
+                            Why this happens to you
+                          </p>
+                          <p className="mt-1 text-sm leading-snug text-slate-100">{whyThisPerson}</p>
+                        </div>
+                      ) : chartWhy ? (
+                        <div>
+                          <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${moveLabel}`}>
+                            Why this happens to you
+                          </p>
+                          <p className="mt-1 text-sm leading-snug text-slate-100">{chartWhy}</p>
+                        </div>
+                      ) : null}
                       {coreNotices ? (
                         <p className="text-sm leading-snug text-slate-100">
                           <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
@@ -429,96 +459,48 @@ export function TodayWeatherBrief({
                           {resolution}
                         </p>
                       ) : null}
-                    </div>
-                  </details>
-                ) : null}
-                {!thinClarity &&
-                (whyThisPerson || coreNotices || leadFactDisplay || chartWhy || watchFor || doNot || behaviorTell) ? (
-                  <dl className="mt-3 space-y-2.5 border-t border-white/10 pt-3">
-                    {whyThisPerson ? (
-                      <div>
-                        <dt className={`text-[10px] font-bold uppercase tracking-[0.22em] ${moveLabel}`}>
-                          Why this happens to you
-                        </dt>
-                        <dd className="mt-1 text-sm font-medium leading-relaxed text-white/85">
-                          {whyThisPerson}
-                        </dd>
-                      </div>
-                    ) : chartWhy ? (
-                      <div>
-                        <dt className={`text-[10px] font-bold uppercase tracking-[0.22em] ${moveLabel}`}>
-                          Why this happens to you
-                        </dt>
-                        <dd className="mt-1 text-sm font-medium leading-relaxed text-white/85">
-                          {chartWhy}
-                        </dd>
-                      </div>
-                    ) : null}
-                    {coreNotices || maskWants || tensionLine || resolution ? (
-                      <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
-                        {coreNotices ? (
-                          <p className="text-sm leading-snug text-slate-100">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
-                              Core notices{' '}
-                            </span>
-                            {coreNotices}
+                      {behaviorTell ? (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100/80">
+                            What to watch
                           </p>
-                        ) : null}
-                        {maskWants ? (
-                          <p className="text-sm leading-snug text-slate-100">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/80">
-                              Mask wants{' '}
-                            </span>
-                            {maskWants}
+                          <p className="mt-1 text-sm leading-snug text-slate-200/85">{behaviorTell}</p>
+                        </div>
+                      ) : watchFor ? (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100/80">
+                            What to watch
                           </p>
-                        ) : null}
-                        {tensionLine ? (
-                          <p className="text-sm leading-snug text-slate-200">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-200/75">
-                              Tension{' '}
+                          <p className="mt-1 text-sm leading-snug text-slate-200/85">{watchFor}</p>
+                        </div>
+                      ) : null}
+                      {leadFactDisplay?.trim() ? (
+                        leadFact || whyToday ? (
+                          <details className="group">
+                            <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-300">
+                              <span>Sky mechanic</span>
+                              <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold normal-case tracking-normal text-white/90">
+                                {leadFactDisplay}
+                              </span>
+                              {heldFromYesterday ? (
+                                <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
+                                  Still applies
+                                </span>
+                              ) : null}
+                            </summary>
+                            {leadFact ? (
+                              <p className="mt-1.5 text-xs leading-snug text-slate-400">{leadFact}</p>
+                            ) : null}
+                            {whyToday ? (
+                              <p className="mt-1 text-xs leading-snug text-slate-500">{whyToday}</p>
+                            ) : null}
+                          </details>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                              Sky mechanic
                             </span>
-                            {tensionLine}
-                          </p>
-                        ) : null}
-                        {resolution ? (
-                          <p className="text-sm leading-snug text-slate-200">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/80">
-                              Resolution{' '}
-                            </span>
-                            {resolution}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {doNot ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-100/80">
-                          Avoid
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{doNot}</dd>
-                      </div>
-                    ) : null}
-                    {behaviorTell ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100/80">
-                          What to watch
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{behaviorTell}</dd>
-                      </div>
-                    ) : watchFor ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-100/80">
-                          What to watch
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-200/85">{watchFor}</dd>
-                      </div>
-                    ) : null}
-                    {leadFactDisplay?.trim() ? (
-                      leadFact || whyToday ? (
-                        <details className="group">
-                          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 hover:text-slate-300">
-                            <span>Sky mechanic</span>
-                            <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold normal-case tracking-normal text-white/90">
+                            <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-white/90">
                               {leadFactDisplay}
                             </span>
                             {heldFromYesterday ? (
@@ -526,39 +508,19 @@ export function TodayWeatherBrief({
                                 Still applies
                               </span>
                             ) : null}
-                          </summary>
-                          {leadFact ? (
-                            <p className="mt-1.5 text-xs leading-snug text-slate-400">{leadFact}</p>
-                          ) : null}
-                          {whyToday ? (
-                            <p className="mt-1 text-xs leading-snug text-slate-500">{whyToday}</p>
-                          ) : null}
-                        </details>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
-                            Sky mechanic
-                          </span>
-                          <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-white/90">
-                            {leadFactDisplay}
-                          </span>
-                          {heldFromYesterday ? (
-                            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-emerald-100">
-                              Still applies
-                            </span>
-                          ) : null}
+                          </div>
+                        )
+                      ) : null}
+                      {confidenceWhy ? (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                            Confidence
+                          </p>
+                          <p className="mt-1 text-sm leading-snug text-slate-300/90">{confidenceWhy}</p>
                         </div>
-                      )
-                    ) : null}
-                    {confidenceWhy ? (
-                      <div>
-                        <dt className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-                          Confidence
-                        </dt>
-                        <dd className="mt-1 text-sm leading-snug text-slate-300/90">{confidenceWhy}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
+                      ) : null}
+                    </div>
+                  </details>
                 ) : null}
               </div>
             </motion.div>

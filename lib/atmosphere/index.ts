@@ -25,6 +25,7 @@ export {
 } from '@/lib/atmosphere/pattern-tags';
 export type * from '@/lib/atmosphere/pattern-types';
 export { computeAtmosphere } from '@/lib/atmosphere/compute';
+export { softCeilingFriction } from '@/lib/atmosphere/score-shape';
 export {
   computeLifeRisk,
   lifeRiskLevelPresentation,

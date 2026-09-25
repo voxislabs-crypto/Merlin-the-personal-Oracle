@@ -31,6 +31,8 @@ interface CosmicStoryCardProps {
   askLabel?: string;
   confluenceAligned?: boolean;
   confluenceThemes?: string[];
+  confluenceTripleHit?: boolean;
+  confluenceSignalCount?: number;
 }
 
 export function CosmicStoryCard({
@@ -54,6 +56,8 @@ export function CosmicStoryCard({
   askLabel = 'Ask Merlin about today',
   confluenceAligned,
   confluenceThemes,
+  confluenceTripleHit,
+  confluenceSignalCount,
 }: CosmicStoryCardProps) {
   const n = resolveAtmosphereIntensity(intensity, dayRating);
   const tone = n >= 80 ? 'storm' : n >= 60 ? 'amber' : n >= 40 ? 'sky' : 'violet';
@@ -96,6 +100,8 @@ export function CosmicStoryCard({
           variant="hero"
           confluenceAligned={confluenceAligned}
           confluenceThemes={confluenceThemes}
+          confluenceTripleHit={confluenceTripleHit}
+          confluenceSignalCount={confluenceSignalCount}
         />
 
         <div className="space-y-4 rounded-xl border border-white/10 bg-black/25 p-4 backdrop-blur-sm md:p-5">

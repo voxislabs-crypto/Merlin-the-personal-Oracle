@@ -46,6 +46,8 @@ export interface AtmosphereHeaderProps {
   driverLabel?: string;
   confluenceAligned?: boolean;
   confluenceThemes?: string[];
+  confluenceTripleHit?: boolean;
+  confluenceSignalCount?: number;
   variant?: AtmosphereHeaderVariant;
   loading?: boolean;
   barLabel?: string;
@@ -105,6 +107,8 @@ export function AtmosphereHeader({
   driverLabel,
   confluenceAligned = false,
   confluenceThemes = [],
+  confluenceTripleHit = false,
+  confluenceSignalCount = 0,
   variant = 'hero',
   loading = false,
   barLabel = 'Life weather',
@@ -145,11 +149,15 @@ export function AtmosphereHeader({
         className="inline-flex items-center rounded-full border border-violet-300/35 bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-100"
         title={
           confluenceThemes.length
-            ? `Aligned signals: ${confluenceThemes.join(', ')}`
-            : 'Multiple life-weather signals are converging today'
+            ? `${confluenceTripleHit ? 'Triple confluence' : 'Aligned signals'}: ${confluenceThemes.join(', ')}`
+            : confluenceTripleHit
+              ? 'Transit, solar arc, and profection share a theme today'
+              : 'Multiple life-weather signals are converging today'
         }
       >
-        Signals aligned
+        {confluenceTripleHit
+          ? `${Math.max(3, confluenceSignalCount)} signals aligned`
+          : 'Signals aligned'}
       </span>
     ) : null;
 

@@ -2935,6 +2935,8 @@ export default function UnifiedDashboard() {
                     atmosphereProvenance={activeAtmospherePacket?.provenance}
                     confluenceAligned={activeAtmospherePacket?.confluence.aligned}
                     confluenceThemes={activeAtmospherePacket?.confluence.themes}
+                    confluenceTripleHit={activeAtmospherePacket?.confluence.tripleHit}
+                    confluenceSignalCount={activeAtmospherePacket?.confluence.signalCount}
                     solarReturnBriefing={returnsPacket?.solarReturn}
                     lunarReturnWeather={returnsPacket?.lunarReturn}
                     returnsLoading={returnsLoading}

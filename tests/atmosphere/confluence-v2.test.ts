@@ -109,7 +109,9 @@ describe('atmosphere confluence v2', () => {
     });
 
     expect(packet.confluence.tripleHit).toBe(true);
+    expect(packet.confluence.aligned).toBe(true);
     expect(packet.provenance).toContain('triple-hit-amplification');
+    expect(packet.intensity).toBeLessThan(96);
     expect(packet.temporal.timeLord).toBe('Saturn');
     expect(packet.temporal.solarArcHits?.length).toBe(1);
   });

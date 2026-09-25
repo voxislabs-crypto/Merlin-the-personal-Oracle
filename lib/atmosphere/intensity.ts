@@ -11,6 +11,7 @@ import type { AtmospherePredictiveInput, AtmosphereStormInput } from '@/lib/atmo
 import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
 import { normalizePredictiveIntensity } from '@/lib/atmosphere/normalize';
 import { clampIntensity } from '@/lib/atmosphere/tone';
+import { softCeilingFriction } from '@/lib/atmosphere/score-shape';
 
 const CHALLENGING_MOON_SIGNS = new Set(['Scorpio', 'Capricorn', 'Aquarius', 'Virgo']);
 const SUPPORTIVE_MOON_SIGNS = new Set(['Taurus', 'Cancer', 'Pisces', 'Sagittarius', 'Leo']);
@@ -206,8 +207,12 @@ export function applyTripleHitAmplification(
     };
   }
 
+  // Confluence is a flag, not a siren. Modest lift, then the same tail
+  // friction uses so 1.25×80 cannot clamp at 100.
+  const modest = intensity * 1.1;
+  const tailed = softCeilingFriction(intensity * 1.25);
   return {
-    intensity: clampIntensity(intensity * 1.25),
+    intensity: clampIntensity(Math.min(90, Math.max(modest, tailed))),
     confidence: clampIntensity(confidence + 10),
     provenance: ['triple-hit-amplification'],
   };

@@ -134,6 +134,8 @@ interface HomeTabPanelProps {
   atmosphereProvenance?: string[];
   confluenceAligned?: boolean;
   confluenceThemes?: string[];
+  confluenceTripleHit?: boolean;
+  confluenceSignalCount?: number;
   solarReturnBriefing?: SolarReturnBriefing | null;
   lunarReturnWeather?: LunarReturnWeather | null;
   returnsLoading?: boolean;
@@ -241,6 +243,8 @@ export function HomeTabPanel({
   atmosphereProvenance,
   confluenceAligned,
   confluenceThemes,
+  confluenceTripleHit,
+  confluenceSignalCount,
   solarReturnBriefing,
   lunarReturnWeather,
   returnsLoading = false,
@@ -328,6 +332,8 @@ export function HomeTabPanel({
           selfChips={chips}
           confluenceAligned={confluenceAligned}
           confluenceThemes={confluenceThemes}
+          confluenceTripleHit={confluenceTripleHit}
+          confluenceSignalCount={confluenceSignalCount}
           isError={forecastError}
           onRetry={onRetryForecast}
           risk={risk}
