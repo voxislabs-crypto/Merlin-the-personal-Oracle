@@ -3279,8 +3279,8 @@ export default function UnifiedDashboard() {
                                         dualOverlay={liveDual}
                                       />
                                     ) : null}
-                                    {liveDual ? (
-                                      <MBTIDualBreakdown dualOverlay={liveDual} />
+                                    {activeDual ? (
+                                      <MBTIDualBreakdown dualOverlay={activeDual} />
                                     ) : null}
                                   </div>
                                 ) : (
@@ -3859,8 +3859,8 @@ export default function UnifiedDashboard() {
                                       </button>
                                       . Dimension map below if you need it here.
                                     </p>
-                                    {liveDual ? (
-                                      <MBTIDualBreakdown dualOverlay={liveDual} />
+                                    {activeDual ? (
+                                      <MBTIDualBreakdown dualOverlay={activeDual} />
                                     ) : null}
                                   </div>
                                 )}

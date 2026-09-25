@@ -10,6 +10,11 @@ import {
   type BlendSynthesis,
 } from '@/lib/personality/mbti-blend-synthesis';
 import { getMBTITypeDescription, type MBTIType } from '@/lib/mbti-overlay';
+import {
+  layerTypeOverridesBreakdown,
+  presentDualForDimensionMap,
+} from '@/lib/personality/mbti-override';
+import type { MBTIBreakdown } from '@/lib/astrology/mbtiFusion';
 
 type DimensionKey = 'e_i' | 's_n' | 't_f' | 'j_p';
 
@@ -55,13 +60,20 @@ function DimensionToggle({
   );
 }
 
+function chartTypeFromBreakdown(breakdown: MBTIBreakdown): string {
+  return `${breakdown.e_i}${breakdown.s_n}${breakdown.t_f}${breakdown.j_p}`;
+}
+
 function LayerColumn({
   layer,
+  chartLayer,
   accent,
   expandedReasoning,
   onToggleReasoning,
 }: {
   layer: DualOverlay['hardware'];
+  /** Engine layer before letters are aligned to a user type. */
+  chartLayer: DualOverlay['hardware'];
   accent: 'orange' | 'violet';
   expandedReasoning: boolean;
   onToggleReasoning: () => void;
@@ -75,6 +87,8 @@ function LayerColumn({
     layer.mbtiType?.length === 4
       ? getMBTITypeDescription(layer.mbtiType.toUpperCase() as MBTIType)
       : null;
+  const userSet = layerTypeOverridesBreakdown(chartLayer);
+  const chartType = chartTypeFromBreakdown(chartLayer.breakdown);
 
   return (
     <div className={`rounded-xl border ${borderClass} bg-slate-900/50 p-4`}>
@@ -86,8 +100,15 @@ function LayerColumn({
           </p>
           <p className={`text-lg font-bold ${textClass}`}>{layer.mbtiType}</p>
           {typeLabel ? <p className={`text-xs mt-0.5 ${subtextClass}`}>{typeLabel}</p> : null}
+          {userSet ? (
+            <p className={`text-[11px] mt-0.5 ${subtextClass}`}>
+              You set this · chart calculated {chartType}
+            </p>
+          ) : null}
         </div>
-        <span className="ml-auto text-xs text-slate-500">{layer.confidence}%</span>
+        <span className="ml-auto text-xs text-slate-500">
+          {userSet ? 'You set this' : `${layer.confidence}%`}
+        </span>
       </div>
 
       {layer.description ? (
@@ -132,7 +153,8 @@ function LayerColumn({
             <div className="mt-2 space-y-2 border-t border-slate-700/40 pt-2">
               {DIMENSION_KEYS.map((key) => {
                 const meta = getDimensionMeta(key);
-                const value = layer.breakdown[key];
+                const chartValue = chartLayer.breakdown[key];
+                const shownValue = layer.breakdown[key];
                 const reasoningKey =
                   key === 'e_i'
                     ? 'extraversion'
@@ -143,10 +165,12 @@ function LayerColumn({
                         : 'judging';
                 const reasons = layer.breakdown.reasoning[reasoningKey].slice(0, 2);
                 if (!reasons.length) return null;
-                const activeName = value === meta.left ? meta.leftName : meta.rightName;
+                const chartName = chartValue === meta.left ? meta.leftName : meta.rightName;
+                const heading =
+                  shownValue !== chartValue ? `Chart favored ${chartName}` : chartName;
                 return (
                   <div key={key}>
-                    <p className="text-[10px] font-semibold text-slate-400">{activeName}</p>
+                    <p className="text-[10px] font-semibold text-slate-400">{heading}</p>
                     <ul className="text-[11px] text-slate-500 space-y-0.5">
                       {reasons.map((r) => (
                         <li key={r} className="flex gap-1">
@@ -217,7 +241,9 @@ function BlendCard({ blend, dualOverlay }: { blend: BlendSynthesis; dualOverlay:
 export function MBTIDualBreakdown({ dualOverlay }: MBTIDualBreakdownProps) {
   const [maskReasoningOpen, setMaskReasoningOpen] = useState(false);
   const [coreReasoningOpen, setCoreReasoningOpen] = useState(false);
-  const blend = buildBlendSynthesis(dualOverlay);
+  const displayOverlay = presentDualForDimensionMap(dualOverlay);
+  const blend = buildBlendSynthesis(displayOverlay);
+  const coreUserSet = layerTypeOverridesBreakdown(dualOverlay.firmware);
 
   return (
     <motion.div
@@ -231,27 +257,31 @@ export function MBTIDualBreakdown({ dualOverlay }: MBTIDualBreakdownProps) {
           Dimension Map
         </h3>
         <p className="text-xs text-slate-500 mt-0.5">
-          E/I · S/N · T/F · J/P for Mask and Core — highlighted letter is what your chart favors.
+          {coreUserSet
+            ? 'E/I · S/N · T/F · J/P — Core letters follow the type you set. Chart signals stay the engine read.'
+            : 'E/I · S/N · T/F · J/P for Mask and Core — highlighted letter is the type in use.'}
         </p>
       </div>
 
       {/* Core first, then mask — matches Self product order */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LayerColumn
-          layer={dualOverlay.firmware}
+          layer={displayOverlay.firmware}
+          chartLayer={dualOverlay.firmware}
           accent="violet"
           expandedReasoning={coreReasoningOpen}
           onToggleReasoning={() => setCoreReasoningOpen((v) => !v)}
         />
         <LayerColumn
-          layer={dualOverlay.hardware}
+          layer={displayOverlay.hardware}
+          chartLayer={dualOverlay.hardware}
           accent="orange"
           expandedReasoning={maskReasoningOpen}
           onToggleReasoning={() => setMaskReasoningOpen((v) => !v)}
         />
       </div>
 
-      <BlendCard blend={blend} dualOverlay={dualOverlay} />
+      <BlendCard blend={blend} dualOverlay={displayOverlay} />
     </motion.div>
   );
 }

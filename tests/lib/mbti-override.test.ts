@@ -2,6 +2,7 @@ import type { DualOverlay } from '@/lib/personality/dual-overlay';
 import {
   applyMbtiUserOverride,
   parseMbtiType,
+  presentDualForDimensionMap,
   readMbtiUserOverride,
   resolveActiveCoreType,
 } from '@/lib/personality/mbti-override';
@@ -69,6 +70,31 @@ describe('mbti user override', () => {
   it('leaves the engine overlay alone when there is no override', () => {
     const engine = dual('INFP', 'INTP');
     expect(applyMbtiUserOverride(engine, { core: null })).toBe(engine);
+  });
+
+  it('aligns Dimension Map letters to an overridden core without mutating the chart breakdown', () => {
+    const engine = dual('INFP', 'ENTP');
+    const painted = applyMbtiUserOverride(engine, { core: 'INFJ' });
+    const shown = presentDualForDimensionMap(painted!);
+
+    expect(shown.firmware.mbtiType).toBe('INFJ');
+    expect(shown.firmware.breakdown.e_i).toBe('I');
+    expect(shown.firmware.breakdown.s_n).toBe('N');
+    expect(shown.firmware.breakdown.t_f).toBe('F');
+    expect(shown.firmware.breakdown.j_p).toBe('J');
+    expect(shown.firmware.description).toBe('');
+    expect(shown.hardware.mbtiType).toBe('ENTP');
+    expect(shown.hardware.breakdown).toEqual(engine.hardware.breakdown);
+    expect(shown.finalType).toBe('INFJ');
+
+    expect(engine.firmware.breakdown.j_p).toBe('P');
+    expect(painted?.firmware.breakdown.j_p).toBe('P');
+    expect(painted?.firmware.description).toBe('Engine prose for INFP');
+  });
+
+  it('leaves the Dimension Map unchanged when the type already matches the chart letters', () => {
+    const engine = dual('INFP', 'ENTP');
+    expect(presentDualForDimensionMap(engine)).toBe(engine);
   });
 
   it('resolves speaking Core from the override first', () => {
