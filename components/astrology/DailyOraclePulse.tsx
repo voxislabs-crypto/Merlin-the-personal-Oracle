@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface DailyOraclePulseProps {
   message?: string;
@@ -8,7 +8,7 @@ interface DailyOraclePulseProps {
   /** Local calendar day (YYYY-MM-DD) this pulse belongs to */
   date?: string;
   onTruthBomb?: () => void;
-  onFeedback?: (signal: 'hit' | 'missed') => void;
+  onFeedback?: (signal: 'hit' | 'missed') => void | boolean | Promise<boolean | void>;
   loading?: boolean;
 }
 
@@ -33,6 +33,16 @@ export function DailyOraclePulse({
   onFeedback,
   loading = false,
 }: DailyOraclePulseProps) {
+  const [vote, setVote] = useState<'hit' | 'missed' | null>(null);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    setVote(null);
+    setStatus('idle');
+    setErrorText(null);
+  }, [date, message]);
+
   if (loading) {
     return (
       <div className="rounded-[1.4rem] border border-rose-500/30 bg-rose-950/15 p-5 animate-pulse">
@@ -48,6 +58,25 @@ export function DailyOraclePulse({
   if (!message) return null;
 
   const dateLabel = formatPulseDate(date);
+
+  const choose = async (signal: 'hit' | 'missed') => {
+    if (status === 'saving' || vote) return;
+    setStatus('saving');
+    setErrorText(null);
+    try {
+      const saved = await onFeedback?.(signal);
+      if (saved === false) {
+        setStatus('error');
+        setErrorText('Could not save that. Try again.');
+        return;
+      }
+      setVote(signal);
+      setStatus('saved');
+    } catch {
+      setStatus('error');
+      setErrorText('Could not save that. Try again.');
+    }
+  };
 
   return (
     <div className="rounded-[1.4rem] border border-rose-400/30 bg-[radial-gradient(circle_at_top,_rgba(251,113,133,0.18),_transparent_45%),linear-gradient(135deg,rgba(76,5,25,0.55),rgba(2,6,23,0.72))] p-5 shadow-[0_18px_50px_rgba(76,5,25,0.22)]">
@@ -79,18 +108,39 @@ export function DailyOraclePulse({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => onFeedback?.('hit')}
-            className="rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3.5 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30"
+            onClick={() => void choose('hit')}
+            disabled={status === 'saving' || vote !== null}
+            aria-pressed={vote === 'hit'}
+            className={`rounded-full border px-3.5 py-2 text-xs font-semibold disabled:cursor-default ${
+              vote === 'hit'
+                ? 'border-emerald-300 bg-emerald-400/30 text-emerald-50'
+                : 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50'
+            }`}
           >
             That hit
           </button>
           <button
             type="button"
-            onClick={() => onFeedback?.('missed')}
-            className="rounded-full border border-slate-400/40 bg-slate-500/20 px-3.5 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-500/30"
+            onClick={() => void choose('missed')}
+            disabled={status === 'saving' || vote !== null}
+            aria-pressed={vote === 'missed'}
+            className={`rounded-full border px-3.5 py-2 text-xs font-semibold disabled:cursor-default ${
+              vote === 'missed'
+                ? 'border-slate-200 bg-slate-400/30 text-white'
+                : 'border-slate-400/40 bg-slate-500/20 text-slate-100 hover:bg-slate-500/30 disabled:opacity-50'
+            }`}
           >
             Missed me
           </button>
+          {status === 'saving' ? (
+            <span className="self-center text-xs text-rose-100/70">Saving…</span>
+          ) : null}
+          {status === 'saved' ? (
+            <span className="self-center text-xs text-emerald-200/90">Noted. Merlin will weight the next pulse off that.</span>
+          ) : null}
+          {status === 'error' && errorText ? (
+            <span className="self-center text-xs text-amber-200/90">{errorText}</span>
+          ) : null}
         </div>
         <button
           type="button"

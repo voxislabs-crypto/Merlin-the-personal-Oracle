@@ -6,7 +6,9 @@ import { WeatherShell } from '@/components/dashboard/shells/WeatherShell';
 import { StormsAndNavigations } from '@/components/astrology/StormsAndNavigations';
 import { WeeklyCalendar } from '@/components/astrology/WeeklyCalendar';
 import QuestLog from '@/components/astrology/QuestLog';
+import { composeWeeklyCharacter } from '@/lib/atmosphere/weekly-character';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
+import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 import type { StormsReport } from '@/hooks/useStorms';
 import type { WeeklyForecast } from '@/hooks/useWeeklyForecast';
 import type { DailyForecast } from '@/hooks/useForecast';
@@ -79,20 +81,27 @@ export function ForecastTabPanel({
   userId,
   children,
 }: ForecastTabPanelProps) {
+  const weekCharacter = composeWeeklyCharacter({
+    base: weeklyCharacter,
+    weekOf: weeklyForecast?.week?.[3]?.date || getLocalCalendarDate(),
+    whispers: weeklyForecast?.week,
+  });
+
   return (
     <WeatherShell className="space-y-5">
       <div ref={storySectionRef}>
-        {weeklyCharacter?.title ? (
+        {weekCharacter ? (
           <div className="mb-4 rounded-2xl border border-violet-400/25 bg-violet-950/30 px-4 py-3.5">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-200/80">
               This week’s character
             </p>
-            <p className="mt-1 text-lg font-semibold text-violet-50">{weeklyCharacter.title}</p>
+            <p className="mt-1 text-lg font-semibold text-violet-50">{weekCharacter.title}</p>
+            <p className="mt-1 text-xs text-violet-200/75">Core · {weekCharacter.coreTitle}</p>
             <p className="mt-1 text-sm text-slate-200">
-              <span className="text-emerald-200/90">Strength:</span> {weeklyCharacter.strength}
+              <span className="text-emerald-200/90">Strength:</span> {weekCharacter.strength}
             </p>
             <p className="mt-0.5 text-sm text-slate-300">
-              <span className="text-amber-200/90">Blind spot:</span> {weeklyCharacter.blindSpot}
+              <span className="text-amber-200/90">Blind spot:</span> {weekCharacter.blindSpot}
             </p>
           </div>
         ) : null}

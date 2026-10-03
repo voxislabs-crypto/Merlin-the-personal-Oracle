@@ -12,6 +12,7 @@ import { LunarReturnWeatherCard } from '@/components/dashboard/LunarReturnWeathe
 import { RealityCheckJournal } from '@/components/dashboard/RealityCheckJournal';
 import { PremiumUpgradeBanner } from '@/components/dashboard/PremiumUpgradeBanner';
 import type { LunarReturnWeather, SolarReturnBriefing } from '@/lib/astrology/returns-types';
+import { readForecastMood } from '@/lib/atmosphere/daily-mood';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 
 interface PredictiveSnapshot {
@@ -115,6 +116,7 @@ interface HomeTabPanelProps {
     futureSignals?: unknown;
     conversationalPrompts?: unknown;
     advice?: string;
+    summary?: string;
   } | null;
   onAskContext: (label: string, prompt: string) => void;
   askDraftLabel?: string;
@@ -317,6 +319,8 @@ export function HomeTabPanel({
           weatherPrinciple={weatherPrinciple}
           driverLabel={driverLabel}
           moodReason={moodReason}
+          dailyMood={readForecastMood(forecast?.focusAreas)}
+          dailySummary={forecast?.summary}
           moonPhase={moonPhase}
           moonSign={moonSign}
           streak={streak}

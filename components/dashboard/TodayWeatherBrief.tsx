@@ -13,7 +13,8 @@ import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 import { StatusPanel } from '@/components/ui/status-panel';
 import { formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
-import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
+import { composeDailyMood } from '@/lib/atmosphere/daily-mood';
+import { resolveAtmosphereIntensity, resolveScreenTone, screenToneHeadline } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 import { rewriteLayReason } from '@/lib/astrology/pressure-engine/lay-reason';
 import type { TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
@@ -74,6 +75,10 @@ export interface TodayWeatherBriefProps {
   driverLabel?: string | null;
   /** Pressure-engine / atmosphere driver reason — rewritten in plain speech */
   moodReason?: string | null;
+  /** Today's focus-area mood from the daily forecast */
+  dailyMood?: string | null;
+  /** Today's astrology reading (forecast summary) */
+  dailySummary?: string | null;
   moonPhase?: string;
   moonSign?: string;
   streak?: number;
@@ -102,14 +107,14 @@ export interface TodayWeatherBriefProps {
   firstName?: string | null;
 }
 
-function arcaneToneFromIntensity(
+function arcaneToneFromScreen(
   intensity: number,
   dayRating?: DayRating | string,
 ): 'sky' | 'amber' | 'violet' | 'storm' {
-  const n = resolveAtmosphereIntensity(intensity, dayRating);
-  if (n >= 80) return 'storm';
-  if (n >= 60) return 'amber';
-  if (n >= 40) return 'sky';
+  const tone = resolveScreenTone(intensity, dayRating);
+  if (tone.icon === 'storm') return 'storm';
+  if (tone.icon === 'rain') return 'amber';
+  if (tone.icon === 'mixed') return 'sky';
   return 'violet';
 }
 
@@ -164,6 +169,8 @@ export function TodayWeatherBrief({
   heldFromYesterday = false,
   driverLabel = null,
   moodReason = null,
+  dailyMood = null,
+  dailySummary = null,
   moonPhase,
   moonSign,
   streak,
@@ -272,10 +279,18 @@ export function TodayWeatherBrief({
     );
   }
 
-  const tone = resolveTone(resolveAtmosphereIntensity(intensity, dayRating));
-  const arcaneTone = arcaneToneFromIntensity(intensity, dayRating);
-  const moodWord = (themeLabel || tone.label || '').trim();
+  const tone = resolveScreenTone(intensity, dayRating);
+  const headline = screenToneHeadline(intensity, dayRating);
+  const arcaneTone = arcaneToneFromScreen(intensity, dayRating);
   const layMood = rewriteLayReason(moodReason || chartWhy || whyToday || driverLabel || '');
+  const dailyMoodView = composeDailyMood({
+    themeLabel,
+    transitReason: moodReason || chartWhy || whyToday || driverLabel,
+    dailyMood,
+    dailySummary,
+    moonSign,
+    dayRating: typeof dayRating === 'string' ? dayRating : null,
+  });
   const thinClarity =
     themeId === 'fog-clarity' ||
     /clarity is thin/i.test(themeLabel || '') ||
@@ -330,11 +345,11 @@ export function TodayWeatherBrief({
           risk={risk}
         />
 
-        {moodWord ? (
+        {dailyMoodView.word ? (
           <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Mood</p>
-            <p className={`mt-1 text-lg font-bold ${tone.text}`}>{moodWord}</p>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-200/90">{layMood}</p>
+            <p className={`mt-1 text-lg font-bold ${tone.text}`}>{dailyMoodView.word}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-200/90">{dailyMoodView.line}</p>
           </div>
         ) : null}
 
@@ -592,7 +607,7 @@ export function TodayWeatherBrief({
 
         <p className="text-center font-mono text-[10px] tracking-[0.2em] text-slate-500/80">
           MERLIN · {formatStormWatchScoreLine(
-            tone.label,
+            headline,
             resolveAtmosphereIntensity(intensity, dayRating),
             risk?.overallFriction,
           ).toUpperCase()}

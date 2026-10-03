@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { detectPatternFromText, logInteractionEvent } from '@/lib/pattern-mirror';
 import { resonanceDB } from '@/lib/resonance-database';
 import { getUserContextSnapshot, upsertUserContextSnapshot } from '@/lib/user-context';
 
@@ -22,14 +23,26 @@ export async function POST(request: Request) {
 
     await resonanceDB.processFeedback(userId, aspectId, theme, feedback);
 
+    const note =
+      feedback?.notes || `${aspectId}: ${feedback?.resonated ? 'landed' : 'missed'} (${theme})`;
+    const detected = detectPatternFromText(note);
+    await logInteractionEvent({
+      userId,
+      type: 'resonance_feedback',
+      content: note,
+      detectedPattern: detected.key,
+      confidence: detected.confidence,
+      feedbackSignal: feedback?.resonated ? 'up' : 'down',
+      metadata: { source: 'resonance_feedback', aspectId, theme },
+    });
+
     const existingContext = await getUserContextSnapshot(userId);
     await upsertUserContextSnapshot({
       userId,
       situation: existingContext?.situation || '',
       mood: existingContext?.mood || '',
       goals: existingContext?.goals || [],
-      lastFeedbackNotes:
-        feedback?.notes || `${aspectId}: ${feedback?.resonated ? 'landed' : 'missed'} (${theme})`,
+      lastFeedbackNotes: note,
     });
 
     return NextResponse.json({ success: true });

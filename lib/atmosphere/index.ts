@@ -114,5 +114,13 @@ export {
   resolveBaseIntensity,
   resolveConfidence,
 } from '@/lib/atmosphere/intensity';
-export { clampIntensity, resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
+export {
+  clampIntensity,
+  isSupportiveDayRating,
+  resolveAtmosphereIntensity,
+  resolveScreenTone,
+  resolveTone,
+  screenToneHeadline,
+} from '@/lib/atmosphere/tone';
+export { composeDailyMood, readForecastMood } from '@/lib/atmosphere/daily-mood';
 export type * from '@/lib/atmosphere/types';

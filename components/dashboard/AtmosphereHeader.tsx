@@ -20,9 +20,18 @@ import {
   formatDualScoreUi,
   resolveFrictionPercent,
 } from '@/lib/atmosphere/score-labels';
-import { resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
+import {
+  isSupportiveDayRating,
+  resolveAtmosphereIntensity,
+  resolveScreenTone,
+  screenToneHeadline,
+} from '@/lib/atmosphere/tone';
 import type { AtmosphereToneIcon, LifeRiskPacket } from '@/lib/atmosphere/types';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
+
+/** Clear → mixed → caution → storm. Stops sit on the full track, not on the filled slice. */
+const WEATHER_SCALE =
+  'linear-gradient(90deg, #34d399 0%, #22d3ee 35%, #fbbf24 62%, #f43f5e 100%)';
 
 const TONE_ICONS: Record<AtmosphereToneIcon, LucideIcon> = {
   storm: CloudLightning,
@@ -127,7 +136,9 @@ export function AtmosphereHeader({
     resolvedFeltIntensity !== null &&
     typeof sentimentScore === 'number' &&
     Math.abs(resolvedFeltIntensity - resolvedIntensity) >= 8;
-  const tone = resolveTone(resolvedIntensity);
+  const tone = resolveScreenTone(intensity, dayRating);
+  const headline = screenToneHeadline(intensity, dayRating);
+  const supportiveDay = isSupportiveDayRating(dayRating);
   const Icon = TONE_ICONS[tone.icon];
   const formattedDate = formatStoryDate(date);
   const greeting = showGreeting ? buildPersonalGreeting(firstName) : null;
@@ -184,28 +195,28 @@ export function AtmosphereHeader({
         aria-valuenow={resolvedIntensity}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${tone.label} alarm ${resolvedIntensity} percent${
+        aria-label={`${headline} alarm ${resolvedIntensity} percent${
           showFrictionBesideAlarm && frictionPercent != null
             ? `, friction ${frictionPercent} percent`
             : ''
         }`}
       >
-        <div className="h-3 overflow-hidden rounded-full border border-white/10 bg-slate-950/90 shadow-inner">
-          <div
-            className="h-full w-full opacity-35"
-            style={{
-              background:
-                'linear-gradient(90deg, #34d399 0%, #22d3ee 28%, #fbbf24 58%, #f43f5e 100%)',
-            }}
-          />
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-3 overflow-hidden rounded-full">
+        <div
+          className="relative h-3 overflow-hidden rounded-full border border-white/10 bg-slate-950/90 shadow-inner"
+          style={{ containerType: 'inline-size' }}
+        >
+          <div className="absolute inset-0 opacity-20" style={{ background: WEATHER_SCALE }} />
           <motion.div
-            className={`h-full rounded-full bg-gradient-to-r ${tone.gradient} shadow-[0_0_14px_rgba(255,255,255,0.22)]`}
+            className="absolute inset-y-0 left-0 overflow-hidden"
             initial={{ width: 0 }}
             animate={{ width: `${resolvedIntensity}%` }}
             transition={{ duration: variant === 'hero' ? 0.85 : 0.6, ease: 'easeOut' }}
-          />
+          >
+            <div
+              className="h-full shadow-[0_0_14px_rgba(255,255,255,0.22)]"
+              style={{ width: '100cqw', background: WEATHER_SCALE }}
+            />
+          </motion.div>
         </div>
         <motion.div
           className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-white/80 bg-slate-950 shadow-md ${tone.glow}`}
@@ -217,14 +228,18 @@ export function AtmosphereHeader({
         />
       </div>
       <div className="mt-1.5 flex justify-between text-[10px] font-medium tracking-wide text-slate-500">
-        <span className={resolvedIntensity < 40 ? 'text-emerald-300/90' : undefined}>Clear</span>
-        <span className={resolvedIntensity >= 40 && resolvedIntensity < 60 ? 'text-cyan-300/90' : undefined}>
+        <span className={!supportiveDay && resolvedIntensity < 40 ? 'text-emerald-300/90' : undefined}>Clear</span>
+        <span
+          className={!supportiveDay && resolvedIntensity >= 40 && resolvedIntensity < 60 ? 'text-cyan-300/90' : undefined}
+        >
           Mixed
         </span>
-        <span className={resolvedIntensity >= 60 && resolvedIntensity < 80 ? 'text-amber-300/90' : undefined}>
+        <span
+          className={!supportiveDay && resolvedIntensity >= 60 && resolvedIntensity < 80 ? 'text-amber-300/90' : undefined}
+        >
           Caution
         </span>
-        <span className={resolvedIntensity >= 80 ? 'text-rose-300/90' : undefined}>Storm</span>
+        <span className={!supportiveDay && resolvedIntensity >= 80 ? 'text-rose-300/90' : undefined}>Storm</span>
       </div>
       {variant === 'hero' && typeof streak === 'number' && streak > 0 ? (
         <p className="mt-1.5 text-right text-xs text-slate-400">{streak}-day return streak</p>
@@ -243,7 +258,7 @@ export function AtmosphereHeader({
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-wider text-slate-400">Life weather</p>
               <div className="flex flex-wrap items-center gap-2">
-                <p className={`text-sm font-bold ${tone.text}`}>{tone.label}</p>
+                <p className={`text-sm font-bold ${tone.text}`}>{headline}</p>
                 <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>
                   {formatDualScoreUi(resolvedIntensity, frictionPercent)}
                 </span>
@@ -283,7 +298,7 @@ export function AtmosphereHeader({
           <h2
             className={`text-[2.75rem] font-black uppercase leading-[0.95] tracking-tight sm:text-5xl md:text-[3.5rem] ${tone.text} drop-shadow-[0_0_28px_rgba(255,255,255,0.1)]`}
           >
-            {tone.label}
+            {headline}
           </h2>
           <div className="mb-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <span className={`text-2xl font-bold tabular-nums sm:text-3xl ${tone.text} opacity-90`}>
@@ -327,6 +342,6 @@ export function AtmosphereHeader({
 }
 
 export function getAtmosphereShellClassName(intensity?: number, dayRating?: DayRating | string): string {
-  const tone = resolveTone(resolveAtmosphereIntensity(intensity, dayRating));
+  const tone = resolveScreenTone(intensity, dayRating);
   return `rounded-2xl border ${tone.border} bg-gradient-to-br ${tone.shellBg} shadow-xl ${tone.glow}`;
 }

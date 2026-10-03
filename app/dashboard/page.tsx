@@ -805,9 +805,9 @@ export default function UnifiedDashboard() {
   ]);
 
   const sendDailyOracleFeedback = useCallback(async (signal: 'hit' | 'missed') => {
-    if (!userId || !dailyOracle?.message) return;
+    if (!userId || !dailyOracle?.message) return false;
     try {
-      await fetch('/api/oracle-feedback', {
+      const response = await fetch('/api/oracle-feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -815,13 +815,18 @@ export default function UnifiedDashboard() {
           source: 'daily_oracle_feedback',
           message: dailyOracle.message,
           feedback: signal,
+          date: dailyOracle.date,
+          mbtiType: speakingMbti || mbtiType || undefined,
         }),
       });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) return false;
       fetchPatternMirror();
+      return true;
     } catch {
-      // Feedback should not interrupt the experience.
+      return false;
     }
-  }, [userId, dailyOracle, fetchPatternMirror]);
+  }, [userId, dailyOracle, fetchPatternMirror, speakingMbti, mbtiType]);
 
   // Refetch Daily Oracle when chart loads or local calendar day rolls over
   useEffect(() => {

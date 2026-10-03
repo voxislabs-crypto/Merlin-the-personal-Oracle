@@ -1,4 +1,10 @@
-import { clampIntensity, resolveAtmosphereIntensity, resolveTone } from '@/lib/atmosphere/tone';
+import {
+  clampIntensity,
+  resolveAtmosphereIntensity,
+  resolveScreenTone,
+  resolveTone,
+  screenToneHeadline,
+} from '@/lib/atmosphere/tone';
 
 describe('atmosphere tone', () => {
   it('clamps intensity to 0-100', () => {
@@ -35,5 +41,28 @@ describe('atmosphere tone', () => {
 
   it('includes shell background tokens for card chrome', () => {
     expect(resolveTone(55).shellBg).toContain('slate-900');
+  });
+
+  it('keeps a green day off the red Storm Watch screen', () => {
+    const tone = resolveScreenTone(80, 'green');
+    expect(tone.label).toBe('Clear Flow');
+    expect(tone.icon).toBe('clear');
+    expect(tone.shellBg).toContain('emerald');
+    expect(tone.text).toContain('emerald');
+    expect(screenToneHeadline(80, 'green')).toBe('Green Day');
+  });
+
+  it('keeps the alarm meter when the day is green', () => {
+    expect(resolveAtmosphereIntensity(80, 'green')).toBe(80);
+    expect(resolveAtmosphereIntensity(67, 'green')).toBe(67);
+  });
+
+  it('leaves a red high-alarm day on Storm Watch', () => {
+    expect(resolveScreenTone(80, 'red').label).toBe('Storm Watch');
+    expect(screenToneHeadline(80, 'red')).toBe('Storm Watch');
+  });
+
+  it('names an already-clear green day Clear Flow', () => {
+    expect(screenToneHeadline(28, 'green')).toBe('Clear Flow');
   });
 });

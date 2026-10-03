@@ -15,6 +15,43 @@ export function resolveAtmosphereIntensity(
   return clampIntensity(ratingToIntensity(dayRating));
 }
 
+const SUPPORTIVE_DAY_RATINGS = new Set(['green', 'positive', 'very positive']);
+
+/** Transit day is supportive — green, positive, or very positive. */
+export function isSupportiveDayRating(dayRating?: DayRating | string | null): boolean {
+  return SUPPORTIVE_DAY_RATINGS.has((dayRating || '').trim().toLowerCase());
+}
+
+/**
+ * Screen chrome. Alarm still owns the meter.
+ * A supportive day does not wear a red Storm Watch shell.
+ */
+export function resolveScreenTone(
+  intensity?: number,
+  dayRating?: DayRating | string | null,
+): AtmosphereTone {
+  const alarm = resolveAtmosphereIntensity(intensity, dayRating ?? undefined);
+  if (isSupportiveDayRating(dayRating)) {
+    return resolveTone(Math.min(alarm, 39));
+  }
+  return resolveTone(alarm);
+}
+
+/**
+ * Headline on the weather screen.
+ * When a green day would otherwise read Storm Watch, say Green Day.
+ */
+export function screenToneHeadline(
+  intensity?: number,
+  dayRating?: DayRating | string | null,
+): string {
+  const alarm = resolveAtmosphereIntensity(intensity, dayRating ?? undefined);
+  const tone = resolveScreenTone(intensity, dayRating);
+  if (!isSupportiveDayRating(dayRating) || alarm < 40) return tone.label;
+  const raw = (dayRating || '').trim().toLowerCase();
+  return raw === 'green' ? 'Green Day' : 'Open Day';
+}
+
 export function resolveTone(intensity: number): AtmosphereTone {
   const resolved = clampIntensity(intensity);
 

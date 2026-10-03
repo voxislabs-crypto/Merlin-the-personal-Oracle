@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { detectPatternFromText, logInteractionEvent } from '@/lib/pattern-mirror';
+import { recordReadingSignal } from '@/lib/feedback/record-reading-signal';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, source = 'daily_oracle', message = '', feedback } = body || {};
+    const { userId, source = 'daily_oracle', message = '', feedback, date, mbtiType } = body || {};
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 });
@@ -14,19 +14,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Invalid feedback' }, { status: 400 });
     }
 
-    const detected = detectPatternFromText(message || feedback);
-
-    await logInteractionEvent({
+    const day = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : 'today';
+    const stored = await recordReadingSignal({
       userId,
-      type: source,
-      content: message,
-      detectedPattern: detected.key,
-      confidence: detected.confidence,
-      feedbackSignal: feedback,
-      metadata: { source },
+      source,
+      aspectId: `daily-oracle-${day}`,
+      theme: 'daily-oracle',
+      signal: feedback,
+      message: typeof message === 'string' ? message : '',
+      mbtiType: typeof mbtiType === 'string' ? mbtiType : undefined,
     });
 
-    return NextResponse.json({ success: true });
+    if (!stored.pattern && !stored.resonance) {
+      return NextResponse.json(
+        { success: false, error: 'Feedback could not be stored', ...stored },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json({ success: true, ...stored });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
