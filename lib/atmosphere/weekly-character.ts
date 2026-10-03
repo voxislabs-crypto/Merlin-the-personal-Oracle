@@ -85,12 +85,13 @@ function dominantSign(whispers?: Array<{ whisper?: string | null }> | null): str
   }
   let best: string | null = null;
   let bestCount = 0;
-  for (const [sign, count] of counts) {
+  // Map iteration needs ES2015+ or downlevelIteration; this project targets ES5.
+  counts.forEach((count, sign) => {
     if (count > bestCount) {
       best = sign;
       bestCount = count;
     }
-  }
+  });
   return best;
 }
 
