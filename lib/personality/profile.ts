@@ -10,6 +10,7 @@ import {
   type ChartVoiceFacts,
   type ChartVoiceInput,
 } from '@/lib/personality/chart-source';
+import { RESPONSE_LIMIT_BONUS } from '@/lib/discussion-controller';
 import { getPersonaSpec, type PersonaSpec, type VoiceIntent } from '@/lib/personality/persona-spec';
 import type { BirthChartData } from '@/types/astrology';
 import type { MBTIType } from '@/lib/mbti-system';
@@ -158,8 +159,8 @@ ${
   options?.lengthOverride
     ? options.lengthOverride.note
     : length
-      ? `${length.densityNote} Target ${length.minWords}–${length.maxWords} words. Density: ${length.density}.`
-      : '80–160 words unless the ask is smaller. No repetition to fill space. No mid-word cuts.'
+      ? `${length.densityNote.replace(/^\d+\s+to\s+\d+\s+words,\s*/i, '')} Density: ${length.density}. You may write up to ${length.maxWords + RESPONSE_LIMIT_BONUS} words. Do not cut a real answer off to stay inside a short quota.`
+      : `You may write up to ${160 + RESPONSE_LIMIT_BONUS} words. No repetition to fill space. No mid-word cuts.`
 }
 
 CHART VOICE (source of truth — not a Sun-sign switch)

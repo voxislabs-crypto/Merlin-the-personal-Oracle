@@ -1,9 +1,12 @@
 import 'server-only';
 
+import { RESPONSE_LIMIT_BONUS } from '@/lib/discussion-controller';
+
 /**
- * Mode detection for adaptive Oracle responses.
- * Prefer full oracle (with app sight) for life/timing/self questions.
- * True "casual" is only small talk with no chart stakes.
+ * Small-talk gate for adaptive Oracle responses.
+ * Greetings skip the model. Everything else stays on the full oracle.
+ * Reading vs direct conversation (percentages, length) is decided by
+ * lib/discussion-controller.ts, not this function.
  */
 
 export function detectQueryMode(question: string): 'astro' | 'casual' {
@@ -128,9 +131,11 @@ export function isIdentityDualQuestion(question: string): boolean {
 }
 
 export const IDENTITY_DEEP_DIVE_MIN_WORDS = 400;
-export const IDENTITY_DEEP_DIVE_MAX_WORDS = 700;
-export const IDENTITY_DEEP_DIVE_MAX_TOKENS = 4500;
-export const DEFAULT_ORACLE_MAX_TOKENS = 2200;
+export const IDENTITY_DEEP_DIVE_MAX_WORDS = 700 + RESPONSE_LIMIT_BONUS;
+export const IDENTITY_DEEP_DIVE_MAX_TOKENS = 4500 + RESPONSE_LIMIT_BONUS;
+export const DEFAULT_ORACLE_MAX_TOKENS = 2200 + RESPONSE_LIMIT_BONUS;
+/** Default chat reply ceiling before a question asks for the long identity brief. */
+export const DEFAULT_ORACLE_MAX_WORDS = 280 + RESPONSE_LIMIT_BONUS;
 
 /** Token cap is keyed off the question, never Core type. */
 export function oracleMaxTokensForQuestion(question: string): number {

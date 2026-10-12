@@ -47,6 +47,6 @@ describe('isIdentityDualQuestion', () => {
   it('raises the token cap for identity asks regardless of Core type', () => {
     const identity = 'Explain my Core vs Mask and how people misread me.';
     expect(oracleMaxTokensForQuestion(identity)).toBe(IDENTITY_DEEP_DIVE_MAX_TOKENS);
-    expect(oracleMaxTokensForQuestion('What is Uranus squaring my Venus today?')).toBe(2200);
+    expect(oracleMaxTokensForQuestion('What is Uranus squaring my Venus today?')).toBe(2700);
   });
 });

@@ -152,8 +152,8 @@ function createOmen(seed: number, values: Record<string, string>, era: ProphecyE
     compileTemplate(pick(TEMPLATES.timing, seed, 1), values),
     compileTemplate(pick(TEMPLATES.blessing, seed, 2), values),
     compileTemplate(pick(TEMPLATES.challenge, seed, 3), values),
-    pick(TEMPLATES.action, seed, 4),
-    pick(TEMPLATES.closing, seed, 5),
+    compileTemplate(pick(TEMPLATES.action, seed, 4), values),
+    compileTemplate(pick(TEMPLATES.closing, seed, 5), values),
     ERA_STYLES[era].close,
   ];
   return lines.join(' ');

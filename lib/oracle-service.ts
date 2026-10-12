@@ -11,7 +11,16 @@ import { formatScorePairContext, formatStormWatchScoreLine } from '@/lib/atmosph
 import { MERLIN_VOICE_SYSTEM_BLOCK } from '@/lib/voice/merlin-voice';
 import { classifyIntent } from '@/lib/personality/intent';
 import { buildVoiceProfile, buildVoiceStrategyBlock } from '@/lib/personality/profile';
-import { isIdentityDualQuestion } from '@/lib/chat-adapter';
+import {
+  DEFAULT_ORACLE_MAX_WORDS,
+  IDENTITY_DEEP_DIVE_MAX_WORDS,
+  IDENTITY_DEEP_DIVE_MIN_WORDS,
+  isIdentityDualQuestion,
+} from '@/lib/chat-adapter';
+import {
+  classifyDiscussionTurn,
+  formatDiscussionControllerBlock,
+} from '@/lib/discussion-controller';
 import type { MentionWorthySet } from '@/lib/astrology/mention-worthy';
 import type { LivedThemePacket } from '@/lib/astrology/lived-themes';
 import type { LivedMeaningPacket, ReflectionPacket } from '@/lib/astrology/meaning-synthesis';
@@ -96,6 +105,10 @@ export interface OracleContext {
     final?: string;
   } | null;
   tonePreset?: 'warm' | 'direct' | 'mystic' | 'strategic';
+  /** Auto decides reading vs conversation. Casual forces conversation. Detailed forces a reading. */
+  oracleMode?: 'auto' | 'casual' | 'detailed';
+  /** When false, reading turns describe meters in words and cite no percents. */
+  includeLikelihood?: boolean;
   patternMirror?: {
     dominant?: {
       pattern: string;
@@ -920,7 +933,7 @@ This is NOT a storm-radar question. Do not use Now / Near Future / Week Ahead wi
 
 ${formatDualTypeBlock(types)}
 
-LENGTH: 400–700 words. Short paragraphs. Ignore the persona word budget for this turn — it applies to every Core type, not only INFP. Do not shrink to avoid empty streams.
+LENGTH: ${IDENTITY_DEEP_DIVE_MIN_WORDS}–${IDENTITY_DEEP_DIVE_MAX_WORDS} words. Short paragraphs. Ignore the persona word budget for this turn — it applies to every Core type, not only INFP. Do not shrink to avoid empty streams.
 
 REQUIRED SHAPE
 1. Chart evidence. Name two or three natal placements that justify Core, and two that justify Mask. You MAY name Sun, Moon, Mercury, Rising, and one aspect even if Clarity is on — translate each into lived language in the same breath. Example shape: a water Moon and water houses support an INFP/INFJ core; Virgo or air Mercury plus a cooler Rising supports an INTP mask. Use the actual natal in APP SIGHT, not a generic example.
@@ -967,6 +980,11 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
     [...context.conversationHistory].reverse().find((m) => m.role === 'user')?.content ||
     '';
   const identityDive = isIdentityDualQuestion(lastUserAsk);
+  const discussionTurn = classifyDiscussionTurn({
+    question: lastUserAsk,
+    oracleMode: context.oracleMode,
+    includeLikelihood: context.includeLikelihood,
+  });
   const voiceProfile = buildVoiceProfile({
     chart: context.birthChart,
     coreType: dualTypes.core || dual?.core || context.mbtiType || chartMbti,
@@ -980,13 +998,22 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
     identityDive
       ? {
           lengthOverride: {
-            minWords: 400,
-            maxWords: 700,
-            note: 'IDENTITY ASK: 400–700 words. Ignore the persona min/max word budget for this turn, regardless of Core type (INFP, INFJ, ESTP, or any other). Cadence stays; length does not shrink.',
+            minWords: IDENTITY_DEEP_DIVE_MIN_WORDS,
+            maxWords: IDENTITY_DEEP_DIVE_MAX_WORDS,
+            note: `IDENTITY ASK: ${IDENTITY_DEEP_DIVE_MIN_WORDS}–${IDENTITY_DEEP_DIVE_MAX_WORDS} words. Ignore the persona min/max word budget for this turn, regardless of Core type (INFP, INFJ, ESTP, or any other). Cadence stays; length does not shrink.`,
           },
         }
-      : undefined,
+      : discussionTurn.loosenLength
+        ? {
+            lengthOverride: {
+              minWords: discussionTurn.minWords,
+              maxWords: discussionTurn.maxWords,
+              note: discussionTurn.lengthNote,
+            },
+          }
+        : undefined,
   );
+  const discussionBlock = formatDiscussionControllerBlock(discussionTurn, { identityDive });
   const identityAddon = buildIdentityDeepDiveAddon(lastUserAsk, dualTypes);
 
   const languageRule = identityDive
@@ -1020,7 +1047,7 @@ WHO YOU ARE (voice — companion)
 - Direct and somewhat formal, never stiff. No corporate filler, no horoscope clichés, no "dear seeker" theatrics.
 - You *see* people: reflect the real question under their words, name the tension accurately, give one clean move.
 - Interactive: answer what they asked; if the ask is vague, ask ONE precise clarifying question after a useful first pass.
-- Match length to the question: short for simple checks, deeper for identity / dual-type / "how people misread me" (400–700 words). Default ~120–280 words unless they ask for more or the IDENTITY DEEP DIVE block is present.
+- Match length to the question: short for simple checks, deeper for identity / dual-type / "how people misread me" (${IDENTITY_DEEP_DIVE_MIN_WORDS}–${IDENTITY_DEEP_DIVE_MAX_WORDS} words). Default up to ~${DEFAULT_ORACLE_MAX_WORDS} words unless they ask for more or the IDENTITY DEEP DIVE block is present.
 - Explain *them* and their day — not the ephemeris. Astrology stays infrastructure.
 
 ═══════════════════════════════════════
@@ -1033,7 +1060,7 @@ GUARDRAILS (non-negotiable)
 5. NO SCARE TACTICS — Hard windows are named clearly without catastrophizing. "Elevated friction" not "your life will fall apart."
 6. PRIVACY OF CLAIM — Do not invent childhood trauma, secret enemies, or medical conditions.
 7. SAFETY LANGUAGE — Prefer "you might notice" / "pressure is elevated in" over absolute prophecies.
-8. SCORE LABELS — A day may have two percents. Storm Watch / alarm is weather intensity. Friction is hard-aspect load. If you mention a number, name the meter: "Storm Watch 85 alarm, friction 71." Never present them as two official scores for the same thing.
+8. SCORE LABELS — A day may have two percents. Storm Watch / alarm is weather intensity. Friction is hard-aspect load. Cite a percent only when the DISCUSSION CONTROLLER says this turn is a reading and percentages are allowed. When you do, name the meter: "Storm Watch 85 alarm, friction 71." Never present them as two official scores for the same thing. On a conversation turn, use no numbers.
 
 ═══════════════════════════════════════
 HOW TO ANSWER (interaction model)
@@ -1041,7 +1068,7 @@ HOW TO ANSWER (interaction model)
 A. Address *their* question first in the opening sentence — not a weather monologue if they asked something else.
 B. When the topic is timing / friction / "is life going to suck": lead with LIFE RISK + STORM PLAYBOOK (level, when, confidence, one move).
 C. When the topic is identity / dual type / Core / Mask / "how people misread me": follow IDENTITY DEEP DIVE. Chart evidence first. Do not paraphrase the weather card. Do not use the storm three-window template.
-D. When the topic is purely conversational: stay human and present; lightly use weather only if it honestly helps.
+D. When the DISCUSSION CONTROLLER says conversation: stay human and present. Answer in prose. Do not revert to percentages, Storm Watch figures, or the score card.
 E. End with either a concrete next move OR a single intelligent question that deepens the thread — not both stacked every time.
 F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitly want a full domain scan.
 
@@ -1080,6 +1107,8 @@ ${identityAddon ? `\n${identityAddon}` : ''}
 ${timelineContext ? `\n${timelineContext}` : ''}
 ${userContextBlock ? `\n${userContextBlock}` : ''}
 ${patternMirrorBlock ? `\n${patternMirrorBlock}` : ''}
+
+${discussionBlock}
 
 CONVERSATION HISTORY (recent):
 ${recentContext || "[First session — introduce yourself briefly as Merlin if needed, then answer.]"}`;

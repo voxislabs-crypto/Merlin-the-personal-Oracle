@@ -152,7 +152,7 @@ export function toOracleConversationHistory(
     .slice(-ORACLE_CHAT_MAX_PROMPT_MESSAGES)
     .map((message) => ({
       role: message.role,
-      content: message.content.slice(0, 8000),
+      content: message.content.slice(0, 8000 + 500),
       timestamp:
         message.timestamp instanceof Date
           ? message.timestamp.toISOString()

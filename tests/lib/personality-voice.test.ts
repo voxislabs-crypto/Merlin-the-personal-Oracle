@@ -131,7 +131,7 @@ describe('adapter is not a string filter', () => {
     });
     const block = buildVoiceStrategyBlock(profile, 'reflection');
     expect(block).toMatch(/VOICE STRATEGY/);
-    expect(block).toMatch(/40 to 70 words/);
+    expect(block).toMatch(/up to 570 words/);
     expect(block).toMatch(/Moon in Cancer/);
     expect(block).toMatch(/SPEAKING VOICE: Core INFJ/);
     expect(block).toMatch(/MASK TINT \(surface only\): INTP/);
@@ -249,7 +249,7 @@ describe('Oracle prompt uses the strategy, not a type label', () => {
     expect(prompt).toMatch(/Mask: INTP/);
     expect(prompt).toMatch(/Integrated: INFP/);
     expect(prompt).toMatch(/IDENTITY DEEP DIVE/);
-    expect(prompt).toMatch(/400–700 words/);
+    expect(prompt).toMatch(/400–1200 words/);
     expect(prompt).toMatch(/Ignore the persona min\/max word budget/);
     expect(prompt).toMatch(/regardless of Core type/);
     expect(prompt).not.toMatch(/Target 40–75 words/);
@@ -275,9 +275,9 @@ describe('Oracle prompt uses the strategy, not a type label', () => {
       mbtiType: 'ESTP',
     });
     for (const prompt of [infj, estp]) {
-      expect(prompt).toMatch(/IDENTITY ASK: 400–700 words/);
+      expect(prompt).toMatch(/IDENTITY ASK: 400–1200 words/);
       expect(prompt).not.toMatch(/Target \d+–\d+ words/);
-      expect(prompt).toMatch(/400–700 words/);
+      expect(prompt).toMatch(/400–1200 words/);
     }
   });
 

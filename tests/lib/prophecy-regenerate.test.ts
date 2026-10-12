@@ -53,6 +53,21 @@ describe('prophecy regenerate entropy', () => {
     expect(unique.size).toBeGreaterThan(1);
   });
 
+  it('substitutes planet names in action lines', () => {
+    let costume: string | undefined;
+    for (let i = 0; i < 80 && !costume; i += 1) {
+      const prophecy = generateProphecy({
+        birthChart: mockChart,
+        style: 'omen',
+        era: 'babylonian',
+        seedSalt: `action-${i}`,
+      }).prophecy;
+      expect(prophecy).not.toMatch(/\{[A-Za-z]+\}/);
+      if (prophecy.includes('as a costume')) costume = prophecy;
+    }
+    expect(costume).toContain("wearing your Jupiter's name as a costume");
+  });
+
   it('varies sequential regenerate-style salts', () => {
     const texts = Array.from({ length: 8 }, (_, i) =>
       generateProphecy({

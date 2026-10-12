@@ -37,6 +37,7 @@ import {
   oracleMaxTokensForQuestion,
   shouldSkipStructure,
 } from '@/lib/chat-adapter';
+import { classifyDiscussionTurn } from '@/lib/discussion-controller';
 import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import {
@@ -152,10 +153,14 @@ export async function POST(request: NextRequest) {
     if (activeMode === 'casual' && hasAppData) {
       activeMode = 'astro';
     }
-    const shouldSkipPercentages = shouldSkipStructure(question) && !includeLikelihood;
+    const discussionTurn = classifyDiscussionTurn({
+      question,
+      oracleMode,
+      includeLikelihood,
+    });
 
     console.log(
-      `[Oracle Chat] Mode: question="${question.substring(0, 40)}..." → ${activeMode} (appData=${hasAppData}, skip_structure=${shouldSkipPercentages})`
+      `[Oracle Chat] Mode: question="${question.substring(0, 40)}..." → ${activeMode} (appData=${hasAppData}, discussion=${discussionTurn.register}, percentages=${discussionTurn.allowPercentages}, reason=${discussionTurn.reason})`
     );
 
     // ========== CASUAL FAST PATH (no chart / no weather) ==========
@@ -422,6 +427,8 @@ export async function POST(request: NextRequest) {
         final: resolvedDual.final || undefined,
       },
       tonePreset,
+      oracleMode,
+      includeLikelihood,
       patternMirror,
     };
 
