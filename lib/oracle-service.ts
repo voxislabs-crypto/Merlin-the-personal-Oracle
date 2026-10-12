@@ -501,12 +501,41 @@ Total active transits: ${transits.summary.total} | Exact: ${transits.summary.exa
   `.trim();
 }
 
+function pressureBand(value: number): 'high' | 'elevated' | 'mixed' | 'quiet' {
+  if (value >= 75) return 'high';
+  if (value >= 55) return 'elevated';
+  if (value >= 35) return 'mixed';
+  return 'quiet';
+}
+
 /**
  * Format LifeRiskPacket — score-first transit impact (authoritative for "is life friction elevated?")
+ * Conversation turns hide the figures so the model cannot recite them.
  */
-function formatLifeRiskContext(packet: AtmospherePacket | undefined): string {
+function formatLifeRiskContext(
+  packet: AtmospherePacket | undefined,
+  speakScores = true,
+): string {
   const risk = packet?.risk;
   if (!risk) return '';
+
+  if (!speakScores) {
+    const driverNames = risk.topDrivers
+      .slice(0, 4)
+      .map((d) => d.label)
+      .filter(Boolean);
+    const domainNames = risk.domains
+      .filter((d) => d.friction >= 40 || d.support >= 40)
+      .slice(0, 4)
+      .map((d) => d.label);
+    return `
+LIFE PRESSURE (background only — do not recite, do not cite a number):
+- Disruption is ${risk.elevatedDisruption ? 'elevated' : 'not elevated'}. Felt pressure is ${pressureBand(risk.overallFriction)}.
+- Drivers: ${driverNames.join('; ') || 'none named'}
+- Domains in play: ${domainNames.join(', ') || 'quiet'}
+- Use rule: let this color judgment. Do not open with it. Do not quote alarm, friction, confidence, or any percent. Do not copy a canned move.
+  `.trim();
+  }
 
   const drivers = risk.topDrivers
     .slice(0, 5)
@@ -576,15 +605,20 @@ ${domains || '  (balanced / quiet)'}
 /**
  * Format Atmosphere Engine packet into oracle context
  */
-function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
+function formatAtmosphereContext(
+  packet: AtmospherePacket | undefined,
+  speakScores = true,
+): string {
   if (!packet) return '';
 
-  const riskBlock = formatLifeRiskContext(packet);
-  const scorePair = formatScorePairContext(
-    packet.tone.label,
-    packet.intensity,
-    packet.risk?.overallFriction,
-  );
+  const riskBlock = formatLifeRiskContext(packet, speakScores);
+  const scorePair = speakScores
+    ? formatScorePairContext(
+        packet.tone.label,
+        packet.intensity,
+        packet.risk?.overallFriction,
+      )
+    : `SCORE PAIR: hidden this turn. Felt pressure is ${pressureBand(packet.intensity)}. Do not cite alarm, friction, confidence, or any percent.`;
 
   const confluenceLine = packet.confluence.aligned
     ? `- Signal alignment: YES${packet.confluence.tripleHit ? ' · TRIPLE HIT' : ''} (${packet.confluence.themes.slice(0, 3).join(', ') || 'multiple layers converging'})`
@@ -592,7 +626,9 @@ function formatAtmosphereContext(packet: AtmospherePacket | undefined): string {
 
   const realityLine =
     packet.realityCheck.source !== 'none'
-      ? `- Reality check: felt ${packet.feltIntensity}% vs sky alarm ${packet.intensity}% (mood signal ${packet.realityCheck.sentimentScore ?? 'n/a'}%, readiness ×${packet.readinessModifier.toFixed(2)}, branch ${packet.realityCheck.guidanceBranch})`
+      ? speakScores
+        ? `- Reality check: felt ${packet.feltIntensity}% vs sky alarm ${packet.intensity}% (mood signal ${packet.realityCheck.sentimentScore ?? 'n/a'}%, readiness ×${packet.readinessModifier.toFixed(2)}, branch ${packet.realityCheck.guidanceBranch})`
+        : `- Reality check: mood and sky ${packet.feltIntensity >= packet.intensity - 10 ? 'agree the day is heavy' : 'are out of step'}. Branch ${packet.realityCheck.guidanceBranch}. Do not cite a percent.`
       : '- Reality check: no check-in or journal signal yet';
 
   const patternLine =
@@ -608,8 +644,8 @@ ${riskBlock ? `${riskBlock}\n\n` : ''}${scorePair}
 
 LIFE WEATHER / ATMOSPHERE (secondary tone for today — after life risk):
 - Date: ${packet.date}
-- Life weather tone: ${packet.tone.label} (${packet.intensity}% alarm)
-- Felt intensity: ${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})
+- Life weather tone: ${speakScores ? `${packet.tone.label} (${packet.intensity}% alarm)` : pressureBand(packet.intensity)}
+- Felt intensity: ${speakScores ? `${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})` : pressureBand(packet.feltIntensity)}
 - Day rating: ${packet.dayRating}
 - Dominant driver (engine label — translate for the user): ${packet.dominantDriver.label}
 - Why this tone: ${packet.dominantDriver.rationale}
@@ -630,21 +666,28 @@ ${confluenceLine}
           .join('; ')
       : 'none within 1°'
   }
-- Confidence: ${packet.confidence}%
-- Use rule: Life RISK is primary for timing / disruption. Atmosphere tone is the alarm (Storm Watch at 80+). If you cite a percent, use the SCORE PAIR form so alarm and friction don't look like a fight.
+- Confidence: ${speakScores ? `${packet.confidence}%` : pressureBand(packet.confidence)}
+- Use rule: ${speakScores ? "Life RISK is primary for timing / disruption. Atmosphere tone is the alarm (Storm Watch at 80+). If you cite a percent, use the SCORE PAIR form so alarm and friction don't look like a fight." : 'Do not cite a percent. Do not name Storm Watch as a number. Answer the person.'}
   `.trim();
 }
 
 /**
  * Format daily forecast into context
  */
-function formatDailyForecastContext(forecast: DailyForecast | undefined): string {
+function formatDailyForecastContext(
+  forecast: DailyForecast | undefined,
+  speakScores = true,
+): string {
   if (!forecast) return '';
 
   const highlights = forecast.planetaryHighlights.slice(0, 4).join('\n  ');
   const futureSignals = (forecast.futureSignals || [])
     .slice(0, 4)
-    .map((s) => `- ${s.domain}: ${s.signal} (${s.probability}% in ${s.timeframe}) | Move: ${s.action}`)
+    .map((s) =>
+      speakScores
+        ? `- ${s.domain}: ${s.signal} (${s.probability}% in ${s.timeframe}) | Move: ${s.action}`
+        : `- ${s.domain}: ${s.signal} (${s.timeframe})`,
+    )
     .join('\n');
   const timingWindows = forecast.timingWindows
     ? `\n- Next 24h: ${forecast.timingWindows.next24Hours}\n- Next 72h: ${forecast.timingWindows.next72Hours}\n- Week Ahead: ${forecast.timingWindows.weekAhead}`
@@ -693,7 +736,10 @@ ${turningPointsStr || 'None in immediate timeframe'}
 /**
  * Format storms report into tactical context for oracle response
  */
-function formatStormsContext(report: OracleContext['stormsReport']): string {
+function formatStormsContext(
+  report: OracleContext['stormsReport'],
+  speakScores = true,
+): string {
   if (!report) return '';
 
   const horizon = report.horizonDays ?? 30;
@@ -701,7 +747,8 @@ function formatStormsContext(report: OracleContext['stormsReport']): string {
   const topStormsStr = topStorms
     .map((s) => {
       const cat = s.categoryLabel || s.category || s.lifeArea;
-      const conf = typeof s.confidence === 'number' ? `${s.confidence}% conf` : 'conf n/a';
+      const conf =
+        speakScores && typeof s.confidence === 'number' ? `${s.confidence}% conf` : s.intensity;
       const when = s.when?.summary || s.date;
       const title = s.plainTitle || s.title;
       const steps = s.actionableSteps?.slice(0, 2).join(' | ');
@@ -724,7 +771,7 @@ ${topStormsStr || '- No major storms scored'}
 /**
  * Inventory of live app signals Merlin can honestly claim to "see"
  */
-function formatAppSightInventory(context: OracleContext): string {
+function formatAppSightInventory(context: OracleContext, speakScores = true): string {
   const risk = context.atmospherePacket?.risk;
   const chart = Boolean(context.birthChart);
   const dual = context.dualPersonality;
@@ -745,23 +792,29 @@ function formatAppSightInventory(context: OracleContext): string {
           : 'not loaded'
     }`,
     `- Score pair: ${
-      context.atmospherePacket
-        ? `${formatStormWatchScoreLine(
-            context.atmospherePacket.tone.label,
-            context.atmospherePacket.intensity,
-            risk?.overallFriction,
-          )} — two meters (alarm vs hard-aspect load); cite both if you cite either`
-        : 'not loaded'
+      !context.atmospherePacket
+        ? 'not loaded'
+        : speakScores
+          ? `${formatStormWatchScoreLine(
+              context.atmospherePacket.tone.label,
+              context.atmospherePacket.intensity,
+              risk?.overallFriction,
+            )} — two meters (alarm vs hard-aspect load); cite both if you cite either`
+          : `hidden this turn (${pressureBand(context.atmospherePacket.intensity)} pressure). Do not cite a number.`
     }`,
     `- Life risk: ${
-      risk
-        ? `level=${risk.level}, friction=${risk.overallFriction}/100 (hard-aspect load), elevatedDisruption=${risk.elevatedDisruption}, conf=${risk.confidence}%`
-        : 'not loaded (do not invent risk scores)'
+      !risk
+        ? 'not loaded (do not invent risk scores)'
+        : speakScores
+          ? `level=${risk.level}, friction=${risk.overallFriction}/100 (hard-aspect load), elevatedDisruption=${risk.elevatedDisruption}, conf=${risk.confidence}%`
+          : `disruption ${risk.elevatedDisruption ? 'elevated' : 'quiet'}, pressure ${pressureBand(risk.overallFriction)}. Do not cite a number.`
     }`,
     `- Atmosphere tone: ${
-      context.atmospherePacket
-        ? `${context.atmospherePacket.tone.label} · alarm ${context.atmospherePacket.intensity}% · driver: ${context.atmospherePacket.dominantDriver.label}`
-        : 'not loaded'
+      !context.atmospherePacket
+        ? 'not loaded'
+        : speakScores
+          ? `${context.atmospherePacket.tone.label} · alarm ${context.atmospherePacket.intensity}% · driver: ${context.atmospherePacket.dominantDriver.label}`
+          : `${pressureBand(context.atmospherePacket.intensity)} · driver: ${context.atmospherePacket.dominantDriver.label}`
     }`,
     `- Storm playbook: ${storms > 0 ? `${storms} storm window(s)` : 'none or not loaded'}`,
     `- Active transits: ${transitTotal > 0 ? `${transitTotal} total (${transitExact} exact/significant)` : 'not loaded'}`,
@@ -952,29 +1005,6 @@ Do not repeat the dashboard headline.`.trim();
  * Voice: formal-direct + conversational; risk/storm data first; guardrails always on.
  */
 export function buildOracleSystemPrompt(context: OracleContext): string {
-  const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
-  const fullPlanetaryAnalysis = context.birthChart ? formatFullPlanetaryAnalysis(context.birthChart) : '';
-  const livedThemesContext = formatLivedThemesContext(context.transits?.livedThemes);
-  const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
-  const atmosphereContext = context.atmospherePacket
-    ? formatAtmosphereContext(context.atmospherePacket)
-    : '';
-  const forecastContext = context.dailyForecast ? formatDailyForecastContext(context.dailyForecast) : '';
-  const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
-  const userContextBlock = context.userContext ? formatUserContext(context.userContext) : '';
-  const patternMirrorBlock = context.patternMirror ? formatPatternMirrorContext(context.patternMirror) : '';
-  const stormsContext = context.stormsReport ? formatStormsContext(context.stormsReport) : '';
-  const appSight = formatAppSightInventory(context);
-  const recentContext = context.conversationHistory
-    .slice(-8)
-    .map((m) => `${m.role}: ${m.content}`)
-    .join('\n');
-  const plainEnglish = context.plainEnglish !== false;
-  const tonePreset = context.tonePreset || 'warm';
-  const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
-  const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
-  const dualTypes = resolveOracleDualTypes(context);
-  const dual = context.dualPersonality;
   const lastUserAsk =
     context.currentQuestion ||
     [...context.conversationHistory].reverse().find((m) => m.role === 'user')?.content ||
@@ -985,6 +1015,35 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
     oracleMode: context.oracleMode,
     includeLikelihood: context.includeLikelihood,
   });
+  const speakScores = discussionTurn.allowPercentages && !identityDive;
+
+  const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
+  const fullPlanetaryAnalysis = context.birthChart ? formatFullPlanetaryAnalysis(context.birthChart) : '';
+  const livedThemesContext = formatLivedThemesContext(context.transits?.livedThemes);
+  const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
+  const atmosphereContext = context.atmospherePacket
+    ? formatAtmosphereContext(context.atmospherePacket, speakScores)
+    : '';
+  const forecastContext = context.dailyForecast
+    ? formatDailyForecastContext(context.dailyForecast, speakScores)
+    : '';
+  const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
+  const userContextBlock = context.userContext ? formatUserContext(context.userContext) : '';
+  const patternMirrorBlock = context.patternMirror ? formatPatternMirrorContext(context.patternMirror) : '';
+  const stormsContext = context.stormsReport
+    ? formatStormsContext(context.stormsReport, speakScores)
+    : '';
+  const appSight = formatAppSightInventory(context, speakScores);
+  const recentContext = context.conversationHistory
+    .slice(-8)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join('\n');
+  const plainEnglish = context.plainEnglish !== false;
+  const tonePreset = context.tonePreset || 'warm';
+  const stanceMode = (context.userContext?.arcLevel || 1) > 3 ? 'direct' : 'soft';
+  const chartMbti = (context.birthChart as any)?.personalitySnapshot?.finalType;
+  const dualTypes = resolveOracleDualTypes(context);
+  const dual = context.dualPersonality;
   const voiceProfile = buildVoiceProfile({
     chart: context.birthChart,
     coreType: dualTypes.core || dual?.core || context.mbtiType || chartMbti,
@@ -1040,12 +1099,15 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
 
 ${MERLIN_VOICE_SYSTEM_BLOCK}
 
+CHAT SHAPE (overrides the three-layer headings above)
+Write paragraphs a person would say out loud. Never print a line that is Headline, Why, or Move. A three-part card is a failed reply.
+
 ═══════════════════════════════════════
 WHO YOU ARE (voice — companion)
 ═══════════════════════════════════════
 - Intellectual, composed, and conversational — like a trusted strategist who also understands the psyche.
 - Direct and somewhat formal, never stiff. No corporate filler, no horoscope clichés, no "dear seeker" theatrics.
-- You *see* people: reflect the real question under their words, name the tension accurately, give one clean move.
+- You *see* people: reflect the real question under their words and name the tension accurately. A next step belongs at the end when it helps, not as a labeled Move.
 - Interactive: answer what they asked; if the ask is vague, ask ONE precise clarifying question after a useful first pass.
 - Match length to the question: short for simple checks, deeper for identity / dual-type / "how people misread me" (${IDENTITY_DEEP_DIVE_MIN_WORDS}–${IDENTITY_DEEP_DIVE_MAX_WORDS} words). Default up to ~${DEFAULT_ORACLE_MAX_WORDS} words unless they ask for more or the IDENTITY DEEP DIVE block is present.
 - Explain *them* and their day — not the ephemeris. Astrology stays infrastructure.
@@ -1066,7 +1128,7 @@ GUARDRAILS (non-negotiable)
 HOW TO ANSWER (interaction model)
 ═══════════════════════════════════════
 A. Address *their* question first in the opening sentence — not a weather monologue if they asked something else.
-B. When the topic is timing / friction / "is life going to suck": lead with LIFE RISK + STORM PLAYBOOK (level, when, confidence, one move).
+B. When they explicitly ask how bad the day is, or for the friction / alarm numbers: lead with LIFE RISK in prose and name the meters. Otherwise do not open with the score.
 C. When the topic is identity / dual type / Core / Mask / "how people misread me": follow IDENTITY DEEP DIVE. Chart evidence first. Do not paraphrase the weather card. Do not use the storm three-window template.
 D. When the DISCUSSION CONTROLLER says conversation: stay human and present. Answer in prose. Do not revert to percentages, Storm Watch figures, or the score card.
 E. End with either a concrete next move OR a single intelligent question that deepens the thread — not both stacked every time.

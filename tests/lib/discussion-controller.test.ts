@@ -95,8 +95,66 @@ describe('oracle prompt discussion controller', () => {
     });
     expect(prompt).toMatch(/DISCUSSION CONTROLLER: conversation/);
     expect(prompt).toMatch(/No percentages/);
+    expect(prompt).toMatch(/three-part card is a failed answer/);
     expect(prompt).toMatch(/Ignore the persona word cap/);
     expect(prompt).not.toMatch(/Target 40–70 words/);
+  });
+
+  it('hides storm and friction figures when the question is not a meter', () => {
+    const prompt = buildOracleSystemPrompt({
+      ...base,
+      currentQuestion:
+        'should I say fuck the world and do me, or should I submit? I need to manage my ADHD and anxiety from here on.',
+      atmospherePacket: {
+        date: '2026-10-12',
+        intensity: 90,
+        feltIntensity: 90,
+        readinessModifier: 1,
+        dayRating: 'red',
+        tone: { label: 'Storm Watch' },
+        dominantDriver: { label: 'Saturn square Moon', rationale: 'Pressure is elevated.', source: 'transit' },
+        risk: {
+          date: '2026-10-12',
+          windowDays: 7,
+          overallFriction: 71,
+          level: 'friction',
+          elevatedDisruption: true,
+          confidence: 70,
+          headline: 'Hard window',
+          move: 'Finish one work task before 2 pm.',
+          topDrivers: [],
+          frictionWindows: [],
+          supportWindows: [],
+          horizon: [],
+          nextFrictionPeak: null,
+          nextSupportPeak: null,
+          domains: [],
+          provenance: [],
+          generatedAt: '2026-10-12T12:00:00.000Z',
+        },
+        temporal: { baselineTemperature: 'neutral' },
+        confluence: { aligned: false, tripleHit: false, themes: [], signalCount: 0, sources: [] },
+        realityCheck: {
+          sentimentScore: null,
+          readinessModifier: 1,
+          feltIntensity: 90,
+          gap: 0,
+          guidanceBranch: 'neutral',
+          guidanceNote: '',
+          source: 'none',
+        },
+        patterns: { active: [], modifier: 1, tags: [], provenance: [] },
+        confidence: 70,
+        provenance: [],
+        generatedAt: '2026-10-12T12:00:00.000Z',
+      } as OracleContext['atmospherePacket'],
+    });
+
+    expect(prompt).toMatch(/SCORE PAIR: hidden/);
+    expect(prompt).toMatch(/Never print a line that is Headline, Why, or Move/);
+    expect(prompt).not.toMatch(/Storm Watch 90/);
+    expect(prompt).not.toMatch(/friction 71\/100/);
+    expect(prompt).not.toMatch(/Finish one work task before 2 pm/);
   });
 
   it('keeps a meter question on the reading path', () => {

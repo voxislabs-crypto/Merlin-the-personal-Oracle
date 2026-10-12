@@ -196,12 +196,13 @@ ${numbers}`;
   }
 
   if (turn.register === 'discussion') {
-    return `DISCUSSION CONTROLLER: conversation. This turn overrides SCORE PAIR and SCORE LABELS.
-- Direct conversation. Answer the person first.
-- No percentages. No Storm Watch numbers. No friction scores. No likelihoods. No read-confidence or chart-confidence figures.
-- Do not open on a meter. If they asked you to elaborate, explain, or step away from the scale, stay off it.
-- You may use what the app can see, in lived language, when it honestly helps. One observation, not a sky inventory.
-- Do not use the headline / why / move card. Talk. Vary the shape.
+    return `DISCUSSION CONTROLLER: conversation. This turn overrides SCORE PAIR, SCORE LABELS, and the dashboard card.
+- Answer the question they actually asked. A decision gets both sides and a recommendation. A life commitment gets a way to live it, not today's weather recap.
+- No percentages. No Storm Watch numbers. No friction scores. No likelihoods. No read-confidence or chart-confidence figures. The numbers were withheld from this prompt on purpose.
+- Weather may appear as one plain sentence, and only if it changes the advice.
+- Write prose paragraphs. Never print a line that is Headline, Why, or Move. A three-part card is a failed answer.
+- Do not paste a canned "one move" from the engine. The reply has to belong to this question.
+- At least four paragraphs. Under 150 words is too tight.
 - ${turn.lengthNote}`;
   }
 
@@ -216,5 +217,6 @@ ${numbers}`;
   return `DISCUSSION CONTROLLER: reading.
 - A meter reading is in scope.
 - ${numbers}
+- Write prose paragraphs. Never print a line that is Headline, Why, or Move. A three-part card is a failed answer even on a reading.
 - ${length}`;
 }
