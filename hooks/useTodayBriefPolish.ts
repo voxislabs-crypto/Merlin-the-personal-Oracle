@@ -46,59 +46,60 @@ function snapshotKey(snap: TodayBriefPolishSnapshot): string {
 export function useTodayBriefPolish(snapshot: TodayBriefPolishSnapshot) {
   const [polish, setPolish] = useState<TodayBriefPolishResult | null>(null);
   const lastKey = useRef('');
+  const requestId = useRef(0);
 
   useEffect(() => {
     if (snapshot.loading) return;
     if (!snapshot.date || !snapshot.leadFact || !snapshot.chartWhy) return;
     const key = snapshotKey(snapshot);
     if (key === lastKey.current && polish) return;
-    lastKey.current = key;
 
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 5000);
-
-    void fetch('/api/today-brief', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        date: snapshot.date,
-        leadFact: snapshot.leadFact,
-        leadFactDisplay: snapshot.leadFactDisplay,
-        chartWhy: snapshot.chartWhy,
-        move: snapshot.move,
-        watchFor: snapshot.watchFor,
-        operationalTension: snapshot.operationalTension,
-        doNot: snapshot.doNot,
-        coreType: snapshot.coreType,
-        maskType: snapshot.maskType,
-        sunSign: snapshot.sunSign,
-        moonSign: snapshot.moonSign,
-        moonPhase: snapshot.moonPhase,
-        heldFromYesterday: snapshot.heldFromYesterday,
-        yesterdayRestless: snapshot.yesterdayRestless,
-        streak: snapshot.streak,
-      }),
-    })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const json = (await response.json()) as { success?: boolean; data?: TodayBriefPolishResult | null };
-        if (!json?.success || !json.data?.chartWhy) return null;
-        return json.data;
+    // Wait until the dashboard snapshot settles. Aborting the POST cuts the body
+    // off, and the route then throws "Unexpected end of JSON input".
+    const id = ++requestId.current;
+    const payload = {
+      date: snapshot.date,
+      leadFact: snapshot.leadFact,
+      leadFactDisplay: snapshot.leadFactDisplay,
+      chartWhy: snapshot.chartWhy,
+      move: snapshot.move,
+      watchFor: snapshot.watchFor,
+      operationalTension: snapshot.operationalTension,
+      doNot: snapshot.doNot,
+      coreType: snapshot.coreType,
+      maskType: snapshot.maskType,
+      sunSign: snapshot.sunSign,
+      moonSign: snapshot.moonSign,
+      moonPhase: snapshot.moonPhase,
+      heldFromYesterday: snapshot.heldFromYesterday,
+      yesterdayRestless: snapshot.yesterdayRestless,
+      streak: snapshot.streak,
+    };
+    const timer = window.setTimeout(() => {
+      lastKey.current = key;
+      void fetch('/api/today-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-      .then((data) => {
-        if (data) setPolish(data);
-      })
-      .catch(() => {
-        // Deterministic copy is the product; polish is extra.
-      })
-      .finally(() => {
-        window.clearTimeout(timer);
-      });
+        .then(async (response) => {
+          if (!response.ok) return null;
+          const json = (await response.json()) as { success?: boolean; data?: TodayBriefPolishResult | null };
+          if (!json?.success || !json.data?.chartWhy) return null;
+          return json.data;
+        })
+        .then((data) => {
+          if (id !== requestId.current) return;
+          if (data) setPolish(data);
+        })
+        .catch(() => {
+          // Deterministic copy is the product; polish is extra.
+        });
+    }, 400);
 
     return () => {
-      controller.abort();
       window.clearTimeout(timer);
+      requestId.current += 1;
     };
     // Intentionally keyed by snapshot identity, not every field object identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
