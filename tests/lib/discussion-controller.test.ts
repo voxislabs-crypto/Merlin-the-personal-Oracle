@@ -1,5 +1,10 @@
 import { buildOracleSystemPrompt, type OracleContext } from '@/lib/oracle-service';
-import { classifyDiscussionTurn } from '@/lib/discussion-controller';
+import {
+  classifyDiscussionTurn,
+  replyBreaksConversation,
+  scrubPriorAssistantReply,
+  stripWeatherCardShape,
+} from '@/lib/discussion-controller';
 
 describe('classifyDiscussionTurn', () => {
   it('treats a meter question as a reading and allows percentages', () => {
@@ -70,6 +75,37 @@ describe('classifyDiscussionTurn', () => {
     });
     expect(detailed.register).toBe('reading');
     expect(detailed.reason).toBe('detailed');
+  });
+});
+
+describe('weather card replies', () => {
+  const card = `Headline:
+ Build an ADHD-anxiety system, but start with one steady habit today.
+Why:
+ Storm Watch 90 alarm flags the day's intensity, and friction 71 means a big push will knot your chest.
+Move:
+ Set a 10-minute timer, finish one work task before 2 pm, then pause.`;
+
+  it('rejects the headline card and score cites on a conversation turn', () => {
+    expect(replyBreaksConversation(card, false)).toBe(true);
+    expect(replyBreaksConversation('Talk this through with me in plain paragraphs.', false)).toBe(false);
+    expect(replyBreaksConversation('Friction is up, but here is the call.', true)).toBe(false);
+  });
+
+  it('stops a prior card from teaching the next reply', () => {
+    expect(scrubPriorAssistantReply(card)).toMatch(/Ignore the previous weather-card/);
+    expect(scrubPriorAssistantReply('You already know the call. Keep the boundary.')).toBe(
+      'You already know the call. Keep the boundary.',
+    );
+  });
+
+  it('strips labels and meter figures when a rewrite still comes back as a card', () => {
+    const stripped = stripWeatherCardShape(card);
+    expect(stripped).not.toMatch(/Headline:/);
+    expect(stripped).not.toMatch(/Why:/);
+    expect(stripped).not.toMatch(/Move:/);
+    expect(stripped).not.toMatch(/Storm Watch 90/);
+    expect(stripped).not.toMatch(/friction 71/);
   });
 });
 

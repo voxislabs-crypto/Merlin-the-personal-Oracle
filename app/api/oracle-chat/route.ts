@@ -37,7 +37,12 @@ import {
   oracleMaxTokensForQuestion,
   shouldSkipStructure,
 } from '@/lib/chat-adapter';
-import { classifyDiscussionTurn } from '@/lib/discussion-controller';
+import {
+  classifyDiscussionTurn,
+  replyBreaksConversation,
+  scrubPriorAssistantReply,
+  stripWeatherCardShape,
+} from '@/lib/discussion-controller';
 import { wantsAncientLayer } from '@/lib/astrology/ancient-astrology';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
 import {
@@ -221,8 +226,16 @@ export async function POST(request: NextRequest) {
     // ========== FULL MERLIN (app sight + conversation) ==========
     console.log('[Oracle Chat] Full Merlin path — chart / weather / interactive');
 
-    // Get conversation history
+    // Get conversation history. Cards already in the thread teach the next
+    // reply to copy Headline / Why / Move and the same two scores.
     const history = oracleMemory.getHistory(userId);
+    const promptHistory = discussionTurn.allowPercentages
+      ? history
+      : history.map((message) =>
+          message.role === 'assistant'
+            ? { ...message, content: scrubPriorAssistantReply(message.content) }
+            : message,
+        );
 
     // Calculate real-time transit and forecast data if birth chart provided
     let transits: TransitData | undefined;
@@ -412,7 +425,7 @@ export async function POST(request: NextRequest) {
       atmospherePacket: atmospherePacket || undefined,
       userContext,
       stormsReport,
-      conversationHistory: history,
+      conversationHistory: promptHistory,
       currentQuestion: question,
       userId,
       currentDate: new Date(),
@@ -458,7 +471,7 @@ export async function POST(request: NextRequest) {
 
     // Convert conversation history to OpenAI-compatible chat format
     const messages = [
-      ...history.map(msg => ({
+      ...promptHistory.map(msg => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
       })),
@@ -556,6 +569,20 @@ export async function POST(request: NextRequest) {
           let fullResponse = '';
           const decoder = new TextDecoder();
           let sseBuffer = '';
+          // Hold conversation replies until they pass the card check.
+          // Streaming a Headline / Why / Move draft would show the user the reject.
+          const holdReply = !discussionTurn.allowPercentages;
+          const pushChunk = (content: string) => {
+            if (!content || holdReply) return;
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'chunk',
+                  content,
+                }) + '\n'
+              )
+            );
+          };
 
           while (true) {
             const { done, value } = await reader.read();
@@ -576,15 +603,7 @@ export async function POST(request: NextRequest) {
                   const content = extractChatDeltaText(parsed);
                   if (content) {
                     fullResponse += content;
-                    // Send streaming chunk to client
-                    controller.enqueue(
-                      encoder.encode(
-                        JSON.stringify({
-                          type: 'chunk',
-                          content,
-                        }) + '\n'
-                      )
-                    );
+                    pushChunk(content);
                   }
                 } catch {
                   // Skip parse errors in stream
@@ -603,14 +622,7 @@ export async function POST(request: NextRequest) {
                 const content = extractChatDeltaText(parsed);
                 if (content) {
                   fullResponse += content;
-                  controller.enqueue(
-                    encoder.encode(
-                      JSON.stringify({
-                        type: 'chunk',
-                        content,
-                      }) + '\n'
-                    )
-                  );
+                  pushChunk(content);
                 }
               } catch {
                 // Ignore trailing parse errors
@@ -633,14 +645,7 @@ export async function POST(request: NextRequest) {
               );
               if (fallback.trim()) {
                 fullResponse = fallback.trim();
-                controller.enqueue(
-                  encoder.encode(
-                    JSON.stringify({
-                      type: 'chunk',
-                      content: fullResponse,
-                    }) + '\n'
-                  )
-                );
+                pushChunk(fullResponse);
               }
             } catch (fallbackError) {
               console.error('[Oracle] Non-stream fallback failed:', fallbackError);
@@ -658,6 +663,44 @@ export async function POST(request: NextRequest) {
             );
             controller.close();
             return;
+          }
+
+          if (holdReply && replyBreaksConversation(fullResponse, false)) {
+            console.warn('[Oracle Chat] Rejected weather-card reply; rewriting');
+            try {
+              const rewritten = await chatCompletion(
+                {
+                  messages: [
+                    ...llmMessages,
+                    { role: 'assistant', content: fullResponse },
+                    {
+                      role: 'user',
+                      content: `Rejected. You answered with a Headline / Why / Move weather card and cited the day's scores. The person asked: ${question}\n\nRewrite as several paragraphs about that question. No line may be Headline, Why, or Move. No Storm Watch number. No friction number. No percent. Do not recycle a timer-before-2pm task unless they asked about a clock.`,
+                    },
+                  ],
+                  temperature: 0.85,
+                  maxTokens,
+                },
+                llmConfig,
+              );
+              if (rewritten.trim()) fullResponse = rewritten.trim();
+            } catch (rewriteError) {
+              console.warn('[Oracle Chat] Card rewrite failed', rewriteError);
+            }
+            if (replyBreaksConversation(fullResponse, false)) {
+              const stripped = stripWeatherCardShape(fullResponse);
+              if (stripped.length > 80) fullResponse = stripped;
+            }
+          }
+          if (holdReply) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'chunk',
+                  content: fullResponse,
+                }) + '\n'
+              )
+            );
           }
 
           // Identity deep-dives are the reading. Don't pin a sentence as a "move"

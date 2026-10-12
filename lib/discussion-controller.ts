@@ -179,6 +179,36 @@ export function classifyDiscussionTurn(input: ClassifyDiscussionInput): Discussi
   }, includeLikelihood);
 }
 
+const CARD_LABEL = /^\s*(headline|why|move)\s*:/im;
+const SCORE_CITE = /\b(?:storm watch\s+\d+|friction\s+\d+)\b/i;
+
+/** True when a reply is the dashboard card, or cites meters on a conversation turn. */
+export function replyBreaksConversation(text: string, allowScores: boolean): boolean {
+  const raw = text || '';
+  if (CARD_LABEL.test(raw)) return true;
+  if (!allowScores && SCORE_CITE.test(raw)) return true;
+  return false;
+}
+
+/**
+ * Prior assistant cards teach the next reply to copy them.
+ * Drop the card. Keep an ordinary answer.
+ */
+export function scrubPriorAssistantReply(text: string): string {
+  if (!replyBreaksConversation(text, false)) return text;
+  return 'Ignore the previous weather-card reply. Do not repeat its Headline / Why / Move shape, its scores, or its task-before-2pm move.';
+}
+
+/** Last resort when a rewrite still comes back as a card. */
+export function stripWeatherCardShape(text: string): string {
+  return (text || '')
+    .replace(/^\s*(headline|why|move)\s*:\s*/gim, '')
+    .replace(/[^.!?\n]*\b(?:storm watch\s+\d+|friction\s+\d+(?:\s*\/\s*100)?)\b[^.!?\n]*[.!?]?/gi, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /**
  * Prompt block. Place it after score-label rules so it can override them.
  * Identity deep dives keep their own length; this block must not fight that.
