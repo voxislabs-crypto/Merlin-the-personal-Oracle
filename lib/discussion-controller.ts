@@ -196,7 +196,34 @@ export function replyBreaksConversation(text: string, allowScores: boolean): boo
  */
 export function scrubPriorAssistantReply(text: string): string {
   if (!replyBreaksConversation(text, false)) return text;
-  return 'Ignore the previous weather-card reply. Do not repeat its Headline / Why / Move shape, its scores, or its task-before-2pm move.';
+  return 'Ignore the previous weather-card reply. Do not repeat its Headline / Why / Move shape, its scores, its timer, or a write-it-down task.';
+}
+
+/** They asked Merlin to draft or capture, not merely mentioned the word. */
+const ASKED_TO_CAPTURE =
+  /\b(help me (?:write|draft|journal)|draft (?:a|an|the|this)\b|write (?:this|it|that) (?:down|out|up)|start a journal|in my notebook|take notes on)\b/i;
+
+/** A stock ending: private note, journal, "done" log, or "write it down." */
+const CAPTURE_DEFAULT =
+  /\b(?:write (?:a|an|the|it|this|that|one|down)\b|jot\b|private note|private notebook|\bin a notebook\b|journal\b|log\s+[“"']?done|done[”"']?\s+note)\b/i;
+
+export function questionAskedToCapture(question: string | null | undefined): boolean {
+  return ASKED_TO_CAPTURE.test(question || '');
+}
+
+/** True when the reply leans on writing something down as the resolution. */
+export function replyDefaultsToCapture(text: string | null | undefined): boolean {
+  return CAPTURE_DEFAULT.test(text || '');
+}
+
+/** Rewrite instruction when a reply is a weather card or a stock writing task. */
+export function formatRejectedReplyRewrite(question: string, reasons: string[]): string {
+  const why = reasons.filter(Boolean).join(' ');
+  return `Rejected. ${why} The person asked: ${question}
+
+Rewrite as several paragraphs about that question. No line may be Headline, Why, or Move. No Storm Watch number. No friction number. No percent.
+Do not recycle a timer, a private note, a journal line, or a "write it down" task unless they asked to draft or capture something.
+If they refused a step because it would imply agreement, do not assign that step again in any form. Keep their stance. Offer a different kind of move: say the difference once, decline, wait, ask one question, or make no public move.`;
 }
 
 /** Last resort when a rewrite still comes back as a card. */
@@ -232,6 +259,8 @@ ${numbers}`;
 - Weather may appear as one plain sentence, and only if it changes the advice.
 - Write prose paragraphs. Never print a line that is Headline, Why, or Move. A three-part card is a failed answer.
 - Do not paste a canned "one move" from the engine. The reply has to belong to this question.
+- Do not resolve the turn by telling them to write it down, keep a private note, or set a timer unless they asked to draft or capture something.
+- If they reject a move because it would look like agreement, do not repackage that move as a private note. Answer the objection and leave their stance intact.
 - At least four paragraphs. Under 150 words is too tight.
 - ${turn.lengthNote}`;
   }

@@ -1,7 +1,10 @@
 import { buildOracleSystemPrompt, type OracleContext } from '@/lib/oracle-service';
 import {
   classifyDiscussionTurn,
+  formatRejectedReplyRewrite,
+  questionAskedToCapture,
   replyBreaksConversation,
+  replyDefaultsToCapture,
   scrubPriorAssistantReply,
   stripWeatherCardShape,
 } from '@/lib/discussion-controller';
@@ -109,6 +112,38 @@ Move:
   });
 });
 
+describe('capture-default replies', () => {
+  const note =
+    'Write a brief, private note that states exactly what you value, then jot a "done" line in a notebook.';
+
+  it('flags a private-note resolution and ignores a complaint that mentions writing', () => {
+    expect(replyDefaultsToCapture(note)).toBe(true);
+    expect(
+      questionAskedToCapture(
+        'you see where it always suggests to write something down? I do not want that.',
+      ),
+    ).toBe(false);
+    expect(questionAskedToCapture('Help me draft a short note to them.')).toBe(true);
+  });
+
+  it('does not treat a spoken difference as a writing task', () => {
+    expect(
+      replyDefaultsToCapture(
+        'Say the difference once, then stop. You do not have to agree with their frame.',
+      ),
+    ).toBe(false);
+  });
+
+  it('tells a rejected writing card to keep the stance', () => {
+    const prompt = formatRejectedReplyRewrite('I do not agree, and doing it sends the wrong message.', [
+      'You resolved the turn by telling them to write something down.',
+    ]);
+    expect(prompt).toMatch(/Keep their stance/);
+    expect(prompt).toMatch(/do not assign that step again/i);
+    expect(prompt).toMatch(/No line may be Headline/);
+  });
+});
+
 describe('oracle prompt discussion controller', () => {
   const base = {
     conversationHistory: [],
@@ -132,6 +167,8 @@ describe('oracle prompt discussion controller', () => {
     expect(prompt).toMatch(/DISCUSSION CONTROLLER: conversation/);
     expect(prompt).toMatch(/No percentages/);
     expect(prompt).toMatch(/three-part card is a failed answer/);
+    expect(prompt).toMatch(/write it down/);
+    expect(prompt).toMatch(/do not repackage that move as a private note/i);
     expect(prompt).toMatch(/Ignore the persona word cap/);
     expect(prompt).not.toMatch(/Target 40–70 words/);
   });

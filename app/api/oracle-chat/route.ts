@@ -39,7 +39,10 @@ import {
 } from '@/lib/chat-adapter';
 import {
   classifyDiscussionTurn,
+  formatRejectedReplyRewrite,
+  questionAskedToCapture,
   replyBreaksConversation,
+  replyDefaultsToCapture,
   scrubPriorAssistantReply,
   stripWeatherCardShape,
 } from '@/lib/discussion-controller';
@@ -665,8 +668,24 @@ export async function POST(request: NextRequest) {
             return;
           }
 
-          if (holdReply && replyBreaksConversation(fullResponse, false)) {
-            console.warn('[Oracle Chat] Rejected weather-card reply; rewriting');
+          const cardBreak = holdReply && replyBreaksConversation(fullResponse, false);
+          const captureDefault =
+            holdReply &&
+            replyDefaultsToCapture(fullResponse) &&
+            !questionAskedToCapture(question);
+          if (cardBreak || captureDefault) {
+            const reasons = [
+              cardBreak
+                ? 'You answered with a Headline / Why / Move weather card and cited the day\'s scores.'
+                : '',
+              captureDefault
+                ? 'You resolved the turn by telling them to write something down. That is not the move unless they asked to draft or capture something.'
+                : '',
+            ];
+            console.warn('[Oracle Chat] Rejected reply; rewriting', {
+              cardBreak,
+              captureDefault,
+            });
             try {
               const rewritten = await chatCompletion(
                 {
@@ -675,7 +694,7 @@ export async function POST(request: NextRequest) {
                     { role: 'assistant', content: fullResponse },
                     {
                       role: 'user',
-                      content: `Rejected. You answered with a Headline / Why / Move weather card and cited the day's scores. The person asked: ${question}\n\nRewrite as several paragraphs about that question. No line may be Headline, Why, or Move. No Storm Watch number. No friction number. No percent. Do not recycle a timer-before-2pm task unless they asked about a clock.`,
+                      content: formatRejectedReplyRewrite(question, reasons),
                     },
                   ],
                   temperature: 0.85,
