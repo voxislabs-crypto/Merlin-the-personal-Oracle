@@ -4,58 +4,21 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { getMBTITypeDescription, MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/hooks/usePersonality';
-import { Theater, Eye, AlertTriangle, Shuffle } from 'lucide-react';
+import { Theater, Eye, Shuffle } from 'lucide-react';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
 import { useMbtiOverride } from '@/hooks/useMbtiOverride';
 import { applyMbtiUserOverride } from '@/lib/personality/mbti-override';
+import { YourShadowSection, type ShadowTransitItem } from '@/components/astrology/YourShadowSection';
 import flavorsRaw from '@/data/mbti-flavors.json';
-import shadowsRaw from '@/data/mbti-shadows.json';
 
 const flavors = flavorsRaw as Record<string, Record<string, string>>;
 
-interface ShadowEntry {
-  archetype: string;
-  description: string;
-  recovery: string;
-}
-const shadows = shadowsRaw as Record<string, Record<string, ShadowEntry>>;
-
 const MBTI_TYPES: MBTIType[] = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
-
-interface TransitItem {
-  transitingPlanet?: string;
-  natalPlanet?: string;
-  aspect?: string;
-  orb?: number;
-}
-
-function findShadowTrigger(
-  transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null
-): { trigger: string; orb: number } | null {
-  if (!transits) return null;
-  const all: TransitItem[] = [...(transits.significant || []), ...(transits.approaching || [])];
-  let best: { trigger: string; orb: number } | null = null;
-  for (const t of all) {
-    const planet = t.transitingPlanet?.toLowerCase() || '';
-    const aspect = t.aspect?.toLowerCase() || '';
-    const natal = t.natalPlanet?.toLowerCase() || '';
-    const orb = t.orb ?? 99;
-    let name: string | null = null;
-    if (planet === 'mars' && aspect === 'square' && natal === 'moon') name = 'Mars square Moon';
-    else if (planet === 'saturn' && aspect === 'opposition' && natal === 'sun') name = 'Saturn opposition Sun';
-    else if (planet === 'saturn' && aspect === 'square' && natal === 'moon') name = 'Saturn square Moon';
-    else if (planet === 'pluto' && aspect === 'opposition' && natal === 'moon') name = 'Pluto opposition Moon';
-    else if (planet === 'pluto' && aspect === 'square' && natal === 'moon') name = 'Pluto square Moon';
-    else if (planet === 'mars' && aspect === 'opposition' && natal === 'sun') name = 'Mars opposition Sun';
-    if (name && (!best || orb < best.orb)) best = { trigger: name, orb };
-  }
-  return best;
-}
 
 interface DualPersonalityCardsProps {
   mbtiType: MBTIType | null;
   dualOverlay?: DualOverlay | null;
-  transits?: { significant?: TransitItem[]; approaching?: TransitItem[] } | null;
+  transits?: { significant?: ShadowTransitItem[]; approaching?: ShadowTransitItem[] } | null;
   loading?: boolean;
   onAskContext?: (label: string, prompt: string) => void;
   selectedContextLabel?: string;
@@ -66,7 +29,6 @@ interface DualPersonalityCardsProps {
  * Mask (extrovert facade, Sun/Asc) & Core (inner truth, Moon/Mercury).
  */
 export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading = false, onAskContext, selectedContextLabel }: DualPersonalityCardsProps) {
-  const SHADOW_INFO_STORAGE_KEY = 'merlin:shadow-info:expanded';
   const MBTI_OVERRIDE_PANEL_STORAGE_KEY = 'merlin:mbti-override-panel:open';
   const {
     coreOverride: savedOverride,
@@ -76,31 +38,7 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
   } = useMbtiOverride();
   const [showOverride, setShowOverride] = useState(false);
   const [selectedType, setSelectedType] = useState<MBTIType | ''>(savedOverride || '');
-  const [showShadowInfo, setShowShadowInfo] = useState(false);
-  const [shadowPrefLoaded, setShadowPrefLoaded] = useState(false);
   const [overridePanelPrefLoaded, setOverridePanelPrefLoaded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const saved = window.localStorage.getItem(SHADOW_INFO_STORAGE_KEY);
-      if (saved === 'true') setShowShadowInfo(true);
-      if (saved === 'false') setShowShadowInfo(false);
-    } catch {
-      // no-op
-    } finally {
-      setShadowPrefLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !shadowPrefLoaded) return;
-    try {
-      window.localStorage.setItem(SHADOW_INFO_STORAGE_KEY, String(showShadowInfo));
-    } catch {
-      // no-op
-    }
-  }, [showShadowInfo, shadowPrefLoaded]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -143,20 +81,6 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
     const keys = Object.keys(f);
     const key = keys[Math.floor(Math.random() * keys.length)];
     return { name: key, text: f[key] };
-  }, [finalType]);
-
-  const shadowTrigger = useMemo(() => findShadowTrigger(transits), [transits]);
-
-  // Always pick a shadow — stable per finalType, not transit-gated
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const shadowEntry = useMemo<ShadowEntry | null>(() => {
-    if (!finalType) return null;
-    const type = finalType;
-    const s = shadows[type as string];
-    if (!s) return null;
-    const keys = Object.keys(s);
-    const key = keys[Math.floor(Math.random() * keys.length)];
-    return s[key] ?? null;
   }, [finalType]);
 
   const handleSaveOverride = async () => {
@@ -409,112 +333,18 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
         );
       })()}
 
-      {/* What is the shadow? (collapsed by default) */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="rounded-lg border border-slate-700/50 bg-slate-900/50"
       >
-        <button
-          type="button"
-          onClick={() => setShowShadowInfo((prev) => !prev)}
-          className="w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-800/30 transition-colors"
-          aria-expanded={showShadowInfo}
-          aria-controls="shadow-info-details"
-          title={showShadowInfo ? 'Hide shadow explanation' : 'Read shadow explanation'}
-        >
-          <span className="text-sm font-semibold text-slate-300">What is the Shadow?</span>
-          <span className="text-xs text-slate-400">{showShadowInfo ? 'Hide explanation' : 'Read explanation'}</span>
-        </button>
-        {showShadowInfo && (
-          <div id="shadow-info-details" className="px-4 pb-4 text-sm text-slate-300 leading-relaxed border-t border-slate-700/40">
-            <p className="pt-3">
-              The shadow is the dark side of personality: traits, impulses, and emotional reactions you carry but don’t usually show in your everyday identity.
-            </p>
-            <p className="mt-2">
-              It often appears under stress, conflict, rejection, or exhaustion. Shadow does not mean “bad person” — it means unintegrated parts of you that need awareness, ownership, and healthier expression.
-            </p>
-          </div>
-        )}
+        <YourShadowSection
+          mbtiType={finalType}
+          transits={transits}
+          onAskContext={onAskContext}
+          selectedContextLabel={selectedContextLabel}
+        />
       </motion.div>
-
-      {/* Shadow Name Card — always visible */}
-      {shadowEntry && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className={`relative rounded-lg border-2 overflow-hidden transition-colors duration-500 ${
-            shadowTrigger && shadowTrigger.orb < 2
-              ? 'border-red-500/60 bg-gradient-to-br from-red-950/60 to-slate-900/80'
-              : shadowTrigger && shadowTrigger.orb < 4
-              ? 'border-amber-600/50 bg-gradient-to-br from-amber-950/40 to-slate-900/80'
-              : 'border-slate-700/50 bg-gradient-to-br from-slate-800/50 to-slate-900/70'
-          } ${onAskContext ? 'cursor-pointer' : ''} ${selectedContextLabel === 'Shadow name' ? 'ring-1 ring-cyan-300/40' : ''}`}
-          onClick={onAskContext ? () => onAskContext('Shadow name', 'Explain my shadow archetype, why it activates, and what healthier expression looks like.') : undefined}
-        >
-          {/* Blood-glow overlay when active */}
-          {shadowTrigger && shadowTrigger.orb < 2 && (
-            <div className="absolute inset-0 bg-red-900/10 pointer-events-none" />
-          )}
-
-          <div className="relative z-10 p-6">
-            {/* Header row */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${
-                  shadowTrigger && shadowTrigger.orb < 2 ? 'text-red-400' :
-                  shadowTrigger && shadowTrigger.orb < 4 ? 'text-amber-400' : 'text-slate-500'
-                }`} />
-                <span className="text-xs uppercase tracking-widest font-bold text-slate-400">Your Shadow Name</span>
-              </div>
-              {shadowTrigger && (
-                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${
-                  shadowTrigger.orb < 2
-                    ? 'bg-red-500/20 text-red-300 border-red-500/40'
-                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                }`}>
-                  {shadowTrigger.orb < 2 ? '⚡ Rising Now' : '⚠ Approaching'}
-                </span>
-              )}
-            </div>
-
-            {/* Archetype name */}
-            <p className={`text-2xl font-bold mb-0.5 ${
-              shadowTrigger && shadowTrigger.orb < 2 ? 'text-red-300' :
-              shadowTrigger && shadowTrigger.orb < 4 ? 'text-amber-300' : 'text-slate-300'
-            }`}>
-              {shadowEntry.archetype}
-            </p>
-            <p className="text-xs text-slate-500 mb-3">Your hidden side when pressure hits</p>
-
-            {/* Transit alert line */}
-            {shadowTrigger && shadowTrigger.orb < 2 && (
-              <p className="text-sm text-red-300/90 font-medium mb-3">
-                Shadow Alert: {shadowEntry.archetype} is rising — {shadowTrigger.trigger} ({shadowTrigger.orb.toFixed(1)}° orb). Watch for it.
-              </p>
-            )}
-            {shadowTrigger && shadowTrigger.orb >= 2 && shadowTrigger.orb < 4 && (
-              <p className="text-sm text-amber-300/80 mb-3">
-                {shadowTrigger.trigger} ({shadowTrigger.orb.toFixed(1)}° orb) — shadow pressure building. Heads up.
-              </p>
-            )}
-
-            {/* Description */}
-            <p className="text-sm text-slate-300 leading-relaxed mb-4">
-              {shadowEntry.description}
-            </p>
-
-            {/* Recovery */}
-            <div className="border-t border-slate-700/50 pt-3">
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">Recovery</p>
-              <p className="text-sm text-slate-400 italic">{shadowEntry.recovery}</p>
-              {onAskContext ? <p className={`mt-2 text-[11px] ${selectedContextLabel === 'Shadow name' ? 'text-cyan-100' : 'text-cyan-200/70'}`}>{selectedContextLabel === 'Shadow name' ? 'Selected for Merlin' : 'Click card to ask Merlin about your shadow'}</p> : null}
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* Type Override */}
       <motion.div

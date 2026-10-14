@@ -12,7 +12,7 @@ import { ActiveTransits } from '@/components/astrology/ActiveTransits';
 import { LifeTimelineView } from '@/components/astrology/LifeTimelineView';
 import { PlacementsSidebar } from '@/components/astrology/PlacementsSidebar';
 import { StormsAndNavigations } from '@/components/astrology/StormsAndNavigations';
-import { DualPersonalityCards } from '@/components/astrology/DualPersonalityCards';
+import { YourShadowSection } from '@/components/astrology/YourShadowSection';
 import { GrokNarrative } from '@/components/astrology/GrokNarrative';
 import {
   DashboardExperienceTabs,
@@ -3040,7 +3040,7 @@ export default function UnifiedDashboard() {
               >
                 {dashboardTab === 'chart' ? (
                 <SelfShell>
-                <div ref={chartOverviewRef} className="mb-6">
+                <div ref={chartOverviewRef} className="mb-6 space-y-5">
                   <ChartIdentityBrief
                     sunSign={identityPacket.placements.sunSign || sunSign}
                     moonSign={identityPacket.placements.moonSign || moonSign}
@@ -3134,6 +3134,18 @@ export default function UnifiedDashboard() {
                         ? `Rebuild your natal for free. ${chartQuota.remaining} unique-natal slot${chartQuota.remaining === 1 ? '' : 's'} left.`
                         : 'Enter a new birth date, time, or place'
                     }
+                  />
+                  <YourShadowSection
+                    mbtiType={
+                      activeDual?.firmware?.mbtiType ||
+                      identityPacket.mbti.primary?.type ||
+                      activeDual?.finalType ||
+                      mbtiType ||
+                      null
+                    }
+                    transits={transits}
+                    onAskContext={queueAskContext}
+                    selectedContextLabel={askDraftLabel}
                   />
                 </div>
 
