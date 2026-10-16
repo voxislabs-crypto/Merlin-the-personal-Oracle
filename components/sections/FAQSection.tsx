@@ -8,27 +8,32 @@ const faqs = [
   {
     question: 'What is Merlin, in one sentence?',
     answer:
-      'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
+      'A personalized daily reflection companion that uses astrology as its symbolic framework. Today shows the symbolic weather, why it matters to you, and one move. Scores are heuristic intensity, not probabilities.',
   },
   {
     question: 'How is this different from a free horoscope app?',
     answer:
-      'Generic apps lead with sun-sign blurbs. Merlin leads with life weather: intensity, storms, pressure windows, and reality-check against how you actually feel. Self (wheel, placements, MBTI) is depth you can explore, not the only product.',
+      'Merlin leads with a personal reflection: symbolic weather, Core versus Mask, and one move. The chart is a framework for that reflection.',
   },
   {
     question: 'Do I need a birth chart to get life weather?',
     answer:
-      'Yes — birth data is how the weather gets personal. Enter date, time, and place once. Merlin builds your Self map, then uses it for every life-weather forecast. Without a chart, you’re back to generic horoscope noise.',
+      'Yes — birth data is how the reflection gets personal. Enter date, time, and place once. Merlin builds a symbolic Self map, then uses it for each day’s reading.',
   },
   {
     question: 'How accurate are the calculations?',
     answer:
-      'Chart positions use Swiss Ephemeris — professional-grade astronomy, not party-app shortcuts. Forecasts compose transits, pressure, and storms into one Atmosphere packet. Still interpretive; we don’t claim medical or financial certainty.',
+      'Chart positions use Swiss Ephemeris. The reading on top of those positions is symbolic. Atmosphere scores are heuristic intensity, not probabilities, and not a claim of scientific prediction.',
+  },
+  {
+    question: 'What are Core and Mask?',
+    answer:
+      'Core and Mask are symbolic archetypes drawn from the natal chart. They use familiar four-letter labels as a shorthand. They are not the result of a questionnaire MBTI test, and they do not replace one.',
   },
   {
     question: 'What pricing options do you offer?',
     answer:
-      'Free includes chart, dual MBTI, a Today life-weather sample, and 3 Oracle messages per day. Paid unlocks unlimited Oracle, storm radar, weekly horizon, full forecast depth, and timeline. 7-day free trial then $9.99/month, or $50 lifetime (founder pricing while in beta).',
+      'Free includes a chart, Core and Mask archetypes, a Today reflection sample, and 3 Oracle messages per day. Paid unlocks unlimited Oracle, storm radar, weekly horizon, full forecast depth, and timeline. 7-day free trial then $9.99/month, or $50 lifetime (founder pricing while in beta).',
   },
   {
     question: 'Do I need my exact birth time?',

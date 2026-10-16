@@ -195,6 +195,10 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
         </motion.p>
       )}
 
+      <p className="text-xs leading-relaxed text-slate-400">
+        Core and Mask are symbolic archetypes drawn from the chart. The four-letter labels are a shorthand, not a questionnaire MBTI result.
+      </p>
+
       {/* Core first, then mask */}
       <motion.div
         className="grid grid-cols-1 md:grid-cols-2 gap-6"

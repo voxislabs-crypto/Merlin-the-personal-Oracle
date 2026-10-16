@@ -11,16 +11,16 @@ const premiumFeatures = [
   'Life weather · reality check (felt mood vs chart)',
   'Life weather · weekly horizon & today\'s move',
   'Self · full birth chart & interactive wheel',
-  'Self · dual MBTI from your placements',
+  'Self · Core and Mask archetypes from the chart',
   'Unlimited Oracle chat with weather + identity context',
   'Merlin AI interpretations',
-  'Swiss Ephemeris precision',
+  'Swiss Ephemeris chart positions',
   'PWA · install on your phone',
 ];
 
 const freeFeatures = [
   'Birth chart · up to 3 builds / account',
-  'Dual MBTI (Core + Mask) from your chart',
+  'Core and Mask archetypes (not a questionnaire result)',
   'Today’s life weather sample',
   'Oracle chat · 3 messages / day',
 ];

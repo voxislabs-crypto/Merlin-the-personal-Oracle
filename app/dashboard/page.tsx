@@ -3725,7 +3725,7 @@ export default function UnifiedDashboard() {
                                       This module is locked on your current plan.
                                     </p>
                                     <p className="text-amber-200/90 mb-3">
-                                      Free includes dual MBTI and Today&apos;s life weather sample.
+                                      Free includes Core and Mask archetypes and Today&apos;s reflection sample.
                                       Upgrade for chart interpretations, transits, life timeline, and
                                       storm radar.
                                     </p>

@@ -8,7 +8,8 @@ import {
 
 describe('merlin-voice', () => {
   it('exports a product claim and system block', () => {
-    expect(MERLIN_PRODUCT_CLAIM).toMatch(/Not a horoscope/i);
+    expect(MERLIN_PRODUCT_CLAIM).toMatch(/reflection companion/i);
+    expect(MERLIN_PRODUCT_CLAIM).toMatch(/symbolic framework/i);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/Merlin Test/i);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/What does this actually mean for me/i);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(

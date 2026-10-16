@@ -20,7 +20,7 @@ describe('buildShareWeatherText', () => {
     expect(text).toMatch(/Hard friction window|Elevated disruption/i);
     expect(text).toMatch(/One priority max/);
     expect(text).toMatch(/https:\/\/example\.com/);
-    expect(text).toMatch(/Not a horoscope|clear read/i);
+    expect(text).toMatch(/reflection companion/i);
   });
 
   it('labels symbolic intensity and friction load when they differ', () => {

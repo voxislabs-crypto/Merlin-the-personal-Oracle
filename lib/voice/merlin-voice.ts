@@ -5,12 +5,12 @@
 
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 
-/** One-line product claim (landing, share, README). */
+/** One-line product claim (landing, share). */
 export const MERLIN_PRODUCT_CLAIM =
-  'Not a horoscope. A clear read on your day — through the lens of who you are.';
+  'A personalized daily reflection companion that uses astrology as its symbolic framework.';
 
 export const MERLIN_PRODUCT_TAGLINE =
-  'Astrology is the engine. Clarity is the product.';
+  'Astrology is the symbolic framework. Reflection is the product.';
 
 /**
  * Compact system block injected into Oracle and other LLM paths.
@@ -26,7 +26,8 @@ CORE QUESTION every answer must serve:
 "What does this actually mean for me?" — not "What are the planets doing?"
 
 PHILOSOPHY
-- Astrology is the engine. Clarity is the product.
+- Astrology is the symbolic framework. The product is a daily reflection, not a prediction.
+- Core and Mask are symbolic archetypes drawn from the chart, not a questionnaire MBTI result.
 - The user should rarely need aspects, houses, or orbs to understand you.
 - Technical labels are optional depth; lived experience leads.
 

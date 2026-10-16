@@ -16,7 +16,7 @@ const skyFeatures = [
     pillar: 'Weather',
     title: 'Friction radar & storms',
     description:
-      'See when life friction spikes, by day and domain (work, bonds, body, money) — with confidence and a playbook.',
+      'See when symbolic pressure rises, by day and domain (work, bonds, body, money). The meters are heuristic intensity, not probabilities.',
   },
   {
     icon: HeartPulse,
@@ -33,14 +33,14 @@ const selfFeatures = [
     pillar: 'Self',
     title: 'Real birth chart & wheel',
     description:
-      'Swiss Ephemeris precision. Your natal map is the foundation under every forecast — not the whole product.',
+      'Chart positions come from Swiss Ephemeris. The natal map is the symbolic frame under each day’s reflection.',
   },
   {
     icon: Layers,
     pillar: 'Self',
-    title: 'Dual MBTI from the chart',
+    title: 'Core and Mask archetypes',
     description:
-      'Personality layers derived from placements, used as a lens on weather and Oracle tone.',
+      'Symbolic archetypes drawn from the chart. They use four-letter shorthand. They are not a questionnaire MBTI result.',
   },
   {
     icon: MessageCircle,
@@ -89,8 +89,8 @@ export function FeaturesSection() {
             Life weather first. Identity underneath.
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Most apps sell a chart and sprinkle a horoscope. Merlin answers one question people pay for:
-            <span className="text-slate-200"> is life friction elevated for me — and what do I do?</span>
+            A personalized daily reflection companion that uses astrology as its symbolic framework.
+            <span className="text-slate-200"> What’s the weather, why it matters to you, and one move.</span>
           </p>
         </motion.div>
 

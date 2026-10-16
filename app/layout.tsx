@@ -19,24 +19,20 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Merlin — Personalized Life Weather',
+    default: 'Merlin — Daily Reflection Companion',
     template: '%s | Merlin'
   },
-  description: 'Merlin reads your real birth chart and tells you how the current planetary weather is actually going to feel for you — including when storms are coming and what to do about them.',
+  description:
+    'A personalized daily reflection companion that uses astrology as its symbolic framework. Scores are heuristic intensity, not probabilities.',
   keywords: [
-    'personalized life weather',
-    'life weather forecast',
-    'astrology forecast',
-    'daily transit forecast',
-    'storm radar astrology',
+    'daily reflection',
+    'symbolic astrology',
     'birth chart calculator',
     'natal chart',
     'Swiss Ephemeris',
     'astrology app',
-    'personalized horoscope',
-    'MBTI astrology',
-    'pressure windows',
-    'life forecast'
+    'chart archetypes',
+    'life weather',
   ],
   authors: [{ name: 'Merlin Oracle' }],
   creator: 'Merlin Oracle',

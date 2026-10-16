@@ -47,7 +47,7 @@ const trialFeatures = [
   'Storm radar · multi-day pressure & risk windows',
   'Weekly horizon · what’s building this week',
   'Active transits & domain pressure reads',
-  'Self · birth chart wheel & dual MBTI (Core + Mask)',
+  'Self · birth chart wheel and Core / Mask archetypes',
   'Chart reading, life timeline & returns',
   'Oracle chat · unlimited (no free-tier daily cap)',
   'Merlin AI interpretations',
@@ -221,7 +221,7 @@ export default function CheckoutSubscriptionPage() {
                 </div>
 
                 <p className="mt-5 rounded-xl border border-white/5 bg-slate-950/50 px-3 py-2 text-xs leading-relaxed text-slate-500">
-                  Honest note: free already includes a chart peek, dual MBTI, Today sample, and 3
+                  Honest note: free already includes a chart peek, Core and Mask archetypes, a Today sample, and 3
                   Oracle messages/day. Trial unlocks the full weather habit — storms, horizon,
                   unlimited Oracle, and depth modules.
                 </p>
@@ -315,7 +315,7 @@ export default function CheckoutSubscriptionPage() {
             <div className="rounded-xl border border-white/5 bg-slate-950/60 p-4">
               <h4 className="mb-1.5 font-semibold text-white">How is this different from free?</h4>
               <p className="text-sm leading-relaxed text-slate-400">
-                Free is a real peek: chart, dual MBTI, Today sample, 3 Oracle messages/day. Trial
+                Free is a real peek: chart, Core and Mask archetypes, Today sample, 3 Oracle messages/day. Trial
                 unlocks storms, weekly horizon, full forecast depth, timeline, and unlimited Oracle
                 — the daily habit Merlin is built for.
               </p>

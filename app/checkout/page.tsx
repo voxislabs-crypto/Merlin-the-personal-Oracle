@@ -11,7 +11,7 @@ const features = [
   'Full life weather · daily intensity, tone & today’s move',
   'Storm radar, pressure windows & weekly horizon',
   'Unlimited Oracle chat with weather + identity context',
-  'Self · chart wheel, dual MBTI, timeline & transits',
+  'Self · chart wheel, Core and Mask archetypes, timeline & transits',
   'Merlin AI interpretations',
   'Lifetime updates — pay once, keep forever',
 ];

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@clerk/nextjs';
 import { ArrowRight, Calendar, Clock, CloudLightning, Compass, Loader2, MapPin, Radar } from 'lucide-react';
 import { GeocodingService } from '@/lib/astrology/geocoding';
+import { MERLIN_PRODUCT_CLAIM } from '@/lib/voice/merlin-voice';
 
 export const dynamic = 'force-dynamic';
 
@@ -251,7 +252,7 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.1 }}
             className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl bg-gradient-to-r from-sky-300 via-cyan-200 to-amber-300 bg-clip-text text-transparent"
           >
-            Your birth chart, read like weather.
+            A daily reflection companion.
           </motion.h1>
 
           <motion.p
@@ -260,7 +261,7 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="mx-auto mt-4 max-w-xl text-lg text-slate-300 md:text-xl"
           >
-            Not a horoscope. A forecast built from your actual natal chart.
+            {MERLIN_PRODUCT_CLAIM} Scores are heuristic intensity, not probabilities.
           </motion.p>
         </div>
 

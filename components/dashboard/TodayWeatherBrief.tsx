@@ -188,7 +188,7 @@ export function TodayWeatherBrief({
   onRetry,
   isEmpty = false,
   emptyTitle = 'No life weather yet',
-  emptyMessage = "Build your chart from birth details and Merlin will assemble today's personal forecast.",
+  emptyMessage = "Build your chart from birth details and Merlin will reflect today's symbolic weather for you.",
   risk = null,
   firstName = null,
 }: TodayWeatherBriefProps) {
