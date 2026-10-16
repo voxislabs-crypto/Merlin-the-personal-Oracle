@@ -25,6 +25,11 @@ import type { MentionWorthySet } from '@/lib/astrology/mention-worthy';
 import type { LivedThemePacket } from '@/lib/astrology/lived-themes';
 import type { LivedMeaningPacket, ReflectionPacket } from '@/lib/astrology/meaning-synthesis';
 import { asksForSecondaryTool } from '@/lib/oracle-secondary';
+import {
+  asksForNearTermWatch,
+  formatFutureSightForOracle,
+  futureSightFromRisk,
+} from '@/lib/atmosphere/future-sight';
 
 export interface OracleMessage {
   role: 'user' | 'assistant';
@@ -1039,6 +1044,10 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
   const atmosphereContext = context.atmospherePacket
     ? formatAtmosphereContext(context.atmospherePacket, speakScores, secondaryTools)
     : '';
+  const futureSightContext = formatFutureSightForOracle(
+    futureSightFromRisk(context.atmospherePacket?.risk),
+    asksForNearTermWatch(lastUserAsk),
+  );
   const forecastContext = context.dailyForecast
     ? formatDailyForecastContext(context.dailyForecast, speakScores)
     : '';
@@ -1152,6 +1161,7 @@ C. When the topic is identity / dual type / Core / Mask / "how people misread me
 D. When the DISCUSSION CONTROLLER says conversation: stay human and present. Answer in prose. Do not revert to percentages, symbolic intensity, Storm Watch figures, or the score card.
 E. End with either a fitting next move OR a single intelligent question that deepens the thread — not both stacked every time. Follow ACTION FIT. Do not default the ending to writing something down.
 F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitly want a full domain scan.
+G. FUTURE SIGHT — When that block is loaded, explain it only if they ask what is coming, what to watch, or about the next few days. Leave the evidence, horizon, domain, and uncertainty as written. Do not add a confidence or a second theme.
 
 ═══════════════════════════════════════
 DATA PRIORITY
@@ -1176,6 +1186,7 @@ STANCE: ${stanceMode.toUpperCase()}
 
 ${livedThemesContext ? `\n${livedThemesContext}` : ''}
 ${atmosphereContext ? `\n${atmosphereContext}` : ''}
+${futureSightContext ? `\n${futureSightContext}` : ''}
 ${stormsContext ? `\n${stormsContext}` : ''}
 ${transitsContext ? `\n${transitsContext}` : ''}
 ${forecastContext ? `\n${forecastContext}` : ''}

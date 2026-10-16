@@ -19,6 +19,8 @@ import type { LifeRiskPacket } from '@/lib/atmosphere/types';
 import { rewriteLayReason } from '@/lib/astrology/pressure-engine/lay-reason';
 import type { TodayThemeId } from '@/lib/atmosphere/today-oracle/types';
 import { YesterdayLandCheck } from '@/components/dashboard/YesterdayLandCheck';
+import { FutureSightSection } from '@/components/dashboard/FutureSightSection';
+import { futureSightFromRisk, todayFutureSightWatch } from '@/lib/atmosphere/future-sight';
 import {
   preservePriorWeatherWindow,
   writeWeatherWindowSnapshot,
@@ -192,6 +194,7 @@ export function TodayWeatherBrief({
   risk = null,
   firstName = null,
 }: TodayWeatherBriefProps) {
+  const statedWatch = todayFutureSightWatch(futureSightFromRisk(risk));
   useEffect(() => {
     if (loading || isError || isEmpty || !date || !todayMove) return;
     preservePriorWeatherWindow(date, userId);
@@ -202,10 +205,22 @@ export function TodayWeatherBrief({
         themeLabel,
         intensity,
         behaviorTell,
+        watchFor: statedWatch,
       },
       userId,
     );
-  }, [behaviorTell, date, intensity, isEmpty, isError, loading, themeLabel, todayMove, userId]);
+  }, [
+    behaviorTell,
+    date,
+    intensity,
+    isEmpty,
+    isError,
+    loading,
+    statedWatch,
+    themeLabel,
+    todayMove,
+    userId,
+  ]);
 
   const collapseIdentity =
     themeId === 'fog-clarity' ||
@@ -565,6 +580,8 @@ export function TodayWeatherBrief({
               <p className="text-sm leading-relaxed text-slate-300/90 md:text-[15px]">{story}</p>
             </div>
           ) : null}
+
+          <FutureSightSection risk={risk} userId={userId} date={date} />
 
           <YesterdayLandCheck userId={userId} today={date} />
 

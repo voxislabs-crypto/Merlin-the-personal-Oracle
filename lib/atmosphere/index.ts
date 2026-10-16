@@ -35,8 +35,22 @@ export {
   horizonHasUnscored,
   isHorizonFlowWindow,
   DEFAULT_RISK_WINDOW_DAYS,
+  DOMAIN_LABELS,
   type ComputeLifeRiskInput,
 } from '@/lib/atmosphere/life-risk';
+export {
+  asksForNearTermWatch,
+  buildFutureSight,
+  formatFutureSightForOracle,
+  futureSightFromRisk,
+  todayFutureSightWatch,
+  FUTURE_SIGHT_CLARITY,
+  FUTURE_SIGHT_HORIZON_LABEL,
+  type FutureSight,
+  type FutureSightHorizon,
+  type FutureSightSignal,
+  type FutureSightUncertainty,
+} from '@/lib/atmosphere/future-sight';
 export {
   getJournalEntry,
   isJournalOptInEnabled,

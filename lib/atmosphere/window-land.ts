@@ -9,6 +9,8 @@ export type WeatherWindowSnapshot = {
   themeLabel?: string;
   intensity?: number;
   behaviorTell?: string;
+  /** Pre-stated observable from today's future-sight horizon, when one was issued. */
+  watchFor?: string;
 };
 
 const SNAPSHOT_PREFIX = 'merlin_weather_window_v1:';
@@ -22,14 +24,29 @@ function voteKey(userId: string | null | undefined, date: string): string {
   return `${VOTE_PREFIX}${userId || 'anonymous'}:${date}`;
 }
 
+function withDefinedFields(snapshot: WeatherWindowSnapshot): WeatherWindowSnapshot {
+  const next: WeatherWindowSnapshot = { date: snapshot.date };
+  if (snapshot.move != null) next.move = snapshot.move;
+  if (snapshot.themeLabel != null) next.themeLabel = snapshot.themeLabel;
+  if (snapshot.intensity != null) next.intensity = snapshot.intensity;
+  if (snapshot.behaviorTell != null) next.behaviorTell = snapshot.behaviorTell;
+  if (snapshot.watchFor != null) next.watchFor = snapshot.watchFor;
+  return next;
+}
+
 export function writeWeatherWindowSnapshot(
   snapshot: WeatherWindowSnapshot,
   userId?: string | null,
 ): void {
   if (typeof window === 'undefined') return;
   if (!snapshot.date) return;
+  const prior = readWeatherWindowSnapshot(snapshot.date, userId);
+  const merged: WeatherWindowSnapshot = {
+    ...(prior ?? { date: snapshot.date }),
+    ...withDefinedFields(snapshot),
+  };
   try {
-    window.localStorage.setItem(snapshotKey(userId, snapshot.date), JSON.stringify(snapshot));
+    window.localStorage.setItem(snapshotKey(userId, snapshot.date), JSON.stringify(merged));
   } catch {
     // ignore quota
   }

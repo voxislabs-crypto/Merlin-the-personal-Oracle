@@ -30,6 +30,28 @@ describe('window-land', () => {
     expect(readWeatherWindowSnapshot('2026-08-28', 'user-2')).toBeNull();
   });
 
+  it('keeps a pre-stated observable when a later write omits it', () => {
+    writeWeatherWindowSnapshot(
+      {
+        date: '2026-08-28',
+        move: 'Send the draft.',
+        watchFor: 'Notice if a talk gets sharper than the topic.',
+      },
+      'user-1',
+    );
+    writeWeatherWindowSnapshot({ date: '2026-08-28', move: 'Send the draft.' }, 'user-1');
+    expect(readWeatherWindowSnapshot('2026-08-28', 'user-1')).toMatchObject({
+      move: 'Send the draft.',
+      watchFor: 'Notice if a talk gets sharper than the topic.',
+    });
+
+    writeWeatherWindowSnapshot(
+      { date: '2026-08-28', watchFor: 'Notice if a talk gets sharper than the topic.' },
+      'user-1',
+    );
+    expect(readWeatherWindowSnapshot('2026-08-28', 'user-1')?.move).toBe('Send the draft.');
+  });
+
   it('records a land/miss vote once per date', () => {
     writeWeatherLandVote('2026-08-28', 'landed', 'user-1');
     expect(readWeatherLandVote('2026-08-28', 'user-1')).toBe('landed');

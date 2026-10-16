@@ -95,6 +95,7 @@ import {
   preservePriorWeatherWindow,
   writeWeatherWindowSnapshot,
 } from '@/lib/atmosphere/window-land';
+import { futureSightFromRisk, todayFutureSightWatch } from '@/lib/atmosphere/future-sight';
 import { resolveDisplayBirthTime } from '@/lib/datetime/local-calendar';
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier';
 import { clearSubscriptionTierClientCache } from '@/lib/subscription-tier-client';
@@ -2123,6 +2124,8 @@ export default function UnifiedDashboard() {
     todayWeatherStillLoading,
   ]);
 
+  const statedWatch = todayFutureSightWatch(futureSightFromRisk(activeAtmospherePacket?.risk));
+
   React.useEffect(() => {
     if (todayWeatherStillLoading || !lifeWeatherBrief.themeId || !lifeWeatherBrief.move) return;
     const date = forecast?.date || activeAtmospherePacket?.date;
@@ -2135,6 +2138,7 @@ export default function UnifiedDashboard() {
         themeLabel: lifeWeatherBrief.themeLabel,
         intensity: cosmicWeatherIntensity ?? activeAtmospherePacket?.intensity,
         behaviorTell: lifeWeatherBrief.behaviorTell,
+        watchFor: statedWatch,
       },
       userId || undefined,
     );
@@ -2155,6 +2159,7 @@ export default function UnifiedDashboard() {
     lifeWeatherBrief.themeId,
     lifeWeatherBrief.themeLabel,
     rememberTodayMove,
+    statedWatch,
     todayWeatherStillLoading,
     userId,
   ]);

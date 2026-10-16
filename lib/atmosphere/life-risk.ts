@@ -46,7 +46,7 @@ const PERSONAL_POINTS = new Set([
   'rising',
 ]);
 
-const DOMAIN_LABELS: Record<LifeRiskDomain, string> = {
+export const DOMAIN_LABELS: Record<LifeRiskDomain, string> = {
   self: 'Self',
   love: 'Bonds',
   career: 'Work',

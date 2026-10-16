@@ -39,6 +39,7 @@ export function YesterdayLandCheck({
       setJustSaved(true);
       window.setTimeout(() => setJustSaved(false), 1800);
 
+      const cited = snapshot?.watchFor || snapshot?.move;
       if (userId) {
         try {
           await fetch('/api/resonance-feedback', {
@@ -52,7 +53,7 @@ export function YesterdayLandCheck({
                 kind: 'accuracy',
                 resonated: next === 'landed',
                 accuracyScore: next === 'landed' ? 0.85 : next === 'somewhat' ? 0.55 : 0.25,
-                notes: `Accuracy check ${next}${snapshot?.move ? `: ${snapshot.move}` : ''}`,
+                notes: `Accuracy check ${next}${cited ? `: ${cited}` : ''}`,
               },
             }),
           });
@@ -61,7 +62,7 @@ export function YesterdayLandCheck({
         }
       }
     },
-    [snapshot?.move, userId, vote, yesterday],
+    [snapshot?.move, snapshot?.watchFor, userId, vote, yesterday],
   );
 
   if (!ready || !snapshot || vote) {
@@ -83,11 +84,13 @@ export function YesterdayLandCheck({
     >
       <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Yesterday’s call</p>
       <p className="mt-1 text-sm text-slate-200">
-        {snapshot.move
-          ? 'Did that specific move show up yesterday?'
-          : snapshot.behaviorTell || 'Did a specific, pre-stated thing from yesterday happen?'}
+        {snapshot.watchFor
+          ? `Did this show up: ${snapshot.watchFor}`
+          : snapshot.move
+            ? 'Did that specific move show up yesterday?'
+            : snapshot.behaviorTell || 'Did a specific, pre-stated thing from yesterday happen?'}
       </p>
-      {snapshot.move ? (
+      {snapshot.watchFor ? null : snapshot.move ? (
         <p className="mt-1 text-xs text-slate-400 line-clamp-2">Move was: {snapshot.move}</p>
       ) : null}
       <div className="mt-2.5 flex flex-wrap gap-2">
