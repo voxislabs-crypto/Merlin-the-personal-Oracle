@@ -903,7 +903,7 @@ export function lifeRiskLevelPresentation(level: LifeRiskLevel): {
   switch (level) {
     case 'storm':
       return {
-        label: 'Storm risk',
+        label: 'Storm window',
         shortLabel: 'Storm',
         badgeClass: 'border-rose-400/50 bg-rose-500/15 text-rose-100',
         barClass: 'from-rose-500 via-fuchsia-500 to-violet-600',

@@ -533,7 +533,7 @@ LIFE PRESSURE (background only — do not recite, do not cite a number):
 - Disruption is ${risk.elevatedDisruption ? 'elevated' : 'not elevated'}. Felt pressure is ${pressureBand(risk.overallFriction)}.
 - Drivers: ${driverNames.join('; ') || 'none named'}
 - Domains in play: ${domainNames.join(', ') || 'quiet'}
-- Use rule: let this color judgment. Do not open with it. Do not quote alarm, friction, confidence, or any percent. Do not copy a canned move.
+- Use rule: let this color judgment. Do not open with it. Do not quote symbolic intensity, friction load, reading confidence, or any percent. Do not copy a canned move.
   `.trim();
   }
 
@@ -541,7 +541,7 @@ LIFE PRESSURE (background only — do not recite, do not cite a number):
     .slice(0, 5)
     .map(
       (d) =>
-        `  • ${d.label} — friction ${d.friction}/100 · ${d.kind}${d.phase ? ` · ${d.phase}` : ''}${
+        `  • ${d.label} — friction load ${d.friction}/100 (heuristic) · ${d.kind}${d.phase ? ` · ${d.phase}` : ''}${
           d.domains?.length ? ` · domains: ${d.domains.join(', ')}` : ''
         }`
     )
@@ -556,7 +556,7 @@ LIFE PRESSURE (background only — do not recite, do not cite a number):
           : w.peakAt
             ? w.peakAt.slice(0, 10)
             : 'timing TBD';
-      return `  • ${w.label} — ${w.friction}/100 · ${when}`;
+      return `  • ${w.label} — friction load ${w.friction}/100 · ${when}`;
     })
     .join('\n');
 
@@ -568,11 +568,11 @@ LIFE PRESSURE (background only — do not recite, do not cite a number):
   const domains = risk.domains
     .filter((d) => d.friction >= 40 || d.support >= 40)
     .slice(0, 6)
-    .map((d) => `  • ${d.label}: friction ${d.friction} / support ${d.support}`)
+    .map((d) => `  • ${d.label}: theme emphasis, friction load ${d.friction} / support ${d.support}`)
     .join('\n');
 
   const peak = risk.nextFrictionPeak
-    ? `${risk.nextFrictionPeak.label} (friction ${risk.nextFrictionPeak.friction}${
+    ? `${risk.nextFrictionPeak.label} (friction load ${risk.nextFrictionPeak.friction}${
         typeof risk.nextFrictionPeak.daysToPeak === 'number'
           ? `, ~${risk.nextFrictionPeak.daysToPeak}d`
           : ''
@@ -580,12 +580,13 @@ LIFE PRESSURE (background only — do not recite, do not cite a number):
     : 'none scored';
 
   return `
-LIFE RISK / TRANSIT IMPACT (AUTHORITATIVE — answer "is disruption risk / friction elevated?" from THIS first):
+LIFE PRESSURE / TRANSIT IMPACT (AUTHORITATIVE — answer "is disruption or friction elevated?" from THIS first):
+- These figures are heuristic intensity, not calibrated probabilities and not the chance of an outcome.
 - Horizon: ${risk.windowDays} days · Date anchor: ${risk.date}
 - Level: ${risk.level.toUpperCase()}
-- Overall friction (hard-aspect load): ${risk.overallFriction}/100
-- Elevated disruption risk: ${risk.elevatedDisruption ? 'YES' : 'NO'}
-- Confidence: ${risk.confidence}%
+- Friction load (hard-aspect pressure): ${risk.overallFriction}/100
+- Elevated disruption flag: ${risk.elevatedDisruption ? 'YES' : 'NO'}
+- Reading confidence: ${risk.confidence}/100 (how clean the read is, not how likely an outcome is)
 - Headline: ${risk.headline}
 - One move: ${risk.move}
 - Next hard peak: ${peak}
@@ -598,7 +599,7 @@ ${supportWindows || '  (none major)'}
 - Domain pressure:
 ${domains || '  (balanced / quiet)'}
 - Provenance: ${risk.provenance.join(', ')}
-- Use rule: Lead with risk level, elevated disruption flag, next peak, and one concrete move in human language. Translate drivers into felt life stakes. Do NOT open with aspect soup. Story is optional depth after the risk read.
+- Use rule: Lead with the pressure level, the disruption flag, the next peak, and one concrete move in human language. Translate drivers into felt life stakes. Do NOT open with aspect soup. Do not call any figure a probability, a risk percent, or a chance. Story is optional depth after the pressure read.
   `.trim();
 }
 
@@ -618,7 +619,7 @@ function formatAtmosphereContext(
         packet.intensity,
         packet.risk?.overallFriction,
       )
-    : `SCORE PAIR: hidden this turn. Felt pressure is ${pressureBand(packet.intensity)}. Do not cite alarm, friction, confidence, or any percent.`;
+    : `SCORE PAIR: hidden this turn. Felt pressure is ${pressureBand(packet.intensity)}. Do not cite symbolic intensity, friction load, reading confidence, or any percent.`;
 
   const confluenceLine = packet.confluence.aligned
     ? `- Signal alignment: YES${packet.confluence.tripleHit ? ' · TRIPLE HIT' : ''} (${packet.confluence.themes.slice(0, 3).join(', ') || 'multiple layers converging'})`
@@ -627,7 +628,7 @@ function formatAtmosphereContext(
   const realityLine =
     packet.realityCheck.source !== 'none'
       ? speakScores
-        ? `- Reality check: felt ${packet.feltIntensity}% vs sky alarm ${packet.intensity}% (mood signal ${packet.realityCheck.sentimentScore ?? 'n/a'}%, readiness ×${packet.readinessModifier.toFixed(2)}, branch ${packet.realityCheck.guidanceBranch})`
+        ? `- Reality check: felt intensity ${packet.feltIntensity}/100 vs symbolic intensity ${packet.intensity}/100 (mood signal ${packet.realityCheck.sentimentScore ?? 'n/a'}/100, readiness ×${packet.readinessModifier.toFixed(2)}, branch ${packet.realityCheck.guidanceBranch}). Heuristic, not a probability.`
         : `- Reality check: mood and sky ${packet.feltIntensity >= packet.intensity - 10 ? 'agree the day is heavy' : 'are out of step'}. Branch ${packet.realityCheck.guidanceBranch}. Do not cite a percent.`
       : '- Reality check: no check-in or journal signal yet';
 
@@ -644,8 +645,8 @@ ${riskBlock ? `${riskBlock}\n\n` : ''}${scorePair}
 
 LIFE WEATHER / ATMOSPHERE (secondary tone for today — after life risk):
 - Date: ${packet.date}
-- Life weather tone: ${speakScores ? `${packet.tone.label} (${packet.intensity}% alarm)` : pressureBand(packet.intensity)}
-- Felt intensity: ${speakScores ? `${packet.feltIntensity}% (readiness modifier ×${packet.readinessModifier.toFixed(2)})` : pressureBand(packet.feltIntensity)}
+- Life weather tone: ${speakScores ? `${packet.tone.label} (symbolic intensity ${packet.intensity}/100, heuristic)` : pressureBand(packet.intensity)}
+- Felt intensity: ${speakScores ? `${packet.feltIntensity}/100 (readiness modifier ×${packet.readinessModifier.toFixed(2)})` : pressureBand(packet.feltIntensity)}
 - Day rating: ${packet.dayRating}
 - Dominant driver (engine label — translate for the user): ${packet.dominantDriver.label}
 - Why this tone: ${packet.dominantDriver.rationale}
@@ -666,8 +667,8 @@ ${confluenceLine}
           .join('; ')
       : 'none within 1°'
   }
-- Confidence: ${speakScores ? `${packet.confidence}%` : pressureBand(packet.confidence)}
-- Use rule: ${speakScores ? "Life RISK is primary for timing / disruption. Atmosphere tone is the alarm (Storm Watch at 80+). If you cite a percent, use the SCORE PAIR form so alarm and friction don't look like a fight." : 'Do not cite a percent. Do not name Storm Watch as a number. Answer the person.'}
+- Reading confidence: ${speakScores ? `${packet.confidence}/100 (cleaner read, not a higher chance of coming true)` : pressureBand(packet.confidence)}
+- Use rule: ${speakScores ? 'Life pressure is primary for timing. Symbolic intensity sets the mood word (Storm Watch at 80+). If you cite a figure, use the SCORE PAIR form, name the meter, and call it a heuristic. Never say it is a probability.' : 'Do not cite a percent. Do not name symbolic intensity or Storm Watch as a number. Answer the person.'}
   `.trim();
 }
 
@@ -685,7 +686,7 @@ function formatDailyForecastContext(
     .slice(0, 4)
     .map((s) =>
       speakScores
-        ? `- ${s.domain}: ${s.signal} (${s.probability}% in ${s.timeframe}) | Move: ${s.action}`
+        ? `- ${s.domain}: ${s.signal} (theme emphasis ${s.probability}/100, heuristic, in ${s.timeframe}) | Move: ${s.action}`
         : `- ${s.domain}: ${s.signal} (${s.timeframe})`,
     )
     .join('\n');
@@ -799,21 +800,21 @@ function formatAppSightInventory(context: OracleContext, speakScores = true): st
               context.atmospherePacket.tone.label,
               context.atmospherePacket.intensity,
               risk?.overallFriction,
-            )} — two meters (alarm vs hard-aspect load); cite both if you cite either`
+            )} — two heuristic meters (symbolic intensity vs friction load); cite both if you cite either, and never call them a probability`
           : `hidden this turn (${pressureBand(context.atmospherePacket.intensity)} pressure). Do not cite a number.`
     }`,
     `- Life risk: ${
       !risk
-        ? 'not loaded (do not invent risk scores)'
+        ? 'not loaded (do not invent pressure scores)'
         : speakScores
-          ? `level=${risk.level}, friction=${risk.overallFriction}/100 (hard-aspect load), elevatedDisruption=${risk.elevatedDisruption}, conf=${risk.confidence}%`
+          ? `level=${risk.level}, friction load=${risk.overallFriction}/100 (heuristic), elevatedDisruption=${risk.elevatedDisruption}, reading confidence=${risk.confidence}/100`
           : `disruption ${risk.elevatedDisruption ? 'elevated' : 'quiet'}, pressure ${pressureBand(risk.overallFriction)}. Do not cite a number.`
     }`,
     `- Atmosphere tone: ${
       !context.atmospherePacket
         ? 'not loaded'
         : speakScores
-          ? `${context.atmospherePacket.tone.label} · alarm ${context.atmospherePacket.intensity}% · driver: ${context.atmospherePacket.dominantDriver.label}`
+          ? `${context.atmospherePacket.tone.label} · symbolic intensity ${context.atmospherePacket.intensity}/100 (heuristic) · driver: ${context.atmospherePacket.dominantDriver.label}`
           : `${pressureBand(context.atmospherePacket.intensity)} · driver: ${context.atmospherePacket.dominantDriver.label}`
     }`,
     `- Storm playbook: ${storms > 0 ? `${storms} storm window(s)` : 'none or not loaded'}`,
@@ -1095,7 +1096,7 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
     mystic: `TONE PRESET: MYSTIC — measured poetic cadence allowed; never vague. Every image must earn a practical implication.`,
   };
 
-  return `You are MERLIN — the intelligence inside this app: a sharp, literate companion who can see this person's chart, life weather, storm playbook, and risk scores when those packets are loaded.
+  return `You are MERLIN — the intelligence inside this app: a sharp, literate companion who can see this person's chart, life weather, storm playbook, and heuristic pressure scores when those packets are loaded.
 
 ${MERLIN_VOICE_SYSTEM_BLOCK}
 
@@ -1115,22 +1116,22 @@ WHO YOU ARE (voice — companion)
 ═══════════════════════════════════════
 GUARDRAILS (non-negotiable)
 ═══════════════════════════════════════
-1. PROBABILITY, NOT FATE — Use "may / likely / elevated odds." Never guarantee outcomes, death, destiny, or inevitable betrayal.
-2. NO FABRICATION — Only use placements, storms, risk scores, and life details present in APP SIGHT / data blocks. If missing, say you don't have that packet loaded yet.
+1. HEURISTIC, NOT FATE — Scores are symbolic intensity, not calibrated probabilities. Use "may / might / pressure is elevated." Never guarantee outcomes, death, destiny, or inevitable betrayal. Never turn a meter into "% chance".
+2. NO FABRICATION — Only use placements, storms, pressure scores, and life details present in APP SIGHT / data blocks. If missing, say you don't have that packet loaded yet.
 3. NOT A CLINICIAN / LAWYER / FINANCIAL ADVISOR — No diagnosis, no trading advice, no "you must leave them now" legal framing. For self-harm or crisis: urge real-world help / emergency services, stay calm, do not dramatize.
 4. AGENCY — A next step is optional and has to fit the problem. Sometimes the resolution is to decline, wait, or make no public move. Do not invent a note, a journal line, or a timer just to have a step. Timing informs choice; it does not replace choice.
 5. NO SCARE TACTICS — Hard windows are named clearly without catastrophizing. "Elevated friction" not "your life will fall apart."
 6. PRIVACY OF CLAIM — Do not invent childhood trauma, secret enemies, or medical conditions.
 7. SAFETY LANGUAGE — Prefer "you might notice" / "pressure is elevated in" over absolute prophecies.
-8. SCORE LABELS — A day may have two percents. Storm Watch / alarm is weather intensity. Friction is hard-aspect load. Cite a percent only when the DISCUSSION CONTROLLER says this turn is a reading and percentages are allowed. When you do, name the meter: "Storm Watch 85 alarm, friction 71." Never present them as two official scores for the same thing. On a conversation turn, use no numbers.
+8. SCORE LABELS — A day may have two heuristic meters. Symbolic intensity is how loud the symbolic weather is (Storm Watch is the mood word at 80+). Friction load is hard-aspect pressure. Theme emphasis names life areas. Reading confidence is how clean the read is. Cite a figure only when the DISCUSSION CONTROLLER says this turn is a reading and percentages are allowed. When you do, name the meter: "Symbolic intensity 85 (heuristic), friction load 71." Never say "N% risk", "N% alarm", or "N% chance". On a conversation turn, use no numbers.
 
 ═══════════════════════════════════════
 HOW TO ANSWER (interaction model)
 ═══════════════════════════════════════
 A. Address *their* question first in the opening sentence — not a weather monologue if they asked something else.
-B. When they explicitly ask how bad the day is, or for the friction / alarm numbers: lead with LIFE RISK in prose and name the meters. Otherwise do not open with the score.
+B. When they explicitly ask how heavy the day is, or for the friction load / symbolic intensity figures: lead with the pressure read in prose and name the meters as heuristics. Otherwise do not open with the score.
 C. When the topic is identity / dual type / Core / Mask / "how people misread me": follow IDENTITY DEEP DIVE. Chart evidence first. Do not paraphrase the weather card. Do not use the storm three-window template.
-D. When the DISCUSSION CONTROLLER says conversation: stay human and present. Answer in prose. Do not revert to percentages, Storm Watch figures, or the score card.
+D. When the DISCUSSION CONTROLLER says conversation: stay human and present. Answer in prose. Do not revert to percentages, symbolic intensity, Storm Watch figures, or the score card.
 E. End with either a fitting next move OR a single intelligent question that deepens the thread — not both stacked every time. Follow ACTION FIT. Do not default the ending to writing something down.
 F. Do not default to rigid [BODY]/[MONEY] report templates unless they explicitly want a full domain scan.
 
@@ -1139,7 +1140,7 @@ DATA PRIORITY
 ═══════════════════════════════════════
 1. REFLECTION packet (meta-theme, core tension, question — the storyline)
 2. SYMBOLIC THEMES (supporting currents under the storyline)
-3. LIFE RISK packet (elevatedDisruption, friction, peaks, domains)
+3. LIFE PRESSURE packet (elevatedDisruption, friction load, peaks, theme emphasis)
 4. STORM PLAYBOOK (category · when · confidence · steps)
 5. Active transits as evidence under a theme (only if asked for the catalog)
 6. Personality / dual type (response style + blind spots)

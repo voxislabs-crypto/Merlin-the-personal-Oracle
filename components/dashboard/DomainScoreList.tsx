@@ -11,6 +11,7 @@ import {
   mechanicsLine,
 } from '@/lib/astrology/pressure-engine/lay-reason';
 import { DomainDrillDown } from '@/components/dashboard/DomainDrillDown';
+import { METER_DEFINITIONS, THEME_EMPHASIS_LABEL } from '@/lib/atmosphere/score-labels';
 
 function toneClass(tone: DomainTone): string {
   if (tone === 'pressure') return 'border-rose-400/40 bg-rose-950/30 text-rose-100';
@@ -100,8 +101,11 @@ export function DomainScoreList({
             >
               <span>
                 <span className="block text-sm font-semibold">{domainSurfaceLine(domain.domain, tone)}</span>
-                <span className="mt-0.5 block text-[11px] font-medium tabular-nums opacity-80">
-                  {`Pressure ${Math.round(domain.pressure)}/100 · Opportunity ${Math.round(domain.opportunity ?? 0)}/100`}
+                <span
+                  className="mt-0.5 block text-[11px] font-medium tabular-nums opacity-80"
+                  title={METER_DEFINITIONS.themeEmphasis}
+                >
+                  {`${THEME_EMPHASIS_LABEL} · Pressure ${Math.round(domain.pressure)}/100 · Opportunity ${Math.round(domain.opportunity ?? 0)}/100`}
                 </span>
               </span>
             </button>

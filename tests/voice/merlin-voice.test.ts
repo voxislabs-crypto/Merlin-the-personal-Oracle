@@ -11,7 +11,10 @@ describe('merlin-voice', () => {
     expect(MERLIN_PRODUCT_CLAIM).toMatch(/Not a horoscope/i);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/Merlin Test/i);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/What does this actually mean for me/i);
-    expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/Storm Watch 85 alarm, friction 71/);
+    expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(
+      /Symbolic intensity 85 \(heuristic\), friction load 71/,
+    );
+    expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/not the odds of an outcome/);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/ACTION FIT/);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/not the house move/);
     expect(MERLIN_VOICE_SYSTEM_BLOCK).toMatch(/Compliance is not the resolution/);

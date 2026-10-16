@@ -12,7 +12,7 @@ import { ArcanePane } from '@/components/dashboard/ArcanePane';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 import { StatusPanel } from '@/components/ui/status-panel';
-import { formatStormWatchScoreLine } from '@/lib/atmosphere/score-labels';
+import { formatStormWatchScoreLine, METER_DEFINITIONS, READING_CONFIDENCE_LABEL } from '@/lib/atmosphere/score-labels';
 import { composeDailyMood } from '@/lib/atmosphere/daily-mood';
 import { resolveAtmosphereIntensity, resolveScreenTone, screenToneHeadline } from '@/lib/atmosphere/tone';
 import type { LifeRiskPacket } from '@/lib/atmosphere/types';
@@ -528,8 +528,11 @@ export function TodayWeatherBrief({
                       ) : null}
                       {confidenceWhy ? (
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                            Confidence
+                          <p
+                            className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
+                            title={METER_DEFINITIONS.readingConfidence}
+                          >
+                            {READING_CONFIDENCE_LABEL}
                           </p>
                           <p className="mt-1 text-sm leading-snug text-slate-300/90">{confidenceWhy}</p>
                         </div>
@@ -588,7 +591,7 @@ export function TodayWeatherBrief({
               friction: risk?.overallFriction,
               levelLabel: risk
                 ? risk.level === 'storm'
-                  ? 'Storm risk'
+                  ? 'Storm window'
                   : risk.level === 'friction'
                     ? 'Friction elevated'
                     : risk.level === 'watch'

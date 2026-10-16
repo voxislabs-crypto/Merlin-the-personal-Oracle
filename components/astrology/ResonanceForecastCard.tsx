@@ -1,4 +1,5 @@
 import type { ResonanceStats } from "@/lib/resonance-types"
+import { METER_DEFINITIONS, READING_CONFIDENCE_LABEL } from "@/lib/atmosphere/score-labels"
 
 interface ResonanceForecastCardProps {
   theme: string
@@ -79,29 +80,33 @@ export function ResonanceForecastCard({
         <p className="text-sm font-medium text-muted-foreground mb-3">Resonance Stats</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
           <div>
-            <div className="text-sm font-bold text-primary">{Math.round(resonanceStats.global.confidence * 100)}%</div>
-            <div className="text-xs text-muted-foreground">Engine Confidence</div>
+            <div className="text-sm font-bold text-primary" title={METER_DEFINITIONS.readingConfidence}>
+              {Math.round(resonanceStats.global.confidence * 100)}
+            </div>
+            <div className="text-xs text-muted-foreground" title={METER_DEFINITIONS.readingConfidence}>
+              {READING_CONFIDENCE_LABEL}
+            </div>
           </div>
           <div>
-            <div className="text-sm font-bold text-violet-600">
-              {Math.round(resonanceStats.global.confidence * 100)}%
+            <div className="text-sm font-bold text-violet-600" title={METER_DEFINITIONS.readingConfidence}>
+              {Math.round(resonanceStats.global.confidence * 100)}
             </div>
-            <div className="text-xs text-muted-foreground">Global Resonance</div>
+            <div className="text-xs text-muted-foreground">Global resonance</div>
           </div>
           {resonanceStats.cluster && (
             <div>
-              <div className="text-sm font-bold text-purple-600">
-                {Math.round(resonanceStats.cluster.confidence * 100)}%
+              <div className="text-sm font-bold text-purple-600" title={METER_DEFINITIONS.readingConfidence}>
+                {Math.round(resonanceStats.cluster.confidence * 100)}
               </div>
-              <div className="text-xs text-muted-foreground">INFJ Resonance</div>
+              <div className="text-xs text-muted-foreground">Cluster fit</div>
             </div>
           )}
           {resonanceStats.personal && (
             <div>
-              <div className="text-sm font-bold text-indigo-600">
-                {Math.round(resonanceStats.personal.confidence * 100)}%
+              <div className="text-sm font-bold text-indigo-600" title={METER_DEFINITIONS.readingConfidence}>
+                {Math.round(resonanceStats.personal.confidence * 100)}
               </div>
-              <div className="text-xs text-muted-foreground">Personal Accuracy</div>
+              <div className="text-xs text-muted-foreground">Personal fit</div>
             </div>
           )}
         </div>

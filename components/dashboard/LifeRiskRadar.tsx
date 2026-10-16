@@ -19,6 +19,12 @@ import type {
   LifeRiskPacket,
   LifeRiskWindow,
 } from '@/lib/atmosphere/types';
+import {
+  FRICTION_LOAD_LABEL,
+  METER_DEFINITIONS,
+  READING_CONFIDENCE_LABEL,
+  THEME_EMPHASIS_LABEL,
+} from '@/lib/atmosphere/score-labels';
 import { cn } from '@/lib/utils';
 import { getLocalCalendarDate, resolveWindowCalendarDate } from '@/lib/datetime/local-calendar';
 
@@ -293,7 +299,7 @@ function HorizonStripChart({
                 ) : null}
                 <div className="mt-1.5 space-y-1">
                   <p>
-                    <span className="text-slate-500">friction </span>
+                    <span className="text-slate-500">friction load </span>
                     <span className="font-semibold tabular-nums" style={{ color: FRICTION_COLOR }}>
                       {day.friction}
                     </span>
@@ -400,7 +406,7 @@ export function LifeRiskRadar({
       >
         <div className="flex items-center gap-2 text-rose-200/70">
           <Radar className="h-4 w-4" />
-          <span className="text-[10px] uppercase tracking-[0.22em]">Transit risk scan</span>
+          <span className="text-[10px] uppercase tracking-[0.22em]">Transit pressure scan</span>
         </div>
         <div className="mt-4 space-y-2">
           <div className="h-8 w-2/3 rounded bg-slate-700/40" />
@@ -415,7 +421,7 @@ export function LifeRiskRadar({
       <div
         className={`rounded-2xl border border-slate-600/40 bg-slate-950/50 px-4 py-5 text-sm text-slate-400 ${className}`}
       >
-        Transit risk radar needs chart + forecast access. Enter birth details or unlock life weather.
+        Transit pressure scan needs chart + forecast access. Enter birth details or unlock life weather.
       </div>
     );
   }
@@ -484,9 +490,9 @@ export function LifeRiskRadar({
             </span>
             <span
               className="text-[11px] text-slate-500"
-              title="How solid this read is — not a fate score"
+              title={METER_DEFINITIONS.readingConfidence}
             >
-              Signal strength {Math.round(risk.confidence)}%
+              {READING_CONFIDENCE_LABEL} {Math.round(risk.confidence)}
             </span>
           </div>
         </div>
@@ -517,7 +523,9 @@ export function LifeRiskRadar({
         {/* Overall friction */}
         <div>
           <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Overall friction</span>
+            <span className="text-slate-400" title={METER_DEFINITIONS.frictionLoad}>
+              {FRICTION_LOAD_LABEL}
+            </span>
             <span className="font-semibold" style={{ color: presentation.hex }}>
               {risk.overallFriction}/100
             </span>
@@ -549,7 +557,7 @@ export function LifeRiskRadar({
               <p className="mt-0.5 text-xs text-slate-400">
                 {formatPeak(risk.nextFrictionPeak.peakAt, risk.nextFrictionPeak.daysToPeak)}
                 {' · '}
-                friction {risk.nextFrictionPeak.friction}
+                friction load {risk.nextFrictionPeak.friction}
               </p>
             </>
           ) : (
@@ -560,8 +568,11 @@ export function LifeRiskRadar({
         {/* Domains as mini horizontal bars */}
         {hotDomains.length > 0 ? (
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
-              Hot domains
+            <p
+              className="mb-2 text-[10px] uppercase tracking-[0.18em] text-slate-500"
+              title={METER_DEFINITIONS.themeEmphasis}
+            >
+              {THEME_EMPHASIS_LABEL}
             </p>
             <div className="space-y-2">
               {hotDomains.map((domain) => (
@@ -681,7 +692,7 @@ export function LifeRiskRadar({
               onClick={onAskAboutRisk}
               className="rounded-full border border-cyan-300/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/20"
             >
-              Ask Merlin about this risk window
+              Ask Merlin about this window
             </button>
           ) : null}
           <ShareWeatherButton

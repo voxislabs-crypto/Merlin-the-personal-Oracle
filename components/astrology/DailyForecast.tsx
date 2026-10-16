@@ -9,6 +9,7 @@ import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { parseTransitPhrase } from '@/lib/astrology/planet-style';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
 import { DomainScoreList } from '@/components/dashboard/DomainScoreList';
+import { METER_DEFINITIONS, READING_CONFIDENCE_LABEL, THEME_EMPHASIS_LABEL } from '@/lib/atmosphere/score-labels';
 import type { DayRating } from '@/lib/dashboard/cosmic-rating';
 
 // eslint-disable-next-line no-unused-vars
@@ -241,7 +242,7 @@ export function DailyForecast({
               {explainability ? (
                 <>
                   <p className="text-sm text-slate-200">
-                    Pressure {explainability.globalPressure}/100 · Confidence {explainability.confidence}/100
+                    Symbolic intensity {explainability.globalPressure}/100 · {READING_CONFIDENCE_LABEL} {explainability.confidence}
                   </p>
                   {explainability.topDrivers?.length ? (
                     <div className="divide-y divide-cyan-400/10 rounded-lg border border-cyan-400/15">
@@ -349,7 +350,9 @@ export function DailyForecast({
                 >
                   <div className="flex items-center justify-between gap-2 text-xs text-indigo-200/80">
                     <span className="font-semibold text-indigo-100">{signal.domain}</span>
-                    <span>{signal.probability}% · {signal.timeframe}</span>
+                    <span title={METER_DEFINITIONS.themeEmphasis}>
+                      {THEME_EMPHASIS_LABEL} {signal.probability} · {signal.timeframe}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-white/90">{signal.signal}</p>
                   <p className="mt-1 text-xs text-indigo-100/80">Move: {signal.action}</p>
@@ -568,10 +571,10 @@ export function DailyForecast({
           {explainability ? (
             <div className="space-y-3">
               <p className="text-sm text-slate-200">
-                Forecast pressure is {explainability.globalPressure}/100 with confidence {explainability.confidence}/100.
+                Symbolic intensity {explainability.globalPressure}/100 · {READING_CONFIDENCE_LABEL.toLowerCase()} {explainability.confidence}.
               </p>
-              <p className="text-xs text-slate-300">
-                Confidence is probabilistic, not deterministic. Treat this as guidance that can evolve with context.
+              <p className="text-xs text-slate-300" title={METER_DEFINITIONS.readingConfidence}>
+                {METER_DEFINITIONS.readingConfidence}
               </p>
               {explainability.topDrivers?.length ? (
                 <div className="space-y-2">
@@ -579,7 +582,7 @@ export function DailyForecast({
                     <div key={driver.transitId} className="rounded border border-cyan-400/20 bg-slate-950/50 px-3 py-2">
                       <p className="text-sm text-cyan-100 font-medium">{driver.label}</p>
                       <p className="text-xs text-slate-300 mt-1">
-                        Strength {driver.strength}/100 · Confidence {driver.confidence}/100
+                        Strength {driver.strength}/100 · {READING_CONFIDENCE_LABEL.toLowerCase()} {driver.confidence}
                       </p>
                       <p className="text-xs text-slate-400 mt-1">{driver.reason}</p>
                     </div>
@@ -695,7 +698,9 @@ export function DailyForecast({
               >
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <p className="text-sm font-semibold text-indigo-200">{signal.domain}</p>
-                  <p className="text-xs text-indigo-200/80">{signal.probability}% • {signal.timeframe}</p>
+                  <p className="text-xs text-indigo-200/80" title={METER_DEFINITIONS.themeEmphasis}>
+                    {THEME_EMPHASIS_LABEL} {signal.probability} · {signal.timeframe}
+                  </p>
                 </div>
                 <div className="h-1.5 rounded-full bg-indigo-950/70 overflow-hidden mb-2">
                   <div

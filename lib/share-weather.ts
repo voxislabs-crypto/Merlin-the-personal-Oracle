@@ -52,14 +52,14 @@ export function buildShareWeatherText(payload: ShareWeatherPayload): string {
       lines.push(level);
     } else if (typeof payload.intensity === 'number') {
       lines.push(
-        `Alarm ${Math.round(payload.intensity)}%${payload.dayRating ? ` · ${payload.dayRating}` : ''}`,
+        `Symbolic intensity ${Math.round(payload.intensity)} (heuristic)${payload.dayRating ? ` · ${payload.dayRating}` : ''}`,
       );
     }
   }
 
   if (payload.elevatedDisruption === true) {
     lines.push(
-      `Hard friction window${typeof payload.confidence === 'number' ? ` · signal ${Math.round(payload.confidence)}%` : ''}`
+      `Hard friction window${typeof payload.confidence === 'number' ? ` · reading confidence ${Math.round(payload.confidence)}` : ''}`
     );
   } else if (payload.elevatedDisruption === false) {
     lines.push('Friction contained this window');

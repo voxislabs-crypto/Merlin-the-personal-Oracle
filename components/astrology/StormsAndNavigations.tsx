@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
+import { METER_DEFINITIONS, READING_CONFIDENCE_LABEL } from '@/lib/atmosphere/score-labels';
 import {
   buildStormDayMarkers,
   HorizonDateStrip,
@@ -114,11 +115,11 @@ function SignalStrengthMeter({ value, hex }: { value: number; hex: string }) {
   return (
     <div className="min-w-[7.5rem]">
       <div className="mb-0.5 flex items-center justify-between text-[10px] uppercase tracking-[0.12em]">
-        <span className="text-slate-500" title="How solid this window read is — not a fate score">
-          Signal strength
+        <span className="text-slate-500" title={METER_DEFINITIONS.readingConfidence}>
+          {READING_CONFIDENCE_LABEL}
         </span>
         <span className="font-semibold tabular-nums" style={{ color: hex }}>
-          {Math.round(value)}%
+          {Math.round(value)}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">

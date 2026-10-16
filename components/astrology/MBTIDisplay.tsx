@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { MBTIDetails } from '@/lib/astrology/mbtiFusion';
+import { CHART_CLARITY_LABEL, METER_DEFINITIONS } from '@/lib/atmosphere/score-labels';
 
 export interface MBTIDisplayProps {
   mbti: MBTIDetails;
@@ -166,10 +167,15 @@ export function MBTIDisplay({ mbti, className = '' }: MBTIDisplayProps) {
             </CardTitle>
           </div>
           <div className="text-right">
-            <div className={`text-2xl font-bold ${getConfidenceColor(mbti.confidence)}`}>
-              {mbti.confidence}%
+            <div
+              className={`text-2xl font-bold ${getConfidenceColor(mbti.confidence)}`}
+              title={METER_DEFINITIONS.chartClarity}
+            >
+              {mbti.confidence}
             </div>
-            <div className="text-xs text-muted-foreground">Confidence</div>
+            <div className="text-xs text-muted-foreground" title={METER_DEFINITIONS.chartClarity}>
+              {CHART_CLARITY_LABEL}
+            </div>
           </div>
         </div>
       </CardHeader>

@@ -1960,7 +1960,7 @@ export default function UnifiedDashboard() {
         : '';
       const feltLine =
         realityCheck.source !== 'none'
-          ? ` Felt intensity: ${feltIntensity}% (chart weather ${intensity}% alarm, mood signal ${realityCheck.sentimentScore ?? 'n/a'}%).`
+          ? ` Felt intensity ${feltIntensity} (symbolic intensity ${intensity}, heuristic; mood signal ${realityCheck.sentimentScore ?? 'n/a'}).`
           : '';
       queueAskContext(
         "Today's life weather",
@@ -3489,7 +3489,7 @@ export default function UnifiedDashboard() {
                           )
                         : null;
                       queueAskContext(
-                        'Transit risk',
+                        'This pressure window',
                         risk
                           ? `Score-first read: ${pair || `friction ${risk.overallFriction}/100`}, level ${risk.level}, elevatedDisruption=${risk.elevatedDisruption}. Driver: ${driver || 'n/a'}. Next hard peak: ${peak || 'none'}. What should I prepare for and avoid?`
                           : 'What hard transit windows should I prepare for this week, and is life friction elevated for my chart?',

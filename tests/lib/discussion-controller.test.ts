@@ -110,6 +110,17 @@ Move:
     expect(stripped).not.toMatch(/Storm Watch 90/);
     expect(stripped).not.toMatch(/friction 71/);
   });
+
+  it('strips the renamed meters on a conversation rewrite', () => {
+    const renamed =
+      'Symbolic intensity 85 (heuristic) is loud today. Friction load 71 means the push will knot. Reading confidence 64 is just how clean the read is.';
+    expect(replyBreaksConversation(renamed, false)).toBe(true);
+    expect(replyBreaksConversation(renamed, true)).toBe(false);
+    const stripped = stripWeatherCardShape(renamed);
+    expect(stripped).not.toMatch(/Symbolic intensity 85/);
+    expect(stripped).not.toMatch(/Friction load 71/);
+    expect(stripped).not.toMatch(/Reading confidence 64/);
+  });
 });
 
 describe('capture-default replies', () => {

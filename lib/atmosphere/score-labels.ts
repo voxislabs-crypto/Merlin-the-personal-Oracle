@@ -1,22 +1,46 @@
 /**
- * Two day meters, two labels.
+ * User-facing meter language.
  *
- * `intensity` is the Storm Watch alarm (tone word at 80+).
- * `overallFriction` is the hard-aspect load.
- * Both can be true. They must not look like two official percents for the same thing.
+ * `intensity` is symbolic intensity (the Storm Watch mood word still starts at 80).
+ * `overallFriction` is friction load (hard-aspect pressure).
+ * Both are heuristic scales. Neither is a chance that something will happen.
  */
 
-export const ALARM_LABEL = 'alarm';
-export const FRICTION_LABEL = 'friction';
+export const SYMBOLIC_INTENSITY_LABEL = 'symbolic intensity';
+export const FRICTION_LOAD_LABEL = 'friction load';
+export const READING_CONFIDENCE_LABEL = 'Reading confidence';
+export const THEME_EMPHASIS_LABEL = 'Theme emphasis';
+export const CHART_CLARITY_LABEL = 'Chart clarity';
 
-/** Gap at which unlabeled dual percents look like a fight. */
+/** Older call sites. Same strings as the labels above. */
+export const ALARM_LABEL = SYMBOLIC_INTENSITY_LABEL;
+export const FRICTION_LABEL = FRICTION_LOAD_LABEL;
+
+/** Gap at which unlabeled dual figures look like a fight. */
 export const DUAL_SCORE_GAP = 4;
+
+/**
+ * Stable definitions. A 70 means the same thing every session.
+ * These are the words tooltips and expands should show.
+ */
+export const METER_DEFINITIONS = {
+  symbolicIntensity:
+    'How loud the chart’s symbolic weather is, on a 0–100 heuristic scale. 70 means a strong symbolic load. It is not a 70% chance that something will happen.',
+  frictionLoad:
+    'How much hard-aspect pressure is in this window, on a 0–100 heuristic scale. It is not the probability of a bad outcome.',
+  readingConfidence:
+    'How mixed the chart signals are. Higher means the read is cleaner, not that a prediction is more likely to come true.',
+  themeEmphasis:
+    'Which life themes the chart is emphasizing (relationships, home, work, money, energy). A highlight, not a risk percent for that area.',
+  chartClarity:
+    'How cleanly the chart’s letter votes agreed. Chart clarity, not a questionnaire match and not the chance this type is correct.',
+} as const;
 
 export function clampScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-/** Hard-aspect load only — never fall back to the alarm. */
+/** Hard-aspect load only — never fall back to symbolic intensity. */
 export function resolveFrictionPercent(
   risk?: { overallFriction?: number } | null,
 ): number | null {
@@ -30,32 +54,31 @@ export function dualScoresNeedLabels(alarm: number, friction: number): boolean {
 }
 
 /**
- * Spoken / chat form. Always labels both meters when friction is loaded.
- * "Storm Watch 85 alarm, friction 71"
+ * Spoken / chat form. Names the meter and calls it a heuristic.
+ * "Symbolic intensity 85 (heuristic), friction load 71"
  */
 export function formatStormWatchScoreLine(
-  toneLabel: string,
+  _toneLabel: string,
   alarm: number,
   friction?: number | null,
 ): string {
   const a = clampScore(alarm);
-  const label = (toneLabel || 'Storm Watch').trim() || 'Storm Watch';
   if (typeof friction === 'number' && Number.isFinite(friction)) {
-    return `${label} ${a} alarm, friction ${clampScore(friction)}`;
+    return `Symbolic intensity ${a} (heuristic), friction load ${clampScore(friction)}`;
   }
-  return `${label} ${a} alarm`;
+  return `Symbolic intensity ${a} (heuristic)`;
 }
 
-/** Compact UI: always names the meter. "85% alarm · 71% friction". */
+/** Compact UI. No percent glyph. "85 symbolic intensity · 71 friction load". */
 export function formatDualScoreUi(
   alarm: number,
   friction?: number | null,
 ): string {
   const a = clampScore(alarm);
   if (typeof friction === 'number' && Number.isFinite(friction)) {
-    return `${a}% ${ALARM_LABEL} · ${clampScore(friction)}% ${FRICTION_LABEL}`;
+    return `${a} ${SYMBOLIC_INTENSITY_LABEL} · ${clampScore(friction)} ${FRICTION_LOAD_LABEL}`;
   }
-  return `${a}% ${ALARM_LABEL}`;
+  return `${a} ${SYMBOLIC_INTENSITY_LABEL}`;
 }
 
 export function formatShareScoreSuffix(
@@ -65,16 +88,16 @@ export function formatShareScoreSuffix(
   const hasAlarm = typeof alarm === 'number' && Number.isFinite(alarm);
   const hasFriction = typeof friction === 'number' && Number.isFinite(friction);
   if (hasAlarm && hasFriction) {
-    return ` · Storm Watch ${clampScore(alarm)} alarm, friction ${clampScore(friction)}`;
+    return ` · symbolic intensity ${clampScore(alarm)}, friction load ${clampScore(friction)}`;
   }
-  if (hasFriction) return ` · friction ${clampScore(friction)}/100`;
-  if (hasAlarm) return ` · alarm ${clampScore(alarm)}%`;
+  if (hasFriction) return ` · friction load ${clampScore(friction)}`;
+  if (hasAlarm) return ` · symbolic intensity ${clampScore(alarm)} (heuristic)`;
   return '';
 }
 
 /**
- * Oracle / APP SIGHT block. Always names both meters so the model cannot
- * pick one unlabeled official percent.
+ * Oracle / APP SIGHT block. Scores are heuristic intensity, not calibrated
+ * probabilities and not the chance of an outcome.
  */
 export function formatScorePairContext(
   toneLabel: string,
@@ -87,20 +110,19 @@ export function formatScorePairContext(
     typeof friction === 'number' && Number.isFinite(friction)
       ? `${clampScore(friction)}/100`
       : 'not loaded';
-  const cite =
-    typeof friction === 'number' && Number.isFinite(friction)
-      ? formatStormWatchScoreLine(label, a, friction)
-      : `${label} ${a} alarm`;
+  const cite = formatStormWatchScoreLine(label, a, friction);
   const agree =
     typeof friction === 'number' &&
     Number.isFinite(friction) &&
     !dualScoresNeedLabels(a, friction);
 
   return `
-SCORE PAIR (two meters — both can be true; they must not look like a fight):
-- ${label} / ${ALARM_LABEL}: ${a}% — weather intensity that sets the tone word. 80+ is Storm Watch.
-- ${FRICTION_LABEL} / hard-aspect load: ${frictionLine} — transit impact, not the alarm.
-- Cite as: "${cite}."${agree ? ' Meters agree today — still name which one if you cite a percent.' : ''}
-- Never present two unlabeled percents as competing official scores for the same day. Never pick one and hide the other. Never quote the header's alarm without the word alarm, or friction without the word friction.
+SCORE PAIR (heuristic intensity — not a calibrated probability, not a chance of an outcome):
+- Symbolic intensity: ${a}/100 — how loud the symbolic weather is. The mood word is ${label}. 80+ is the Storm Watch mood. A 70 is a strong symbolic load, not a 70% chance.
+- Friction load / hard-aspect load: ${frictionLine} — hard-aspect pressure in this window. Not the probability of a bad outcome.
+- Reading confidence is separate: how clean the read is, not how likely a prediction is to come true.
+- Theme emphasis names life areas (relationships, home, work, money, energy). A highlight, not a risk percent for that area.
+- Cite as: "${cite}." Name the meter and call it a heuristic.${agree ? ' Meters agree today — still name which one if you cite a figure.' : ''}
+- Never say "N% risk", "N% alarm", "N% probability", or "N% chance". Never present two unlabeled figures as competing official scores. Never quote one meter and hide the other.
   `.trim();
 }

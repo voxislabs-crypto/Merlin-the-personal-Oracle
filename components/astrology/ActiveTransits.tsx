@@ -9,6 +9,7 @@ import { PredictionTimeline } from './PredictionTimeline';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
 import { DomainScoreList } from '@/components/dashboard/DomainScoreList';
+import { METER_DEFINITIONS, READING_CONFIDENCE_LABEL } from '@/lib/atmosphere/score-labels';
 
 // eslint-disable-next-line no-unused-vars
 type AskContextFn = (s1: string, s2: string) => void;
@@ -381,7 +382,7 @@ export function ActiveTransits({
             <h3 className="text-lg font-bold text-cyan-100">Why This Score</h3>
             {explainability ? (
               <span className="text-xs text-cyan-200/80">
-                Pressure {explainability.globalPressure}/100 · Confidence {explainability.confidence}/100
+                Symbolic intensity {explainability.globalPressure}/100 · {READING_CONFIDENCE_LABEL} {explainability.confidence}
               </span>
             ) : null}
           </div>
@@ -393,7 +394,7 @@ export function ActiveTransits({
           {explainability ? (
             <div className="space-y-3">
               <p className="text-xs text-slate-300">
-                This is a probability signal based on current transit weightings and may shift as timing changes.
+                {METER_DEFINITIONS.symbolicIntensity}
               </p>
               {explainability.topDrivers?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -401,7 +402,7 @@ export function ActiveTransits({
                     <div key={driver.transitId} className="rounded border border-cyan-400/25 bg-slate-900/45 p-2.5">
                       <p className="text-xs text-cyan-100 font-semibold">{driver.label}</p>
                       <p className="text-xs text-slate-300 mt-1">
-                        Strength {driver.strength}/100 · Confidence {driver.confidence}/100
+                        Strength {driver.strength}/100 · {READING_CONFIDENCE_LABEL.toLowerCase()} {driver.confidence}
                       </p>
                       <p className="text-xs text-slate-400 mt-1">{driver.reason}</p>
                     </div>

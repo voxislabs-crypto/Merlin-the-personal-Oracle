@@ -15,8 +15,9 @@ import {
   buildPersonalGreeting,
 } from '@/lib/atmosphere/domain-strip';
 import {
-  ALARM_LABEL,
-  FRICTION_LABEL,
+  FRICTION_LOAD_LABEL,
+  METER_DEFINITIONS,
+  SYMBOLIC_INTENSITY_LABEL,
   formatDualScoreUi,
   resolveFrictionPercent,
 } from '@/lib/atmosphere/score-labels';
@@ -149,9 +150,9 @@ export function AtmosphereHeader({
   const riskPercent = variant === 'hero' ? frictionPercent : null;
 
   const feltLine = showFeltLine ? (
-    <p className="mt-1 text-xs text-slate-300/90">
-      Felt intensity {resolvedFeltIntensity}% · chart weather alarm {resolvedIntensity}%
-      {typeof sentimentScore === 'number' ? ` · mood signal ${sentimentScore}%` : ''}
+    <p className="mt-1 text-xs text-slate-300/90" title={METER_DEFINITIONS.symbolicIntensity}>
+      Felt intensity {resolvedFeltIntensity} · symbolic intensity {resolvedIntensity}
+      {typeof sentimentScore === 'number' ? ` · mood signal ${sentimentScore}` : ''}
     </p>
   ) : null;
   const confluenceChip =
@@ -184,8 +185,11 @@ export function AtmosphereHeader({
           {variant === 'hero' ? 'Weather scale' : barLabel}
         </span>
         {variant === 'hero' ? (
-          <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>
-            {resolvedIntensity}% {ALARM_LABEL}
+          <span
+            className={`text-xs font-semibold tabular-nums ${tone.text}`}
+            title={METER_DEFINITIONS.symbolicIntensity}
+          >
+            {resolvedIntensity} {SYMBOLIC_INTENSITY_LABEL}
           </span>
         ) : null}
       </div>
@@ -195,11 +199,11 @@ export function AtmosphereHeader({
         aria-valuenow={resolvedIntensity}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${headline} alarm ${resolvedIntensity} percent${
+        aria-label={`${headline}. Symbolic intensity ${resolvedIntensity} of 100${
           showFrictionBesideAlarm && frictionPercent != null
-            ? `, friction ${frictionPercent} percent`
+            ? `, friction load ${frictionPercent} of 100`
             : ''
-        }`}
+        }. Heuristic scale, not a chance of an outcome.`}
       >
         <div
           className="relative h-3 overflow-hidden rounded-full border border-white/10 bg-slate-950/90 shadow-inner"
@@ -259,7 +263,10 @@ export function AtmosphereHeader({
               <p className="text-[10px] uppercase tracking-wider text-slate-400">Life weather</p>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`text-sm font-bold ${tone.text}`}>{headline}</p>
-                <span className={`text-xs font-semibold tabular-nums ${tone.text}`}>
+                <span
+                  className={`text-xs font-semibold tabular-nums ${tone.text}`}
+                  title={`${METER_DEFINITIONS.symbolicIntensity} ${METER_DEFINITIONS.frictionLoad}`}
+                >
                   {formatDualScoreUi(resolvedIntensity, frictionPercent)}
                 </span>
                 {dayRating ? <DayRatingBadge dayRating={dayRating} /> : null}
@@ -301,17 +308,23 @@ export function AtmosphereHeader({
             {headline}
           </h2>
           <div className="mb-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span className={`text-2xl font-bold tabular-nums sm:text-3xl ${tone.text} opacity-90`}>
-              {resolvedIntensity}%
+            <span
+              className={`text-2xl font-bold tabular-nums sm:text-3xl ${tone.text} opacity-90`}
+              title={METER_DEFINITIONS.symbolicIntensity}
+            >
+              {resolvedIntensity}
               <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                {ALARM_LABEL}
+                {SYMBOLIC_INTENSITY_LABEL}
               </span>
             </span>
             {showFrictionBesideAlarm && frictionPercent != null ? (
-              <span className="text-2xl font-bold tabular-nums sm:text-3xl text-sky-200/90">
-                {frictionPercent}%
+              <span
+                className="text-2xl font-bold tabular-nums sm:text-3xl text-sky-200/90"
+                title={METER_DEFINITIONS.frictionLoad}
+              >
+                {frictionPercent}
                 <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  {FRICTION_LABEL}
+                  {FRICTION_LOAD_LABEL}
                 </span>
               </span>
             ) : null}
@@ -324,6 +337,29 @@ export function AtmosphereHeader({
 
         {formattedDate ? <p className="mt-2 text-sm text-slate-300/90">{formattedDate}</p> : null}
         {feltLine}
+        <details className="mt-2 max-w-xl text-xs text-slate-400">
+          <summary className="cursor-pointer text-[10px] uppercase tracking-[0.18em] text-slate-500">
+            What these numbers mean
+          </summary>
+          <ul className="mt-2 space-y-1.5 normal-case tracking-normal">
+            <li>
+              <span className="font-semibold text-slate-300">Symbolic intensity. </span>
+              {METER_DEFINITIONS.symbolicIntensity}
+            </li>
+            <li>
+              <span className="font-semibold text-slate-300">Friction load. </span>
+              {METER_DEFINITIONS.frictionLoad}
+            </li>
+            <li>
+              <span className="font-semibold text-slate-300">Reading confidence. </span>
+              {METER_DEFINITIONS.readingConfidence}
+            </li>
+            <li>
+              <span className="font-semibold text-slate-300">Theme emphasis. </span>
+              {METER_DEFINITIONS.themeEmphasis}
+            </li>
+          </ul>
+        </details>
         {(moonPhase || moonSign) && (
           <p className="mt-1 text-xs text-slate-400">
             {moonPhase && moonPhase !== 'Unknown' ? moonPhase : 'Lunar phase updating'}

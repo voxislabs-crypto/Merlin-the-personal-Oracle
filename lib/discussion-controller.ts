@@ -41,7 +41,7 @@ const SHORT_FOLLOWUP =
   /^(why|how|and|more|go on|continue|keep going|huh|what|explain|elaborate|really)\s*\??$/i;
 
 const METER =
-  /\b(frictions?|storm watch|storms?|life risk|likelihoods?|percent(?:age)?s?|forecasts?|life weather|how bad|how intense|what(?:'s| is) (?:today|this week|the (?:day|week))|scores?)\b/i;
+  /\b(frictions?|friction loads?|storm watch|symbolic intensity|reading confidence|pressure loads?|storms?|life risk|likelihoods?|percent(?:age)?s?|forecasts?|life weather|how bad|how intense|what(?:'s| is) (?:today|this week|the (?:day|week))|scores?)\b/i;
 
 const MECHANICS =
   /\b(transits?|aspects?|conjunct\w*|squares?|trines?|oppositions?|sextiles?|retrogrades?|natals?|birth chart|my chart|horoscopes?|ascendants?|midheavens?|\d+\s*°|\d+(?:st|nd|rd|th)?\s+house|house\s+\d+)\b/i;
@@ -180,7 +180,8 @@ export function classifyDiscussionTurn(input: ClassifyDiscussionInput): Discussi
 }
 
 const CARD_LABEL = /^\s*(headline|why|move)\s*:/im;
-const SCORE_CITE = /\b(?:storm watch\s+\d+|friction\s+\d+)\b/i;
+const SCORE_CITE =
+  /\b(?:storm watch\s+\d+|symbolic intensity\s+\d+|friction load\s+\d+|reading confidence\s+\d+|friction\s+\d+)\b/i;
 
 /** True when a reply is the dashboard card, or cites meters on a conversation turn. */
 export function replyBreaksConversation(text: string, allowScores: boolean): boolean {
@@ -221,7 +222,7 @@ export function formatRejectedReplyRewrite(question: string, reasons: string[]):
   const why = reasons.filter(Boolean).join(' ');
   return `Rejected. ${why} The person asked: ${question}
 
-Rewrite as several paragraphs about that question. No line may be Headline, Why, or Move. No Storm Watch number. No friction number. No percent.
+Rewrite as several paragraphs about that question. No line may be Headline, Why, or Move. No symbolic intensity number. No Storm Watch number. No friction number. No percent.
 Do not recycle a timer, a private note, a journal line, or a "write it down" task unless they asked to draft or capture something.
 If they refused a step because it would imply agreement, do not assign that step again in any form. Keep their stance. Offer a different kind of move: say the difference once, decline, wait, ask one question, or make no public move.`;
 }
@@ -230,7 +231,10 @@ If they refused a step because it would imply agreement, do not assign that step
 export function stripWeatherCardShape(text: string): string {
   return (text || '')
     .replace(/^\s*(headline|why|move)\s*:\s*/gim, '')
-    .replace(/[^.!?\n]*\b(?:storm watch\s+\d+|friction\s+\d+(?:\s*\/\s*100)?)\b[^.!?\n]*[.!?]?/gi, '')
+    .replace(
+      /[^.!?\n]*\b(?:storm watch\s+\d+|symbolic intensity\s+\d+(?:\s*\(heuristic\))?|friction load\s+\d+|reading confidence\s+\d+|friction\s+\d+(?:\s*\/\s*100)?)\b[^.!?\n]*[.!?]?/gi,
+      '',
+    )
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -247,7 +251,7 @@ export function formatDiscussionControllerBlock(
   if (options?.identityDive) {
     const numbers = turn.allowPercentages
       ? 'A percent is allowed only if they asked for a meter. Do not open with a score pair.'
-      : 'No percents, Storm Watch numbers, friction scores, or confidence figures. The identity brief is the answer.';
+      : 'No percents, symbolic intensity, Storm Watch numbers, friction scores, or reading-confidence figures. The identity brief is the answer.';
     return `DISCUSSION CONTROLLER: identity deep dive owns shape and length.
 ${numbers}`;
   }
@@ -255,7 +259,7 @@ ${numbers}`;
   if (turn.register === 'discussion') {
     return `DISCUSSION CONTROLLER: conversation. This turn overrides SCORE PAIR, SCORE LABELS, and the dashboard card.
 - Answer the question they actually asked. A decision gets both sides and a recommendation. A life commitment gets a way to live it, not today's weather recap.
-- No percentages. No Storm Watch numbers. No friction scores. No likelihoods. No read-confidence or chart-confidence figures. The numbers were withheld from this prompt on purpose.
+- No percentages. No symbolic intensity. No Storm Watch numbers. No friction load. No likelihoods. No reading-confidence or chart-clarity figures. The numbers were withheld from this prompt on purpose. Do not treat a withheld score as a chance of an outcome.
 - Weather may appear as one plain sentence, and only if it changes the advice.
 - Write prose paragraphs. Never print a line that is Headline, Why, or Move. A three-part card is a failed answer.
 - Do not paste a canned "one move" from the engine. The reply has to belong to this question.
@@ -266,7 +270,7 @@ ${numbers}`;
   }
 
   const numbers = turn.allowPercentages
-    ? 'If you cite a percent, name the meter: "Storm Watch 85 alarm, friction 71." One pair is enough. Do not stack extra confidence percents they did not ask for.'
+    ? 'If you cite a figure, name the meter and call it a heuristic: "Symbolic intensity 85 (heuristic), friction load 71." One pair is enough. Do not stack extra confidence figures they did not ask for. Never say "N% risk", "N% alarm", or "N% chance".'
     : 'Percentages are off. Describe the meter in words (elevated, quiet, mixed). Do not cite a number.';
 
   const length = turn.loosenLength

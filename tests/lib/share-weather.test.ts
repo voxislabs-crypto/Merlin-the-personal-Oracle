@@ -23,15 +23,15 @@ describe('buildShareWeatherText', () => {
     expect(text).toMatch(/Not a horoscope|clear read/i);
   });
 
-  it('labels Storm Watch alarm and friction when they differ', () => {
+  it('labels symbolic intensity and friction load when they differ', () => {
     const text = buildShareWeatherText({
       date: 'Thu, Sep 3',
-      levelLabel: 'Storm risk',
+      levelLabel: 'Storm window',
       intensity: 85,
       friction: 71,
       siteUrl: 'https://example.com',
     });
-    expect(text).toMatch(/Storm Watch 85 alarm, friction 71/);
-    expect(text).not.toMatch(/Intensity 85%/);
+    expect(text).toMatch(/symbolic intensity 85, friction load 71/);
+    expect(text).not.toMatch(/%|alarm|risk|probability/i);
   });
 });

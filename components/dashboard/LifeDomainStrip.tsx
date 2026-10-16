@@ -9,6 +9,7 @@ import {
   uniqueMechanics,
   type DomainDetailPayload,
 } from '@/lib/atmosphere/domain-detail';
+import { METER_DEFINITIONS, FRICTION_LOAD_LABEL, THEME_EMPHASIS_LABEL } from '@/lib/atmosphere/score-labels';
 import { domainSurfaceLine } from '@/lib/astrology/pressure-engine/lay-reason';
 import { DomainDrillDown } from '@/components/dashboard/DomainDrillDown';
 
@@ -58,7 +59,12 @@ export function LifeDomainStrip({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2" title={METER_DEFINITIONS.themeEmphasis}>
+        {items.length > 0 ? (
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            {THEME_EMPHASIS_LABEL}
+          </span>
+        ) : null}
         {items.map((item) => (
           <button
             key={item.id}
@@ -76,10 +82,10 @@ export function LifeDomainStrip({
         {typeof riskPercent === 'number' ? (
           <span
             className="inline-flex items-center gap-1 rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-sky-100 sm:text-xs"
-            title="Hard-aspect load for this window — not the Storm Watch alarm"
+            title={METER_DEFINITIONS.frictionLoad}
           >
-            <span className="text-sky-300/80 font-medium">Friction</span>
-            <span className="tabular-nums">{riskPercent}%</span>
+            <span className="text-sky-300/80 font-medium">{FRICTION_LOAD_LABEL}</span>
+            <span className="tabular-nums">{riskPercent}</span>
           </span>
         ) : null}
       </div>

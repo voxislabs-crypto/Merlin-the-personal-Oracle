@@ -124,11 +124,11 @@ function buildRationaleUserPrompt(packet: AtmospherePacket): string {
 
   const realityLine =
     packet.realityCheck.source !== 'none'
-      ? `Felt intensity ${packet.feltIntensity}% vs sky ${packet.intensity}%. `
+      ? `Felt intensity ${packet.feltIntensity}/100 vs symbolic intensity ${packet.intensity}/100. `
       : '';
 
   return [
-    `Sky tone: ${packet.tone.label} (${packet.intensity}% alarm). Friction / hard-aspect load: ${
+    `Sky tone: ${packet.tone.label} (symbolic intensity ${packet.intensity}/100, heuristic — not a probability). Friction load: ${
       typeof packet.risk?.overallFriction === 'number' ? `${packet.risk.overallFriction}/100` : 'n/a'
     }.`,
     `Day rating: ${packet.dayRating}.`,

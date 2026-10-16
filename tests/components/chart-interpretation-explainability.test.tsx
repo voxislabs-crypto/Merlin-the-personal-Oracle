@@ -72,8 +72,8 @@ describe('ChartInterpretation explainability context', () => {
       />
     );
 
-    expect(screen.getByText('Interpretation Confidence Context')).toBeInTheDocument();
-    expect(screen.getByText(/Pressure context 74\/100/)).toBeInTheDocument();
+    expect(screen.getByText('Reading confidence')).toBeInTheDocument();
+    expect(screen.getByText(/Symbolic intensity 74\/100/)).toBeInTheDocument();
     expect(screen.getByText(/Top drivers:/)).toBeInTheDocument();
     expect(screen.getByText(/Self is tight/)).toBeInTheDocument();
   });

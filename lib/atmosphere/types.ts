@@ -87,7 +87,7 @@ export type { AtmospherePatternProfile, AtmospherePatternsContext } from '@/lib/
 
 export interface AtmospherePacket {
   date: string;
-  /** 0–100 weather intensity — the alarm that sets the tone word (Storm Watch at 80+). Not friction. */
+  /** 0–100 symbolic intensity. Storm Watch mood word starts at 80. Heuristic, not a probability. Not friction load. */
   intensity: number;
   feltIntensity: number;
   readinessModifier: number;
@@ -197,7 +197,7 @@ export interface LifeRiskDomainScore {
 export interface LifeRiskPacket {
   date: string;
   windowDays: number;
-  /** 0–100 hard-aspect load (transit impact). Not the Storm Watch alarm. */
+  /** 0–100 friction load (hard-aspect pressure). Heuristic, not a probability. Not symbolic intensity. */
   overallFriction: number;
   level: LifeRiskLevel;
   /** True when challenging windows are elevated enough that material disruption is plausible */

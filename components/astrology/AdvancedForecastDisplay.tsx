@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { METER_DEFINITIONS, READING_CONFIDENCE_LABEL } from "@/lib/atmosphere/score-labels"
 
 interface PredictiveEvent {
   eventId: string
@@ -213,7 +214,9 @@ export function AdvancedForecastDisplay({
       {/* Confidence Score */}
       <div className="bg-gradient-to-r from-primary/5 to-secondary/5 p-4 rounded-lg border border-primary/20">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-primary">Forecast Confidence</h3>
+          <h3 className="font-semibold text-primary" title={METER_DEFINITIONS.readingConfidence}>
+            {READING_CONFIDENCE_LABEL}
+          </h3>
           <div className="flex items-center space-x-2">
             <div className="w-24 bg-muted rounded-full h-2">
               <div
@@ -221,7 +224,9 @@ export function AdvancedForecastDisplay({
                 style={{ width: `${forecast.confidence * 100}%` }}
               ></div>
             </div>
-            <span className="text-sm font-medium text-primary">{Math.round(forecast.confidence * 100)}%</span>
+            <span className="text-sm font-medium text-primary" title={METER_DEFINITIONS.readingConfidence}>
+              {Math.round(forecast.confidence * 100)}
+            </span>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">{forecast.crossValidation.recommendation}</p>

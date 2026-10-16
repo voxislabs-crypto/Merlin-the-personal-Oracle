@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import ThumbsFeedback from './ThumbsFeedback';
 import type { DomainScore, ExplainabilityPacket } from '@/types/astrology';
 import { DomainScoreList } from '@/components/dashboard/DomainScoreList';
+import { METER_DEFINITIONS, READING_CONFIDENCE_LABEL } from '@/lib/atmosphere/score-labels';
 
 interface ChartInterpretationProps {
   summary: string;
@@ -134,7 +135,9 @@ export function ChartInterpretation({
           className="p-5 bg-slate-900/60 rounded-lg border border-cyan-500/25"
           variants={itemVariants}
         >
-          <h4 className="text-lg font-semibold text-cyan-200">Interpretation Confidence Context</h4>
+          <h4 className="text-lg font-semibold text-cyan-200" title={METER_DEFINITIONS.readingConfidence}>
+            {READING_CONFIDENCE_LABEL}
+          </h4>
           {insightLoading && !explainability ? (
             <p className="text-xs text-slate-300 mt-2">Calculating interpretation confidence drivers...</p>
           ) : null}
@@ -142,10 +145,10 @@ export function ChartInterpretation({
           {explainability ? (
             <div className="mt-2 space-y-2">
               <p className="text-sm text-slate-100">
-                Pressure context {explainability.globalPressure}/100 · Confidence {explainability.confidence}/100.
+                Symbolic intensity {explainability.globalPressure}/100 · {READING_CONFIDENCE_LABEL.toLowerCase()} {explainability.confidence}.
               </p>
-              <p className="text-xs text-slate-300">
-                This interpretation is directional and probabilistic rather than certain.
+              <p className="text-xs text-slate-300" title={METER_DEFINITIONS.readingConfidence}>
+                {METER_DEFINITIONS.readingConfidence}
               </p>
               {explainability.topDrivers?.length ? (
                 <p className="text-xs text-cyan-100">

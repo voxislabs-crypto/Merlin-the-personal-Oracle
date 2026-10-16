@@ -10,6 +10,7 @@ import { useMbtiOverride } from '@/hooks/useMbtiOverride';
 import { applyMbtiUserOverride } from '@/lib/personality/mbti-override';
 import { YourShadowSection, type ShadowTransitItem } from '@/components/astrology/YourShadowSection';
 import flavorsRaw from '@/data/mbti-flavors.json';
+import { CHART_CLARITY_LABEL, METER_DEFINITIONS } from '@/lib/atmosphere/score-labels';
 
 const flavors = flavorsRaw as Record<string, Record<string, string>>;
 
@@ -231,7 +232,9 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
                   ? ` · engine ${calculatedCore}`
                   : ''}
               </p>
-              <p className="text-xs text-purple-200/60 mt-1">Confidence: {dualOverlay.firmware.confidence}%</p>
+              <p className="text-xs text-purple-200/60 mt-1" title={METER_DEFINITIONS.chartClarity}>
+                {CHART_CLARITY_LABEL} {dualOverlay.firmware.confidence}
+              </p>
             </div>
 
             {/* Archetype */}
@@ -277,7 +280,9 @@ export function DualPersonalityCards({ mbtiType, dualOverlay, transits, loading 
               <p className={`text-3xl font-bold ${getMaskTextColor()}`}>
                 {dualOverlay.hardware.mbtiType}
               </p>
-              <p className="text-xs text-orange-200/60 mt-1">Confidence: {dualOverlay.hardware.confidence}%</p>
+              <p className="text-xs text-orange-200/60 mt-1" title={METER_DEFINITIONS.chartClarity}>
+                {CHART_CLARITY_LABEL} {dualOverlay.hardware.confidence}
+              </p>
             </div>
             <div>
               <p className="text-sm font-semibold text-white/90">

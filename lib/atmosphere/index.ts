@@ -25,7 +25,7 @@ export {
 } from '@/lib/atmosphere/pattern-tags';
 export type * from '@/lib/atmosphere/pattern-types';
 export { computeAtmosphere } from '@/lib/atmosphere/compute';
-export { softCeilingFriction } from '@/lib/atmosphere/score-shape';
+export { softCeilingFriction, softCeilingIntensity } from '@/lib/atmosphere/score-shape';
 export {
   computeLifeRisk,
   lifeRiskLevelPresentation,
@@ -95,8 +95,14 @@ export {
 } from '@/lib/atmosphere/domain-strip';
 export {
   ALARM_LABEL,
+  CHART_CLARITY_LABEL,
   DUAL_SCORE_GAP,
   FRICTION_LABEL,
+  FRICTION_LOAD_LABEL,
+  METER_DEFINITIONS,
+  READING_CONFIDENCE_LABEL,
+  SYMBOLIC_INTENSITY_LABEL,
+  THEME_EMPHASIS_LABEL,
   clampScore,
   dualScoresNeedLabels,
   formatDualScoreUi,

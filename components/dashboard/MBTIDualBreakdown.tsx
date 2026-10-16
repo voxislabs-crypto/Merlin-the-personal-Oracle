@@ -15,6 +15,7 @@ import {
   presentDualForDimensionMap,
 } from '@/lib/personality/mbti-override';
 import type { MBTIBreakdown } from '@/lib/astrology/mbtiFusion';
+import { METER_DEFINITIONS } from '@/lib/atmosphere/score-labels';
 
 type DimensionKey = 'e_i' | 's_n' | 't_f' | 'j_p';
 
@@ -106,8 +107,8 @@ function LayerColumn({
             </p>
           ) : null}
         </div>
-        <span className="ml-auto text-xs text-slate-500">
-          {userSet ? 'You set this' : `${layer.confidence}%`}
+        <span className="ml-auto text-xs text-slate-500" title={METER_DEFINITIONS.chartClarity}>
+          {userSet ? 'You set this' : `Chart clarity ${layer.confidence}`}
         </span>
       </div>
 
@@ -232,7 +233,7 @@ function BlendCard({ blend, dualOverlay }: { blend: BlendSynthesis; dualOverlay:
         <span className="font-semibold text-amber-200">{dualOverlay.finalType}</span>
         {blend.finalBlurb ? ` — ${blend.finalBlurb}` : ''}
         {' · '}
-        {dualOverlay.finalConfidence}% confidence
+        <span title={METER_DEFINITIONS.chartClarity}>chart clarity {dualOverlay.finalConfidence}</span>
       </p>
     </div>
   );

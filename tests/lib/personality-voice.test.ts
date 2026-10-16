@@ -342,7 +342,8 @@ describe('Oracle prompt uses the strategy, not a type label', () => {
       } as OracleContext['atmospherePacket'],
     });
     expect(prompt).toMatch(/SCORE PAIR/);
-    expect(prompt).toMatch(/Storm Watch 85 alarm, friction 71/);
+    expect(prompt).toMatch(/Symbolic intensity 85 \(heuristic\), friction load 71/);
+    expect(prompt).toMatch(/not a calibrated probability/);
     expect(prompt).toMatch(/hard-aspect load/);
     expect(prompt).toMatch(/SCORE LABELS/);
   });

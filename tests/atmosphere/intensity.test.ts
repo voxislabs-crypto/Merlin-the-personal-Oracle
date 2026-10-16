@@ -5,7 +5,7 @@ import {
   normalizeDayRating,
   resolveBaseIntensity,
 } from '@/lib/atmosphere/intensity';
-import { softCeilingFriction } from '@/lib/atmosphere/score-shape';
+import { softCeilingFriction, softCeilingIntensity } from '@/lib/atmosphere/score-shape';
 
 describe('atmosphere intensity', () => {
   it('prefers pressure-engine globalPressure when available', () => {
@@ -138,17 +138,30 @@ describe('atmosphere intensity', () => {
     expect(normalizeDayRating(null, 80)).toBe('red');
   });
 
-  it('does not slam alarm to 100 on a triple-confluence day', () => {
+  it('does not slam symbolic intensity to 100 on a triple-confluence day', () => {
     const triple = applyTripleHitAmplification(80, 70, true);
     const quiet = applyTripleHitAmplification(80, 70, false);
     expect(quiet.intensity).toBe(80);
-    expect(triple.intensity).toBeGreaterThanOrEqual(88);
-    expect(triple.intensity).toBeLessThanOrEqual(90);
+    expect(triple.intensity).toBeGreaterThan(80);
+    expect(triple.intensity).toBeLessThanOrEqual(92);
     expect(triple.intensity).not.toBe(100);
-    expect(applyTripleHitAmplification(90, 70, true).intensity).toBeLessThan(96);
-    expect(applyTripleHitAmplification(90, 70, true).intensity).toBeGreaterThanOrEqual(90);
+    const hot = applyTripleHitAmplification(90, 70, true).intensity;
+    expect(hot).toBeGreaterThan(80);
+    expect(hot).toBeLessThanOrEqual(92);
+    expect(hot).not.toBe(100);
+    expect(applyTripleHitAmplification(100, 70, true).intensity).toBeLessThanOrEqual(92);
+    expect(applyTripleHitAmplification(100, 70, false).intensity).toBeLessThan(95);
+    expect(applyTripleHitAmplification(100, 70, false).intensity).not.toBe(100);
     expect(triple.provenance).toContain('triple-hit-amplification');
     expect(quiet.provenance).toEqual([]);
+  });
+
+  it('keeps a 70 and ceilings only the intensity tail', () => {
+    expect(softCeilingIntensity(70)).toBe(70);
+    expect(softCeilingIntensity(85)).toBe(85);
+    expect(softCeilingIntensity(100)).toBeGreaterThan(85);
+    expect(softCeilingIntensity(100)).toBeLessThanOrEqual(92);
+    expect(softCeilingIntensity(140)).toBeLessThanOrEqual(92);
   });
 
   it('shares friction\'s soft ceiling so 100 raw does not stay 100', () => {
