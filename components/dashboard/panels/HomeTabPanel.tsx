@@ -100,7 +100,10 @@ interface HomeTabPanelProps {
   dailyOracleDate?: string;
   dailyOracleLoading: boolean;
   onRefreshOracle: () => void;
-  onOracleFeedback: (signal: 'hit' | 'missed') => void;
+  onOracleFeedback: (
+    signal: 'hit' | 'missed',
+    kind?: 'resonance' | 'usefulness',
+  ) => void;
   homeForecastExpanded: boolean;
   onHomeForecastExpandedChange: (expanded: boolean) => void;
   forecast: {

@@ -87,7 +87,7 @@ describe('computeAtmosphere', () => {
     expect(packet.patterns.active).toEqual([]);
   });
 
-  it('applies calibration modifier after enough feedback samples', () => {
+  it('leaves intensity alone when calibration has only a few samples', () => {
     const packet = computeAtmosphere({
       explainability: {
         globalPressure: 50,
@@ -108,7 +108,34 @@ describe('computeAtmosphere', () => {
       },
     });
 
-    expect(packet.intensity).toBe(60);
+    expect(packet.intensity).toBe(50);
+    expect(packet.calibration?.active).toBeFalsy();
+    expect(packet.provenance).not.toContain('calibration-Mars');
+  });
+
+  it('shrinks calibration toward neutral after the sample bar', () => {
+    const packet = computeAtmosphere({
+      explainability: {
+        globalPressure: 50,
+        confidence: 70,
+        topDrivers: [],
+        windowStartIso: '',
+        windowEndIso: '',
+        weightingBreakdown: {},
+        personalizationBreakdown: {},
+        domainScores: [],
+        archetypes: [],
+        safety: { grounding: [], caution: [], agency: [] },
+      },
+      calibration: {
+        feedbackCount: 12,
+        strongestPlanet: 'Mars',
+        strongestMultiplier: 1.2,
+      },
+    });
+
+    expect(packet.intensity).toBe(53);
+    expect(packet.intensity).toBeLessThan(56);
     expect(packet.calibration?.active).toBe(true);
     expect(packet.provenance).toContain('calibration-Mars');
   });

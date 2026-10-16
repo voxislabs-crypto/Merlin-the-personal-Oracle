@@ -1,3 +1,4 @@
+import { CALIBRATION_MIN_SAMPLES } from '@/lib/atmosphere/intensity';
 import { assembleAtmosphereInput } from '@/lib/atmosphere/assemble-input';
 import { computeAtmosphere } from '@/lib/atmosphere/compute';
 import { buildAtmosphereTemporalInput } from '@/lib/atmosphere/temporal-context';
@@ -94,7 +95,7 @@ export function computeAtmosphereFromDashboardSources(options: {
         : null,
       calibration:
         pressureWindow?.calibrationProvenance &&
-        pressureWindow.calibrationProvenance.feedbackCount >= 3
+        pressureWindow.calibrationProvenance.feedbackCount >= CALIBRATION_MIN_SAMPLES
           ? {
               feedbackCount: pressureWindow.calibrationProvenance.feedbackCount,
               strongestPlanet: pressureWindow.calibrationProvenance.strongestPlanet,

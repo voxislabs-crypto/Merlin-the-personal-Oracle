@@ -47,7 +47,7 @@ describe('reality-check', () => {
     expect(computeFeltIntensity(10, 0.7)).toBe(15);
   });
 
-  it('nudges readiness modifier when calibration is active', () => {
+  it('does not nudge readiness from a small calibration sample', () => {
     const withoutCalibration = computeReadinessModifier(50, undefined);
     const withCalibration = computeReadinessModifier(50, {
       feedbackCount: 5,
@@ -55,7 +55,19 @@ describe('reality-check', () => {
       strongestMultiplier: 1.2,
     });
 
+    expect(withCalibration).toBe(withoutCalibration);
+  });
+
+  it('nudges readiness only slightly after the calibration sample bar', () => {
+    const withoutCalibration = computeReadinessModifier(50, undefined);
+    const withCalibration = computeReadinessModifier(50, {
+      feedbackCount: 12,
+      strongestPlanet: 'Mars',
+      strongestMultiplier: 1.2,
+    });
+
     expect(withCalibration).toBeGreaterThan(withoutCalibration);
+    expect(withCalibration - withoutCalibration).toBeLessThan(0.02);
   });
 
   it('defaults to neutral guidance without sentiment input', () => {

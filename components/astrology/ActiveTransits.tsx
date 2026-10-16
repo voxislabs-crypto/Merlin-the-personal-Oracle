@@ -662,6 +662,7 @@ export function ActiveTransits({
                       mbtiType={mbtiType || undefined}
                       transitDescription={event.narrative.whisper}
                       promptText="Did this happen in your life?"
+                      kind="accuracy"
                       compact
                     />
                   </div>

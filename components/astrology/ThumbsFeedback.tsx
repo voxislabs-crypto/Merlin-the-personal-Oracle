@@ -57,9 +57,10 @@ export function ThumbsFeedback({ itemId, label = 'insight', userId, theme = 'gen
             aspectId: itemId,
             theme,
             feedback: {
+              kind: 'resonance',
               resonated: v === 'up',
               accuracyScore: v === 'up' ? 0.85 : 0.25,
-              notes: `${label}: ${v === 'up' ? 'positive' : 'negative'} quick feedback`,
+              notes: `${label}: ${v === 'up' ? 'felt relevant' : 'did not feel relevant'}`,
             },
           }),
         });

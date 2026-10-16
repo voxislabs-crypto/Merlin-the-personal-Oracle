@@ -33,7 +33,11 @@ describe('YesterdayLandCheck', () => {
     writeWeatherWindowSnapshot({ date: '2026-08-28', move: 'Wait one beat.' }, 'user-1');
     render(<YesterdayLandCheck userId="user-1" today="2026-08-29" />);
     fireEvent.click(await screen.findByRole('button', { name: /^no$/i }));
-    expect(screen.getByText(/logged/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not change today's scores/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^yes$/i })).not.toBeInTheDocument();
+    await screen.findByText(/does not change today's scores/i);
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.feedback.kind).toBe('accuracy');
+    expect(body.feedback.notes).toMatch(/Accuracy check/);
   });
 });

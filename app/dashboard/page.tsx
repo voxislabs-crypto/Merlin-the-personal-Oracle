@@ -804,7 +804,10 @@ export default function UnifiedDashboard() {
     fetchPatternMirror,
   ]);
 
-  const sendDailyOracleFeedback = useCallback(async (signal: 'hit' | 'missed') => {
+  const sendDailyOracleFeedback = useCallback(async (
+    signal: 'hit' | 'missed',
+    kind: 'resonance' | 'usefulness' = 'resonance',
+  ) => {
     if (!userId || !dailyOracle?.message) return false;
     try {
       const response = await fetch('/api/oracle-feedback', {
@@ -815,6 +818,7 @@ export default function UnifiedDashboard() {
           source: 'daily_oracle_feedback',
           message: dailyOracle.message,
           feedback: signal,
+          kind,
           date: dailyOracle.date,
           mbtiType: speakingMbti || mbtiType || undefined,
         }),

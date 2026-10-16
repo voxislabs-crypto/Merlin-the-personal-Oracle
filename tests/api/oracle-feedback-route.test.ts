@@ -43,7 +43,30 @@ describe('oracle feedback route', () => {
         aspectId: 'daily-oracle-2026-10-03',
         theme: 'daily-oracle',
         signal: 'hit',
+        kind: 'resonance',
       }),
+    );
+  });
+
+  it('accepts an accuracy check that only reaches the evaluation log', async () => {
+    (recordReadingSignal as jest.Mock).mockResolvedValue({
+      pattern: false,
+      resonance: false,
+      evaluation: true,
+    });
+    const request = {
+      json: async () => ({
+        userId: 'user_1',
+        feedback: 'hit',
+        kind: 'accuracy',
+        message: 'The named move happened.',
+      }),
+    };
+
+    const response = await POST(request as never);
+    expect(response.status).toBe(200);
+    expect(recordReadingSignal).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'accuracy', signal: 'hit' }),
     );
   });
 

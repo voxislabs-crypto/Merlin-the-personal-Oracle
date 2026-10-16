@@ -7,6 +7,7 @@ import {
   applyBaselineModifier,
   applyCalibrationModifier,
   applyTripleHitAmplification,
+  CALIBRATION_MIN_SAMPLES,
   getBaselineTemperature,
   normalizeDayRating,
   resolveBaseIntensity,
@@ -122,7 +123,7 @@ export function computeAtmosphere(input: ComputeAtmosphereInput = {}): Atmospher
   provenance.push('life-risk-v1');
 
   const calibration =
-    input.calibration && input.calibration.feedbackCount >= 3
+    input.calibration && input.calibration.feedbackCount >= CALIBRATION_MIN_SAMPLES
       ? {
           active: true,
           feedbackCount: input.calibration.feedbackCount,

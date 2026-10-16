@@ -2,10 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { ThumbsUp, ThumbsDown, MessageSquare, TrendingUp, CheckCircle } from "lucide-react"
 import type { FeedbackData } from "@/lib/resonance-types"
 
@@ -18,6 +16,8 @@ interface FeedbackCollectorProps {
   onFeedbackSubmitted?: () => void
   compact?: boolean
   promptText?: string
+  /** Accuracy never updates resonance weights. Use it only for a concrete "did this happen" check. */
+  kind?: "resonance" | "accuracy"
 }
 
 export function FeedbackCollector({
@@ -29,10 +29,11 @@ export function FeedbackCollector({
   onFeedbackSubmitted,
   compact = false,
   promptText = "Did this forecast resonate with your experience?",
+  kind = "resonance",
 }: FeedbackCollectorProps) {
   const [feedbackMode, setFeedbackMode] = useState<"simple" | "detailed" | "submitted">("simple")
   const [resonated, setResonated] = useState<boolean | null>(null)
-  const [accuracyScore, setAccuracyScore] = useState([75])
+  const [helped, setHelped] = useState<boolean | null>(null)
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -40,18 +41,18 @@ export function FeedbackCollector({
     setResonated(didResonate)
 
     if (compact) {
-      // For compact mode, submit immediately with default accuracy
       await submitFeedback({
+        kind,
         resonated: didResonate,
-        accuracyScore: didResonate ? 0.8 : 0.3,
-        notes: "",
+        accuracyScore: didResonate ? 0.85 : 0.25,
+        notes: kind === "accuracy" ? "Accuracy check" : "Resonance check",
       })
     } else {
       setFeedbackMode("detailed")
     }
   }
 
-  const submitFeedback = async (feedback: FeedbackData) => {
+  const submitFeedback = async (feedback: FeedbackData & { kind?: "resonance" | "usefulness" | "accuracy" }) => {
     setIsSubmitting(true)
 
     try {
@@ -84,10 +85,19 @@ export function FeedbackCollector({
     if (resonated === null) return
 
     await submitFeedback({
+      kind: "resonance",
       resonated,
-      accuracyScore: accuracyScore[0] / 100,
+      accuracyScore: resonated ? 0.85 : 0.25,
       notes: notes.trim() || undefined,
     })
+    if (helped !== null) {
+      await submitFeedback({
+        kind: "usefulness",
+        resonated: helped,
+        accuracyScore: helped ? 0.65 : 0.4,
+        notes: notes.trim() || undefined,
+      })
+    }
   }
 
   if (feedbackMode === "submitted") {
@@ -95,7 +105,9 @@ export function FeedbackCollector({
       <div className="flex items-center justify-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
         <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
         <span className="text-sm font-medium text-green-700 dark:text-green-300">
-          Thank you! Merlin is learning from your feedback.
+          {kind === "accuracy"
+            ? "Logged as an accuracy check. It does not change today's scores."
+            : "Noted. Relevance and usefulness stay separate."}
         </span>
       </div>
     )
@@ -205,23 +217,23 @@ export function FeedbackCollector({
               </div>
             </div>
 
-            {/* Accuracy Slider */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-foreground">How accurate was this forecast?</p>
-                <Badge variant="secondary">{accuracyScore[0]}%</Badge>
-              </div>
-              <Slider
-                value={accuracyScore}
-                onValueChange={setAccuracyScore}
-                max={100}
-                min={0}
-                step={5}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Not at all</span>
-                <span>Perfectly accurate</span>
+              <p className="text-sm font-medium text-foreground mb-2">Did the suggestion help?</p>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={helped === true ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHelped(true)}
+                >
+                  It helped
+                </Button>
+                <Button
+                  variant={helped === false ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHelped(false)}
+                >
+                  Not really
+                </Button>
               </div>
             </div>
 

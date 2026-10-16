@@ -5,6 +5,7 @@ import { computeDaySkyPressure } from '@/lib/atmosphere/global-pressure';
 import { getAtmospherePatternProfile } from '@/lib/atmosphere/pattern-store.server';
 import { enhanceAtmosphereRationale } from '@/lib/atmosphere/rationale-ai';
 import { computeAtmosphere } from '@/lib/atmosphere/compute';
+import { CALIBRATION_MIN_SAMPLES } from '@/lib/atmosphere/intensity';
 import { buildAtmosphereTemporalInput } from '@/lib/atmosphere/temporal-context';
 import type {
   AtmosphereForecastInput,
@@ -314,7 +315,7 @@ export async function POST(request: Request) {
         storms: mapStormsReport(stormsReport),
         forecast: mapForecastInput(forecastBase, enrichedForecast),
         calibration:
-          resonance.summary.feedbackCount >= 3
+          resonance.summary.feedbackCount >= CALIBRATION_MIN_SAMPLES
             ? {
                 feedbackCount: resonance.summary.feedbackCount,
                 strongestPlanet: resonance.summary.strongestPlanet,

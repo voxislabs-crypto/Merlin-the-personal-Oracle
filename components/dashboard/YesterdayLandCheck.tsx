@@ -49,9 +49,10 @@ export function YesterdayLandCheck({
               aspectId: `weather-window-${yesterday}`,
               theme: 'life-weather',
               feedback: {
-                resonated: next === 'landed' || next === 'somewhat',
+                kind: 'accuracy',
+                resonated: next === 'landed',
                 accuracyScore: next === 'landed' ? 0.85 : next === 'somewhat' ? 0.55 : 0.25,
-                notes: `Yesterday's call ${next}${snapshot?.behaviorTell ? `: ${snapshot.behaviorTell}` : snapshot?.move ? `: ${snapshot.move}` : ''}`,
+                notes: `Accuracy check ${next}${snapshot?.move ? `: ${snapshot.move}` : ''}`,
               },
             }),
           });
@@ -67,7 +68,7 @@ export function YesterdayLandCheck({
     if (vote && justSaved) {
       return (
         <p className="text-xs text-emerald-300/90">
-          Logged. Merlin will weight the next {snapshot?.themeLabel || 'window'} off that.
+          Logged as an accuracy check. It does not change today's scores.
         </p>
       );
     }
@@ -82,7 +83,9 @@ export function YesterdayLandCheck({
     >
       <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Yesterday’s call</p>
       <p className="mt-1 text-sm text-slate-200">
-        {snapshot.behaviorTell || 'Did yesterday’s read match how the day actually felt?'}
+        {snapshot.move
+          ? 'Did that specific move show up yesterday?'
+          : snapshot.behaviorTell || 'Did a specific, pre-stated thing from yesterday happen?'}
       </p>
       {snapshot.move ? (
         <p className="mt-1 text-xs text-slate-400 line-clamp-2">Move was: {snapshot.move}</p>

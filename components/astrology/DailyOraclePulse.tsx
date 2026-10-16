@@ -8,7 +8,10 @@ interface DailyOraclePulseProps {
   /** Local calendar day (YYYY-MM-DD) this pulse belongs to */
   date?: string;
   onTruthBomb?: () => void;
-  onFeedback?: (signal: 'hit' | 'missed') => void | boolean | Promise<boolean | void>;
+  onFeedback?: (
+    signal: 'hit' | 'missed',
+    kind: 'resonance' | 'usefulness',
+  ) => void | boolean | Promise<boolean | void>;
   loading?: boolean;
 }
 
@@ -33,13 +36,13 @@ export function DailyOraclePulse({
   onFeedback,
   loading = false,
 }: DailyOraclePulseProps) {
-  const [vote, setVote] = useState<'hit' | 'missed' | null>(null);
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [votes, setVotes] = useState<Partial<Record<'resonance' | 'usefulness', 'hit' | 'missed'>>>({});
+  const [pending, setPending] = useState<'resonance' | 'usefulness' | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
-    setVote(null);
-    setStatus('idle');
+    setVotes({});
+    setPending(null);
     setErrorText(null);
   }, [date, message]);
 
@@ -59,22 +62,22 @@ export function DailyOraclePulse({
 
   const dateLabel = formatPulseDate(date);
 
-  const choose = async (signal: 'hit' | 'missed') => {
-    if (status === 'saving' || vote) return;
-    setStatus('saving');
+  const choose = async (kind: 'resonance' | 'usefulness', signal: 'hit' | 'missed') => {
+    if (pending || votes[kind]) return;
+    setPending(kind);
     setErrorText(null);
     try {
-      const saved = await onFeedback?.(signal);
+      const saved = await onFeedback?.(signal, kind);
       if (saved === false) {
-        setStatus('error');
         setErrorText('Could not save that. Try again.');
+        setPending(null);
         return;
       }
-      setVote(signal);
-      setStatus('saved');
+      setVotes((current) => ({ ...current, [kind]: signal }));
+      setPending(null);
     } catch {
-      setStatus('error');
       setErrorText('Could not save that. Try again.');
+      setPending(null);
     }
   };
 
@@ -105,42 +108,27 @@ export function DailyOraclePulse({
         <p className="text-sm md:text-[15px] text-rose-50/95 leading-7">{message}</p>
       </div>
       <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void choose('hit')}
-            disabled={status === 'saving' || vote !== null}
-            aria-pressed={vote === 'hit'}
-            className={`rounded-full border px-3.5 py-2 text-xs font-semibold disabled:cursor-default ${
-              vote === 'hit'
-                ? 'border-emerald-300 bg-emerald-400/30 text-emerald-50'
-                : 'border-emerald-400/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50'
-            }`}
-          >
-            That hit
-          </button>
-          <button
-            type="button"
-            onClick={() => void choose('missed')}
-            disabled={status === 'saving' || vote !== null}
-            aria-pressed={vote === 'missed'}
-            className={`rounded-full border px-3.5 py-2 text-xs font-semibold disabled:cursor-default ${
-              vote === 'missed'
-                ? 'border-slate-200 bg-slate-400/30 text-white'
-                : 'border-slate-400/40 bg-slate-500/20 text-slate-100 hover:bg-slate-500/30 disabled:opacity-50'
-            }`}
-          >
-            Missed me
-          </button>
-          {status === 'saving' ? (
-            <span className="self-center text-xs text-rose-100/70">Saving…</span>
-          ) : null}
-          {status === 'saved' ? (
-            <span className="self-center text-xs text-emerald-200/90">Noted. Merlin will weight the next pulse off that.</span>
-          ) : null}
-          {status === 'error' && errorText ? (
-            <span className="self-center text-xs text-amber-200/90">{errorText}</span>
-          ) : null}
+        <div className="flex flex-col gap-3">
+          <PulseQuestion
+            question="Did this description feel relevant?"
+            yesLabel="Relevant"
+            noLabel="Not really"
+            vote={votes.resonance}
+            disabled={pending !== null}
+            onYes={() => void choose('resonance', 'hit')}
+            onNo={() => void choose('resonance', 'missed')}
+          />
+          <PulseQuestion
+            question="Did the suggestion help?"
+            yesLabel="It helped"
+            noLabel="Not really"
+            vote={votes.usefulness}
+            disabled={pending !== null}
+            onYes={() => void choose('usefulness', 'hit')}
+            onNo={() => void choose('usefulness', 'missed')}
+          />
+          {pending ? <span className="text-xs text-rose-100/70">Saving…</span> : null}
+          {errorText ? <span className="text-xs text-amber-200/90">{errorText}</span> : null}
         </div>
         <button
           type="button"
@@ -150,6 +138,54 @@ export function DailyOraclePulse({
           Tell me something I do not want to hear
         </button>
       </div>
+    </div>
+  );
+}
+
+function PulseQuestion({
+  question,
+  yesLabel,
+  noLabel,
+  vote,
+  disabled,
+  onYes,
+  onNo,
+}: {
+  question: string;
+  yesLabel: string;
+  noLabel: string;
+  vote?: 'hit' | 'missed';
+  disabled: boolean;
+  onYes: () => void;
+  onNo: () => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-rose-100/80">{question}</p>
+      {vote ? (
+        <p className="mt-1 text-xs text-emerald-200/90">Noted.</p>
+      ) : (
+        <div className="mt-1.5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onYes}
+            disabled={disabled}
+            aria-label={`${question} ${yesLabel}`}
+            className="rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3.5 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50"
+          >
+            {yesLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onNo}
+            disabled={disabled}
+            aria-label={`${question} ${noLabel}`}
+            className="rounded-full border border-slate-400/40 bg-slate-500/20 px-3.5 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-500/30 disabled:opacity-50"
+          >
+            {noLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

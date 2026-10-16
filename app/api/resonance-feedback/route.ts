@@ -15,16 +15,48 @@ export async function POST(request: Request) {
       );
     }
 
+    const note =
+      feedback?.notes || `${aspectId}: ${feedback?.resonated ? 'landed' : 'missed'} (${theme})`;
+    const kind =
+      feedback?.kind === 'usefulness' || feedback?.kind === 'accuracy' ? feedback.kind : 'resonance';
+
+    // Accuracy is an evaluation log. It must not move resonance weights,
+    // pattern tags, or the user-context note personalization reads.
+    if (kind === 'accuracy') {
+      await logInteractionEvent({
+        userId,
+        type: 'evaluation_log',
+        content: note,
+        feedbackSignal: feedback?.resonated ? 'accurate' : 'missed',
+        metadata: {
+          source: 'evaluation_log',
+          aspectId,
+          theme,
+          kind: 'accuracy',
+          personalization: false,
+        },
+      });
+      return NextResponse.json({ success: true, stored: 'evaluation_log' });
+    }
+
+    const rawScore = Number(feedback?.accuracyScore);
+    const weightFeedback =
+      kind === 'usefulness'
+        ? {
+            ...feedback,
+            accuracyScore: Math.min(0.65, Math.max(0, Number.isFinite(rawScore) ? rawScore : 0.55)),
+          }
+        : feedback;
+    const weightAspectId = kind === 'usefulness' ? `${aspectId}:usefulness` : aspectId;
+
     await resonanceDB.ensureUser({
       userId,
       mbtiType,
       createdAt: new Date(),
     });
 
-    await resonanceDB.processFeedback(userId, aspectId, theme, feedback);
+    await resonanceDB.processFeedback(userId, weightAspectId, theme, weightFeedback);
 
-    const note =
-      feedback?.notes || `${aspectId}: ${feedback?.resonated ? 'landed' : 'missed'} (${theme})`;
     const detected = detectPatternFromText(note);
     await logInteractionEvent({
       userId,
@@ -33,7 +65,7 @@ export async function POST(request: Request) {
       detectedPattern: detected.key,
       confidence: detected.confidence,
       feedbackSignal: feedback?.resonated ? 'up' : 'down',
-      metadata: { source: 'resonance_feedback', aspectId, theme },
+      metadata: { source: 'resonance_feedback', aspectId, theme, kind },
     });
 
     const existingContext = await getUserContextSnapshot(userId);

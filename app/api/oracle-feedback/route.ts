@@ -15,17 +15,22 @@ export async function POST(request: Request) {
     }
 
     const day = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : 'today';
+    const kind =
+      body?.kind === 'usefulness' || body?.kind === 'accuracy' || body?.kind === 'resonance'
+        ? body.kind
+        : 'resonance';
     const stored = await recordReadingSignal({
       userId,
       source,
       aspectId: `daily-oracle-${day}`,
       theme: 'daily-oracle',
       signal: feedback,
+      kind,
       message: typeof message === 'string' ? message : '',
       mbtiType: typeof mbtiType === 'string' ? mbtiType : undefined,
     });
 
-    if (!stored.pattern && !stored.resonance) {
+    if (!stored.pattern && !stored.resonance && !stored.evaluation) {
       return NextResponse.json(
         { success: false, error: 'Feedback could not be stored', ...stored },
         { status: 503 },

@@ -4,6 +4,7 @@ import { detectPatternFromText, logInteractionEvent } from '@/lib/pattern-mirror
 import { resonanceDB } from '@/lib/resonance-database';
 
 export type ReadingSignal = 'hit' | 'missed' | 'up' | 'down' | 'landed' | 'somewhat';
+export type FeedbackKind = 'resonance' | 'usefulness' | 'accuracy';
 
 function accuracyFor(signal: ReadingSignal): { resonated: boolean; accuracyScore: number } {
   if (signal === 'hit' || signal === 'up' || signal === 'landed') {
@@ -14,10 +15,9 @@ function accuracyFor(signal: ReadingSignal): { resonated: boolean; accuracyScore
 }
 
 /**
- * One reading vote writes both stores:
- * pattern mirror (what kind of loop the text sounds like) and
- * resonance weights (whether this reading landed).
- * Either store can fail without dropping the other.
+ * Resonance and usefulness may move resonance weights.
+ * Accuracy is an evaluation log only. It does not update those weights
+ * or attach a pattern tag personalization can read.
  */
 export async function recordReadingSignal(input: {
   userId: string;
@@ -25,12 +25,33 @@ export async function recordReadingSignal(input: {
   aspectId: string;
   theme: string;
   signal: ReadingSignal;
+  kind?: FeedbackKind;
   message?: string;
   notes?: string;
   mbtiType?: string;
-}): Promise<{ pattern: boolean; resonance: boolean }> {
+}): Promise<{ pattern: boolean; resonance: boolean; evaluation: boolean }> {
+  const kind: FeedbackKind =
+    input.kind === 'usefulness' || input.kind === 'accuracy' ? input.kind : 'resonance';
   const score = accuracyFor(input.signal);
   const text = input.message || input.notes || input.signal;
+
+  if (kind === 'accuracy') {
+    const logged = await logInteractionEvent({
+      userId: input.userId,
+      type: 'evaluation_log',
+      content: input.message || input.notes,
+      feedbackSignal: input.signal,
+      metadata: {
+        source: 'evaluation_log',
+        aspectId: input.aspectId,
+        theme: input.theme,
+        kind: 'accuracy',
+        personalization: false,
+      },
+    });
+    return { pattern: false, resonance: false, evaluation: Boolean(logged) };
+  }
+
   const detected = detectPatternFromText(text);
   const logged = await logInteractionEvent({
     userId: input.userId,
@@ -43,6 +64,7 @@ export async function recordReadingSignal(input: {
       source: input.source,
       aspectId: input.aspectId,
       theme: input.theme,
+      kind,
     },
   });
 
@@ -53,9 +75,11 @@ export async function recordReadingSignal(input: {
       mbtiType: input.mbtiType,
       createdAt: new Date(),
     });
-    await resonanceDB.processFeedback(input.userId, input.aspectId, input.theme, {
+    const weightAspectId =
+      kind === 'usefulness' ? `${input.aspectId}:usefulness` : input.aspectId;
+    await resonanceDB.processFeedback(input.userId, weightAspectId, input.theme, {
       resonated: score.resonated,
-      accuracyScore: score.accuracyScore,
+      accuracyScore: kind === 'usefulness' ? Math.min(score.accuracyScore, 0.65) : score.accuracyScore,
       notes: input.notes || input.message,
     });
     resonance = true;
@@ -66,5 +90,5 @@ export async function recordReadingSignal(input: {
     );
   }
 
-  return { pattern: Boolean(logged), resonance };
+  return { pattern: Boolean(logged), resonance, evaluation: false };
 }

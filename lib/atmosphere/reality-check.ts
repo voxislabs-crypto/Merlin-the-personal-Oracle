@@ -1,3 +1,4 @@
+import { CALIBRATION_MIN_SAMPLES, regularizeCalibrationMultiplier } from '@/lib/atmosphere/intensity';
 import { applyPatternReadinessNudge } from '@/lib/atmosphere/pattern-personalization';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { clampIntensity } from '@/lib/atmosphere/tone';
@@ -176,11 +177,11 @@ export function computeReadinessModifier(
 
   if (
     calibration?.feedbackCount &&
-    calibration.feedbackCount >= 3 &&
+    calibration.feedbackCount >= CALIBRATION_MIN_SAMPLES &&
     typeof calibration.strongestMultiplier === 'number' &&
     Number.isFinite(calibration.strongestMultiplier)
   ) {
-    const calibrationNudge = (calibration.strongestMultiplier - 1) * 0.12;
+    const calibrationNudge = (regularizeCalibrationMultiplier(calibration.strongestMultiplier) - 1) * 0.12;
     modifier += calibrationNudge;
   }
 

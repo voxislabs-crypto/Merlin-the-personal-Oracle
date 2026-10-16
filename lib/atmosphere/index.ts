@@ -115,6 +115,8 @@ export {
   applyBaselineModifier,
   applyCalibrationModifier,
   applyTripleHitAmplification,
+  CALIBRATION_MIN_SAMPLES,
+  regularizeCalibrationMultiplier,
   getBaselineTemperature,
   normalizeDayRating,
   resolveBaseIntensity,

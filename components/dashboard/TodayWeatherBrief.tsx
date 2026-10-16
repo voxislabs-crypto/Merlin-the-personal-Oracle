@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Compass, Lightbulb, MessageCircle, Radio } from 'lucide-react';
-import ThumbsFeedback from '@/components/astrology/ThumbsFeedback';
+import { TodaySignalFeedback } from '@/components/dashboard/TodaySignalFeedback';
 import {
   AtmosphereHeader,
   getAtmosphereShellClassName,
@@ -568,14 +568,11 @@ export function TodayWeatherBrief({
 
           <YesterdayLandCheck userId={userId} today={date} />
 
-          <div className="pt-0.5">
-            <ThumbsFeedback
-              itemId={`life-weather-${date || 'today'}`}
-              label="today's life weather"
-              userId={userId}
-              theme="forecast"
-            />
-          </div>
+          <TodaySignalFeedback
+            userId={userId}
+            itemId={`life-weather-${date || 'today'}`}
+            theme="forecast"
+          />
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

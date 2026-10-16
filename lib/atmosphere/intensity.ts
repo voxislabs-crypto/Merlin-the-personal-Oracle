@@ -155,6 +155,19 @@ export function applyBaselineModifier(intensity: number, temperature: BaselineTe
   }
 }
 
+/** Learned weights stay off until there is a real sample, then shrink toward neutral. */
+export const CALIBRATION_MIN_SAMPLES = 12;
+
+/**
+ * Pull a learned multiplier toward 1. Values outside 0.85–1.15 are clipped
+ * first, then 35% of the remaining gap is kept. 1.2 becomes about 1.05.
+ */
+export function regularizeCalibrationMultiplier(raw: number): number {
+  if (!Number.isFinite(raw)) return 1;
+  const clipped = Math.max(0.85, Math.min(1.15, raw));
+  return 1 + (clipped - 1) * 0.35;
+}
+
 export function applyCalibrationModifier(
   intensity: number,
   calibration?: AtmosphereCalibrationInput | null
@@ -163,11 +176,11 @@ export function applyCalibrationModifier(
     return { intensity: clampIntensity(intensity), provenance: [] };
   }
 
-  if (calibration.feedbackCount < 3) {
+  if (calibration.feedbackCount < CALIBRATION_MIN_SAMPLES) {
     return { intensity: clampIntensity(intensity), provenance: [] };
   }
 
-  const modifier = calibration.strongestMultiplier;
+  const modifier = regularizeCalibrationMultiplier(calibration.strongestMultiplier);
   return {
     intensity: clampIntensity(intensity * modifier),
     provenance: [`calibration-${calibration.strongestPlanet}`],

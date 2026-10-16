@@ -1,8 +1,10 @@
 import {
   applyBaselineModifier,
+  applyCalibrationModifier,
   applyTripleHitAmplification,
   getBaselineTemperature,
   normalizeDayRating,
+  regularizeCalibrationMultiplier,
   resolveBaseIntensity,
 } from '@/lib/atmosphere/intensity';
 import { softCeilingFriction, softCeilingIntensity } from '@/lib/atmosphere/score-shape';
@@ -168,5 +170,25 @@ describe('atmosphere intensity', () => {
     expect(softCeilingFriction(100)).toBeLessThan(90);
     expect(softCeilingFriction(40)).toBe(40);
     expect(softCeilingFriction(55)).toBe(55);
+  });
+
+  it('ignores calibration below twelve samples and shrinks a loud multiplier', () => {
+    const quiet = applyCalibrationModifier(50, {
+      feedbackCount: 5,
+      strongestPlanet: 'Mars',
+      strongestMultiplier: 1.2,
+    });
+    expect(quiet.intensity).toBe(50);
+    expect(quiet.provenance).toEqual([]);
+
+    const learned = applyCalibrationModifier(50, {
+      feedbackCount: 12,
+      strongestPlanet: 'Mars',
+      strongestMultiplier: 1.2,
+    });
+    expect(regularizeCalibrationMultiplier(1.2)).toBeCloseTo(1.0525, 4);
+    expect(learned.intensity).toBe(53);
+    expect(learned.intensity).toBeLessThan(56);
+    expect(learned.provenance).toEqual(['calibration-Mars']);
   });
 });

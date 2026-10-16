@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { resolvePlanetResonanceMultiplier } from '@/lib/astrology/resonance-weight-math';
 import { resonanceDB } from '@/lib/resonance-database';
 import type { PredictiveTransitEvent } from '@/lib/astrology/predictive-transits';
 import { isPrismaStoreUnavailableError } from '@/lib/prisma-errors';
@@ -165,12 +166,11 @@ export async function getResonanceWeightsProfile(userId: string): Promise<Resona
 
   buckets.forEach((bucket, planet) => {
     const sampleSize = bucket.wins + bucket.misses;
-    const averageSignal = bucket.signalTotal / sampleSize;
-    const averageAccuracy = bucket.accuracyTotal / sampleSize;
-    const confidence = clamp(Math.sqrt(sampleSize / 6), 0.2, 1);
-    const multiplier = clamp(1 + averageSignal * 0.3 * confidence, 0.75, 1.35);
+    const averageSignal = sampleSize > 0 ? bucket.signalTotal / sampleSize : 0;
+    const averageAccuracy = sampleSize > 0 ? bucket.accuracyTotal / sampleSize : 0;
+    const multiplier = resolvePlanetResonanceMultiplier(sampleSize, averageSignal);
 
-    multipliers[planet] = Number(multiplier.toFixed(2));
+    multipliers[planet] = multiplier;
     planetBreakdown[planet] = {
       multiplier: Number(multiplier.toFixed(2)),
       sampleSize,
