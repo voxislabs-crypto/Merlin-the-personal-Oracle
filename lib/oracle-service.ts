@@ -24,6 +24,7 @@ import {
 import type { MentionWorthySet } from '@/lib/astrology/mention-worthy';
 import type { LivedThemePacket } from '@/lib/astrology/lived-themes';
 import type { LivedMeaningPacket, ReflectionPacket } from '@/lib/astrology/meaning-synthesis';
+import { asksForSecondaryTool } from '@/lib/oracle-secondary';
 
 export interface OracleMessage {
   role: 'user' | 'assistant';
@@ -609,6 +610,7 @@ ${domains || '  (balanced / quiet)'}
 function formatAtmosphereContext(
   packet: AtmospherePacket | undefined,
   speakScores = true,
+  includeAdvancedTiming = false,
 ): string {
   if (!packet) return '';
 
@@ -657,16 +659,20 @@ ${patternLine}
 ${confluenceLine}
 - Lunar context: ${packet.temporal.lunarPhase || 'n/a'}${packet.temporal.lunarSign ? ` in ${packet.temporal.lunarSign}` : ''}
 - Progressed Moon baseline: ${packet.temporal.baselineTemperature}
-- Annual profection: ${packet.temporal.profectedSign || 'n/a'} (house ${packet.temporal.profectedHouse || 'n/a'}, time lord ${packet.temporal.timeLord || 'n/a'})
+${
+  includeAdvancedTiming
+    ? `- Annual profection: ${packet.temporal.profectedSign || 'n/a'} (house ${packet.temporal.profectedHouse || 'n/a'}, time lord ${packet.temporal.timeLord || 'n/a'})
 - Profection theme: ${packet.temporal.themeOfYear || 'n/a'}
 - Solar arc age: ${typeof packet.temporal.solarArcAge === 'number' ? packet.temporal.solarArcAge.toFixed(1) : 'n/a'}
 - Active solar arc hits: ${
-    packet.temporal.solarArcHits?.length
-      ? packet.temporal.solarArcHits
-          .map((hit) => `${hit.directedPlanet} ${hit.aspect} natal ${hit.natalPlanet} (${hit.orb.toFixed(2)}°)`)
-          .join('; ')
-      : 'none within 1°'
-  }
+        packet.temporal.solarArcHits?.length
+          ? packet.temporal.solarArcHits
+              .map((hit) => `${hit.directedPlanet} ${hit.aspect} natal ${hit.natalPlanet} (${hit.orb.toFixed(2)}°)`)
+              .join('; ')
+          : 'none within 1°'
+      }`
+    : '- Advanced timing (profection, solar arc, returns): withheld. Use it only if the user asked for that tool.'
+}
 - Reading confidence: ${speakScores ? `${packet.confidence}/100 (cleaner read, not a higher chance of coming true)` : pressureBand(packet.confidence)}
 - Use rule: ${speakScores ? 'Life pressure is primary for timing. Symbolic intensity sets the mood word (Storm Watch at 80+). If you cite a figure, use the SCORE PAIR form, name the meter, and call it a heuristic. Never say it is a probability.' : 'Do not cite a percent. Do not name symbolic intensity or Storm Watch as a number. Answer the person.'}
   `.trim();
@@ -832,7 +838,10 @@ ${lines.join('\n')}
   `.trim();
 }
 
-function formatUserContext(userContext: OracleContext['userContext']): string {
+function formatUserContext(
+  userContext: OracleContext['userContext'],
+  includeArc = false,
+): string {
   if (!userContext) return '';
 
   const goals = userContext.goals.length > 0 ? userContext.goals.join(', ') : 'none saved';
@@ -849,8 +858,12 @@ PERSISTENT LIFE CONTEXT:
 - Archetype Name: ${userContext.archetypeName || 'not set'}
 - Pattern Signature: ${userContext.patternSignature || 'not set'}
 - Core Contradiction: ${userContext.coreContradiction || 'not set'}
-- Arc Path: ${userContext.arcPath || 'not set'}
-- Arc Level: ${userContext.arcLevel || 1} (XP: ${userContext.arcXp || 0})
+${
+  includeArc
+    ? `- Arc Path: ${userContext.arcPath || 'not set'}
+- Arc Level: ${userContext.arcLevel || 1} (XP: ${userContext.arcXp || 0})`
+    : '- Life arc path and level: withheld unless the user asks about their arc.'
+}
 - Interaction Count: ${userContext.interactionCount || 0}
 - Context rule: treat this as real-world terrain, not background flavor. If the user asks about jobs, money, housing, relationships, health, or safety, weight this context heavily.
   `.trim();
@@ -1017,19 +1030,23 @@ export function buildOracleSystemPrompt(context: OracleContext): string {
     includeLikelihood: context.includeLikelihood,
   });
   const speakScores = discussionTurn.allowPercentages && !identityDive;
+  const secondaryTools = asksForSecondaryTool(lastUserAsk);
 
   const chartContext = context.birthChart ? formatChartContext(context.birthChart) : '';
   const fullPlanetaryAnalysis = context.birthChart ? formatFullPlanetaryAnalysis(context.birthChart) : '';
   const livedThemesContext = formatLivedThemesContext(context.transits?.livedThemes);
   const transitsContext = context.transits ? formatTransitsContext(context.transits) : '';
   const atmosphereContext = context.atmospherePacket
-    ? formatAtmosphereContext(context.atmospherePacket, speakScores)
+    ? formatAtmosphereContext(context.atmospherePacket, speakScores, secondaryTools)
     : '';
   const forecastContext = context.dailyForecast
     ? formatDailyForecastContext(context.dailyForecast, speakScores)
     : '';
-  const timelineContext = context.timeline ? formatTimelineContext(context.timeline) : '';
-  const userContextBlock = context.userContext ? formatUserContext(context.userContext) : '';
+  const timelineContext =
+    secondaryTools && context.timeline ? formatTimelineContext(context.timeline) : '';
+  const userContextBlock = context.userContext
+    ? formatUserContext(context.userContext, secondaryTools)
+    : '';
   const patternMirrorBlock = context.patternMirror ? formatPatternMirrorContext(context.patternMirror) : '';
   const stormsContext = context.stormsReport
     ? formatStormsContext(context.stormsReport, speakScores)
@@ -1124,6 +1141,7 @@ GUARDRAILS (non-negotiable)
 6. PRIVACY OF CLAIM — Do not invent childhood trauma, secret enemies, or medical conditions.
 7. SAFETY LANGUAGE — Prefer "you might notice" / "pressure is elevated in" over absolute prophecies.
 8. SCORE LABELS — A day may have two heuristic meters. Symbolic intensity is how loud the symbolic weather is (Storm Watch is the mood word at 80+). Friction load is hard-aspect pressure. Theme emphasis names life areas. Reading confidence is how clean the read is. Cite a figure only when the DISCUSSION CONTROLLER says this turn is a reading and percentages are allowed. When you do, name the meter: "Symbolic intensity 85 (heuristic), friction load 71." Never say "N% risk", "N% alarm", or "N% chance". On a conversation turn, use no numbers.
+9. SECONDARY TOOLS — On an ordinary question, stay with today's weather, Core versus Mask, and one move. Prophecy, life arcs, numerology, synastry, profections, and solar arc belong in the reply only when the user asks for that tool.
 
 ═══════════════════════════════════════
 HOW TO ANSWER (interaction model)

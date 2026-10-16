@@ -6,6 +6,7 @@ import { getUserContextSnapshot } from '@/lib/user-context';
 import { BirthChartData } from '@/types/astrology';
 import { detectPatternFromText, getPatternMirror, logInteractionEvent } from '@/lib/pattern-mirror';
 import { applyMerlinTone } from '@/lib/tone-engine';
+import { dailyOracleOpener } from '@/lib/daily-oracle-copy';
 
 interface DailyOracleRequest {
   userId?: string;
@@ -31,7 +32,6 @@ function buildDailyOracleMessage(params: {
   const { forecastSummary, dayRating, clientDate, context, patternMirror, truthBomb } = params;
   const mood = context?.mood || 'uncertain';
   const lastFeedback = context?.lastFeedbackNotes || '';
-  const path = context?.arcPath || 'Path of Truth';
   const level = context?.arcLevel || 1;
   const dominantPattern = patternMirror?.dominant;
   const mirrorInsight = patternMirror?.mirrorInsight;
@@ -106,10 +106,7 @@ function buildDailyOracleMessage(params: {
   const dominantTrend = dominantPattern?.trendStatus || 'stable';
   const trendLens = trendFraming[dominantTrend];
 
-  const dayStamp = clientDate ? ` · ${clientDate}` : '';
-  const opener = truthBomb
-    ? `Truth Bomb (${clientDate || 'today'}): Level ${level} on ${path} means the old script is expensive now.`
-    : `Daily Oracle${dayStamp}: Level ${level} on ${path}.`;
+  const opener = dailyOracleOpener({ truthBomb, clientDate });
 
   const basePressureLine = dayRating === 'Very Challenging' || dayRating === 'Challenging'
     ? 'Today is a pressure day. Choose precision over speed.'
