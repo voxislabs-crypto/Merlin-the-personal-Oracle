@@ -203,7 +203,7 @@ describe('composeTodayOracle', () => {
     expect(brief!.coreNotices).toBeTruthy();
     expect(brief!.maskWants).toBeTruthy();
     expect(brief!.doNot).toBeTruthy();
-    expect(brief!.resolution.toLowerCase()).toMatch(/test by 6pm/);
+    expect((brief!.resolution || '').toLowerCase()).not.toMatch(/test by 6pm|one-sentence test/);
   });
 
   it('labels carryover and changes the next inch when the same sky still applies', () => {
@@ -242,8 +242,9 @@ describe('composeTodayOracle', () => {
     expect(brief!.chartConfidence).toBeGreaterThan(50);
     expect(brief!.readConfidence).toBeGreaterThan(40);
     expect(brief!.move).not.toMatch(/one reversible step only/i);
-    expect(brief!.confidenceWhy).toMatch(/Read confidence \d+%/);
-    expect(brief!.confidenceWhy).toMatch(/Chart confidence \d+%/);
+    expect(brief!.confidenceWhy).toMatch(/Reading confidence \d+/);
+    expect(brief!.confidenceWhy).toMatch(/Chart clarity \d+/);
+    expect(brief!.confidenceWhy).not.toMatch(/%/);
     expect(brief!.confidenceWhy.toLowerCase()).toMatch(/move above/);
     expect(brief!.confidenceWhy.toLowerCase()).not.toMatch(/changing one variable/);
     expect(brief!.confidenceWhy.toLowerCase()).not.toMatch(/exit ramp/);

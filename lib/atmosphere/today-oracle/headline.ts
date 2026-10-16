@@ -554,9 +554,7 @@ function activeThemeMove(input: {
     if (input.themeId === 'action-surge') {
       return 'Twenty focused minutes on the thing you have been circling.';
     }
-    if (c === 'INFP') return "Take one small yes. Don't save it.";
-    if (c === 'INFJ') return 'One quiet alignment move, then stop.';
-    return 'Take the opening. One yes, then stop.';
+    return typedSupportMove(input.coreType, input.maskType);
   }
   switch (input.themeId) {
     case 'fog-clarity':
@@ -633,6 +631,7 @@ function conclusionMove(input: {
   if (input.polarity !== 'carryover') {
     if (input.level === 'none') return 'Nothing new needs to happen.';
     if (input.level === 'hold') return "Watch it. Don't start a new project.";
+    if (input.polarity === 'support') return fresh;
     if (input.level === 'small') return smallThemeMove(input.themeId, input.polarity);
     return fresh;
   }

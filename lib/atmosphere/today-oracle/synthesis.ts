@@ -222,6 +222,7 @@ export function synthesizeTodayOracle(input: {
     tripleHit: input.tripleHit,
   });
   const move = composed.move;
+  const resolution = framed && isHomeworkHeadline(dual?.resolution) ? undefined : dual?.resolution;
   const whatHappening = composed.what;
   const whyItMatters = composed.whyMe;
   const howToRide = composed.ride;
@@ -284,7 +285,7 @@ export function synthesizeTodayOracle(input: {
     coreNotices: dual?.coreNotices,
     maskWants: dual?.maskWants,
     tensionLine: dual?.tensionLine,
-    resolution: dual?.resolution,
+    resolution,
     whyThisPerson: dual?.whyThisPerson,
     behaviorTell: dual?.behaviorTell,
     weeklyCharacter: dual?.weeklyCharacter,

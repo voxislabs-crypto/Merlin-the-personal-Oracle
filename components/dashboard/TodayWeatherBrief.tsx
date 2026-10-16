@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Compass, Lightbulb, MessageCircle, Radio } from 'lucide-react';
 import ThumbsFeedback from '@/components/astrology/ThumbsFeedback';
@@ -206,6 +206,18 @@ export function TodayWeatherBrief({
       userId,
     );
   }, [behaviorTell, date, intensity, isEmpty, isError, loading, themeLabel, todayMove, userId]);
+
+  const collapseIdentity =
+    themeId === 'fog-clarity' ||
+    themeId === 'sudden-shift' ||
+    themeId === 'emotional-heat' ||
+    /clarity is thin/i.test(themeLabel || '') ||
+    /jolt|sudden/i.test(`${themeLabel || ''} ${whatHappening || ''}`) ||
+    /mercury.{0,24}neptune|neptune.{0,24}mercury/i.test(`${leadFact || ''} ${leadFactDisplay || ''}`);
+  const [identityOpen, setIdentityOpen] = useState(!collapseIdentity);
+  useEffect(() => {
+    setIdentityOpen(!collapseIdentity);
+  }, [collapseIdentity, date, themeId]);
 
   if (loading) {
     return (
@@ -422,7 +434,11 @@ export function TodayWeatherBrief({
                 watchFor ||
                 leadFactDisplay ||
                 confidenceWhy ? (
-                  <details className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+                  <details
+                    className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"
+                    open={identityOpen}
+                    onToggle={(event) => setIdentityOpen(event.currentTarget.open)}
+                  >
                     <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400 hover:text-slate-200">
                       Core, Mask, Tension
                     </summary>

@@ -138,6 +138,66 @@ describe('today headline compose', () => {
     expect(slots.what.toLowerCase()).not.toMatch(/problem|tightening/);
   });
 
+  it('a green day uses the type support move, not the storm sentence', () => {
+    const theme: RankedTheme = {
+      id: 'home-mood',
+      label: 'Home mood',
+      polarity: 'opening',
+      score: 82,
+      facts: [
+        {
+          key: 'Venus trine Moon',
+          transiting: 'venus',
+          aspect: 'trine',
+          natal: 'moon',
+          display: 'Venus trine Moon',
+          orbDeg: 0.6,
+          band: 'soft',
+          score: 82,
+          domains: ['family'],
+          source: 'transit-lookup',
+        },
+      ],
+      domains: ['family'],
+    };
+    const risk = {
+      domains: [{ name: 'family', friction: 18, support: 76, hitCount: 1 }],
+    } as LifeRiskPacket;
+    const infp = composeTodayHeadline({
+      theme,
+      lead: theme.facts[0],
+      domains: ['family'],
+      risk,
+      coreType: 'INFP',
+      maskType: 'INTP',
+    });
+    const infj = composeTodayHeadline({
+      theme,
+      lead: theme.facts[0],
+      domains: ['family'],
+      risk,
+      coreType: 'INFJ',
+      maskType: 'INTP',
+    });
+    const intp = composeTodayHeadline({
+      theme,
+      lead: theme.facts[0],
+      domains: ['family'],
+      risk,
+      coreType: 'INTP',
+      maskType: 'INTP',
+    });
+    expect(infp.polarity).toBe('support');
+    expect(infp.move).toBe(typedSupportMove('INFP', 'INTP'));
+    expect(infp.move.toLowerCase()).toMatch(/outside/);
+    expect(infj.move).toMatch(/alignment/);
+    expect(intp.move.toLowerCase()).toMatch(/time-boxed|experiment/);
+    for (const slots of [infp, infj, intp]) {
+      expect(slots.move).not.toMatch(/honest sentence, then silence|feeling before the analysis/);
+      expect(isHomeworkHeadline(slots.move)).toBe(false);
+    }
+  });
+
   it('carryover labels the same sky and changes the next inch', () => {
     const day1 = composeTodayHeadline({
       theme: fogTheme(),

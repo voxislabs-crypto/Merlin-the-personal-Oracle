@@ -993,7 +993,7 @@ REQUIRED SHAPE
 1. Chart evidence. Name two or three natal placements that justify Core, and two that justify Mask. You MAY name Sun, Moon, Mercury, Rising, and one aspect even if Clarity is on — translate each into lived language in the same breath. Example shape: a water Moon and water houses support an INFP/INFJ core; Virgo or air Mercury plus a cooler Rising supports an INTP mask. Use the actual natal in APP SIGHT, not a generic example.
 2. Sequence, not two labels. Core is what feels threatened. Mask is what other people see and what they reach for under pressure. How they cooperate. Where they fight. One concrete inner scene. Not slogans.
 3. Misread. One social tell + one private cost. "People meet the analyst first and miss the values" is too thin.
-4. Today's weather. Use the actual pressure in APP SIGHT (transit, domain, friction). Soothe the Core. Coach the Mask. One timed move. Not a generic relationship pep talk.
+4. Today's weather. Use the actual pressure in APP SIGHT (transit, domain, friction load) as heuristic intensity, not a probability. Soothe the Core. Coach the Mask. One timed move that fits this type. Do not recycle a 6pm proverb or "write the one-sentence test." Not a generic relationship pep talk.
 5. End with one falsifiable fit question (e.g. whether the mask shows most in writing, meetings, or conflict). Not "does this resonate."
 
 BANNED OPENERS AND PHRASES

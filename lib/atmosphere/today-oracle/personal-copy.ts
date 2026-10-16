@@ -535,7 +535,7 @@ export function buildConfidenceWhy(options: {
   const held = options.held
     ? ' The "still applies" flag means yesterday\'s condition didn\'t break overnight — don\'t escalate.'
     : '';
-  return `Read confidence ${options.readConfidence}% that ${domainBit} is the real weather. Chart confidence ${options.chartConfidence}% that the move above is the right size.${held}`;
+  return `Reading confidence ${options.readConfidence} (heuristic) that ${domainBit} is the real weather. Chart clarity ${options.chartConfidence} that the move above is the right size.${held}`;
 }
 
 export function buildDomainJob(
