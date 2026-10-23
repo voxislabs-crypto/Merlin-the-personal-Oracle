@@ -4,21 +4,10 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Radar, Shield } from 'lucide-react';
 import { TransitAspectLabel } from '@/components/astrology/PlanetLabel';
 import { ArcanePane } from '@/components/dashboard/ArcanePane';
+import { HorizonCurveChart } from '@/components/dashboard/HorizonCurveChart';
 import { ShareWeatherButton } from '@/components/dashboard/ShareWeatherButton';
-import {
-  buildLifeRiskHorizon,
-  emphasizeHorizonWinner,
-  formatHorizonTooltip,
-  horizonHasUnscored,
-  isHorizonFlowWindow,
-  lifeRiskLevelPresentation,
-} from '@/lib/atmosphere/life-risk';
-import type {
-  LifeRiskDayScore,
-  LifeRiskLevel,
-  LifeRiskPacket,
-  LifeRiskWindow,
-} from '@/lib/atmosphere/types';
+import { buildLifeRiskHorizon, lifeRiskLevelPresentation } from '@/lib/atmosphere/life-risk';
+import type { LifeRiskLevel, LifeRiskPacket, LifeRiskWindow } from '@/lib/atmosphere/types';
 import {
   FRICTION_LOAD_LABEL,
   METER_DEFINITIONS,
@@ -57,280 +46,6 @@ function barSolidColor(friction: number): string {
   if (friction >= 42) return '#fbbf24';
   if (friction > 0) return '#34d399';
   return '#334155';
-}
-
-const FRICTION_COLOR = '#f97316';
-const FRICTION_HOT = '#ea580c';
-const EASE_COLOR = '#0284c7';
-const QUIET_FRICTION = 'rgba(249,115,22,0.45)';
-const QUIET_EASE = 'rgba(2,132,199,0.4)';
-const UNSCORED_HATCH =
-  'repeating-linear-gradient(-45deg, rgba(100,116,139,0.45) 0 2px, transparent 2px 5px)';
-
-const CHART_HEIGHT_PX = 132;
-const MIDLINE_PX = 66;
-
-function frictionFill(friction: number): string {
-  if (friction >= 70) return FRICTION_HOT;
-  return FRICTION_COLOR;
-}
-
-function HorizonStripChart({
-  horizon,
-  windowDays,
-  selectedDate,
-  onSelectDate,
-}: {
-  horizon: LifeRiskDayScore[];
-  windowDays: number;
-  selectedDate: string | null;
-  onSelectDate: (date: string | null) => void;
-}) {
-  const today = localToday();
-  const series = horizon;
-  const windowLabel =
-    windowDays === 10
-      ? 'Next ten days — pressure and ease'
-      : `Next ${windowDays} days — pressure and ease`;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{windowLabel}</p>
-        <p className="text-[10px] text-slate-500">tap a day · 0–100</p>
-      </div>
-
-      <div className="rounded-xl border border-white/10 bg-black/30 px-2 pt-3 pb-2">
-        <div
-          className="flex gap-px sm:gap-0.5"
-          style={{ height: CHART_HEIGHT_PX }}
-          role="img"
-          aria-label={windowLabel}
-        >
-          {series.map((day) => {
-            const active = selectedDate === day.date;
-            const isToday = day.date === today;
-            const display = emphasizeHorizonWinner(day);
-            const frictionPx =
-              display.friction > 0
-                ? Math.max(display.quiet ? 4 : 8, Math.round((display.friction / 100) * (MIDLINE_PX - 6)))
-                : 0;
-            const easePx =
-              display.ease > 0
-                ? Math.max(
-                    display.quiet ? 4 : 8,
-                    Math.round((display.ease / 100) * (CHART_HEIGHT_PX - MIDLINE_PX - 6)),
-                  )
-                : 0;
-            const flow = isHorizonFlowWindow(day);
-
-            return (
-              <button
-                key={day.date}
-                type="button"
-                onClick={() => onSelectDate(active ? null : day.date)}
-                className={cn(
-                  'group relative flex h-full min-w-0 flex-1 flex-col outline-none',
-                  active && 'z-10',
-                )}
-                title={formatHorizonTooltip(day)}
-              >
-                <div className="relative flex h-full w-full flex-col">
-                  <div
-                    className="flex flex-col items-center justify-end"
-                    style={{ height: MIDLINE_PX }}
-                  >
-                    {day.scored ? (
-                      frictionPx > 0 ? (
-                        <div
-                          className={cn(
-                            'w-[65%] max-w-[0.7rem] rounded-t-sm',
-                            active && 'ring-1 ring-orange-400/70',
-                          )}
-                          style={{
-                            height: frictionPx,
-                            minHeight: frictionPx,
-                            background: display.quiet ? QUIET_FRICTION : frictionFill(day.friction),
-                            boxShadow:
-                              !display.quiet && display.friction >= 62 ? `0 0 10px ${FRICTION_HOT}66` : undefined,
-                          }}
-                        />
-                      ) : null
-                    ) : (
-                      <div
-                        className="w-[65%] max-w-[0.7rem] rounded-t-sm"
-                        style={{
-                          height: MIDLINE_PX - 8,
-                          backgroundImage: UNSCORED_HATCH,
-                          backgroundColor: 'rgba(51,65,85,0.55)',
-                        }}
-                        aria-hidden
-                      />
-                    )}
-                  </div>
-                  <div className="h-px w-full bg-white/20" />
-                  <div
-                    className="flex flex-col items-center justify-start"
-                    style={{ height: CHART_HEIGHT_PX - MIDLINE_PX }}
-                  >
-                    {day.scored ? (
-                      easePx > 0 ? (
-                        <div
-                          className={cn(
-                            'w-[65%] max-w-[0.7rem] rounded-b-sm',
-                            active && 'ring-1 ring-sky-500/70',
-                          )}
-                          style={{
-                            height: easePx,
-                            minHeight: easePx,
-                            background: display.quiet ? QUIET_EASE : EASE_COLOR,
-                          }}
-                        />
-                      ) : null
-                    ) : (
-                      <div
-                        className="w-[65%] max-w-[0.7rem] rounded-b-sm"
-                        style={{
-                          height: CHART_HEIGHT_PX - MIDLINE_PX - 8,
-                          backgroundImage: UNSCORED_HATCH,
-                          backgroundColor: 'rgba(51,65,85,0.55)',
-                        }}
-                        aria-hidden
-                      />
-                    )}
-                  </div>
-                </div>
-                {flow ? (
-                  <span className="pointer-events-none absolute left-1/2 top-0 hidden -translate-x-1/2 text-[7px] font-semibold uppercase tracking-wide text-sky-300 sm:block">
-                    Flow
-                  </span>
-                ) : null}
-                {isToday ? (
-                  <span className="pointer-events-none absolute bottom-0 left-1/2 h-0.5 w-3 -translate-x-1/2 rounded-full bg-violet-300" />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-1.5 flex gap-px sm:gap-0.5">
-          {series.map((day) => {
-            const label = new Date(`${day.date}T12:00:00`).toLocaleDateString('en-US', {
-              weekday: 'narrow',
-            });
-            const dayNum = new Date(`${day.date}T12:00:00`).getDate();
-            const active = selectedDate === day.date;
-            const isToday = day.date === today;
-            const flow = isHorizonFlowWindow(day);
-            return (
-              <button
-                key={`lbl-${day.date}`}
-                type="button"
-                onClick={() => onSelectDate(active ? null : day.date)}
-                className="flex min-w-0 flex-1 flex-col items-center leading-none"
-              >
-                <span
-                  className={cn(
-                    'text-[8px] font-medium uppercase sm:text-[9px]',
-                    !day.scored
-                      ? 'text-slate-600'
-                      : isToday
-                        ? 'text-violet-300'
-                        : active
-                          ? 'text-sky-300'
-                          : flow
-                            ? 'text-sky-400/80'
-                            : 'text-slate-500',
-                  )}
-                >
-                  {label}
-                </span>
-                <span
-                  className={cn(
-                    'text-[9px] tabular-nums sm:text-[10px]',
-                    !day.scored
-                      ? 'text-slate-600'
-                      : isToday
-                        ? 'font-bold text-violet-200'
-                        : active
-                          ? 'font-semibold text-sky-200'
-                          : 'text-slate-500',
-                  )}
-                >
-                  {dayNum}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <p className="mt-2 border-t border-white/5 pt-1.5 text-[10px] leading-relaxed text-slate-500">
-          Orange is hard pressure. Blue is supportive flow.
-          {horizonHasUnscored(series) ? ' Grey is not scored yet.' : ''}
-        </p>
-      </div>
-
-      {selectedDate ? (
-        <div className="rounded-lg border border-sky-400/25 bg-sky-950/25 px-3 py-2 text-xs text-slate-200">
-          {(() => {
-            const day = series.find((d) => d.date === selectedDate);
-            if (!day) return null;
-            const when = new Date(`${day.date}T12:00:00`).toLocaleDateString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-            });
-            if (!day.scored) {
-              return (
-                <>
-                  <span className="font-semibold text-slate-300">{when}</span>
-                  <span className="text-slate-500"> · Not scored yet</span>
-                  <p className="mt-1 text-slate-400">Not calculated past the current window.</p>
-                </>
-              );
-            }
-            return (
-              <>
-                <span className="font-semibold text-sky-100">{when}</span>
-                {isHorizonFlowWindow(day) ? (
-                  <span className="ml-2 rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-sky-200">
-                    Flow window
-                  </span>
-                ) : null}
-                <div className="mt-1.5 space-y-1">
-                  <p>
-                    <span className="text-slate-500">friction load </span>
-                    <span className="font-semibold tabular-nums" style={{ color: FRICTION_COLOR }}>
-                      {day.friction}
-                    </span>
-                    {day.frictionDriver ? (
-                      <span className="ml-2 text-slate-300">
-                        <TransitAspectLabel label={day.frictionDriver} showGlyphs />
-                      </span>
-                    ) : null}
-                  </p>
-                  <p>
-                    <span className="text-slate-500">ease </span>
-                    <span className="font-semibold tabular-nums" style={{ color: EASE_COLOR }}>
-                      {day.ease}
-                    </span>
-                    {day.easeDriver ? (
-                      <span className="ml-2 text-slate-300">
-                        <TransitAspectLabel label={day.easeDriver} showGlyphs />
-                      </span>
-                    ) : null}
-                  </p>
-                  {day.friction <= 0 && day.ease <= 0 ? (
-                    <p className="text-slate-500">No major hard or supportive hits scored this day.</p>
-                  ) : null}
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 /** Unique drivers for the horizon (collapse same label spam) */
@@ -377,7 +92,7 @@ export interface LifeRiskRadarProps {
 }
 
 /**
- * Score-first horizon: overall level + friction-by-day chart (not redundant lists).
+ * Score-first horizon: overall level plus a continuous pressure curve.
  */
 export function LifeRiskRadar({
   risk,
@@ -395,6 +110,10 @@ export function LifeRiskRadar({
       windows: [...(risk.frictionWindows || []), ...(risk.supportWindows || [])],
     });
   }, [risk]);
+  const horizonWindows = useMemo(
+    () => [...(risk?.frictionWindows || []), ...(risk?.supportWindows || [])],
+    [risk],
+  );
 
   if (loading && !risk) {
     return (
@@ -539,9 +258,11 @@ export function LifeRiskRadar({
           <p className="mt-2 text-xs text-slate-500">{presentation.description}</p>
         </div>
 
-        <HorizonStripChart
+        <HorizonCurveChart
           horizon={horizon}
           windowDays={risk.windowDays}
+          asOfDate={risk.date}
+          windows={horizonWindows}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
@@ -681,7 +402,7 @@ export function LifeRiskRadar({
           <span className="font-semibold text-sky-300">Air</span>
           <span className="font-semibold text-violet-300">Water</span>
           <span className="normal-case tracking-normal text-slate-500">
-            Hover planets · tap chart bars for day detail
+            Hover a planet · tap the curve for the day
           </span>
         </div>
 
