@@ -91,7 +91,9 @@ describe('today headline compose', () => {
     expect(`${slots.what} ${slots.whyMe} ${slots.ride}`.toLowerCase()).not.toMatch(
       /outward habit|random mood|caution budget|inner vote/,
     );
-    expect(slots.move).toBe('One honest sentence, then silence.');
+    expect(slots.move).toBe(typedStormMove('INFP', 'INTP'));
+    expect(slots.move.toLowerCase()).toMatch(/honest sentence/);
+    expect(slots.move.toLowerCase()).toMatch(/silence/);
     expect(slots.move).not.toMatch(/6pm|write the one-sentence/);
     expect(slots.headline).toBe(slots.move);
     expect(slots.avoid.toLowerCase()).toMatch(/brief/);
@@ -355,7 +357,8 @@ describe('theme authority and scaled composition', () => {
     expect(slots.polarity).toBe('storm');
     expect(slots.what.toLowerCase()).toMatch(/clarity is thinner/);
     expect(slots.what.toLowerCase()).not.toMatch(/opening/);
-    expect(slots.move).toBe('One honest sentence, then silence.');
+    expect(slots.move).toBe(typedStormMove('INFP', 'INTP'));
+    expect(slots.move.toLowerCase()).toMatch(/honest sentence/);
   });
 
   it('action-block move follows blocked drive, not the INFP fog kit', () => {

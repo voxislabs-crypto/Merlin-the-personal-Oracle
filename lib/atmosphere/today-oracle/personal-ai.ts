@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { chatCompletion, isLlmConfigured } from '@/lib/llm-config';
+import { appendBriefStyleNote } from '@/lib/self/type-style';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { applyMerlinVoicePass, failsMerlinVoiceTest } from '@/lib/voice/merlin-voice';
 import { serverCache } from '@/lib/cache-service';
@@ -51,6 +52,10 @@ Rules:
 - Never print MBTI type codes (INFP, INTP, etc.) in the body. Use the maps, hide the labels.
 - Max 420 characters for chartWhy, 220 for watchFor, 280 for operationalTension.
 - If a field is already sharp, return it unchanged.`;
+
+export function polishSystemPrompt(coreType?: string | null, maskType?: string | null): string {
+  return appendBriefStyleNote(SYSTEM_PROMPT, coreType, maskType);
+}
 
 function cacheKey(input: TodayBriefPolishInput): string {
   return [
@@ -133,9 +138,11 @@ export async function polishTodayBrief(
     const raw = await Promise.race([
       chatCompletion({
         temperature: 0.45,
-        maxTokens: 420,
+        // GPT-OSS counts hidden reasoning against this budget. This prompt
+        // spends roughly 500–650 tokens before the JSON, so 420 comes back empty.
+        maxTokens: 1600,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: polishSystemPrompt(input.coreType, input.maskType) },
           { role: 'user', content: userPrompt },
         ],
       }),

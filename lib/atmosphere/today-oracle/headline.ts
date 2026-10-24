@@ -9,6 +9,7 @@ import type { LifeRiskDomain, LifeRiskPacket } from '@/lib/atmosphere/types';
 import { domainPhrase, tightDomainsFromRisk } from '@/lib/atmosphere/today-oracle/personal-copy';
 import type { RankedTheme, TodayThemeId, TransitFact } from '@/lib/atmosphere/today-oracle/types';
 import { CORE_THREAT, parseMbtiType } from '@/lib/self/dual-layer-maps';
+import { shapeActionSentence } from '@/lib/self/type-style';
 
 export type HeadlinePolarity = 'storm' | 'support' | 'carryover';
 export type InterventionLevel = 'active' | 'small' | 'hold' | 'none';
@@ -123,7 +124,7 @@ function skyAsWeatherNoun(sky: string): string {
   return t.replace(/^(an?|the)\s+/i, '') || 'weather';
 }
 
-export function typedStormMove(core?: string | null, mask?: string | null): string {
+function stormMoveBody(core?: string | null, mask?: string | null): string {
   const c = parseMbtiType(core);
   if (c === 'INFP') return 'One honest sentence, then silence.';
   if (c === 'INFJ') return 'State the feeling before the analysis.';
@@ -133,7 +134,11 @@ export function typedStormMove(core?: string | null, mask?: string | null): stri
   return 'One reversible step. Stop there.';
 }
 
-export function typedSupportMove(core?: string | null, mask?: string | null): string {
+export function typedStormMove(core?: string | null, mask?: string | null): string {
+  return shapeActionSentence(core, mask, stormMoveBody(core, mask));
+}
+
+function supportMoveBody(core?: string | null, mask?: string | null): string {
   const c = parseMbtiType(core);
   const m = parseMbtiType(mask);
   if (c === 'INFP') return 'Go outside — cheap joy, or one small yes.';
@@ -141,6 +146,10 @@ export function typedSupportMove(core?: string | null, mask?: string | null): st
   if (c === 'INTP' || m === 'INTP') return 'One time-boxed experiment. Don\'t research the walk.';
   if (c) return `Take the opening: ${CORE_THREAT[c].help.replace(/\.+$/, '').toLowerCase()}.`;
   return 'Take the green hour. One yes, then stop.';
+}
+
+export function typedSupportMove(core?: string | null, mask?: string | null): string {
+  return shapeActionSentence(core, mask, supportMoveBody(core, mask));
 }
 
 export function typedAvoid(core?: string | null, mask?: string | null, polarity: HeadlinePolarity = 'storm'): string {
