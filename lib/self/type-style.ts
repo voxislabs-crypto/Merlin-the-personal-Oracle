@@ -7,7 +7,7 @@
 
 import { parseMbtiType, type MbtiType } from '@/lib/self/dual-layer-maps';
 
-const STYLED: ReadonlySet<MbtiType> = new Set(['INFP', 'INFJ', 'INTP', 'INTJ']);
+const STYLED = new Set<MbtiType>(['INFP', 'INFJ', 'INTP', 'INTJ']);
 
 const SHAPED_START = /^(Priority:|First:|So far\b|This lands close:|What hurts first:|This can stay gentle:)/;
 
