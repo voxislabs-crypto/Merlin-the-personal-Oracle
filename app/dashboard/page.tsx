@@ -133,7 +133,14 @@ import { getMBTITypeDescription, applyMBTIOverlay, type MBTIType } from '@/lib/m
 import { globalAudioManager } from '@/lib/global-audio-manager';
 import { buildIdentityPacket, resolveSelfMbtiType } from '@/lib/self';
 import { buildBlendSynthesis } from '@/lib/personality/mbti-blend-synthesis';
-import { applyMbtiUserOverride, parseMbtiType } from '@/lib/personality/mbti-override';
+import {
+  applyMbtiUserOverride,
+  parseMbtiType,
+  personalityBirthKey,
+  weatherHydrationDay,
+  weatherHydrationKey,
+  weatherRefreshReady,
+} from '@/lib/personality/mbti-override';
 import { selectPersonalityReads } from '@/lib/personality/dual-overlay';
 import { useMbtiOverride } from '@/hooks/useMbtiOverride';
 import {
@@ -366,9 +373,11 @@ export default function UnifiedDashboard() {
     dualOverlayRx,
     calculatePersonality,
     reset: resetPersonality,
+    resolvedBirthKey: personalityResolvedBirthKey,
   } = usePersonality();
   const {
     coreOverride,
+    maskOverride,
     setCoreOverride,
     clearCoreOverride,
     saving: coreOverrideSaving,
@@ -394,9 +403,21 @@ export default function UnifiedDashboard() {
     [coreOverride, liveDual?.firmware?.mbtiType, mbtiType],
   );
   const activeDual = React.useMemo(
-    () => applyMbtiUserOverride(liveDual, { core: coreOverride }),
-    [liveDual, coreOverride],
+    () => applyMbtiUserOverride(liveDual, { core: coreOverride, mask: maskOverride }),
+    [liveDual, coreOverride, maskOverride],
   );
+  const personalityReady = weatherRefreshReady({
+    coreOverride,
+    birthKey: birthData
+      ? personalityBirthKey({
+          date: birthData.date,
+          time: birthData.time,
+          latitude: birthData.latitude,
+          longitude: birthData.longitude,
+        })
+      : '',
+    resolvedBirthKey: personalityResolvedBirthKey,
+  });
   const atmosphereEngineEnabled = isAtmosphereEngineV1Enabled({
     premium: featureFlags.premiumInsights,
   });
@@ -522,18 +543,18 @@ export default function UnifiedDashboard() {
   
   // Re-generate interpretations when mode changes
   useEffect(() => {
-    if (birthData && chartData) {
+    if (birthData && chartData && personalityReady) {
       generateInterpretations(birthData, interpretMode, {
         userId: userId || undefined,
-        mbtiType: mbtiType || undefined,
+        mbtiType: speakingMbti || undefined,
       });
     }
-  }, [interpretMode, birthData, chartData, generateInterpretations, userId, mbtiType]);
+  }, [interpretMode, birthData, chartData, generateInterpretations, personalityReady, userId, speakingMbti]);
 
   const refreshTransitsWithContext = useCallback(() => {
     if (!birthData) return;
-    calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined });
-  }, [birthData, calculateTransits, mbtiType, userId]);
+    calculateTransits(birthData, { mbtiType: speakingMbti || undefined, userId: userId || undefined });
+  }, [birthData, calculateTransits, speakingMbti, userId]);
 
   const calibrationHistorySorted = sortCalibrationHistory(calibrationHistory, calibrationSortMode);
   const latestCalibrationComparison = getLatestCalibrationComparison(calibrationHistory);
@@ -622,9 +643,9 @@ export default function UnifiedDashboard() {
 
       if (birthData) {
         await Promise.all([
-          calculateTransits(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculatePressureWindow(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
-          calculateDomainForecast(birthData, { mbtiType: mbtiType || undefined, userId: userId || undefined }),
+          calculateTransits(birthData, { mbtiType: speakingMbti || undefined, userId: userId || undefined }),
+          calculatePressureWindow(birthData, { mbtiType: speakingMbti || undefined, userId: userId || undefined }),
+          calculateDomainForecast(birthData, { mbtiType: speakingMbti || undefined, userId: userId || undefined }),
         ]);
       }
 
@@ -643,7 +664,7 @@ export default function UnifiedDashboard() {
     calculateTransits,
     calibrationHistoryDays,
     loadCalibrationHistory,
-    mbtiType,
+    speakingMbti,
     userId,
   ]);
 
@@ -700,7 +721,7 @@ export default function UnifiedDashboard() {
         const response = await fetch('/api/identity-pack', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, birthChart: chartData, mbtiType: mbtiType || undefined }),
+          body: JSON.stringify({ userId, birthChart: chartData, mbtiType: speakingMbti || undefined }),
         });
         if (!response.ok) return;
         const result = await response.json();
@@ -713,7 +734,7 @@ export default function UnifiedDashboard() {
     };
 
     ensureIdentityPack();
-  }, [featureFlags.persistenceEnabled, userId, chartData, mbtiType]);
+  }, [featureFlags.persistenceEnabled, userId, chartData, speakingMbti]);
 
   const fetchPatternMirror = useCallback(async () => {
     if (!userId || !featureFlags.persistenceEnabled) return;
@@ -1132,6 +1153,7 @@ export default function UnifiedDashboard() {
           atmosphereEngineEnabled && canToday
             ? calculateAtmosphere(birth, {
                 mbtiType: derivedMbti || undefined,
+                mbtiMask: maskOverride || undefined,
                 userId: userId || undefined,
               })
             : Promise.resolve(null),
@@ -1161,6 +1183,7 @@ export default function UnifiedDashboard() {
     generateInterpretations,
     interpretMode,
     isLoaded,
+    maskOverride,
     mbtiType,
     resetPersonality,
     speakingMbti,
@@ -1222,17 +1245,27 @@ export default function UnifiedDashboard() {
     const canFull = featureFlags.premiumInsights;
     if (!canToday || !birthData || !chartData) return;
     if (!localCalendarDay) return;
+    // A saved Core can refresh now. Otherwise wait for this birth's personality read
+    // so the first forecast is not stuck on the calculated type from an empty pass.
+    if (!personalityReady) return;
 
-    // Include local calendar day so Aug 5 → Aug 6 always re-fetches weather
-    const hydrationKey = `${tier}:${canFull ? 'full' : 'today'}:${birthData.date}:${birthData.time}:${localCalendarDay}`;
+    const hydrationKey = weatherHydrationKey({
+      tier,
+      scope: canFull ? 'full' : 'today',
+      birthDate: birthData.date,
+      birthTime: birthData.time,
+      localDay: localCalendarDay,
+      effectiveType: speakingMbti,
+      maskOverride,
+    });
     if (premiumHydrationKeyRef.current === hydrationKey) return;
 
     const previousKey = premiumHydrationKeyRef.current;
     premiumHydrationKeyRef.current = hydrationKey;
 
     // Day roll-over (or first load after day change): clear stale day packets so UI
-    // doesn't paint yesterday while the new day is in flight
-    if (previousKey && !previousKey.endsWith(`:${localCalendarDay}`)) {
+    // doesn't paint yesterday while the new day is in flight. A type change keeps the chart.
+    if (previousKey && weatherHydrationDay(previousKey) !== localCalendarDay) {
       resetForecast();
       resetAtmosphere();
     }
@@ -1275,6 +1308,7 @@ export default function UnifiedDashboard() {
       atmosphereEngineEnabled
         ? calculateAtmosphere(birthData, {
             mbtiType: derivedMbti || undefined,
+            mbtiMask: maskOverride || undefined,
             userId: userId || undefined,
             clientDate: localCalendarDay,
           })
@@ -1298,7 +1332,9 @@ export default function UnifiedDashboard() {
     generateInterpretations,
     interpretMode,
     localCalendarDay,
+    maskOverride,
     mbtiType,
+    personalityReady,
     resetAtmosphere,
     resetForecast,
     speakingMbti,
@@ -1397,6 +1433,7 @@ export default function UnifiedDashboard() {
       atmosphereEngineEnabled && canToday
         ? calculateAtmosphere(derived, {
             mbtiType: derivedMbti || undefined,
+            mbtiMask: maskOverride || undefined,
             userId: userId || undefined,
           })
         : Promise.resolve(null),
@@ -1416,6 +1453,7 @@ export default function UnifiedDashboard() {
     featureFlags.freemiumToday,
     featureFlags.premiumInsights,
     interpretMode,
+    maskOverride,
     mbtiType,
     speakingMbti,
     userId,

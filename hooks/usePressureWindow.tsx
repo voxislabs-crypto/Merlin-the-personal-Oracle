@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
@@ -68,12 +69,14 @@ export function usePressureWindow() {
   const [pressureWindow, setPressureWindow] = useState<PressureWindowData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { begin, invalidate } = useLatestRequest();
 
   const calculatePressureWindow = useCallback(
     async (
       birthData: BirthData,
       options?: { mbtiType?: string; userId?: string; windowDays?: number }
     ): Promise<PressureWindowData | null> => {
+      const isCurrent = begin();
       setLoading(true);
       setError(null);
       const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
@@ -106,24 +109,27 @@ export function usePressureWindow() {
           throw new Error(result?.error || 'Failed to calculate pressure window');
         }
 
+        if (!isCurrent()) return null;
         setPressureWindow(result.data);
         return result.data;
       } catch (err) {
+        if (!isCurrent()) return null;
         const wrapped = err instanceof Error ? err : new Error('Unknown error');
         setError(wrapped);
         console.error('Pressure window error:', wrapped);
         return null;
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
-    []
+    [begin]
   );
 
   const reset = useCallback(() => {
+    invalidate();
     setPressureWindow(null);
     setError(null);
-  }, []);
+  }, [invalidate]);
 
   return { pressureWindow, loading, error, calculatePressureWindow, reset };
 }

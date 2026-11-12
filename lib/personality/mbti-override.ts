@@ -166,3 +166,63 @@ export function resolveActiveCoreType(input: {
     parseMbtiType(input.dualOverlay?.finalType)
   );
 }
+
+/** Birth identity for "personality has settled for this chart." Not a chart hash. */
+export function personalityBirthKey(birth: {
+  date: string;
+  time: string;
+  latitude: number;
+  longitude: number;
+}): string {
+  return `${birth.date}|${birth.time}|${birth.latitude}|${birth.longitude}`;
+}
+
+/**
+ * Weather may refresh immediately when the user has set a Core.
+ * Otherwise wait until the personality read for this birth has finished,
+ * so the first forecast is not stuck on a missing type.
+ */
+export function weatherRefreshReady(input: {
+  coreOverride?: string | null;
+  birthKey: string;
+  resolvedBirthKey?: string | null;
+}): boolean {
+  if (parseMbtiType(input.coreOverride)) return true;
+  return Boolean(input.birthKey) && input.resolvedBirthKey === input.birthKey;
+}
+
+/**
+ * Cache key for dashboard forecast / transit / atmosphere hydration.
+ * Effective Core (override or calculated) and a mask override change the key.
+ * Birth time stays in the key so a new chart still refetches. The natal wheel
+ * itself is not rebuilt from this key.
+ */
+export function weatherHydrationKey(input: {
+  tier: string;
+  scope: 'full' | 'today';
+  birthDate: string;
+  birthTime: string;
+  localDay: string;
+  effectiveType?: string | null;
+  maskOverride?: string | null;
+}): string {
+  const core = parseMbtiType(input.effectiveType) || 'none';
+  const mask = parseMbtiType(input.maskOverride) || 'chart';
+  // Pipe-separated: birth time contains colons.
+  return [
+    input.tier,
+    input.scope,
+    input.birthDate,
+    input.birthTime,
+    input.localDay,
+    core,
+    mask,
+  ].join('|');
+}
+
+/** Local calendar day stored in a weatherHydrationKey, if the key has one. */
+export function weatherHydrationDay(key: string | null | undefined): string | null {
+  if (!key) return null;
+  const day = key.split('|')[4];
+  return day || null;
+}

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { MBTIType } from '@/lib/mbti-overlay';
 import type { DualOverlay } from '@/lib/personality/dual-overlay';
+import { personalityBirthKey } from '@/lib/personality/mbti-override';
 
 export type { DualOverlay };
 
@@ -22,6 +23,7 @@ export function usePersonality() {
   const [profile, setProfile] = useState<PersonalityProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [resolvedBirthKey, setResolvedBirthKey] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
   const calculatePersonality = useCallback(
@@ -29,6 +31,7 @@ export function usePersonality() {
       if (!birthData?.date || !birthData?.time) return null;
 
       const requestId = ++requestIdRef.current;
+      const birthKey = personalityBirthKey(birthData);
       setLoading(true);
       setError(null);
 
@@ -84,6 +87,7 @@ export function usePersonality() {
         return null;
       } finally {
         if (requestId === requestIdRef.current) {
+          setResolvedBirthKey(birthKey);
           setLoading(false);
         }
       }
@@ -96,6 +100,7 @@ export function usePersonality() {
     setMbtiType(null);
     setProfile(null);
     setError(null);
+    setResolvedBirthKey(null);
     setLoading(false);
   }, []);
 
@@ -107,6 +112,7 @@ export function usePersonality() {
     dualOverlayRx: profile?.dualOverlayRx || null,
     loading,
     error,
+    resolvedBirthKey,
     calculatePersonality,
     reset,
   };

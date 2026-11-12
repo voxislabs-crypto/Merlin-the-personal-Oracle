@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 
@@ -70,11 +71,13 @@ export function useForecast() {
   const [forecast, setForecast] = useState<DailyForecast | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { begin, invalidate } = useLatestRequest();
 
   const calculateForecast = useCallback(async (
     birthData: BirthData,
     options?: ForecastRequestOptions
   ): Promise<DailyForecast | null> => {
+    const isCurrent = begin();
     setLoading(true);
     setError(null);
     const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
@@ -112,22 +115,25 @@ export function useForecast() {
         throw new Error(result?.error || 'Failed to generate forecast');
       }
 
+      if (!isCurrent()) return null;
       setForecast(result.data);
       return result.data;
     } catch (err) {
+      if (!isCurrent()) return null;
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);
       console.error('Forecast error:', error);
       return null;
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, []);
+  }, [begin]);
 
   const reset = useCallback(() => {
+    invalidate();
     setForecast(null);
     setError(null);
-  }, []);
+  }, [invalidate]);
 
   return { forecast, loading, error, calculateForecast, reset };
 }

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
 
@@ -230,11 +231,13 @@ export function useTransits() {
   const [transits, setTransits] = useState<TransitData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { begin, invalidate } = useLatestRequest();
 
   const calculateTransits = useCallback(async (
     birthData: BirthData,
     options?: { mbtiType?: string; userId?: string }
   ): Promise<TransitData | null> => {
+    const isCurrent = begin();
     setLoading(true);
     setError(null);
     const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
@@ -264,22 +267,25 @@ export function useTransits() {
         throw new Error(result.error || 'Failed to calculate transits');
       }
 
+      if (!isCurrent()) return null;
       setTransits(result.data);
       return result.data;
     } catch (err) {
+      if (!isCurrent()) return null;
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error);
       console.error('Transits error:', error);
       return null;
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, []);
+  }, [begin]);
 
   const reset = useCallback(() => {
+    invalidate();
     setTransits(null);
     setError(null);
-  }, []);
+  }, [invalidate]);
 
   return { transits, loading, error, calculateTransits, reset };
 }

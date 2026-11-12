@@ -173,6 +173,7 @@ export async function POST(request: Request) {
       lon,
       timezoneOffset,
       mbtiType,
+      mbtiMask,
       userId,
       clientDate,
       windowDays = 30,
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
     const parsedMbti = parseMbtiType(mbtiType);
     const dualMbti = getMBTIDual(natalChart);
     const coreMbti = parsedMbti || parseMbtiType(dualMbti.firmware?.type);
-    const maskMbti = parseMbtiType(dualMbti.hardware?.type);
+    const maskMbti = parseMbtiType(mbtiMask) || parseMbtiType(dualMbti.hardware?.type);
     // Always pin to client local day when provided; never silently use server UTC day
     const targetDate = resolveForecastTargetDate(
       typeof clientDate === 'string' ? clientDate : undefined,

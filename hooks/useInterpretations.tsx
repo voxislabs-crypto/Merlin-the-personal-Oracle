@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface SynthesisData {
   unifiedReading: string;
@@ -52,6 +53,7 @@ export function useInterpretations() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [cacheHit, setCacheHit] = useState(false);
+  const { begin, invalidate } = useLatestRequest();
 
   const generateInterpretations = useCallback(
     async (
@@ -59,6 +61,7 @@ export function useInterpretations() {
       mode: 'grok' | 'traditional' = 'traditional',
       options?: { userId?: string; mbtiType?: string }
     ): Promise<InterpretationData | null> => {
+      const isCurrent = begin();
       setLoading(true);
       setError(null);
       setCacheHit(false);
@@ -121,7 +124,8 @@ export function useInterpretations() {
           throw new Error(result?.error || 'Failed to generate interpretations');
         }
 
-        // Check if response indicates cache hit
+        if (!isCurrent()) return null;
+
         if (result.cached || result.cacheHit) {
           setCacheHit(true);
         }
@@ -145,22 +149,24 @@ export function useInterpretations() {
         setInterpretations(dataWithInterpreter);
         return dataWithInterpreter;
       } catch (err) {
+        if (!isCurrent()) return null;
         const error = err instanceof Error ? err : new Error('Unknown error');
         setError(error);
         console.error('Interpretations error:', error);
         return null;
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
-    []
+    [begin]
   );
 
   const reset = useCallback(() => {
+    invalidate();
     setInterpretations(null);
     setError(null);
     setCacheHit(false);
-  }, []);
+  }, [invalidate]);
 
   return { interpretations, loading, error, cacheHit, generateInterpretations, reset };
 }

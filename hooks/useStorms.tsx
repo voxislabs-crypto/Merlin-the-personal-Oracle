@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 import { BirthData } from "@/components/astrology/BirthChartCalculator";
 import { getLocalCalendarDate } from "@/lib/datetime/local-calendar";
 import { MBTIType } from "@/shared/schema";
@@ -97,6 +98,7 @@ export function useStorms() {
   const [stormsReport, setStormsReport] = useState<StormsReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { begin, invalidate } = useLatestRequest();
 
   const buildCacheKey = (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 30) => {
     const day = typeof window !== 'undefined' ? getLocalCalendarDate() : 'ssr';
@@ -105,6 +107,7 @@ export function useStorms() {
 
   const calculateStorms = useCallback(
     async (birthData: BirthData, mbtiType?: MBTIType, daysAhead = 30): Promise<StormsReport | null> => {
+      const isCurrent = begin();
       setLoading(true);
       setError(null);
       const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
@@ -120,6 +123,7 @@ export function useStorms() {
               // 24 hour cache window for storms radar
               if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
                 const ensured = ensurePlaybook(cached.data);
+                if (!isCurrent()) return null;
                 setStormsReport(ensured);
                 return ensured;
               }
@@ -154,6 +158,7 @@ export function useStorms() {
         }
 
         const ensured = ensurePlaybook(result.data as StormsReport);
+        if (!isCurrent()) return null;
         setStormsReport(ensured);
 
         if (typeof window !== 'undefined') {
@@ -169,21 +174,23 @@ export function useStorms() {
 
         return ensured;
       } catch (err) {
+        if (!isCurrent()) return null;
         const wrapped = err instanceof Error ? err : new Error("Unknown storms error");
         setError(wrapped);
         console.error("Storms error:", wrapped);
         return null;
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
-    []
+    [begin]
   );
 
   const reset = useCallback(() => {
+    invalidate();
     setStormsReport(null);
     setError(null);
-  }, []);
+  }, [invalidate]);
 
   return {
     stormsReport,

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import type { AtmospherePacket } from '@/lib/atmosphere/types';
@@ -8,6 +9,8 @@ export type { AtmospherePacket };
 
 export type AtmosphereRequestOptions = {
   mbtiType?: string;
+  /** User mask override. Omitted means the chart mask. */
+  mbtiMask?: string;
   userId?: string;
   clientDate?: string;
   windowDays?: number;
@@ -17,9 +20,11 @@ export function useAtmosphere() {
   const [atmosphere, setAtmosphere] = useState<AtmospherePacket | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { begin, invalidate } = useLatestRequest();
 
   const calculateAtmosphere = useCallback(
     async (birthData: BirthData, options?: AtmosphereRequestOptions): Promise<AtmospherePacket | null> => {
+      const isCurrent = begin();
       setLoading(true);
       setError(null);
 
@@ -37,6 +42,7 @@ export function useAtmosphere() {
             timezoneOffset: timezoneOffsetHours,
             clientDate: options?.clientDate || getLocalCalendarDate(),
             mbtiType: options?.mbtiType,
+            mbtiMask: options?.mbtiMask,
             userId: options?.userId,
             windowDays: options?.windowDays ?? 30,
           }),
@@ -57,18 +63,20 @@ export function useAtmosphere() {
           throw new Error(result?.error || 'Failed to generate atmosphere packet');
         }
 
+        if (!isCurrent()) return null;
         setAtmosphere(result.data);
         return result.data;
       } catch (err) {
+        if (!isCurrent()) return null;
         const wrapped = err instanceof Error ? err : new Error('Unknown error');
         setError(wrapped);
         console.error('Atmosphere error:', wrapped);
         return null;
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
-    []
+    [begin]
   );
 
   const applyAtmosphere = useCallback((packet: AtmospherePacket | null) => {
@@ -77,9 +85,10 @@ export function useAtmosphere() {
   }, []);
 
   const reset = useCallback(() => {
+    invalidate();
     setAtmosphere(null);
     setError(null);
-  }, []);
+  }, [invalidate]);
 
   return {
     atmosphere,

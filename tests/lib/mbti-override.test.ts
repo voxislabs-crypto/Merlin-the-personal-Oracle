@@ -2,9 +2,13 @@ import type { DualOverlay } from '@/lib/personality/dual-overlay';
 import {
   applyMbtiUserOverride,
   parseMbtiType,
+  personalityBirthKey,
   presentDualForDimensionMap,
   readMbtiUserOverride,
   resolveActiveCoreType,
+  weatherHydrationDay,
+  weatherHydrationKey,
+  weatherRefreshReady,
 } from '@/lib/personality/mbti-override';
 import { resolveSelfMbtiType } from '@/lib/self';
 
@@ -95,6 +99,54 @@ describe('mbti user override', () => {
   it('leaves the Dimension Map unchanged when the type already matches the chart letters', () => {
     const engine = dual('INFP', 'ENTP');
     expect(presentDualForDimensionMap(engine)).toBe(engine);
+  });
+
+  it('refreshes weather immediately for a Core override, and waits for the chart read otherwise', () => {
+    const birthKey = personalityBirthKey({
+      date: '1983-08-14',
+      time: '12:21',
+      latitude: 36.85,
+      longitude: -76.29,
+    });
+    expect(weatherRefreshReady({ coreOverride: 'INFJ', birthKey, resolvedBirthKey: null })).toBe(
+      true,
+    );
+    expect(weatherRefreshReady({ coreOverride: null, birthKey, resolvedBirthKey: null })).toBe(
+      false,
+    );
+    expect(weatherRefreshReady({ coreOverride: null, birthKey, resolvedBirthKey: birthKey })).toBe(
+      true,
+    );
+    expect(
+      weatherRefreshReady({
+        coreOverride: null,
+        birthKey,
+        resolvedBirthKey: personalityBirthKey({
+          date: '1983-08-14',
+          time: '12:21',
+          latitude: 0,
+          longitude: 0,
+        }),
+      }),
+    ).toBe(false);
+  });
+
+  it('changes the weather hydration key when the effective type changes and keeps the day readable', () => {
+    const base = {
+      tier: 'premium',
+      scope: 'full' as const,
+      birthDate: '1983-08-14',
+      birthTime: '12:21',
+      localDay: '2026-11-12',
+    };
+    const calculated = weatherHydrationKey({ ...base, effectiveType: 'INFP' });
+    const override = weatherHydrationKey({ ...base, effectiveType: 'INFJ' });
+    const masked = weatherHydrationKey({ ...base, effectiveType: 'INFJ', maskOverride: 'ENTP' });
+    expect(calculated).not.toBe(override);
+    expect(override).not.toBe(masked);
+    expect(weatherHydrationDay(override)).toBe('2026-11-12');
+    expect(weatherHydrationDay(null)).toBeNull();
+    expect(weatherHydrationKey({ ...base, effectiveType: 'INFJ' })).toBe(override);
   });
 
   it('resolves speaking Core from the override first', () => {

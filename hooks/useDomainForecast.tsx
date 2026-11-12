@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import { BirthData } from '@/components/astrology/BirthChartCalculator';
 import { getLocalCalendarDate } from '@/lib/datetime/local-calendar';
@@ -19,12 +20,14 @@ export function useDomainForecast() {
   const [forecast, setForecast] = useState<DomainForecastData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { begin, invalidate } = useLatestRequest();
 
   const calculateDomainForecast = useCallback(
     async (
       birthData: BirthData,
       options?: { mbtiType?: string; userId?: string; windowDays?: number }
     ): Promise<DomainForecastData | null> => {
+      const isCurrent = begin();
       setLoading(true);
       setError(null);
       const timezoneOffsetHours = -new Date().getTimezoneOffset() / 60;
@@ -57,24 +60,27 @@ export function useDomainForecast() {
           throw new Error(result?.error || 'Failed to calculate domain forecast');
         }
 
+        if (!isCurrent()) return null;
         setForecast(result.data);
         return result.data;
       } catch (err) {
+        if (!isCurrent()) return null;
         const wrapped = err instanceof Error ? err : new Error('Unknown error');
         setError(wrapped);
         console.error('Domain forecast error:', wrapped);
         return null;
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
-    []
+    [begin]
   );
 
   const reset = useCallback(() => {
+    invalidate();
     setForecast(null);
     setError(null);
-  }, []);
+  }, [invalidate]);
 
   return { forecast, loading, error, calculateDomainForecast, reset };
 }
