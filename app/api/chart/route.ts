@@ -15,7 +15,10 @@ export async function POST(request: NextRequest) {
 
     const chartData = calculateBirthChart(birthDate, birthTime, lat, lon);
 
-    return NextResponse.json(chartData);
+    return NextResponse.json({
+      ...chartData,
+      source: chartData.metadata?.calculationSource ?? 'mock-fallback',
+    });
   } catch (error) {
     console.error("Chart calculation error:", error);
     return NextResponse.json(

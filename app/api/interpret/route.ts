@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { InterpretationEngine } from '@/lib/astrology/interpretations';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import {
@@ -197,14 +198,13 @@ export async function POST(request: Request) {
 
     // Calculate natal birth chart
     let natalChart: BirthChartData;
-    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
     try {
       natalChart = calculateBirthChart(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
     } catch (error) {
-      source = 'mock-fallback';
       natalChart = calculateBirthChartFallback(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
       console.warn('[Interpret API] Swiss failed, using fallback:', error);
     }
+    const source = chartSourceOf(natalChart);
 
     let chartSummary = '';
     let planetInterpretations: Array<{ planet: string; interpretation: string }> = [];

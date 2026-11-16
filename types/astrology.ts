@@ -92,6 +92,15 @@ export interface BirthChartData extends BaseChartData {
       lon: number;
     };
   };
+  metadata?: {
+    calculationSource?: 'swiss-real' | 'mock-fallback';
+    ephemeris?: string;
+    timezoneOffsetHours?: number | null;
+    inputBirthDate?: string;
+    inputBirthTime?: string;
+    utcBirthDate?: string;
+    utcBirthTime?: string;
+  };
 }
 
 export interface Dignity {

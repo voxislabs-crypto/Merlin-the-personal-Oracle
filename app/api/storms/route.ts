@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { calculateBirthChart } from "@/lib/engine";
 import { calculateBirthChart as calculateBirthChartFallback } from "@/lib/engine-fallback";
+import { chartSourceOf } from "@/lib/chart-provenance";
 import { predictStorms } from "@/lib/astrology/storms";
 import { BirthChartData } from "@/types/astrology";
 import { MBTIType } from "@/shared/schema";
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
         lon ?? 0
       ) as BirthChartData;
     }
+    const source = chartSourceOf(natalChart);
 
     const safeDaysAhead = Math.max(1, Math.min(45, Number(daysAhead) || 30));
     const cacheHash = generateChartHash(
@@ -111,12 +113,13 @@ export async function POST(request: Request) {
       Number(lon ?? 0),
       { useGrok: false, houseSystem: `storms-${safeDaysAhead}`, tone: "direct" }
     );
-    const cacheKey = `storms:v5:${cacheHash}:${mbtiType || "none"}:${typeof clientDate === 'string' ? clientDate : 'server'}`;
+    const cacheKey = `storms:v6:${cacheHash}:${source}:${mbtiType || "none"}:${typeof clientDate === 'string' ? clientDate : 'server'}`;
     const cached = serverCache.get<{ cachedAt: number; data: any }>(cacheKey);
     if (cached && Date.now() - cached.cachedAt < TTL_24H_MS) {
       return NextResponse.json({
         success: true,
         cached: true,
+        source,
         data: { ...cached.data, timezoneOffsetHours: appliedOffsetHours },
       });
     }
@@ -137,6 +140,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      source,
       data: { ...stormsReport, timezoneOffsetHours: appliedOffsetHours },
     });
   } catch (error) {

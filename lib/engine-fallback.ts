@@ -5,6 +5,7 @@ import {
   HousePosition as HousePositionType,
   Aspect as AspectType,
 } from "@/types/astrology";
+import { mockChartMetadata } from "@/lib/chart-provenance";
 
 // Simplified planetary data for demonstration
 const PLANETARY_DATA = {
@@ -262,6 +263,7 @@ export function calculateBirthChart(
         lon: longitude,
       },
     },
+    metadata: mockChartMetadata(),
   };
 }
 

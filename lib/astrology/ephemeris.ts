@@ -1,6 +1,7 @@
 import "server-only";
 import { calculateBirthChart } from '../engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '../engine-fallback';
+import { chartSourceOf, type ChartCalculationSource } from '../chart-provenance';
 import { BirthChartData, PlanetPosition } from '../../types/astrology';
 
 export interface DailyForecast {
@@ -50,6 +51,7 @@ export interface DailyForecast {
     intensity: 'low' | 'medium' | 'high';
   }>;
   conversationalPrompts?: string[];
+  calculationSource?: ChartCalculationSource;
 }
 
 // ─── Aspect definitions ──────────────────────────────────────────────────────
@@ -392,8 +394,7 @@ export function getTodaysForecast(birthChart: BirthChartData, targetDate?: strin
 
   // ── Transiting chart at noon (with fallback) ──────────────────────────────
   let todaysChart: BirthChartData;
-  let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
-  
+
   try {
     console.log('[ephemeris] Calculating today\'s transiting chart with real sweph');
     todaysChart = calculateBirthChart(
@@ -404,7 +405,6 @@ export function getTodaysForecast(birthChart: BirthChartData, targetDate?: strin
     ) as BirthChartData;
   } catch (error) {
     console.warn('[ephemeris] Swiss failed, using fallback:', error);
-    source = 'mock-fallback';
     todaysChart = calculateBirthChartFallback(
       dateString,
       '12:00:00',
@@ -412,6 +412,7 @@ export function getTodaysForecast(birthChart: BirthChartData, targetDate?: strin
       birthChart.birthData.coordinates?.lon || 0
     ) as BirthChartData;
   }
+  const source = chartSourceOf(todaysChart);
 
   const natalPlanets   = birthChart.positions  || birthChart.planets || [];
   const transitPlanets = todaysChart.positions || todaysChart.planets || [];
@@ -486,6 +487,7 @@ export function getTodaysForecast(birthChart: BirthChartData, targetDate?: strin
     timingWindows,
     futureSignals,
     conversationalPrompts,
+    calculationSource: source,
   };
 }
 

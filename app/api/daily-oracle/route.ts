@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf, readChartCalculationSource } from '@/lib/chart-provenance';
 import { getTodaysForecast } from '@/lib/astrology/ephemeris';
 import { getUserContextSnapshot } from '@/lib/user-context';
 import { BirthChartData } from '@/types/astrology';
@@ -166,6 +167,7 @@ export async function POST(request: Request) {
     } = body;
 
     let chart: BirthChartData | null = birthChart || null;
+    let source = chart ? readChartCalculationSource(chart) : null;
 
     if (!chart && birthDate && birthTime) {
       try {
@@ -173,6 +175,7 @@ export async function POST(request: Request) {
       } catch {
         chart = calculateBirthChartFallback(birthDate, birthTime, lat, lon) as BirthChartData;
       }
+      source = chartSourceOf(chart);
     }
 
     if (!chart) {
@@ -226,6 +229,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      source,
       data: {
         date: resolvedDay || forecast.date,
         message,

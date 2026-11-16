@@ -21,6 +21,7 @@ import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/a
 import { predictStorms } from '@/lib/astrology/storms';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { generateDailyForecast } from '@/lib/transit-calculator';
@@ -199,15 +200,14 @@ export async function POST(request: Request) {
     const { utcBirthDate, utcBirthTime } = normalizeUtcBirth(birthDate, birthTime, inferredTimezoneOffset);
 
     let natalChart: BirthChartData;
-    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
 
     try {
       natalChart = calculateBirthChart(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
     } catch (error) {
-      source = 'mock-fallback';
       natalChart = calculateBirthChartFallback(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
       console.warn('[Atmosphere] Swiss failed, using fallback:', error);
     }
+    const source = chartSourceOf(natalChart);
 
     const parsedMbti = parseMbtiType(mbtiType);
     const dualMbti = getMBTIDual(natalChart);

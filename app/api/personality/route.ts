@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { getMBTIDualReads } from '@/lib/personality/fusion';
 import { buildDualOverlay } from '@/lib/personality/dual-overlay';
 import { BirthChartData } from '@/types/astrology';
@@ -80,7 +81,6 @@ export async function POST(request: Request) {
 
     // Calculate natal birth chart
     let natalChart: BirthChartData;
-    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
     try {
       natalChart = calculateBirthChart(
         utcBirthDate,
@@ -92,7 +92,6 @@ export async function POST(request: Request) {
       console.log('[Personality] Using Swiss Ephemeris engine');
     } catch (swephError) {
       console.log('[Personality] Swiss Ephemeris failed, using fallback:', swephError);
-      source = 'mock-fallback';
       natalChart = calculateBirthChartFallback(
         utcBirthDate,
         utcBirthTime,
@@ -100,6 +99,7 @@ export async function POST(request: Request) {
         lon || 0
       ) as BirthChartData;
     }
+    const source = chartSourceOf(natalChart);
 
     // Score overlay-off and overlay-on from the same natal so You can flip INFJ/INFP without a second POST.
     const overlayOn = Boolean(retrogradeOverlay);

@@ -25,8 +25,8 @@ import {
   getElectionalWindows,
   calculateLunarPhase,
 } from "./astrology/advanced";
-import { calculateBirthChart as calculateFallbackBirthChart } from "./engine-fallback";
-import { getSweph } from "./sweph-runtime";
+import { EphemerisUnavailableError, swissChartMetadata } from "@/lib/chart-provenance";
+import { getSweph } from "@/lib/sweph-runtime";
 
 export const normalizeAngle = (deg: number): number =>
   ((deg % 360) + 360) % 360;
@@ -321,10 +321,9 @@ export const calculateBirthChart = (
 ): BirthChartData => {
   const sweph = getSweph();
   
-  // If sweph not available, use fallback
   if (!sweph) {
-    console.warn("[engine.calculateBirthChart] sweph not available, using fallback");
-    return calculateFallbackBirthChart(birthDate, birthTime || "12:00", lat, lon);
+    console.warn("[engine.calculateBirthChart] sweph not available");
+    throw new EphemerisUnavailableError();
   }
 
   console.log("[engine.calculateBirthChart] starting with:", { birthDate, birthTime, lat, lon });
@@ -530,6 +529,7 @@ export const calculateBirthChart = (
       coordinates:
         lat !== undefined && lon !== undefined ? { lat, lon } : undefined,
     },
+    metadata: swissChartMetadata(),
   };
   } catch (error) {
     console.error("[engine.calculateBirthChart] Fatal error:", error);

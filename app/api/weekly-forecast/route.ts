@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { getWeeklyWhispers } from '@/lib/astrology/weekly-whisper';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
         lon || 0
       ) as BirthChartData;
     }
+    const source = chartSourceOf(natalChart);
 
     const weeklyForecast = getWeeklyWhispers(natalChart, {
       clientDate: typeof clientDate === 'string' ? clientDate : undefined,
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
     console.log('[Weekly] Successfully generated weekly forecast');
     return NextResponse.json({
       success: true,
+      source,
       data: weeklyForecast
     });
   } catch (error) {

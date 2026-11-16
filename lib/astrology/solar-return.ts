@@ -2,6 +2,7 @@ import 'server-only';
 
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { computeProfectionFromBirth } from '@/lib/astrology/profections';
 import { resolveBodyLongitude } from '@/lib/astrology/returns-ephemeris.server';
 import type { SolarReturnBriefing } from '@/lib/astrology/returns-types';
@@ -140,5 +141,6 @@ export function computeSolarReturnBriefing(options: {
       mc: chart.mc,
       houses: chart.houses,
     },
+    calculationSource: chartSourceOf(chart),
   };
 }

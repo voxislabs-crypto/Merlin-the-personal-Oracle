@@ -2,6 +2,7 @@ import 'server-only';
 
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { resolveBodyLongitude } from '@/lib/astrology/returns-ephemeris.server';
 import type { LunarEmotionalTone, LunarReturnWeather } from '@/lib/astrology/returns-types';
 import {
@@ -164,5 +165,6 @@ export function computeLunarReturnWeather(options: {
     headline: toneCopy.headline,
     guidance: toneCopy.guidance,
     highlights: buildLunarHighlights(positions),
+    calculationSource: chartSourceOf(chart),
   };
 }

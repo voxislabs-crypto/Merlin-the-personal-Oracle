@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart as calculateSwissBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateFallbackBirthChart } from '@/lib/engine-fallback';
+import { EphemerisUnavailableError, readChartCalculationSource } from '@/lib/chart-provenance';
 import { getMBTIDual } from '@/lib/personality/fusion';
 import {
   consumeChartQuota,
@@ -162,6 +163,10 @@ export async function POST(request: Request) {
           lat,
           lon,
         });
+      }
+
+      if (readChartCalculationSource(swissData) === 'mock-fallback') {
+        throw new EphemerisUnavailableError('Swiss engine returned a demo chart');
       }
 
       console.log('[API] ✓ Swiss engine success, moonSign:', moonSign);

@@ -14,6 +14,7 @@ export interface SolarReturnBriefing {
   annualTheme: string;
   profectionTheme: string;
   chart: Pick<BirthChartData, 'positions' | 'ascendant' | 'mc' | 'houses'>;
+  calculationSource?: 'swiss-real' | 'mock-fallback';
 }
 
 export type LunarEmotionalTone = 'supportive' | 'volatile' | 'reflective' | 'open';
@@ -30,6 +31,7 @@ export interface LunarReturnWeather {
   headline: string;
   guidance: string;
   highlights: string[];
+  calculationSource?: 'swiss-real' | 'mock-fallback';
 }
 
 export interface ReturnsPacket {

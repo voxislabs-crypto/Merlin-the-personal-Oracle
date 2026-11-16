@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { buildPredictiveTransitBundle } from '@/lib/astrology/predictive-transits';
 import { buildExplainabilityPacket, toTransitDrivers } from '@/lib/astrology/pressure-engine';
 import { applyPlanetResonanceWeights, getResonanceWeightsProfile } from '@/lib/astrology/resonance-weights';
@@ -67,15 +68,14 @@ export async function POST(request: Request) {
     );
 
     let natalChart: BirthChartData;
-    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
 
     try {
       natalChart = calculateBirthChart(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
     } catch (error) {
-      source = 'mock-fallback';
       natalChart = calculateBirthChartFallback(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
       console.warn('[DomainForecast] Swiss failed, using fallback:', error);
     }
+    const source = chartSourceOf(natalChart);
 
     const targetDate = resolveForecastTargetDate(
       typeof clientDate === 'string' ? clientDate : undefined,

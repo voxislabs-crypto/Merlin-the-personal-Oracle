@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { BirthChartData } from '@/types/astrology';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import { resolveForecastTargetDate } from '@/lib/datetime/local-calendar';
@@ -80,14 +81,13 @@ export async function POST(request: Request) {
 
     // Calculate natal birth chart
     let natalChart: BirthChartData;
-    let source: 'swiss-real' | 'mock-fallback' = 'swiss-real';
     try {
       natalChart = calculateBirthChart(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
     } catch (error) {
-      source = 'mock-fallback';
       natalChart = calculateBirthChartFallback(utcBirthDate, utcBirthTime, lat || 0, lon || 0) as BirthChartData;
       console.warn('[Forecast] Swiss failed, using fallback:', error);
     }
+    const source = chartSourceOf(natalChart);
 
     // Generate day's forecast for the *client's* local calendar date (not server UTC)
     const forecastDate = resolveForecastTargetDate(

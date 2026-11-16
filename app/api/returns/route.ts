@@ -4,6 +4,7 @@ import { computeLunarReturnWeather } from '@/lib/astrology/lunar-return';
 import { computeSolarReturnBriefing } from '@/lib/astrology/solar-return';
 import { calculateBirthChart } from '@/lib/engine';
 import { calculateBirthChart as calculateBirthChartFallback } from '@/lib/engine-fallback';
+import { chartSourceOf } from '@/lib/chart-provenance';
 import { validateFeatureAccess } from '@/lib/subscription-validation';
 import type { BirthChartData } from '@/types/astrology';
 
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
         (lon as number) || 0
       ) as BirthChartData;
     }
+    const source = chartSourceOf(natalChart);
 
     const positions = natalChart.positions || natalChart.planets || [];
     const natalSun = positions.find((planet) => planet.name === 'Sun');
@@ -112,6 +114,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      source,
       data: {
         solarReturn,
         lunarReturn,
