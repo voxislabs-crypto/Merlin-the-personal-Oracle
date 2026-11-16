@@ -1,10 +1,21 @@
 import 'server-only';
 
+import { createHash } from 'crypto';
+
 import { chatCompletion, isLlmConfigured } from '@/lib/llm-config';
 import { appendBriefStyleNote } from '@/lib/self/type-style';
-import { sanitizeCopyText } from '@/lib/safety/copy-safety';
+import { isCopySafe, sanitizeCopyText } from '@/lib/safety/copy-safety';
 import { applyMerlinVoicePass, failsMerlinVoiceTest } from '@/lib/voice/merlin-voice';
 import { serverCache } from '@/lib/cache-service';
+import {
+  TODAY_BRIEF_PROMPT_VERSION,
+  TODAY_BRIEF_SCHEMA_VERSION,
+  normalizeTodayBriefEvidence,
+  todayBriefEvidenceKey,
+  type TodayBriefEvidence,
+} from '@/lib/atmosphere/today-brief-evidence';
+
+export { TODAY_BRIEF_PROMPT_VERSION, TODAY_BRIEF_SCHEMA_VERSION };
 
 export interface TodayBriefPolishInput {
   date: string;
@@ -21,6 +32,7 @@ export interface TodayBriefPolishInput {
   moonSign?: string | null;
   moonPhase?: string | null;
   domains?: string[];
+  supportingFacts?: string[];
   heldFromYesterday?: boolean;
   yesterdayRestless?: boolean;
   streak?: number | null;
@@ -33,15 +45,22 @@ export interface TodayBriefPolish {
   source: 'llm' | 'none';
 }
 
-const SYSTEM_PROMPT = `You sharpen a personal daily brief. You are Merlin: a clarity coach, not an astrologer.
+const MBTI_CODE = /\b[IE][NS][TF][JP]\b/i;
 
-The user already has a move, a watch-window, and a chart hit. Your job is the LIVED MEANING — the sentence only this person would recognize.
+const SYSTEM_PROMPT = `You interpret a personal daily brief. You are Merlin: a clarity coach, not an astrologer.
+
+The chart evidence is already calculated. You cannot invent it. You write only the meaning and the guidance.
+
+Three layers:
+- What the chart says: the supplied evidence. It is closed. Do not add planets, aspects, times, domains, or a new move.
+- What that evidence may mean: chartWhy. Explain how the supplied evidence meets this Core and Mask. Do not paraphrase the deterministic why.
+- What to do with it: watchFor and operationalTension. Keep the given move and the given watch window.
 
 Return JSON only:
 {
-  "chartWhy": "2-4 sentences. Soothe the Core threat (what actually hurts). Translate the chart hit in the same breath. Do not repeat the move. Do not write a weather report. Do not print MBTI type labels.",
-  "watchFor": "One checkable sentence: time window + Mask failure mode.",
-  "operationalTension": "Why it matters for the Core, no type labels. Null if core and mask are the same."
+  "chartWhy": "2-4 sentences. Meaning for this Core and Mask, tied to the supplied evidence. Do not repeat the move. Do not write a weather report. Do not print MBTI type labels.",
+  "watchFor": "One checkable sentence: the supplied time window plus the Mask failure mode.",
+  "operationalTension": "Why the evidence matters for the Core, no type labels. Null if core and mask are the same."
 }
 
 Rules:
@@ -50,25 +69,53 @@ Rules:
 - No fortunes. No "you will". No cosmic fluff.
 - No restating mixed weather / restlessness / "change one variable".
 - Never print MBTI type codes (INFP, INTP, etc.) in the body. Use the maps, hide the labels.
-- Max 420 characters for chartWhy, 220 for watchFor, 280 for operationalTension.
-- If a field is already sharp, return it unchanged.`;
+- Max 420 characters for chartWhy, 220 for watchFor, 280 for operationalTension.`;
 
 export function polishSystemPrompt(coreType?: string | null, maskType?: string | null): string {
   return appendBriefStyleNote(SYSTEM_PROMPT, coreType, maskType);
 }
 
-function cacheKey(input: TodayBriefPolishInput): string {
+export function todayBriefCacheKey(input: TodayBriefPolishInput): string {
+  const digest = createHash('sha256')
+    .update(todayBriefEvidenceKey(normalizeTodayBriefEvidence(input)))
+    .digest('hex')
+    .slice(0, 32);
+  return `today-brief|${TODAY_BRIEF_PROMPT_VERSION}|${TODAY_BRIEF_SCHEMA_VERSION}|${digest}`;
+}
+
+function buildTodayBriefUserPrompt(evidence: TodayBriefEvidence): string {
+  const moon = [evidence.moonPhase, evidence.moonSign].filter(Boolean).join(' ');
+  const facts = evidence.supportingFacts.length
+    ? evidence.supportingFacts.map((fact) => `- ${fact}`).join('\n')
+    : '- none supplied';
   return [
-    'today-brief',
-    input.date,
-    input.leadFactDisplay,
-    input.coreType || '',
-    input.maskType || '',
-    input.sunSign || '',
-    input.moonSign || '',
-    input.heldFromYesterday ? 'held' : '',
-    input.yesterdayRestless ? 'restless' : '',
-  ].join('|');
+    `Date: ${evidence.date}`,
+    `Core: ${evidence.coreType || 'unknown'}`,
+    `Mask: ${evidence.maskType || 'same or unknown'}`,
+    `Sun: ${evidence.sunSign || 'unknown'}`,
+    '',
+    'What the chart says (closed evidence — do not add planets, aspects, times, or domains):',
+    `Chart hit: ${evidence.leadFact}`,
+    `Label: ${evidence.leadFactDisplay || 'none'}`,
+    `Moon: ${moon || 'unknown'}`,
+    `Hot domains: ${evidence.domains.join(', ') || 'unspecified'}`,
+    'Supporting facts:',
+    facts,
+    evidence.heldFromYesterday ? 'Yesterday’s condition still applies.' : null,
+    evidence.yesterdayRestless ? 'User flagged restlessness yesterday.' : null,
+    evidence.streak !== null ? `Return streak: ${evidence.streak}` : null,
+    '',
+    'Deterministic brief (do not paraphrase these sentences):',
+    `Why: ${evidence.chartWhy}`,
+    `Move (keep this action): ${evidence.move || 'none'}`,
+    `Watch window (keep this window): ${evidence.watchFor || 'none'}`,
+    `Operational tension draft: ${evidence.operationalTension || 'none'}`,
+    evidence.doNot ? `Do not: ${evidence.doNot}` : null,
+    '',
+    'Write what that evidence may mean for this Core and Mask, then what to do with it. Return only the three JSON fields.',
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n');
 }
 
 function clip(text: string, max: number): string {
@@ -77,11 +124,56 @@ function clip(text: string, max: number): string {
   return `${cleaned.slice(0, max - 1).trim()}…`;
 }
 
+function comparable(value: string | null | undefined): string {
+  return (value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[.…]+$/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function echoesSupplied(text: string, supplied: Array<string | null | undefined>): boolean {
+  const candidate = comparable(text);
+  if (!candidate) return false;
+  return supplied.some((item) => {
+    const raw = comparable(item);
+    if (raw && raw === candidate) return true;
+    const voiced = comparable(applyMerlinVoicePass(item || ''));
+    return Boolean(voiced) && voiced === candidate;
+  });
+}
+
 function usable(text: string | null | undefined, min = 24): string | null {
-  const t = applyMerlinVoicePass(sanitizeCopyText((text || '').trim()));
-  if (!t || t.length < min) return null;
-  if (failsMerlinVoiceTest(t)) return null;
-  return t;
+  const trimmed = (text || '').trim();
+  if (!trimmed || trimmed.length < min) return null;
+  // Reject the model's own words. The voice pass rewrites some fortunes into
+  // safe sentences; that rewrite must not become the brief.
+  if (failsMerlinVoiceTest(trimmed) || !isCopySafe(trimmed)) return null;
+  const voiced = applyMerlinVoicePass(sanitizeCopyText(trimmed));
+  if (!voiced || voiced.length < min) return null;
+  if (failsMerlinVoiceTest(voiced) || !isCopySafe(voiced)) return null;
+  return voiced;
+}
+
+function acceptLine(
+  raw: string | null,
+  min: number,
+  supplied: Array<string | null | undefined>,
+): string | null {
+  const text = usable(raw, min);
+  if (!text) return null;
+  if (MBTI_CODE.test(text)) return null;
+  if (echoesSupplied(text, supplied)) return null;
+  return text;
+}
+
+function tensionRaw(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || /^null$/i.test(trimmed) || /^none$/i.test(trimmed)) return null;
+  return value;
 }
 
 function parseJsonObject(raw: string): Record<string, unknown> | null {
@@ -105,36 +197,27 @@ export async function polishTodayBrief(
   input: TodayBriefPolishInput,
 ): Promise<TodayBriefPolish | null> {
   if (!isTodayBriefLlmEnabled()) return null;
-  if (!input.leadFact || !input.date) return null;
+  const evidence = normalizeTodayBriefEvidence(input);
+  if (!evidence.leadFact || !evidence.date) return null;
 
-  const key = cacheKey(input);
+  const key = todayBriefCacheKey(input);
   const cached = serverCache.get<TodayBriefPolish>(key);
-  if (cached?.chartWhy) return cached;
+  if (cached?.chartWhy && cached.source === 'llm') return cached;
 
-  const userPrompt = [
-    `Date: ${input.date}`,
-    `Chart hit: ${input.leadFact}`,
-    `Label: ${input.leadFactDisplay}`,
-    `Deterministic why: ${input.chartWhy}`,
-    `Move (do not rewrite): ${input.move}`,
-    `Watch (sharpen, keep the time window): ${input.watchFor}`,
-    input.operationalTension ? `Dual-layer draft: ${input.operationalTension}` : 'Dual-layer: none',
-    input.doNot ? `Do not: ${input.doNot}` : '',
-    `Sun: ${input.sunSign || 'unknown'}`,
-    `Core: ${input.coreType || 'unknown'}`,
-    `Mask: ${input.maskType || 'same or unknown'}`,
-    `Moon: ${input.moonPhase || ''} ${input.moonSign || ''}`.trim(),
-    `Hot domains: ${(input.domains || []).join(', ') || 'unspecified'}`,
-    input.heldFromYesterday ? 'Yesterday’s condition still applies.' : '',
-    input.yesterdayRestless ? 'User flagged restlessness yesterday.' : '',
-    typeof input.streak === 'number' ? `Return streak: ${input.streak}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const supplied = [
+    input.chartWhy,
+    input.watchFor,
+    input.move,
+    input.leadFact,
+    input.leadFactDisplay,
+    input.operationalTension,
+    input.doNot,
+  ];
 
-  const timeoutMs = Number(process.env.TODAY_BRIEF_LLM_TIMEOUT_MS || '4000');
-
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
+    const configured = Number(process.env.TODAY_BRIEF_LLM_TIMEOUT_MS || '4000');
+    const timeoutMs = Number.isFinite(configured) && configured > 0 ? configured : 4000;
     const raw = await Promise.race([
       chatCompletion({
         temperature: 0.45,
@@ -143,11 +226,11 @@ export async function polishTodayBrief(
         maxTokens: 1600,
         messages: [
           { role: 'system', content: polishSystemPrompt(input.coreType, input.maskType) },
-          { role: 'user', content: userPrompt },
+          { role: 'user', content: buildTodayBriefUserPrompt(evidence) },
         ],
       }),
       new Promise<null>((resolve) => {
-        setTimeout(() => resolve(null), timeoutMs);
+        timer = setTimeout(() => resolve(null), timeoutMs);
       }),
     ]);
 
@@ -155,25 +238,35 @@ export async function polishTodayBrief(
     const parsed = parseJsonObject(raw);
     if (!parsed) return null;
 
-    const chartWhy = usable(typeof parsed.chartWhy === 'string' ? parsed.chartWhy : null, 40);
-    const watchFor = usable(typeof parsed.watchFor === 'string' ? parsed.watchFor : null, 20);
+    const chartWhy = acceptLine(
+      typeof parsed.chartWhy === 'string' ? parsed.chartWhy : null,
+      40,
+      supplied,
+    );
+    const watchFor = acceptLine(
+      typeof parsed.watchFor === 'string' ? parsed.watchFor : null,
+      20,
+      supplied,
+    );
+    const operationalSource = tensionRaw(parsed.operationalTension);
     const operational =
-      parsed.operationalTension === null
-        ? null
-        : usable(typeof parsed.operationalTension === 'string' ? parsed.operationalTension : null, 24);
+      operationalSource === null ? null : acceptLine(operationalSource ?? null, 24, supplied);
 
     if (!chartWhy && !watchFor) return null;
 
     const result: TodayBriefPolish = {
-      chartWhy: clip(chartWhy || input.chartWhy, 460),
-      watchFor: clip(watchFor || input.watchFor, 240),
+      chartWhy: chartWhy ? clip(chartWhy, 460) : input.chartWhy,
+      watchFor: watchFor ? clip(watchFor, 240) : input.watchFor,
       operationalTension: operational ? clip(operational, 300) : input.operationalTension || null,
       source: 'llm',
     };
+    if (!result.chartWhy) return null;
     serverCache.set(key, result);
     return result;
   } catch (error) {
     console.warn('[today-brief] LLM polish failed', error);
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }

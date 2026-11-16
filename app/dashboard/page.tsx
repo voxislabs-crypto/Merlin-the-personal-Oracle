@@ -90,7 +90,8 @@ import {
 } from '@/lib/atmosphere';
 import { useAtmosphereJournal } from '@/hooks/useAtmosphereJournal';
 import { useTodayMoveMemory } from '@/hooks/useTodayMoveMemory';
-import { useTodayBriefPolish } from '@/hooks/useTodayBriefPolish';
+import { mergeTodayBriefPolish, useTodayBriefPolish } from '@/hooks/useTodayBriefPolish';
+import { hotDomainLabels, supportingFactLines } from '@/lib/atmosphere/today-brief-evidence';
 import {
   preservePriorWeatherWindow,
   writeWeatherWindowSnapshot,
@@ -2209,6 +2210,14 @@ export default function UnifiedDashboard() {
         (yesterdayCheckinEntry.mood ?? 10) <= 4 ||
         /restless|itch|urge|snap|anxious|wired/i.test(yesterdayCheckinEntry.notes || '')),
   );
+  const todayBriefDomains = React.useMemo(
+    () => hotDomainLabels(activeAtmospherePacket?.risk?.domains),
+    [activeAtmospherePacket?.risk?.domains],
+  );
+  const todayBriefFacts = React.useMemo(
+    () => supportingFactLines(lifeWeatherBrief.supportingSignals, lifeWeatherBrief.domainJob),
+    [lifeWeatherBrief.domainJob, lifeWeatherBrief.supportingSignals],
+  );
   const todayBriefPolish = useTodayBriefPolish({
     date: forecast?.date || activeAtmospherePacket?.date,
     leadFact: lifeWeatherBrief.leadFact,
@@ -2223,13 +2232,25 @@ export default function UnifiedDashboard() {
     sunSign: sunSign || null,
     moonSign: forecast?.moonSign || moonSign || null,
     moonPhase: forecast?.moonPhase || null,
+    domains: todayBriefDomains,
+    supportingFacts: todayBriefFacts,
     heldFromYesterday: lifeWeatherBrief.heldFromYesterday,
     yesterdayRestless,
     streak: dailyCheckinStreak,
     loading: todayWeatherStillLoading,
   });
 
-  const cosmicStoryText = todayBriefPolish?.chartWhy || lifeWeatherBrief.story;
+  const cosmicStoryText = lifeWeatherBrief.story;
+  const shownBrief = mergeTodayBriefPolish(
+    {
+      chartWhy: lifeWeatherBrief.chartWhy,
+      watchFor: lifeWeatherBrief.watchFor,
+      operationalTension: lifeWeatherBrief.operationalTension,
+      tensionLine: lifeWeatherBrief.tensionLine,
+      behaviorTell: lifeWeatherBrief.behaviorTell,
+    },
+    todayBriefPolish,
+  );
   const cosmicWeatherHeadlineForUi = lifeWeatherBrief.why || cosmicWeatherHeadline;
   const cosmicStoryMove = lifeWeatherBrief.move;
   const cosmicStoryMbtiGuidance = React.useMemo(() => {
@@ -2939,11 +2960,11 @@ export default function UnifiedDashboard() {
                     whyToday={lifeWeatherBrief.whyToday}
                     usuallyBrings={lifeWeatherBrief.usuallyBrings}
                     navigate={lifeWeatherBrief.navigate}
-                    watchFor={todayBriefPolish?.watchFor || lifeWeatherBrief.watchFor}
+                    watchFor={shownBrief.watchFor}
                     supportingSignals={lifeWeatherBrief.supportingSignals}
                     leadFact={lifeWeatherBrief.leadFact}
                     leadFactDisplay={lifeWeatherBrief.leadFactDisplay}
-                    chartWhy={todayBriefPolish?.chartWhy || lifeWeatherBrief.chartWhy}
+                    chartWhy={shownBrief.chartWhy}
                     operationalTension={
                       todayBriefPolish?.operationalTension ?? lifeWeatherBrief.operationalTension
                     }
@@ -2953,10 +2974,10 @@ export default function UnifiedDashboard() {
                     domainJob={lifeWeatherBrief.domainJob}
                     coreNotices={lifeWeatherBrief.coreNotices}
                     maskWants={lifeWeatherBrief.maskWants}
-                    tensionLine={lifeWeatherBrief.tensionLine}
+                    tensionLine={shownBrief.tensionLine}
                     resolution={lifeWeatherBrief.resolution}
                     whyThisPerson={lifeWeatherBrief.whyThisPerson}
-                    behaviorTell={lifeWeatherBrief.behaviorTell}
+                    behaviorTell={shownBrief.behaviorTell}
                     chartConfidence={lifeWeatherBrief.chartConfidence}
                     readConfidence={lifeWeatherBrief.readConfidence}
                     chartConfidenceLabel={lifeWeatherBrief.chartConfidenceLabel}

@@ -96,6 +96,30 @@ describe('today-brief route', () => {
     );
   });
 
+  it('forwards hot domains and supporting facts', async () => {
+    (polishTodayBrief as jest.Mock).mockResolvedValue(null);
+
+    const response = await POST(
+      requestWith(async () =>
+        JSON.stringify({
+          date: '2026-11-12',
+          leadFact: 'Moon squares natal Mars',
+          domains: [' Work ', '', 3, 'Money', 'Home', 'Body', 'Self'],
+          supportingFacts: [' Work: a decision is waiting ', '', 4, 'Home: mood in the room'],
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true, data: null });
+    expect(polishTodayBrief).toHaveBeenCalledWith(
+      expect.objectContaining({
+        domains: ['Work', 'Money', 'Home', 'Body'],
+        supportingFacts: ['Work: a decision is waiting', 'Home: mood in the room'],
+      }),
+    );
+  });
+
   it('warns when reading the body fails for a real reason', async () => {
     const response = await POST(
       requestWith(async () => {

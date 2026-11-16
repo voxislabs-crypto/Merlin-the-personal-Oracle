@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { TODAY_BRIEF_LIMITS } from '@/lib/atmosphere/today-brief-evidence';
 import {
   polishTodayBrief,
   type TodayBriefPolishInput,
@@ -17,6 +18,18 @@ function asBool(value: unknown): boolean {
 function asNum(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   return value;
+}
+
+function asStringList(value: unknown, limit: number, max: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    const text = asString(item, max);
+    if (!text) continue;
+    out.push(text);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 function isTruncatedBody(error: unknown): boolean {
@@ -61,8 +74,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const date = asString(body.date, 12);
-    const leadFact = asString(body.leadFact, 280);
+    const date = asString(body.date, TODAY_BRIEF_LIMITS.date);
+    const leadFact = asString(body.leadFact, TODAY_BRIEF_LIMITS.leadFact);
     if (!date || !leadFact) {
       return NextResponse.json({ success: false, error: 'Missing date or lead fact' }, { status: 400 });
     }
@@ -70,20 +83,23 @@ export async function POST(request: Request) {
     const input: TodayBriefPolishInput = {
       date,
       leadFact,
-      leadFactDisplay: asString(body.leadFactDisplay, 80),
-      chartWhy: asString(body.chartWhy, 800),
-      move: asString(body.move, 400),
-      watchFor: asString(body.watchFor, 280),
-      operationalTension: asString(body.operationalTension, 400) || null,
-      doNot: asString(body.doNot, 220) || undefined,
-      coreType: asString(body.coreType, 8) || null,
-      maskType: asString(body.maskType, 8) || null,
-      sunSign: asString(body.sunSign, 24) || null,
-      moonSign: asString(body.moonSign, 24) || null,
-      moonPhase: asString(body.moonPhase, 40) || null,
-      domains: Array.isArray(body.domains)
-        ? body.domains.filter((d): d is string => typeof d === 'string').slice(0, 4)
-        : [],
+      leadFactDisplay: asString(body.leadFactDisplay, TODAY_BRIEF_LIMITS.leadFactDisplay),
+      chartWhy: asString(body.chartWhy, TODAY_BRIEF_LIMITS.chartWhy),
+      move: asString(body.move, TODAY_BRIEF_LIMITS.move),
+      watchFor: asString(body.watchFor, TODAY_BRIEF_LIMITS.watchFor),
+      operationalTension: asString(body.operationalTension, TODAY_BRIEF_LIMITS.operationalTension) || null,
+      doNot: asString(body.doNot, TODAY_BRIEF_LIMITS.doNot) || undefined,
+      coreType: asString(body.coreType, TODAY_BRIEF_LIMITS.coreType) || null,
+      maskType: asString(body.maskType, TODAY_BRIEF_LIMITS.maskType) || null,
+      sunSign: asString(body.sunSign, TODAY_BRIEF_LIMITS.sunSign) || null,
+      moonSign: asString(body.moonSign, TODAY_BRIEF_LIMITS.moonSign) || null,
+      moonPhase: asString(body.moonPhase, TODAY_BRIEF_LIMITS.moonPhase) || null,
+      domains: asStringList(body.domains, TODAY_BRIEF_LIMITS.domains, TODAY_BRIEF_LIMITS.domainLength),
+      supportingFacts: asStringList(
+        body.supportingFacts,
+        TODAY_BRIEF_LIMITS.supportingFacts,
+        TODAY_BRIEF_LIMITS.factLength,
+      ),
       heldFromYesterday: asBool(body.heldFromYesterday),
       yesterdayRestless: asBool(body.yesterdayRestless),
       streak: asNum(body.streak),
